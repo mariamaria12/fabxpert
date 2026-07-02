@@ -1,0 +1,13 @@
+// Prisma schema for FabXpert
+// Database: Supabase (Postgres) — used as managed Postgres only.
+// Models will be added in the packages/db implementation step.
+// See docs/architecture.md for the planned domain model.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}

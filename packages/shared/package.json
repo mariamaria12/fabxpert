@@ -1,0 +1,19 @@
+{
+  "name": "@fabxpert/shared",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint \"src/**/*.ts\""
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.10",
+    "typescript": "^5.5.4"
+  }
+}

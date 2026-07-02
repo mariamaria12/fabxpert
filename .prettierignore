@@ -1,0 +1,6 @@
+node_modules
+dist
+.next
+build
+*.lock
+pnpm-lock.yaml

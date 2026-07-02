@@ -1,0 +1,12 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# Build-script approvals managed by `pnpm approve-builds` (pnpm 11+).
+allowBuilds:
+  '@nestjs/core': true
+  '@prisma/client': true
+  '@prisma/engines': true
+  prisma: true
+  sharp: true
+  unrs-resolver: true
