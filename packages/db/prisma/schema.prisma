@@ -21,6 +21,19 @@ enum Role {
   EMPLOYEE
 }
 
+enum ProjectStatus {
+  CIORNA           // Draft
+  IN_OFERTARE      // Quotation
+  CASTIGAT         // Awarded
+  IN_PROIECTARE    // Engineering
+  IN_PRODUCTIE     // In Production
+  PREGATIT_LIVRARE // Ready for Delivery
+  LIVRAT           // Delivered
+  FINALIZAT        // Completed
+  SUSPENDAT        // On Hold
+  ANULAT           // Cancelled
+}
+
 // ---------------------------------------------------------------------------
 // EmployeeRole
 // Admin-managed lookup table for job roles (e.g. "Sudor", "Vopsitor").
@@ -38,6 +51,24 @@ model EmployeeRole {
   persons Person[]
 
   @@map("employee_roles")
+}
+
+// ---------------------------------------------------------------------------
+// Activity
+// Admin-managed lookup table for work activities (e.g. "Sudare", "Vopsire").
+// Not an enum — rows are managed at runtime, not compile-time.
+// Same structural pattern as EmployeeRole.
+// ---------------------------------------------------------------------------
+
+model Activity {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@map("activities")
 }
 
 // ---------------------------------------------------------------------------
@@ -109,5 +140,30 @@ model Company {
   updatedAt           DateTime  @updatedAt
   deletedAt           DateTime?
 
+  projects Project[]
+
   @@map("companies")
+}
+
+// ---------------------------------------------------------------------------
+// Project
+// Belongs to exactly one Company (the client). No multi-company association in MVP.
+// ---------------------------------------------------------------------------
+
+model Project {
+  id                String        @id @default(uuid())
+  name              String
+  code              String        @unique
+  status            ProjectStatus @default(CIORNA)
+  dueDate           DateTime?
+  readyForExecution Boolean       @default(false)
+  color             String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  deletedAt         DateTime?
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@map("projects")
 }

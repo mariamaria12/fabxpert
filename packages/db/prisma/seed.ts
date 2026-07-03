@@ -11,9 +11,19 @@ const employeeRoles = [
   'Administrativ',
 ];
 
+const activities = [
+  'Debitare (inclusiv CNC intern)',
+  'Asamblare',
+  'Sudare',
+  'Vopsire',
+  'Rectificare',
+  'Premontaj/Montaj',
+  'Administrativ',
+  'CNC extern',
+];
+
 async function main() {
   console.log('Seeding EmployeeRole rows...');
-
   for (const name of employeeRoles) {
     const role = await prisma.employeeRole.upsert({
       where: { name },
@@ -22,8 +32,18 @@ async function main() {
     });
     console.log(`  ✓ ${role.name} (${role.id})`);
   }
+  console.log(`Done — ${employeeRoles.length} EmployeeRole rows seeded.\n`);
 
-  console.log(`\nDone — ${employeeRoles.length} EmployeeRole rows seeded.`);
+  console.log('Seeding Activity rows...');
+  for (const name of activities) {
+    const activity = await prisma.activity.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    });
+    console.log(`  ✓ ${activity.name} (${activity.id})`);
+  }
+  console.log(`Done — ${activities.length} Activity rows seeded.`);
 }
 
 main()
