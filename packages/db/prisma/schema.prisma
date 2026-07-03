@@ -1,13 +1,113 @@
 // Prisma schema for FabXpert
 // Database: Supabase (Postgres) — used as managed Postgres only.
-// Models will be added in the packages/db implementation step.
-// See docs/architecture.md for the planned domain model.
+// See docs/architecture.md for the domain model and design decisions.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  EMPLOYEE
+}
+
+// ---------------------------------------------------------------------------
+// EmployeeRole
+// Admin-managed lookup table for job roles (e.g. "Sudor", "Vopsitor").
+// Not an enum — rows are managed at runtime, not compile-time.
+// ---------------------------------------------------------------------------
+
+model EmployeeRole {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  persons Person[]
+
+  @@map("employee_roles")
+}
+
+// ---------------------------------------------------------------------------
+// Person
+// Represents an employee (name, contact info). Not every Person has a User.
+// ---------------------------------------------------------------------------
+
+model Person {
+  id         String    @id @default(uuid())
+  firstName  String
+  lastName   String
+  email      String?
+  phone      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  // Optional link to a job role — can be assigned after creation.
+  employeeRoleId String?
+  employeeRole   EmployeeRole? @relation(fields: [employeeRoleId], references: [id])
+
+  // A User always maps to exactly one Person; back-reference is optional.
+  user User?
+
+  @@map("persons")
+}
+
+// ---------------------------------------------------------------------------
+// User
+// Represents a login account. Always linked to exactly one Person.
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  role         Role      @default(EMPLOYEE)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  // Required: every User must reference exactly one Person.
+  personId String @unique
+  person   Person @relation(fields: [personId], references: [id])
+
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// Company
+// Represents a client — the beneficiary of fabrication projects.
+// Not a platform tenant; not a supplier (MVP scope).
+// ---------------------------------------------------------------------------
+
+model Company {
+  id                  String    @id @default(uuid())
+  name                String
+  taxCode             String?
+  tradeRegistryNumber String?
+  registeredAddress   String?
+  phone               String?
+  deliveryAddress     String?
+  legalRepresentative String?
+  email               String?
+  contactPerson       String?
+  contactPersonPhone  String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+
+  @@map("companies")
 }

@@ -344,6 +344,7 @@ FabXpert uses two environments: development and production. No staging environme
   DATABASE_URL is set in packages/db/.env (gitignored, never committed).
 - **production** — the live environment. Own Supabase project (fabxpert-prod). 
   DATABASE_URL is set as an environment variable on the production host (not a local file).
+  Not provisioned yet — will be created closer to the ship date once the Supabase plan is upgraded.
 
 There is no local database — "development" means running the apps locally against the 
 cloud fabxpert-dev Supabase project, not a local Postgres instance.
@@ -353,4 +354,5 @@ Migrations:
 - production: `prisma migrate deploy` (applies existing migration files only — never 
   generates new ones directly against prod)
 
+  
 ---
