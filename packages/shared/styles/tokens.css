@@ -1,0 +1,54 @@
+/*
+ * FabXpert design tokens — single source of truth for colors.
+ * Shared across apps/web and (later) apps/mobile.
+ *
+ * Currently a single dark theme, defined on :root.
+ * A future light theme or brand variant can be added as an override block
+ * without touching consuming code, e.g.:
+ *
+ *   [data-theme='light'] {
+ *     --color-bg: ...;
+ *     ...
+ *   }
+ *
+ * Components must reference tokens (via Tailwind utilities or var(--...)),
+ * never hardcoded hex values.
+ */
+
+:root {
+  /* Core palette */
+  --color-bg: #1f1e19;
+  --color-surface: #26251e;
+  --color-surface-raised: rgba(255, 255, 255, 0.045);
+  --color-border: rgba(255, 255, 255, 0.12);
+  --color-border-subtle: rgba(255, 255, 255, 0.07);
+  --color-text-primary: #f0eee6;
+  --color-text-secondary: #b8b6ac;
+  --color-text-muted: #8c8a80;
+  --color-accent: #d9a441;
+  --color-accent-contrast: #2b2107;
+  --color-danger-text: #f09595;
+  --color-success-icon: #97c459;
+
+  /* Project status badges */
+  --status-ciorna-bg: #444441;
+  --status-ciorna-text: #d3d1c7;
+  --status-in-ofertare-bg: #0c447c;
+  --status-in-ofertare-text: #b5d4f4;
+  --status-castigat-bg: #085041;
+  --status-castigat-text: #9fe1cb;
+  --status-in-proiectare-bg: #3c3489;
+  --status-in-proiectare-text: #cecbf6;
+  --status-in-productie-bg: #633806;
+  --status-in-productie-text: #fac775;
+  --status-pregatit-livrare-bg: #712b13;
+  --status-pregatit-livrare-text: #f5c4b3;
+  --status-livrat-bg: #27500a;
+  --status-livrat-text: #c0dd97;
+  --status-finalizat-bg: #27500a;
+  --status-finalizat-text: #c0dd97;
+  --status-suspendat-bg: #444441;
+  --status-suspendat-text: #d3d1c7;
+  --status-anulat-bg: #791f1f;
+  --status-anulat-text: #f7c1c1;
+}
