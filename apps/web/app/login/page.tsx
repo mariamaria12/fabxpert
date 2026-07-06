@@ -1,14 +1,47 @@
 'use client';
 
+import { ApiError, getMe, login, logout } from '@fabxpert/shared';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    // auth wiring added in next step
+    if (!username.trim() || !password || isSubmitting) {
+      return;
+    }
+
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      await login(username.trim(), password);
+      const me = await getMe();
+
+      if (me.role === 'ADMIN') {
+        router.replace('/');
+        return;
+      }
+
+      // EMPLOYEE accounts are mobile-only (architecture.md, Authorization) — clear the session.
+      await logout();
+      setError('Acest cont este pentru aplicația mobilă.');
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 0) {
+        setError('Nu s-a putut contacta serverul.');
+      } else {
+        // Generic on purpose — the API doesn't distinguish either (avoids user enumeration).
+        setError('Utilizator sau parolă incorecte.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -67,10 +100,17 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="mt-2 w-full rounded-md bg-accent py-[11px] text-sm font-medium text-accent-contrast"
+            disabled={isSubmitting}
+            className="mt-2 w-full rounded-md bg-accent py-[11px] text-sm font-medium text-accent-contrast disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Conectare
+            {isSubmitting ? 'Se conectează…' : 'Conectare'}
           </button>
+
+          {error && (
+            <p role="alert" className="text-center text-xs text-danger">
+              {error}
+            </p>
+          )}
         </form>
       </div>
     </main>
