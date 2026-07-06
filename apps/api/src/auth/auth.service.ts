@@ -1,11 +1,60 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { Role } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 
-// Cookie max-age in milliseconds — keep in sync with JWT_EXPIRY.
-export const AUTH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 export const AUTH_COOKIE_NAME = 'access_token';
+
+export interface LoginResult {
+  token: string;
+  /** Milliseconds for a persistent cookie; omit for a session cookie (no maxAge). */
+  cookieMaxAgeMs?: number;
+}
+
+/** Parse a duration string like "30d", "1h", "365d" into milliseconds. */
+function parseDurationMs(duration: string): number {
+  const match = /^(\d+)([smhd])$/.exec(duration.trim());
+  if (!match) {
+    throw new Error(`Invalid JWT duration format: "${duration}"`);
+  }
+  const value = Number.parseInt(match[1], 10);
+  switch (match[2]) {
+    case 's':
+      return value * 1000;
+    case 'm':
+      return value * 60 * 1000;
+    case 'h':
+      return value * 60 * 60 * 1000;
+    case 'd':
+      return value * 24 * 60 * 60 * 1000;
+    default:
+      throw new Error(`Invalid JWT duration unit: "${match[2]}"`);
+  }
+}
+
+function getRememberExpiry(role: Role): string {
+  if (role === 'ADMIN') {
+    const expiry = process.env.JWT_REMEMBER_EXPIRY_ADMIN;
+    if (!expiry) {
+      throw new Error('JWT_REMEMBER_EXPIRY_ADMIN environment variable is not set.');
+    }
+    return expiry;
+  }
+  const expiry = process.env.JWT_REMEMBER_EXPIRY_EMPLOYEE;
+  if (!expiry) {
+    throw new Error('JWT_REMEMBER_EXPIRY_EMPLOYEE environment variable is not set.');
+  }
+  return expiry;
+}
+
+function getSessionExpiry(): string {
+  const expiry = process.env.JWT_SESSION_EXPIRY;
+  if (!expiry) {
+    throw new Error('JWT_SESSION_EXPIRY environment variable is not set.');
+  }
+  return expiry;
+}
 
 @Injectable()
 export class AuthService {
@@ -14,7 +63,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async login(email: string, password: string): Promise<string> {
+  async login(email: string, password: string, rememberMe: boolean): Promise<LoginResult> {
     const user = await this.prisma.user.findUnique({
       where: { email },
       select: { id: true, passwordHash: true, role: true, isActive: true },
@@ -28,7 +77,15 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return this.jwtService.sign({ sub: user.id, role: user.role });
+    if (rememberMe) {
+      const expiresIn = getRememberExpiry(user.role);
+      const token = this.jwtService.sign({ sub: user.id, role: user.role }, { expiresIn });
+      return { token, cookieMaxAgeMs: parseDurationMs(expiresIn) };
+    }
+
+    const expiresIn = getSessionExpiry();
+    const token = this.jwtService.sign({ sub: user.id, role: user.role }, { expiresIn });
+    return { token };
   }
 
   async getMe(userId: string) {

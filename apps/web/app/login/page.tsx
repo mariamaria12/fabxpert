@@ -21,7 +21,7 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      await login(username.trim(), password);
+      await login(username.trim(), password, true);
       const me = await getMe();
 
       if (me.role === 'ADMIN') {

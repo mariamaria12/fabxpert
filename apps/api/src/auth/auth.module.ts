@@ -16,7 +16,7 @@ import { JwtStrategy } from './jwt.strategy';
         }
         return {
           secret,
-          signOptions: { expiresIn: process.env.JWT_EXPIRY ?? '7d' },
+          // expiresIn is set per-token at sign time in AuthService (remember-me vs session).
         };
       },
     }),

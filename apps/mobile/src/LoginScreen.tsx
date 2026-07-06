@@ -22,7 +22,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     setIsSubmitting(true);
 
     try {
-      await login(username.trim(), password);
+      await login(username.trim(), password, true);
       const me = await getMe();
 
       if (me.role === 'EMPLOYEE' && me.isActive) {

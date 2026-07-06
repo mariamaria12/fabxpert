@@ -12,10 +12,14 @@ export interface MeResponse {
   } | null;
 }
 
-export async function login(email: string, password: string): Promise<void> {
+export async function login(
+  email: string,
+  password: string,
+  rememberMe: boolean,
+): Promise<void> {
   await request<{ success: boolean }>('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, rememberMe }),
   });
 }
 
