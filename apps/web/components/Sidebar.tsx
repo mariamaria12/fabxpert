@@ -53,10 +53,10 @@ export function Sidebar({
         collapsed ? 'w-14' : 'w-[168px]'
       }`}
     >
-      {/* Wordmark + collapse toggle */}
+      {/* Wordmark + collapse toggle — single row in both states */}
       <div
-        className={`flex items-center py-3 ${
-          collapsed ? 'flex-col gap-1' : 'justify-between pl-3 pr-2'
+        className={`flex items-center justify-between py-3 ${
+          collapsed ? 'pl-2 pr-1' : 'pl-3 pr-1.5'
         }`}
       >
         <Link
@@ -80,12 +80,10 @@ export function Sidebar({
             type="button"
             onClick={onToggleCollapse}
             title={collapsed ? 'Extinde meniul' : 'Restrânge meniul'}
-            className="text-text-muted hover:text-text-primary"
+            className="flex h-8 w-6 shrink-0 items-center justify-center rounded-md text-text-muted hover:bg-surface-raised hover:text-text-primary"
           >
             <i
-              className={`ti text-lg ${
-                collapsed ? 'ti-layout-sidebar-left-expand' : 'ti-layout-sidebar-left-collapse'
-              }`}
+              className={`ti text-base ${collapsed ? 'ti-chevron-right' : 'ti-chevron-left'}`}
               aria-hidden="true"
             />
           </button>
