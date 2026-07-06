@@ -5,12 +5,16 @@
   "scripts": {
     "build": "nest build",
     "dev": "nest start --watch",
+    "predev": "pnpm --filter @fabxpert/shared build",
     "start": "node dist/main",
+    "prestart": "pnpm --filter @fabxpert/shared build",
+    "prebuild": "pnpm --filter @fabxpert/shared build",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@fabxpert/db": "workspace:*",
+    "@fabxpert/shared": "workspace:*",
     "@nestjs/common": "^10.4.15",
     "@nestjs/config": "^3.3.0",
     "@nestjs/core": "^10.4.15",
@@ -23,7 +27,8 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.9",

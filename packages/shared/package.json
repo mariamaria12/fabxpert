@@ -2,10 +2,21 @@
   "name": "@fabxpert/shared",
   "version": "0.0.1",
   "private": true,
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./dto/company.dto": {
+      "types": "./dist/dto/company.dto.d.ts",
+      "default": "./dist/dto/company.dto.js"
+    },
+    "./dto/pagination.dto": {
+      "types": "./dist/dto/pagination.dto.d.ts",
+      "default": "./dist/dto/pagination.dto.js"
+    },
     "./styles/tokens.css": "./styles/tokens.css"
   },
   "scripts": {
@@ -16,5 +27,8 @@
   "devDependencies": {
     "@types/node": "^20.17.10",
     "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
   }
 }
