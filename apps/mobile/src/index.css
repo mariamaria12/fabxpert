@@ -1,0 +1,57 @@
+/*
+ * Colors intentionally hardcoded to match packages/shared/styles/tokens.css
+ * (--color-bg, --color-text-primary, --color-accent) for this scaffold step;
+ * the shared token file gets wired in when real screens are built.
+ */
+
+* {
+  margin: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background: #1f1e19;
+  color: #f0eee6;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 16px;
+}
+
+.wordmark {
+  display: flex;
+  align-items: baseline;
+  font-weight: 500;
+}
+
+.wordmark-side {
+  font-size: 22px;
+  letter-spacing: 0.06em;
+}
+
+.wordmark-x {
+  margin: 0 -4px;
+  font-size: 52px;
+  line-height: 1;
+  color: #d9a441;
+}
+
+.subtitle {
+  margin-top: 16px;
+  font-size: 14px;
+  opacity: 0.6;
+}
