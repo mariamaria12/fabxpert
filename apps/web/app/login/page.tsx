@@ -8,6 +8,8 @@ export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -21,7 +23,7 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      await login(username.trim(), password, true);
+      await login(username.trim(), password, rememberMe);
       const me = await getMe();
 
       if (me.role === 'ADMIN') {
@@ -87,16 +89,39 @@ export default function LoginPage() {
             >
               Parolă
             </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="••••••••"
-              className="w-full rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-            />
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="••••••••"
+                className="w-full rounded-md border border-border bg-surface-raised py-[10px] pl-3 pr-11 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                aria-label={showPassword ? 'Ascunde parola' : 'Arată parola'}
+                className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-text-muted hover:text-text-secondary"
+              >
+                <i
+                  className={`ti text-lg ${showPassword ? 'ti-eye-off' : 'ti-eye'}`}
+                  aria-hidden="true"
+                />
+              </button>
+            </div>
           </div>
+
+          <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-xs text-text-secondary">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(event) => setRememberMe(event.target.checked)}
+              className="size-[18px] cursor-pointer accent-accent"
+            />
+            Ține-mă minte
+          </label>
 
           <button
             type="submit"

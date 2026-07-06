@@ -18,19 +18,20 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Login screen */
+/* Login screen — bottom sheet layout */
 .login-screen {
   display: flex;
+  flex-direction: column;
   min-height: 100dvh;
-  align-items: center;
-  justify-content: center;
-  padding: 24px 20px;
   background: var(--color-bg);
 }
 
-.login-content {
-  width: 100%;
-  max-width: 320px;
+.login-top {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px;
 }
 
 .login-wordmark-block {
@@ -72,21 +73,28 @@ body {
   color: var(--color-text-muted);
 }
 
+.login-sheet {
+  background: var(--color-surface);
+  border-radius: 28px 28px 0 0;
+  padding: 12px 20px 32px;
+  padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px));
+}
+
+.login-sheet-handle {
+  width: 36px;
+  height: 4px;
+  margin: 0 auto 20px;
+  border-radius: 999px;
+  background: var(--color-border-subtle);
+}
+
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-top: 40px;
+  gap: 12px;
 }
 
-.login-field label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 12px;
-  color: var(--color-text-secondary);
-}
-
-.login-field input {
+.login-input {
   width: 100%;
   min-height: 44px;
   padding: 10px 12px;
@@ -98,19 +106,70 @@ body {
   outline: none;
 }
 
-.login-field input::placeholder {
+.login-input::placeholder {
   color: var(--color-text-muted);
 }
 
-.login-field input:focus {
+.login-input:focus {
   border-color: var(--color-accent);
   box-shadow: 0 0 0 1px var(--color-accent);
+}
+
+.password-field {
+  position: relative;
+}
+
+.login-input-with-toggle {
+  padding-right: 44px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.password-toggle:hover {
+  color: var(--color-text-secondary);
+}
+
+.password-toggle:active {
+  opacity: 0.8;
+}
+
+.login-remember {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.login-remember input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--color-accent);
+  cursor: pointer;
 }
 
 .login-submit {
   width: 100%;
   min-height: 44px;
-  margin-top: 8px;
+  margin-top: 4px;
   padding: 11px 12px;
   border: none;
   border-radius: 8px;
