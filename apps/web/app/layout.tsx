@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import '@fabxpert/shared/styles/tokens.css';
+import '@tabler/icons-webfont/dist/tabler-icons.min.css';
 import './globals.css';
 
 import { ApiClientBootstrap } from './api-client-bootstrap';

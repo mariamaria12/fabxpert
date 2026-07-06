@@ -106,7 +106,7 @@ Validation is done with **Zod** schemas (shared between API and frontends via `p
 
 # apps/web
 
-Next.js application.
+Next.js application (App Router).
 
 Used by administrators and office employees.
 
@@ -120,13 +120,19 @@ Responsibilities:
 - Timesheets
 - Administration
 
+**Styling:** Tailwind CSS, configured to consume the color tokens defined in `packages/shared/styles/tokens.css` (see Shared Packages below) rather than hardcoded hex values. This keeps theming (e.g. a future light theme) a matter of editing the shared token file, not touching components.
+
+**Visual direction:** industrial/technical, dark-mode-first, data-dense. See the design tokens in `packages/shared/styles/tokens.css` for the concrete palette (background, surface, text, accent, and per-status colors for `ProjectStatus`).
+
 ---
 
 # apps/mobile
 
 The mobile application is dedicated exclusively to production employees.
 
-For **V1**, this application will be implemented as a **Progressive Web App (PWA)**.
+For **V1**, this application will be implemented as a **Progressive Web App (PWA)**, built with **Vite + React** (not Next.js).
+
+Rationale: apps/mobile has no need for server-side rendering, server routing, or SEO — every screen is behind a login and purely client-side (form inputs, selections, API calls). Next.js's server-oriented features would add unused complexity and friction with PWA tooling. Vite is a lightweight build tool (not a framework) that compiles React/TypeScript into optimized static assets, keeping the app minimal and fast on mobile networks. PWA capabilities (manifest, service worker, offline caching) are provided via **vite-plugin-pwa**.
 
 The reason for creating a separate application instead of integrating it into the web app is to keep a clear architectural separation and allow an easy migration to React Native in the future.
 
@@ -136,7 +142,7 @@ The folder structure will therefore remain stable:
 apps/mobile
 ```
 
-Later, the implementation can change from PWA to React Native without affecting the rest of the project.
+Later, the implementation can change from Vite+React (PWA) to React Native without affecting the rest of the project. Note: this migration rewrites the UI layer regardless of which web-based tool was used, so choosing Vite over Next.js now costs nothing at that point.
 
 ---
 
@@ -185,6 +191,8 @@ Contains code shared between all applications:
 - Validation schemas (Zod)
 - Utility functions
 - Constants
+- `src/api/` — a framework-agnostic, typed HTTP client layer (`client.ts` for the base request/error handling, `auth.ts` for auth-specific functions like `login`, `logout`, `getMe`, etc.). This is the **only** place that talks to `apps/api` directly — no app (`apps/web`, `apps/mobile`) should call `fetch` on API endpoints directly. The client is configured once at each app's startup via `configureApiClient(baseUrl)`, reading that app's own env var (e.g. `NEXT_PUBLIC_API_URL`) — the shared package itself never reads env vars directly, so it stays reusable across Next.js and Vite apps alike.
+- `styles/tokens.css` — the color token system (CSS custom properties) consumed by `apps/web` via Tailwind, and later by `apps/mobile`. Single source of truth for the palette; supports adding a future theme (e.g. light mode) as an override block without touching consuming components.
 
 Business definitions should never be duplicated.
 
@@ -278,6 +286,35 @@ Relationships should be designed with future modules in mind.
 
 ---
 
+# Environments
+
+FabXpert uses two environments: development and production. No staging environment for the MVP — speed is prioritized, with the tradeoff that migrations and changes are not tested in an intermediate environment before prod.
+
+- **development** — used while building locally. Own Supabase project (`fabxpert-dev`).
+  `DATABASE_URL` is set in `packages/db/.env` (gitignored, never committed).
+- **production** — the live environment. Own Supabase project (`fabxpert-prod`).
+  `DATABASE_URL` is set as an environment variable on the production host (not a local file).
+  Not provisioned yet — will be created closer to the ship date once the Supabase plan is upgraded.
+
+There is no local database — "development" means running the apps locally against the cloud `fabxpert-dev` Supabase project, not a local Postgres instance.
+
+Migrations:
+- development: `prisma migrate dev` (generates and applies migration files)
+- production: `prisma migrate deploy` (applies existing migration files only — never generates new ones directly against prod)
+
+---
+
+# Deployment
+
+- **apps/web** → **Vercel**. Native Next.js support, zero-config monorepo detection (root directory set to `apps/web`).
+- **apps/mobile** → **Vercel**, as a *separate* Vercel project from apps/web (root directory set to `apps/mobile`), each with its own domain (e.g. `app.fabxpert.ro` for web, a subdomain for the mobile PWA). Kept separate rather than combined into one deploy, consistent with the architectural separation described in the apps/mobile section (independent migration path to React Native later).
+- **apps/api** → **Railway**. Chosen over serverless/edge platforms because NestJS + Prisma benefit from a persistent process and stable long-lived database connections, rather than cold-starting a connection on every request. Railway deploys directly from the monorepo (root directory set to `apps/api`), with environment variables (`DATABASE_URL`, `JWT_SECRET`, `JWT_EXPIRY`, `WEB_APP_URL` for CORS, etc.) managed per environment through its dashboard.
+- **Database** → Supabase (Postgres), per the Environments section above — `fabxpert-dev` now, `fabxpert-prod` provisioned shortly before the production deploy.
+
+Each environment (development, production) has its own full set of deployed services (Vercel projects + Railway service + Supabase project) with matching env vars — no environment shares a database or API deployment with another.
+
+---
+
 # Development Principles
 
 - Keep the MVP small.
@@ -322,9 +359,8 @@ These modules are intentionally postponed until the core architecture has been v
 These are acknowledged but intentionally deferred — not resolved here — so they don't block starting implementation prompts. They should be addressed when the relevant module is actually implemented:
 
 - API response/error format conventions (envelope shape, pagination, naming case in API vs DB)
-- Environment/config strategy (.env structure, dev/staging/prod)
 - Testing strategy (unit/e2e coverage expectations for MVP)
-- CI/CD and deployment target
+- CI/CD pipeline (deployment *target* is now decided — see Deployment section — but no automated pipeline is set up yet; deploys are manual for MVP)
 
 ---
 
@@ -333,26 +369,3 @@ These are acknowledged but intentionally deferred — not resolved here — so t
 The objective of the MVP is **not** to build a complete ERP.
 
 The objective is to validate the architecture, establish clean development patterns, and create a solid foundation that can be expanded incrementally into a complete fabrication management platform.
-
----
-
-# Environments
-
-FabXpert uses two environments: development and production. No staging environment for the MVP — speed is prioritized, with the tradeoff that migrations and changes are not tested in an intermediate environment before prod.
-
-- **development** — used while building locally. Own Supabase project (fabxpert-dev). 
-  DATABASE_URL is set in packages/db/.env (gitignored, never committed).
-- **production** — the live environment. Own Supabase project (fabxpert-prod). 
-  DATABASE_URL is set as an environment variable on the production host (not a local file).
-  Not provisioned yet — will be created closer to the ship date once the Supabase plan is upgraded.
-
-There is no local database — "development" means running the apps locally against the 
-cloud fabxpert-dev Supabase project, not a local Postgres instance.
-
-Migrations:
-- development: `prisma migrate dev` (generates and applies migration files)
-- production: `prisma migrate deploy` (applies existing migration files only — never 
-  generates new ones directly against prod)
-
-  
----

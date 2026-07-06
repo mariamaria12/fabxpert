@@ -10,4 +10,6 @@ allowBuilds:
   esbuild: true
   prisma: true
   sharp: true
+  # Build script not needed — @tabler/icons-webfont ships prebuilt fonts in dist/.
+  ttf2woff2: false
   unrs-resolver: true
