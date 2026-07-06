@@ -354,11 +354,52 @@ These modules are intentionally postponed until the core architecture has been v
 
 ---
 
+# API Conventions
+
+Shared patterns for `apps/api` REST endpoints. Module-specific prompts should follow these rather than inventing per-resource variants.
+
+## List endpoints (pagination)
+
+All collection/list endpoints accept standard query parameters:
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `page` | number | `1` | 1-indexed page number |
+| `pageSize` | number | `20` | Rows per page |
+
+Example: `GET /projects?page=2&pageSize=20`
+
+### List response envelope
+
+Every paginated list endpoint returns the same shape:
+
+```json
+{
+  "data": [],
+  "meta": {
+    "page": 1,
+    "pageSize": 20,
+    "total": 142,
+    "totalPages": 8
+  }
+}
+```
+
+- `data` — rows for the requested page only (already sliced server-side).
+- `meta.total` — total row count across all pages (for pagination UI).
+- `meta.totalPages` — `ceil(total / pageSize)`; minimum `1` when `total` is `0`.
+
+The web app's `DataTable` and `Pagination` components are designed to work with this envelope: the parent page fetches with `page`/`pageSize`, passes `data` to `DataTable`, and passes `meta.page`, `meta.pageSize`, and `meta.total` to `Pagination`.
+
+Sorting, filtering, and non-list response/error envelopes remain open — see Open Items below.
+
+---
+
 # Open Items (deferred, not blocking MVP start)
 
 These are acknowledged but intentionally deferred — not resolved here — so they don't block starting implementation prompts. They should be addressed when the relevant module is actually implemented:
 
-- API response/error format conventions (envelope shape, pagination, naming case in API vs DB)
+- API response/error format conventions for non-list endpoints (envelope shape, naming case in API vs DB)
 - Testing strategy (unit/e2e coverage expectations for MVP)
 - CI/CD pipeline (deployment *target* is now decided — see Deployment section — but no automated pipeline is set up yet; deploys are manual for MVP)
 

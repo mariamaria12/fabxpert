@@ -6,7 +6,7 @@ import type { Config } from 'tailwindcss';
  * Never hardcode hex values in components — use these utilities.
  */
 const config: Config = {
-  content: ['./app/**/*.{ts,tsx}'],
+  content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
