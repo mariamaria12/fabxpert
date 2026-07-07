@@ -1,4 +1,4 @@
-import { request } from './client';
+import { getApiClientBaseUrl, request } from './client';
 import type {
   CreateTimesheetInput,
   StartTimesheetBodyInput,
@@ -8,11 +8,21 @@ import type {
 } from '../dto/timesheet.dto';
 import type { PaginatedResponse } from '../dto/pagination.dto';
 
+export type TimesheetEventType = 'created' | 'updated' | 'deleted';
+
+export type TimesheetEvent = {
+  type: TimesheetEventType;
+  id: string;
+  personName: string;
+};
+
 export interface ListTimesheetsParams {
   page?: number;
   pageSize?: number;
   personId?: string;
   projectId?: string;
+  createdAtFrom?: string;
+  createdAtTo?: string;
 }
 
 export function startTimesheet(input: StartTimesheetBodyInput) {
@@ -50,6 +60,12 @@ export function listTimesheets(params: ListTimesheetsParams = {}) {
   if (params.projectId !== undefined) {
     searchParams.set('projectId', params.projectId);
   }
+  if (params.createdAtFrom !== undefined) {
+    searchParams.set('createdAtFrom', params.createdAtFrom);
+  }
+  if (params.createdAtTo !== undefined) {
+    searchParams.set('createdAtTo', params.createdAtTo);
+  }
   const query = searchParams.toString();
   return request<PaginatedResponse<TimesheetDto>>(`/timesheets${query ? `?${query}` : ''}`);
 }
@@ -81,4 +97,51 @@ export function updateTimesheet(id: string, input: UpdateTimesheetInput) {
 
 export function deleteTimesheet(id: string) {
   return request<void>(`/timesheets/${id}`, { method: 'DELETE' });
+}
+
+function isTimesheetEvent(value: unknown): value is TimesheetEvent {
+  if (value === null || typeof value !== 'object') {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  return (
+    (record.type === 'created' ||
+      record.type === 'updated' ||
+      record.type === 'deleted') &&
+    typeof record.id === 'string' &&
+    typeof record.personName === 'string'
+  );
+}
+
+/**
+ * Subscribe to live timesheet events (ADMIN SSE stream).
+ * Returns an unsubscribe function that closes the EventSource.
+ */
+export function subscribeToTimesheets(
+  onEvent: (event: TimesheetEvent) => void,
+  onError?: (error: Event) => void,
+): () => void {
+  const source = new EventSource(`${getApiClientBaseUrl()}/timesheets/stream`, {
+    withCredentials: true,
+  });
+
+  source.onmessage = (message) => {
+    try {
+      const parsed: unknown = JSON.parse(message.data);
+      if (isTimesheetEvent(parsed)) {
+        onEvent(parsed);
+      }
+    } catch {
+      // Ignore malformed SSE payloads.
+    }
+  };
+
+  source.onerror = (error) => {
+    onError?.(error);
+  };
+
+  return () => {
+    source.close();
+  };
 }

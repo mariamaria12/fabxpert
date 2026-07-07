@@ -28,6 +28,16 @@ export function configureApiClient(url: string): void {
   baseUrl = url.replace(/\/+$/, '');
 }
 
+/** Returns the configured API base URL (for EventSource and other non-fetch clients). */
+export function getApiClientBaseUrl(): string {
+  if (baseUrl === null) {
+    throw new Error(
+      'API client is not configured. Call configureApiClient(baseUrl) once at app startup.',
+    );
+  }
+  return baseUrl;
+}
+
 /**
  * Internal request helper — use the typed functions (e.g. api/auth.ts) instead
  * of calling this directly from apps.

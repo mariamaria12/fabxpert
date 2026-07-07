@@ -18,6 +18,12 @@ import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { PaginationParams } from '../common/pagination/parse-pagination.util';
 import { notDeleted } from '../common/prisma/soft-delete.util';
 import { PrismaService } from '../prisma/prisma.service';
+import { TimesheetEventsService } from './timesheet-events.service';
+import {
+  createdTimesheetEvent,
+  deletedTimesheetEvent,
+  updatedTimesheetEvent,
+} from './timesheet-events.util';
 
 const timesheetInclude = {
   person: {
@@ -51,6 +57,8 @@ type TimesheetWithRelations = Prisma.TimesheetGetPayload<{
 export interface TimesheetListFilters {
   personId?: string;
   projectId?: string;
+  createdAtFrom?: Date;
+  createdAtTo?: Date;
 }
 
 function toTimesheetDto(timesheet: TimesheetWithRelations): TimesheetDto {
@@ -73,7 +81,10 @@ function toTimesheetDto(timesheet: TimesheetWithRelations): TimesheetDto {
 
 @Injectable()
 export class TimesheetService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly timesheetEvents: TimesheetEventsService,
+  ) {}
 
   async start(
     actor: AuthenticatedUser,
@@ -105,7 +116,9 @@ export class TimesheetService {
       });
     });
 
-    return toTimesheetDto(timesheet);
+    const dto = toTimesheetDto(timesheet);
+    this.timesheetEvents.emit(createdTimesheetEvent(dto.id, dto.person));
+    return dto;
   }
 
   async stop(actor: AuthenticatedUser, input: StopTimesheetInput): Promise<TimesheetDto> {
@@ -124,7 +137,9 @@ export class TimesheetService {
       include: timesheetInclude,
     });
 
-    return toTimesheetDto(timesheet);
+    const dto = toTimesheetDto(timesheet);
+    this.timesheetEvents.emit(updatedTimesheetEvent(dto.id, dto.person));
+    return dto;
   }
 
   async createManual(
@@ -160,7 +175,9 @@ export class TimesheetService {
       });
     });
 
-    return toTimesheetDto(timesheet);
+    const dto = toTimesheetDto(timesheet);
+    this.timesheetEvents.emit(createdTimesheetEvent(dto.id, dto.person));
+    return dto;
   }
 
   async findAll(
@@ -172,14 +189,27 @@ export class TimesheetService {
       ...notDeleted(),
       ...(filters.personId ? { personId: filters.personId } : {}),
       ...(filters.projectId ? { projectId: filters.projectId } : {}),
+      ...(filters.createdAtFrom !== undefined || filters.createdAtTo !== undefined
+        ? {
+            createdAt: {
+              ...(filters.createdAtFrom !== undefined
+                ? { gte: filters.createdAtFrom }
+                : {}),
+              ...(filters.createdAtTo !== undefined ? { lt: filters.createdAtTo } : {}),
+            },
+          }
+        : {}),
     };
+
+    const orderByCreatedAt =
+      filters.createdAtFrom !== undefined || filters.createdAtTo !== undefined;
 
     const [total, rows] = await Promise.all([
       this.prisma.timesheet.count({ where }),
       this.prisma.timesheet.findMany({
         where,
         include: timesheetInclude,
-        orderBy: { startTime: 'desc' },
+        orderBy: orderByCreatedAt ? { createdAt: 'desc' } : { startTime: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
@@ -296,7 +326,9 @@ export class TimesheetService {
       });
     });
 
-    return toTimesheetDto(timesheet);
+    const dto = toTimesheetDto(timesheet);
+    this.timesheetEvents.emit(updatedTimesheetEvent(dto.id, dto.person));
+    return dto;
   }
 
   async softDelete(actor: AuthenticatedUser, id: string): Promise<void> {
@@ -313,6 +345,8 @@ export class TimesheetService {
       where: { id },
       data: { deletedAt: new Date() },
     });
+
+    this.timesheetEvents.emit(deletedTimesheetEvent(id, existing.person));
   }
 
   private rejectPersonIdFromEmployee(role: string, personId?: string): void {

@@ -10,6 +10,7 @@ import {
   Post,
   Query,
   Req,
+  Sse,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { z } from 'zod';
@@ -27,6 +28,7 @@ import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { parsePagination } from '../common/pagination/parse-pagination.util';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import { TimesheetEventsService } from './timesheet-events.service';
 import { TimesheetService } from './timesheet.service';
 
 const idParamSchema = z.string().trim().min(1);
@@ -41,12 +43,16 @@ const uuidQuerySchema = z
 const listFiltersSchema = z.object({
   personId: uuidQuerySchema.optional(),
   projectId: uuidQuerySchema.optional(),
+  createdAtFrom: z.coerce.date().optional(),
+  createdAtTo: z.coerce.date().optional(),
 });
 
 function parseListFilters(query: Record<string, string>) {
   const result = listFiltersSchema.safeParse({
     personId: query.personId,
     projectId: query.projectId,
+    createdAtFrom: query.createdAtFrom,
+    createdAtTo: query.createdAtTo,
   });
 
   if (!result.success) {
@@ -58,7 +64,16 @@ function parseListFilters(query: Record<string, string>) {
 
 @Controller('timesheets')
 export class TimesheetController {
-  constructor(private readonly timesheetService: TimesheetService) {}
+  constructor(
+    private readonly timesheetService: TimesheetService,
+    private readonly timesheetEvents: TimesheetEventsService,
+  ) {}
+
+  @Sse('stream')
+  @Roles('ADMIN')
+  stream() {
+    return this.timesheetEvents.subscribe();
+  }
 
   @Post('start')
   @Roles('ADMIN', 'EMPLOYEE')

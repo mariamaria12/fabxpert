@@ -2,7 +2,7 @@
 // utility functions, and the API client layer.
 // See docs/architecture.md — packages/shared section — for what goes here.
 
-export { ApiError, configureApiClient } from './api/client';
+export { ApiError, configureApiClient, getApiClientBaseUrl } from './api/client';
 export { getMe, login, logout } from './api/auth';
 export type { MeResponse } from './api/auth';
 export {
@@ -120,8 +120,13 @@ export {
   getTimesheet,
   updateTimesheet,
   deleteTimesheet,
+  subscribeToTimesheets,
 } from './api/timesheet';
-export type { ListTimesheetsParams } from './api/timesheet';
+export type {
+  ListTimesheetsParams,
+  TimesheetEvent,
+  TimesheetEventType,
+} from './api/timesheet';
 export {
   startTimesheetSchema,
   startTimesheetBodySchema,

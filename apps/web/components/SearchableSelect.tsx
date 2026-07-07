@@ -54,9 +54,8 @@ export function SearchableSelect({
   const listboxId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  /** Avoid clearing the input before the parent applies the new value after selection. */
-  const pendingValueRef = useRef<string | null>(null);
-  const [inputText, setInputText] = useState('');
+  const dropdownRef = useRef<HTMLUListElement>(null);
+  const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [dropdownStyle, setDropdownStyle] = useState<{
@@ -70,12 +69,15 @@ export function SearchableSelect({
     [options, value],
   );
 
+  const closedLabel = selectedOption?.label ?? selectedLabel ?? '';
+  const displayValue = isOpen ? query : closedLabel;
+
   const filteredOptions = useMemo(() => {
     return options.filter((option) => {
       const searchable = [option.label, option.description ?? ''].join(' ');
-      return matchesSearchText(searchable, inputText);
+      return matchesSearchText(searchable, query);
     });
-  }, [options, inputText]);
+  }, [options, query]);
 
   const selectableOptions = useMemo(
     () => filteredOptions.filter((option) => !option.disabled),
@@ -118,32 +120,6 @@ export function SearchableSelect({
   }, [isOpen, updateDropdownPosition, filteredOptions.length]);
 
   useEffect(() => {
-    if (value !== null && value === pendingValueRef.current) {
-      pendingValueRef.current = null;
-    }
-  }, [value]);
-
-  useEffect(() => {
-    if (isOpen) {
-      return;
-    }
-
-    if (selectedOption) {
-      setInputText(selectedOption.label);
-      return;
-    }
-
-    if (value !== null && selectedLabel) {
-      setInputText(selectedLabel);
-      return;
-    }
-
-    if (value === null && pendingValueRef.current === null) {
-      setInputText('');
-    }
-  }, [selectedOption, isOpen, value, selectedLabel]);
-
-  useEffect(() => {
     if (!isOpen) {
       return;
     }
@@ -153,42 +129,49 @@ export function SearchableSelect({
       if (containerRef.current?.contains(target)) {
         return;
       }
-      setIsOpen(false);
-      if (selectedOption) {
-        setInputText(selectedOption.label);
-      } else if (value !== null && selectedLabel) {
-        setInputText(selectedLabel);
+      if (dropdownRef.current?.contains(target)) {
+        return;
       }
+      setIsOpen(false);
+      setQuery('');
     }
 
     document.addEventListener('mousedown', handlePointerDown);
     return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, [isOpen, selectedOption, value, selectedLabel]);
+  }, [isOpen]);
 
   function openDropdown() {
     if (disabled) {
       return;
     }
+    if (isOpen) {
+      updateDropdownPosition();
+      return;
+    }
+    setQuery(closedLabel);
     setIsOpen(true);
     updateDropdownPosition();
     setHighlightedId(firstSelectableId);
+  }
+
+  function closeDropdown() {
+    setIsOpen(false);
+    setQuery('');
+    setHighlightedId(null);
   }
 
   function selectOption(option: SearchableSelectOption) {
     if (option.disabled) {
       return;
     }
-    pendingValueRef.current = option.id;
     onChange(option.id);
-    setInputText(option.label);
-    setIsOpen(false);
-    setHighlightedId(null);
+    closeDropdown();
+    inputRef.current?.blur();
   }
 
   function clearSelection() {
-    pendingValueRef.current = null;
     onChange(null);
-    setInputText('');
+    setQuery('');
     setHighlightedId(firstSelectableId);
     inputRef.current?.focus();
     setIsOpen(true);
@@ -255,10 +238,7 @@ export function SearchableSelect({
 
     if (event.key === 'Escape') {
       event.preventDefault();
-      setIsOpen(false);
-      if (selectedOption) {
-        setInputText(selectedOption.label);
-      }
+      closeDropdown();
     }
   }
 
@@ -268,6 +248,7 @@ export function SearchableSelect({
     isOpen && dropdownStyle
       ? createPortal(
           <ul
+            ref={dropdownRef}
             id={listboxId}
             role="listbox"
             aria-labelledby={`${id}-label`}
@@ -290,8 +271,10 @@ export function SearchableSelect({
                       role="option"
                       aria-selected={value === option.id}
                       disabled={option.disabled}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => selectOption(option)}
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        selectOption(option);
+                      }}
                       className={`flex w-full items-baseline gap-2 px-3 py-2 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                         isHighlighted
                           ? 'bg-accent/10 text-accent'
@@ -333,18 +316,21 @@ export function SearchableSelect({
           aria-expanded={isOpen}
           aria-controls={listboxId}
           aria-autocomplete="list"
-          value={inputText}
+          value={displayValue}
           disabled={disabled}
           placeholder={placeholder}
           onFocus={openDropdown}
           onClick={openDropdown}
           onChange={(event) => {
             const nextText = event.target.value;
-            setInputText(nextText);
-            if (selectedOption && nextText !== selectedOption.label) {
+            setQuery(nextText);
+            if (value !== null && nextText !== closedLabel) {
               onChange(null);
             }
-            openDropdown();
+            if (!isOpen) {
+              setIsOpen(true);
+              updateDropdownPosition();
+            }
             setHighlightedId(firstSelectableId);
           }}
           onKeyDown={handleKeyDown}
@@ -355,6 +341,7 @@ export function SearchableSelect({
           <button
             type="button"
             aria-label="Șterge selecția"
+            onMouseDown={(event) => event.preventDefault()}
             onClick={clearSelection}
             className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded text-text-muted transition-colors hover:bg-surface hover:text-text-primary"
           >
