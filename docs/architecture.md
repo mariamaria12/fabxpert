@@ -45,6 +45,8 @@ Only the following modules will be implemented:
 - Companies (Clients)
 - Projects
 - Timesheets
+- EmployeeRole (admin-managed lookup)
+- Activity (admin-managed lookup)
 
 No additional business modules should be implemented until the MVP is complete.
 
@@ -118,6 +120,7 @@ Responsibilities:
 - Companies
 - Projects
 - Timesheets
+- Employee roles & Activities (lookup administration)
 - Administration
 
 **Styling:** Tailwind CSS, configured to consume the color tokens defined in `packages/shared/styles/tokens.css` (see Shared Packages below) rather than hardcoded hex values. This keeps theming (e.g. a future light theme) a matter of editing the shared token file, not touching components.
@@ -148,15 +151,21 @@ Later, the implementation can change from Vite+React (PWA) to React Native witho
 
 # Mobile V1 Scope
 
-Employee users can:
+What shipped in the mobile PWA (employee flow):
 
-- Login
-- View their own profile
-- Start a timesheet
-- Stop a timesheet
-- View their own recent time entries
+1. **Login** — remember-me default on; ADMIN accounts are rejected with an inline message (web-only).
+2. **Project selection** — execution-ready projects only (`/projects/available`); cards tinted with project color; **today's total** banner (sum of today's closed entries, page-1 MVP) opens **My timesheets**.
+3. **Activity selection** — required in the UI flow (activity is optional in the API schema).
+4. **Duration-based manual entry** — user enters hours worked; frontend converts to a closed interval `[now − X hours, now]` via `createTimesheet`. Whole-hour stepper (1–16), half-hour precision via free typing; quick presets 2/4/6/8h; optional notes.
+5. **My timesheets** — paginated list grouped by calendar day (local time); day totals; tap today's entries to edit.
+6. **Edit/delete today only (UI rule)** — older entries are read-only in mobile; edit adjusts duration (keeping original `startTime`, shifting `endTime`) and notes; delete uses footer confirmation. **Not enforced server-side** — post-MVP editing of older entries is planned, so PATCH/DELETE remain unrestricted by date for an employee's own rows.
+7. **Toast notifications** — centralized success/error feedback for save/edit/delete operations (inline errors kept for form validation and list retry blocks).
 
-Nothing more.
+**Live timer:** a start/stop timer was built, then **removed from the mobile UI**. API endpoints `POST /timesheets/start` and `POST /timesheets/stop` remain; they are currently unused by any client. API cleanup is deferred (see Open Items).
+
+**Navigation:** persistent header (wordmark resets flow); contextual sub-header on project/activity/time-entry steps; back arrows clear selections.
+
+Nothing else (no admin, no profile screen, no offline queue).
 
 ---
 
@@ -192,7 +201,7 @@ Contains code shared between all applications:
 - Utility functions
 - Constants
 - `src/api/` — a framework-agnostic, typed HTTP client layer (`client.ts` for the base request/error handling, `auth.ts` for auth-specific functions like `login`, `logout`, `getMe`, etc.). This is the **only** place that talks to `apps/api` directly — no app (`apps/web`, `apps/mobile`) should call `fetch` on API endpoints directly. The client is configured once at each app's startup via `configureApiClient(baseUrl)`, reading that app's own env var (e.g. `NEXT_PUBLIC_API_URL`) — the shared package itself never reads env vars directly, so it stays reusable across Next.js and Vite apps alike.
-- `styles/tokens.css` — the color token system (CSS custom properties) consumed by `apps/web` via Tailwind, and later by `apps/mobile`. Single source of truth for the palette; supports adding a future theme (e.g. light mode) as an override block without touching consuming components.
+- `styles/tokens.css` — the color token system (CSS custom properties) consumed by `apps/web` via Tailwind and by `apps/mobile` directly. Single source of truth for the palette; supports adding a future theme (e.g. light mode) as an override block without touching consuming components.
 
 Business definitions should never be duplicated.
 
@@ -203,69 +212,115 @@ Business definitions should never be duplicated.
 Authentication is required for every application.
 
 - Implemented **entirely inside the NestJS API** — Supabase Auth is not used.
-- The web and mobile (PWA) applications will use **HTTP-only cookies** for session handling.
-- Authentication should be implemented only once inside the API.
+- The web and mobile (PWA) applications use **HTTP-only cookies** for session handling (`access_token`).
+- Authentication is implemented once inside the API; frontends call `packages/shared` auth helpers only.
+
+**Remember-me:** login accepts `rememberMe`. When true, JWT expiry is role-specific (`JWT_REMEMBER_EXPIRY_ADMIN`, default 30d; `JWT_REMEMBER_EXPIRY_EMPLOYEE`, default 365d) and the cookie gets a matching `maxAge`. When false, a shorter session expiry (`JWT_SESSION_EXPIRY`, default 1d) is used with a session cookie (no `maxAge`). Mobile defaults remember-me on in the login UI.
+
+**Per-request validation (deliberate deviation from pure stateless JWT):** after JWT signature/expiry checks, `JwtStrategy.validate` reloads the user from the database and rejects the request if `isActive` is false. This makes account deactivation take effect immediately without waiting for token expiry. Login uses the same `isActive` check and a generic `Invalid credentials` message (with constant-time password compare) to avoid user enumeration.
 
 ---
 
 # Authorization
 
-The MVP supports only two roles.
+The MVP supports only two roles: **ADMIN** and **EMPLOYEE**.
+
+Authorization is enforced globally via `AuthGuard` + `RolesGuard` on `apps/api`; route handlers declare allowed roles with `@Roles(...)`.
 
 ## ADMIN
 
-Can manage:
+Full access to all REST modules:
 
-- Users
-- People
-- Companies
-- Projects
-- Timesheets
-
-Has full access.
+- Users, People, Companies, Projects, Timesheets (paginated admin list + CRUD)
+- EmployeeRole and Activity lookup CRUD
+- All timesheet operations, including on behalf of others (`personId` in request body where supported)
 
 ---
 
 ## EMPLOYEE
 
-Can access only the mobile application.
+**Web:** cannot use administration pages (mobile-only role in product terms; enforced by not shipping employee web UI).
 
-Can:
+**Mobile/API self-service:**
 
-- Login
-- View own profile
-- Start timesheet
-- Stop timesheet
-- View own timesheets
+| Endpoint | Access |
+|----------|--------|
+| `GET /projects/available` | Execution-ready projects only (`readyForExecution=true`), reduced DTO (id, name, code, color) |
+| `GET /activities`, `GET /employee-roles` | Active rows only; `?includeInactive=true` is ignored (ADMIN-only filter) |
+| Timesheets | Create closed entries (`POST /timesheets`), list own (`GET /timesheets/mine`), get/patch/delete **own** entries (ownership via linked `Person.id`); `personId` is **never** accepted from employee requests — always resolved server-side from the authenticated user |
+| `POST /timesheets/start`, `POST /timesheets/stop` | Still exposed on the API (built for live timer); **unused by mobile V1** after timer UI removal |
 
-Cannot access administration pages.
+Employees cannot access admin list endpoints (`GET /projects`, `GET /timesheets`, user/person/company CRUD, etc.).
 
-Authorization must always be enforced by the backend.
+Ownership failures return **403**; invalid/inaccessible ids return **404** (including soft-deleted rows).
 
 ---
 
-# Domain Model (MVP - conceptual, not final schema)
+# Domain Model (MVP)
 
-This section defines the core relationships between MVP entities so future implementation prompts don't need to re-derive them.
+Field-level schema lives in `packages/db/prisma/schema.prisma`. Below captures entities, key fields, and relationships as implemented.
 
-### User
-- Represents a **login account** (credentials, role, auth state).
-- Not every `Person` has a `User` (e.g. some employees may never need system access).
+### Soft delete (all entities)
+
+Every entity has `deletedAt`. **Reads** spread `notDeleted()` (`deletedAt: null`) into Prisma queries. **Deletes** are soft everywhere (set `deletedAt`, never hard-delete in MVP modules).
+
+Standard audit fields on all entities: `id` (UUID), `createdAt`, `updatedAt`, `deletedAt`.
+
+---
+
+### EmployeeRole
+
+Admin-managed lookup (not a compile-time enum). Fields: `name` (unique), `isActive`, audit fields. Referenced optionally by `Person.employeeRoleId`.
+
+---
+
+### Activity
+
+Same pattern as EmployeeRole, plus optional `color` (hex `#RRGGBB`). Referenced optionally by `Timesheet.activityId`. Seeded with distinct colors for mobile activity dots.
+
+---
 
 ### Person
-- Represents an **employee** (name, contact info, employment data).
-- Relationship to `User`: **1:1, optional.** A `Person` *may* have an associated `User` account; a `User` always corresponds to exactly one `Person`.
+
+Employee record: `firstName`, `lastName` required; `email`, `phone` optional. Optional FK `employeeRoleId` → `EmployeeRole`.
+
+**User relationship:** 1:1 optional from Person's side (`Person.user` may be null); **required** from User's side (`User.personId` unique). Not every Person has login access.
+
+---
+
+### User
+
+Login account: `email` (unique), `passwordHash`, `role` (`ADMIN` | `EMPLOYEE`), `isActive` (default true), required unique `personId` → `Person`. Deactivation via `isActive=false`; soft delete via `deletedAt`.
+
+---
 
 ### Company
-- Represents a **client** — the beneficiary of a fabrication project (not a platform tenant, not a supplier/subcontractor in the MVP).
+
+Client (beneficiary of projects, not a platform tenant). `name` required; optional: `taxCode`, `tradeRegistryNumber`, `registeredAddress`, `phone`, `deliveryAddress`, `legalRepresentative`, `email`, `contactPerson`, `contactPersonPhone`.
+
+---
 
 ### Project
-- Belongs to **exactly one `Company`** (the client). No multi-company association in the MVP (e.g. subcontractors) — this may be introduced later if needed.
+
+Belongs to one `Company`. `name`, `code` (unique, manually assigned), `status` (`ProjectStatus` enum — 10 values from `CIORNA` through `ANULAT`), optional `dueDate`, `readyForExecution` (default false — gates employee visibility), optional `color` (hex). Employees see only `readyForExecution=true` projects via `/projects/available`.
+
+---
 
 ### Timesheet
-- Associated with a `Person` (who logged the time) and a `Project` (what the time was logged against).
 
-> Note: exact field-level schema (columns, enums, constraints) will be defined in the implementation prompt for `packages/db`, not here. This section only fixes the relationships so they're not reinvented per-prompt.
+- `personId` — **whose time** is logged (subject).
+- `userId` — **who entered** the record (actor; may differ when admin logs on behalf).
+- `projectId` — required.
+- `activityId` — optional.
+- `startTime` — required.
+- `endTime` — optional (nullable for open entries; mobile V1 always creates closed entries).
+- `notes` — optional.
+
+At most one open timesheet (`endTime IS NULL`) per person (API enforces on start/manual create).
+
+---
+
+> Relationship summary unchanged in intent: Project → Company (many-to-one); Timesheet → Person + Project (+ optional Activity); User → Person (1:1).
 
 ---
 
@@ -275,12 +330,7 @@ The database should be designed for the long term.
 
 Although the MVP implements only a few modules, entities should already be extensible enough to support future features.
 
-Every entity should include standard audit fields:
-
-- id (UUID)
-- createdAt
-- updatedAt
-- deletedAt (where appropriate)
+Every entity should include standard audit fields (see Domain Model — all entities use UUID `id`, timestamps, and soft delete).
 
 Relationships should be designed with future modules in mind.
 
@@ -391,7 +441,31 @@ Every paginated list endpoint returns the same shape:
 
 The web app's `DataTable` and `Pagination` components are designed to work with this envelope: the parent page fetches with `page`/`pageSize`, passes `data` to `DataTable`, and passes `meta.page`, `meta.pageSize`, and `meta.total` to `Pagination`.
 
-Sorting, filtering, and non-list response/error envelopes remain open — see Open Items below.
+### Unpaginated list exceptions
+
+Some read endpoints return a **plain array** (no `{ data, meta }` envelope) by design:
+
+| Endpoint | Notes |
+|----------|--------|
+| `GET /activities` | Lookup list; active-only for EMPLOYEE |
+| `GET /employee-roles` | Lookup list; active-only for EMPLOYEE |
+| `GET /projects/available` | Reduced project DTO array for mobile |
+
+All other collection endpoints use pagination.
+
+## Error conventions (in use)
+
+| Status | Typical use |
+|--------|-------------|
+| **400** | Zod validation failures; referential/business rule violations (e.g. invalid interval, project not execution-ready) |
+| **401** | Missing/invalid cookie; inactive user; failed login (generic message) |
+| **403** | Authenticated but wrong role; timesheet ownership violation |
+| **404** | Entity not found or soft-deleted |
+| **409** | Unique constraint conflicts (e.g. duplicate name/code/email) |
+
+Login always returns the same generic **401** message for wrong password, unknown email, or inactive account (anti-enumeration).
+
+Non-list response envelopes (single-resource shape, error body format) remain open — see Open Items.
 
 ---
 
@@ -406,12 +480,17 @@ The MVP uses **API-level end-to-end tests** only (no unit-test coverage target f
 
 ---
 
-# Open Items (deferred, not blocking MVP start)
+# Open Items (deferred, not blocking MVP)
 
-These are acknowledged but intentionally deferred — not resolved here — so they don't block starting implementation prompts. They should be addressed when the relevant module is actually implemented:
+Acknowledged gaps — address when the relevant work is prioritized:
 
-- API response/error format conventions for non-list endpoints (envelope shape, naming case in API vs DB)
-- CI/CD pipeline (deployment *target* is now decided — see Deployment section — but no automated pipeline is set up yet; deploys are manual for MVP)
+- **Table sorting** — deferred by explicit decision; list endpoints return default ordering only (no `sortBy` query param yet).
+- **Non-list response/error envelope** — single-resource endpoints return the DTO directly; no unified `{ data, error }` wrapper.
+- **CI/CD pipeline** — deployment targets are decided (see Deployment); deploys are manual for MVP.
+- **PWA assets** — manifest/icons are placeholders; production-quality icons deferred.
+- **Timer API cleanup** — `POST /timesheets/start|stop` remain after mobile timer removal; remove or repurpose once post-MVP direction is validated.
+- **Night-shift / timezone edge cases** — mobile "today" grouping and banner totals use device local calendar day; cross-midnight and TZ quirks noted, not solved in MVP.
+- **Auth vs soft-delete** — JWT validation checks `isActive` but does not yet filter `User.deletedAt`; user soft-delete currently sets `deletedAt` only (rely on admin process or follow-up hardening if needed).
 
 ---
 
