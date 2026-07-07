@@ -1,8 +1,20 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+const appDir = path.dirname(fileURLToPath(import.meta.url));
+
 export default defineConfig({
+  resolve: {
+    alias: [
+      {
+        find: /^@fabxpert\/shared$/,
+        replacement: path.resolve(appDir, '../../packages/shared/src/index.ts'),
+      },
+    ],
+  },
   plugins: [
     react(),
     VitePWA({

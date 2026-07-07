@@ -1,7 +1,7 @@
 import { getMe } from '@fabxpert/shared';
 import type { MeResponse } from '@fabxpert/shared';
 import { useEffect, useState } from 'react';
-import { HomeScreen } from './HomeScreen';
+import { TimesheetFlow } from './components/TimesheetFlow';
 import { LoginScreen } from './LoginScreen';
 
 export default function App() {
@@ -36,7 +36,7 @@ export default function App() {
   }
 
   if (user) {
-    return <HomeScreen user={user} onLogout={() => setUser(null)} />;
+    return <TimesheetFlow user={user} onLogout={() => setUser(null)} />;
   }
 
   return <LoginScreen onSuccess={setUser} />;

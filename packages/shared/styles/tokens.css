@@ -27,8 +27,12 @@
   --color-text-muted: #8c8a80;
   --color-accent: #d9a441;
   --color-accent-contrast: #2b2107;
+  --color-accent-tint: rgba(217, 164, 65, 0.12);
+  --color-accent-border: rgba(217, 164, 65, 0.45);
   --color-danger-text: #f09595;
   --color-success-icon: #97c459;
+  --color-timer-stop: #b5533c;
+  --color-timer-stop-text: #f5e8e4;
 
   /* Project status badges */
   --status-ciorna-bg: #444441;
