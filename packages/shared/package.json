@@ -17,6 +17,10 @@
       "types": "./dist/dto/project.dto.d.ts",
       "default": "./dist/dto/project.dto.js"
     },
+    "./dto/user.dto": {
+      "types": "./dist/dto/user.dto.d.ts",
+      "default": "./dist/dto/user.dto.js"
+    },
     "./dto/pagination.dto": {
       "types": "./dist/dto/pagination.dto.d.ts",
       "default": "./dist/dto/pagination.dto.js"

@@ -41,3 +41,22 @@ export type {
   CreateProjectInput,
   UpdateProjectInput,
 } from './dto/project.dto';
+export {
+  listUsers,
+  getUser,
+  createUser,
+  updateUser,
+  deleteUser,
+} from './api/user';
+export {
+  createUserSchema,
+  updateUserSchema,
+  USER_ROLE_VALUES,
+} from './dto/user.dto';
+export type {
+  UserDto,
+  UserRole,
+  UserPersonDto,
+  CreateUserInput,
+  UpdateUserInput,
+} from './dto/user.dto';
