@@ -24,6 +24,23 @@ export type {
 } from './dto/company.dto';
 export type { PaginatedResponse, PaginationMeta } from './dto/pagination.dto';
 export {
+  listPersons,
+  getPerson,
+  createPerson,
+  updatePerson,
+  deletePerson,
+} from './api/person';
+export {
+  createPersonSchema,
+  updatePersonSchema,
+} from './dto/person.dto';
+export type {
+  PersonDto,
+  PersonEmployeeRoleDto,
+  CreatePersonInput,
+  UpdatePersonInput,
+} from './dto/person.dto';
+export {
   listProjects,
   listAvailableProjects,
   getProject,
