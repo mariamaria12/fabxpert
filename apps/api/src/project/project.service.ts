@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, ProjectStatus } from '@prisma/client';
 import type {
   CreateProjectInput,
   ProjectDto,
@@ -12,6 +12,7 @@ import type {
   UpdateProjectInput,
 } from '@fabxpert/shared/dto/project.dto';
 import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
+import type { ProjectStatusGroup } from '@fabxpert/shared/dto/project.dto';
 import { PaginationParams } from '../common/pagination/parse-pagination.util';
 import { notDeleted } from '../common/prisma/soft-delete.util';
 import { PrismaService } from '../prisma/prisma.service';
@@ -34,6 +35,19 @@ const projectInclude = {
 } satisfies Prisma.ProjectInclude;
 
 type ProjectWithCompany = Prisma.ProjectGetPayload<{ include: typeof projectInclude }>;
+
+const IN_PROGRESS_EXCLUDED_STATUSES: ProjectStatus[] = ['FINALIZAT', 'ANULAT'];
+
+function applyStatusGroupFilter(
+  where: Prisma.ProjectWhereInput,
+  statusGroup?: ProjectStatusGroup,
+): void {
+  if (statusGroup === 'in_progress') {
+    where.status = { notIn: IN_PROGRESS_EXCLUDED_STATUSES };
+  } else if (statusGroup === 'completed') {
+    where.status = 'FINALIZAT';
+  }
+}
 
 function toProjectDto(project: ProjectWithCompany): ProjectDto {
   return {
@@ -62,9 +76,12 @@ export class ProjectService {
   async findAll(
     pagination: PaginationParams,
     search?: string,
+    statusGroup?: ProjectStatusGroup,
   ): Promise<PaginatedResponse<ProjectDto>> {
     const { page, pageSize } = pagination;
     const where: Prisma.ProjectWhereInput = { ...notDeleted() };
+
+    applyStatusGroupFilter(where, statusGroup);
 
     if (search) {
       where.OR = [

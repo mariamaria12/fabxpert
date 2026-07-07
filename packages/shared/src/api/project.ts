@@ -3,9 +3,12 @@ import type {
   CreateProjectInput,
   ProjectDto,
   ProjectOptionDto,
+  ProjectStatusGroup,
   UpdateProjectInput,
 } from '../dto/project.dto';
 import type { PaginatedResponse } from '../dto/pagination.dto';
+
+export type { ProjectStatusGroup };
 
 export type ProjectAvailabilityEvent = {
   type: 'available-projects-changed';
@@ -19,6 +22,7 @@ export interface ListProjectsParams {
   page?: number;
   pageSize?: number;
   search?: string;
+  statusGroup?: ProjectStatusGroup;
 }
 
 export function listProjects(params: ListProjectsParams = {}) {
@@ -32,6 +36,9 @@ export function listProjects(params: ListProjectsParams = {}) {
   const trimmedSearch = params.search?.trim();
   if (trimmedSearch) {
     searchParams.set('search', trimmedSearch);
+  }
+  if (params.statusGroup) {
+    searchParams.set('statusGroup', params.statusGroup);
   }
   const query = searchParams.toString();
   return request<PaginatedResponse<ProjectDto>>(`/projects${query ? `?${query}` : ''}`);

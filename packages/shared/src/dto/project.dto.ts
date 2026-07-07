@@ -15,6 +15,8 @@ export const PROJECT_STATUS_VALUES = [
 
 export type ProjectStatus = (typeof PROJECT_STATUS_VALUES)[number];
 
+export type ProjectStatusGroup = 'in_progress' | 'completed';
+
 const projectStatusSchema = z.enum(PROJECT_STATUS_VALUES);
 
 const companyIdSchema = z

@@ -93,6 +93,7 @@ export type {
   ProjectCompanyDto,
   ProjectOptionDto,
   ProjectStatus,
+  ProjectStatusGroup,
   CreateProjectInput,
   UpdateProjectInput,
 } from './dto/project.dto';

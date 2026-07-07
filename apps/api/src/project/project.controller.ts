@@ -10,6 +10,7 @@ import {
   Post,
   Query,
   Sse,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   createProjectSchema,
@@ -25,6 +26,7 @@ import { ProjectAvailabilityEventsService } from './project-availability-events.
 import { ProjectService } from './project.service';
 
 const idParamSchema = z.string().trim().min(1);
+const statusGroupSchema = z.enum(['in_progress', 'completed']);
 
 @Controller('projects')
 @Roles('ADMIN')
@@ -49,7 +51,17 @@ export class ProjectController {
   @Get()
   findAll(@Query() query: Record<string, string>) {
     const search = query.search?.trim() || undefined;
-    return this.projectService.findAll(parsePagination(query), search);
+    let statusGroup: z.infer<typeof statusGroupSchema> | undefined;
+
+    if (query.statusGroup !== undefined && query.statusGroup !== '') {
+      const parsed = statusGroupSchema.safeParse(query.statusGroup);
+      if (!parsed.success) {
+        throw new BadRequestException('Invalid statusGroup');
+      }
+      statusGroup = parsed.data;
+    }
+
+    return this.projectService.findAll(parsePagination(query), search, statusGroup);
   }
 
   @Get(':id')

@@ -502,7 +502,7 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
 
         <div>
           <label htmlFor="startDate" className="mb-1.5 block text-xs text-text-secondary">
-            Data început
+            Dată începere
           </label>
           <input
             id="startDate"
