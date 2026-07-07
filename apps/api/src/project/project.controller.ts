@@ -34,6 +34,12 @@ export class ProjectController {
     return this.projectService.findAll(parsePagination(query));
   }
 
+  @Get('available')
+  @Roles('ADMIN', 'EMPLOYEE')
+  findAvailable() {
+    return this.projectService.findAvailable();
+  }
+
   @Get(':id')
   findOne(@Param('id', new ZodValidationPipe(idParamSchema)) id: string) {
     return this.projectService.findOne(id);

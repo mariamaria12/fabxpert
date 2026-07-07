@@ -2,9 +2,14 @@ import { request } from './client';
 import type {
   CreateProjectInput,
   ProjectDto,
+  ProjectOptionDto,
   UpdateProjectInput,
 } from '../dto/project.dto';
 import type { PaginatedResponse } from '../dto/pagination.dto';
+
+export function listAvailableProjects() {
+  return request<ProjectOptionDto[]>('/projects/available');
+}
 
 export function listProjects(page?: number, pageSize?: number) {
   const searchParams = new URLSearchParams();

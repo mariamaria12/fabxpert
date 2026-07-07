@@ -25,6 +25,7 @@ export type {
 export type { PaginatedResponse, PaginationMeta } from './dto/pagination.dto';
 export {
   listProjects,
+  listAvailableProjects,
   getProject,
   createProject,
   updateProject,
@@ -37,6 +38,7 @@ export {
 } from './dto/project.dto';
 export type {
   ProjectDto,
+  ProjectOptionDto,
   ProjectStatus,
   CreateProjectInput,
   UpdateProjectInput,

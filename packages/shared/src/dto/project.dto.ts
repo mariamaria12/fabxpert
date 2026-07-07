@@ -62,3 +62,11 @@ export type ProjectDto = {
   createdAt: string;
   updatedAt: string;
 };
+
+/** Reduced shape for employee project selection (mobile dropdown). */
+export type ProjectOptionDto = {
+  id: string;
+  name: string;
+  code: string;
+  color: string | null;
+};

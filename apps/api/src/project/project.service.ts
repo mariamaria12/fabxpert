@@ -8,12 +8,20 @@ import { Prisma, type Project } from '@prisma/client';
 import type {
   CreateProjectInput,
   ProjectDto,
+  ProjectOptionDto,
   UpdateProjectInput,
 } from '@fabxpert/shared/dto/project.dto';
 import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
 import { PaginationParams } from '../common/pagination/parse-pagination.util';
 import { notDeleted } from '../common/prisma/soft-delete.util';
 import { PrismaService } from '../prisma/prisma.service';
+
+const projectOptionSelect = {
+  id: true,
+  name: true,
+  code: true,
+  color: true,
+} satisfies Prisma.ProjectSelect;
 
 function toProjectDto(project: Project): ProjectDto {
   return {
@@ -64,6 +72,17 @@ export class ProjectService {
       throw new NotFoundException(`Project with id ${id} not found`);
     }
     return toProjectDto(project);
+  }
+
+  async findAvailable(): Promise<ProjectOptionDto[]> {
+    return this.prisma.project.findMany({
+      where: {
+        ...notDeleted(),
+        readyForExecution: true,
+      },
+      select: projectOptionSelect,
+      orderBy: { name: 'asc' },
+    });
   }
 
   async create(input: CreateProjectInput): Promise<ProjectDto> {
