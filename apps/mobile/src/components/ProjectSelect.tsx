@@ -1,6 +1,6 @@
-import { ApiError, listAvailableProjects, listMyTimesheets } from '@fabxpert/shared';
+import { ApiError, listAvailableProjects, listMyTimesheets, subscribeToAvailableProjects } from '@fabxpert/shared';
 import type { ProjectOptionDto } from '@fabxpert/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   formatTodayWorkedTotal,
   sumTodayClosedMinutes,
@@ -55,6 +55,21 @@ export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectPro
   const [error, setError] = useState<string | null>(null);
   const [todayMinutes, setTodayMinutes] = useState(0);
   const [todayTotalLoaded, setTodayTotalLoaded] = useState(false);
+  const debounceRef = useRef<number | null>(null);
+
+  const loadProjects = useCallback(async () => {
+    try {
+      const projectsData = await listAvailableProjects();
+      setProjects(projectsData);
+      setError(null);
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 0) {
+        setError('Nu s-a putut contacta serverul.');
+      } else {
+        setError('Nu s-au putut încărca proiectele.');
+      }
+    }
+  }, []);
 
   const loadScreen = useCallback(async () => {
     setIsLoading(true);
@@ -88,6 +103,26 @@ export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectPro
   useEffect(() => {
     void loadScreen();
   }, [loadScreen]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToAvailableProjects(() => {
+      if (debounceRef.current !== null) {
+        window.clearTimeout(debounceRef.current);
+      }
+
+      debounceRef.current = window.setTimeout(() => {
+        void loadProjects();
+        debounceRef.current = null;
+      }, 1000);
+    });
+
+    return () => {
+      unsubscribe();
+      if (debounceRef.current !== null) {
+        window.clearTimeout(debounceRef.current);
+      }
+    };
+  }, [loadProjects]);
 
   const bannerText =
     !todayTotalLoaded

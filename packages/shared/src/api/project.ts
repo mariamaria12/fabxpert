@@ -1,4 +1,4 @@
-import { request } from './client';
+import { getApiClientBaseUrl, request } from './client';
 import type {
   CreateProjectInput,
   ProjectDto,
@@ -7,17 +7,31 @@ import type {
 } from '../dto/project.dto';
 import type { PaginatedResponse } from '../dto/pagination.dto';
 
+export type ProjectAvailabilityEvent = {
+  type: 'available-projects-changed';
+};
+
 export function listAvailableProjects() {
   return request<ProjectOptionDto[]>('/projects/available');
 }
 
-export function listProjects(page?: number, pageSize?: number) {
+export interface ListProjectsParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+}
+
+export function listProjects(params: ListProjectsParams = {}) {
   const searchParams = new URLSearchParams();
-  if (page !== undefined) {
-    searchParams.set('page', String(page));
+  if (params.page !== undefined) {
+    searchParams.set('page', String(params.page));
   }
-  if (pageSize !== undefined) {
-    searchParams.set('pageSize', String(pageSize));
+  if (params.pageSize !== undefined) {
+    searchParams.set('pageSize', String(params.pageSize));
+  }
+  const trimmedSearch = params.search?.trim();
+  if (trimmedSearch) {
+    searchParams.set('search', trimmedSearch);
   }
   const query = searchParams.toString();
   return request<PaginatedResponse<ProjectDto>>(`/projects${query ? `?${query}` : ''}`);
@@ -43,4 +57,44 @@ export function updateProject(id: string, input: UpdateProjectInput) {
 
 export function deleteProject(id: string) {
   return request<void>(`/projects/${id}`, { method: 'DELETE' });
+}
+
+function isProjectAvailabilityEvent(value: unknown): value is ProjectAvailabilityEvent {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    (value as ProjectAvailabilityEvent).type === 'available-projects-changed'
+  );
+}
+
+/**
+ * Subscribe to project availability change signals (ADMIN + EMPLOYEE SSE stream).
+ * Calls onEvent when the employee-visible project set may have changed.
+ */
+export function subscribeToAvailableProjects(
+  onEvent: () => void,
+  onError?: (error: Event) => void,
+): () => void {
+  const source = new EventSource(`${getApiClientBaseUrl()}/projects/available/stream`, {
+    withCredentials: true,
+  });
+
+  source.onmessage = (message) => {
+    try {
+      const parsed: unknown = JSON.parse(message.data);
+      if (isProjectAvailabilityEvent(parsed)) {
+        onEvent();
+      }
+    } catch {
+      // Ignore malformed SSE payloads and heartbeats.
+    }
+  };
+
+  source.onerror = (error) => {
+    onError?.(error);
+  };
+
+  return () => {
+    source.close();
+  };
 }

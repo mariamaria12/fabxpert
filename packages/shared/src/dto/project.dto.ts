@@ -33,6 +33,7 @@ export const createProjectSchema = z.object({
   code: z.string().trim().min(1, 'Code is required'),
   companyId: companyIdSchema,
   status: projectStatusSchema.optional(),
+  startDate: z.coerce.date().optional(),
   dueDate: z.coerce.date().optional(),
   readyForExecution: z.boolean().optional(),
   color: hexColorSchema.optional(),
@@ -49,16 +50,23 @@ export const updateProjectSchema = createProjectSchema.partial().refine(
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
 
+export type ProjectCompanyDto = {
+  id: string;
+  name: string;
+};
+
 /** API-facing Project shape — deletedAt is an internal implementation detail. */
 export type ProjectDto = {
   id: string;
   name: string;
   code: string;
   status: ProjectStatus;
+  startDate: string | null;
   dueDate: string | null;
   readyForExecution: boolean;
   color: string | null;
   companyId: string;
+  company: ProjectCompanyDto;
   createdAt: string;
   updatedAt: string;
 };

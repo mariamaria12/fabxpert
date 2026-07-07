@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, type Project } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import type {
   CreateProjectInput,
   ProjectDto,
@@ -15,6 +15,7 @@ import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
 import { PaginationParams } from '../common/pagination/parse-pagination.util';
 import { notDeleted } from '../common/prisma/soft-delete.util';
 import { PrismaService } from '../prisma/prisma.service';
+import { ProjectAvailabilityEventsService } from './project-availability-events.service';
 
 const projectOptionSelect = {
   id: true,
@@ -23,16 +24,29 @@ const projectOptionSelect = {
   color: true,
 } satisfies Prisma.ProjectSelect;
 
-function toProjectDto(project: Project): ProjectDto {
+const projectInclude = {
+  company: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+} satisfies Prisma.ProjectInclude;
+
+type ProjectWithCompany = Prisma.ProjectGetPayload<{ include: typeof projectInclude }>;
+
+function toProjectDto(project: ProjectWithCompany): ProjectDto {
   return {
     id: project.id,
     name: project.name,
     code: project.code,
     status: project.status,
+    startDate: project.startDate?.toISOString() ?? null,
     dueDate: project.dueDate?.toISOString() ?? null,
     readyForExecution: project.readyForExecution,
     color: project.color,
     companyId: project.companyId,
+    company: project.company,
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString(),
   };
@@ -40,16 +54,31 @@ function toProjectDto(project: Project): ProjectDto {
 
 @Injectable()
 export class ProjectService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly availabilityEvents: ProjectAvailabilityEventsService,
+  ) {}
 
-  async findAll(pagination: PaginationParams): Promise<PaginatedResponse<ProjectDto>> {
+  async findAll(
+    pagination: PaginationParams,
+    search?: string,
+  ): Promise<PaginatedResponse<ProjectDto>> {
     const { page, pageSize } = pagination;
-    const where = { ...notDeleted() };
+    const where: Prisma.ProjectWhereInput = { ...notDeleted() };
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { code: { contains: search, mode: 'insensitive' } },
+        { company: { name: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
 
     const [total, rows] = await Promise.all([
       this.prisma.project.count({ where }),
       this.prisma.project.findMany({
         where,
+        include: projectInclude,
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -67,6 +96,7 @@ export class ProjectService {
   async findOne(id: string): Promise<ProjectDto> {
     const project = await this.prisma.project.findFirst({
       where: { id, ...notDeleted() },
+      include: projectInclude,
     });
     if (!project) {
       throw new NotFoundException(`Project with id ${id} not found`);
@@ -89,7 +119,13 @@ export class ProjectService {
     await this.assertCompanyExists(input.companyId);
 
     try {
-      const project = await this.prisma.project.create({ data: input });
+      const project = await this.prisma.project.create({
+        data: input,
+        include: projectInclude,
+      });
+      if (project.readyForExecution) {
+        this.availabilityEvents.emitChanged();
+      }
       return toProjectDto(project);
     } catch (error) {
       this.handleUniqueViolation(error);
@@ -97,7 +133,7 @@ export class ProjectService {
   }
 
   async update(id: string, input: UpdateProjectInput): Promise<ProjectDto> {
-    await this.findOne(id);
+    const existing = await this.findOne(id);
 
     if (input.companyId !== undefined) {
       await this.assertCompanyExists(input.companyId);
@@ -107,7 +143,11 @@ export class ProjectService {
       const project = await this.prisma.project.update({
         where: { id },
         data: input,
+        include: projectInclude,
       });
+      if (existing.readyForExecution !== project.readyForExecution) {
+        this.availabilityEvents.emitChanged();
+      }
       return toProjectDto(project);
     } catch (error) {
       this.handleUniqueViolation(error);
@@ -115,11 +155,14 @@ export class ProjectService {
   }
 
   async softDelete(id: string): Promise<void> {
-    await this.findOne(id);
+    const existing = await this.findOne(id);
     await this.prisma.project.update({
       where: { id },
       data: { deletedAt: new Date() },
     });
+    if (existing.readyForExecution) {
+      this.availabilityEvents.emitChanged();
+    }
   }
 
   private async assertCompanyExists(companyId: string): Promise<void> {

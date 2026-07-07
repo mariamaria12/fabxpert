@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Query,
+  Sse,
 } from '@nestjs/common';
 import {
   createProjectSchema,
@@ -20,6 +21,7 @@ import { z } from 'zod';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { parsePagination } from '../common/pagination/parse-pagination.util';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import { ProjectAvailabilityEventsService } from './project-availability-events.service';
 import { ProjectService } from './project.service';
 
 const idParamSchema = z.string().trim().min(1);
@@ -27,17 +29,27 @@ const idParamSchema = z.string().trim().min(1);
 @Controller('projects')
 @Roles('ADMIN')
 export class ProjectController {
-  constructor(private readonly projectService: ProjectService) {}
+  constructor(
+    private readonly projectService: ProjectService,
+    private readonly availabilityEvents: ProjectAvailabilityEventsService,
+  ) {}
 
-  @Get()
-  findAll(@Query() query: Record<string, string>) {
-    return this.projectService.findAll(parsePagination(query));
+  @Sse('available/stream')
+  @Roles('ADMIN', 'EMPLOYEE')
+  availableStream() {
+    return this.availabilityEvents.subscribe();
   }
 
   @Get('available')
   @Roles('ADMIN', 'EMPLOYEE')
   findAvailable() {
     return this.projectService.findAvailable();
+  }
+
+  @Get()
+  findAll(@Query() query: Record<string, string>) {
+    const search = query.search?.trim() || undefined;
+    return this.projectService.findAll(parsePagination(query), search);
   }
 
   @Get(':id')

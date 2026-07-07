@@ -72,6 +72,7 @@ export type {
   CreatePersonInput,
   UpdatePersonInput,
 } from './dto/person.dto';
+export type { ListProjectsParams } from './api/project';
 export {
   listProjects,
   listAvailableProjects,
@@ -79,7 +80,9 @@ export {
   createProject,
   updateProject,
   deleteProject,
+  subscribeToAvailableProjects,
 } from './api/project';
+export type { ProjectAvailabilityEvent } from './api/project';
 export {
   createProjectSchema,
   updateProjectSchema,
@@ -87,11 +90,21 @@ export {
 } from './dto/project.dto';
 export type {
   ProjectDto,
+  ProjectCompanyDto,
   ProjectOptionDto,
   ProjectStatus,
   CreateProjectInput,
   UpdateProjectInput,
 } from './dto/project.dto';
+export {
+  PROJECT_STATUS_META,
+  PROJECT_TERMINAL_STATUSES,
+  formatProjectDueDate,
+  getProjectStatusBadgeClassName,
+  getProjectStatusLabel,
+  isProjectDueDateOverdue,
+} from './projectStatus';
+export type { ProjectStatusMeta } from './projectStatus';
 export {
   listUsers,
   getUser,

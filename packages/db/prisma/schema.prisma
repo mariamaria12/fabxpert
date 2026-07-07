@@ -165,6 +165,7 @@ model Project {
   name              String
   code              String        @unique
   status            ProjectStatus @default(CIORNA)
+  startDate         DateTime?
   dueDate           DateTime?
   readyForExecution Boolean       @default(false)
   color             String?

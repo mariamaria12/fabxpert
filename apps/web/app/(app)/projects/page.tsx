@@ -1,12 +1,275 @@
+'use client';
+
+import {
+  formatProjectDueDate,
+  getProjectStatusBadgeClassName,
+  getProjectStatusLabel,
+  isProjectDueDateOverdue,
+  listProjects,
+  type ProjectDto,
+} from '@fabxpert/shared';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ProjectFormPanel } from './ProjectFormPanel';
+import { DataTable, type DataTableColumn } from '@/components/DataTable';
+import { Pagination } from '@/components/Pagination';
+import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+
+const PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 300;
+
+const searchInputClassName =
+  'w-full max-w-md rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
+
+function nullableCell(value: string | null | undefined) {
+  if (!value) {
+    return <span className="text-text-muted">—</span>;
+  }
+  return value;
+}
+
+function ProjectStatusBadge({ status }: { status: ProjectDto['status'] }) {
+  return (
+    <span
+      className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${getProjectStatusBadgeClassName(status)}`}
+    >
+      {getProjectStatusLabel(status)}
+    </span>
+  );
+}
+
+function DueDateCell({ project }: { project: ProjectDto }) {
+  if (!project.dueDate) {
+    return <span className="text-text-muted">—</span>;
+  }
+
+  const overdue = isProjectDueDateOverdue(project.dueDate, project.status);
+  return (
+    <span className={overdue ? 'text-danger' : 'text-text-secondary'}>
+      {formatProjectDueDate(project.dueDate)}
+    </span>
+  );
+}
+
+type PanelState =
+  | { open: false }
+  | { open: true; mode: 'create'; project: null }
+  | { open: true; mode: 'edit'; project: ProjectDto };
+
 export default function ProjectsPage() {
+  const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [projects, setProjects] = useState<ProjectDto[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [panel, setPanel] = useState<PanelState>({ open: false });
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchInput.trim());
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
+  const projectColumns = useMemo((): DataTableColumn<ProjectDto>[] => {
+    return [
+      {
+        key: 'code',
+        header: 'Cod',
+        width: '120px',
+        className: 'font-mono text-xs text-text-secondary',
+        render: (row) => row.code,
+      },
+      {
+        key: 'name',
+        header: 'Proiect',
+        render: (row) => <span className="font-medium">{row.name}</span>,
+      },
+      {
+        key: 'company',
+        header: 'Client',
+        className: 'text-text-secondary',
+        render: (row) => row.company.name,
+      },
+      {
+        key: 'status',
+        header: 'Status',
+        width: '150px',
+        render: (row) => <ProjectStatusBadge status={row.status} />,
+      },
+      {
+        key: 'startDate',
+        header: 'Început',
+        width: '90px',
+        render: (row) =>
+          row.startDate ? (
+            <span className="text-text-secondary">{formatProjectDueDate(row.startDate)}</span>
+          ) : (
+            nullableCell(null)
+          ),
+      },
+      {
+        key: 'dueDate',
+        header: 'Termen',
+        width: '90px',
+        render: (row) => <DueDateCell project={row} />,
+      },
+      {
+        key: 'readyForExecution',
+        header: 'Gata exec.',
+        width: '90px',
+        className: 'text-center',
+        render: (row) =>
+          row.readyForExecution ? (
+            <span className="inline-flex justify-center text-success" aria-label="Gata de execuție">
+              <i className="ti ti-check text-base" aria-hidden="true" />
+            </span>
+          ) : (
+            nullableCell(null)
+          ),
+      },
+    ];
+  }, []);
+
+  const loadProjects = useCallback(async (targetPage: number, search?: string) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await listProjects({
+        page: targetPage,
+        pageSize: PAGE_SIZE,
+        search,
+      });
+      setProjects(response.data);
+      setTotal(response.meta.total);
+    } catch (caught) {
+      setError(apiErrorToastMessage(caught));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadProjects(page, debouncedSearch || undefined);
+  }, [page, debouncedSearch, loadProjects]);
+
+  function openCreate() {
+    setPanel({ open: true, mode: 'create', project: null });
+  }
+
+  function openEdit(project: ProjectDto) {
+    setPanel({ open: true, mode: 'edit', project });
+  }
+
+  function closePanel() {
+    setPanel({ open: false });
+  }
+
+  function handleSaved() {
+    void loadProjects(page, debouncedSearch || undefined);
+  }
+
+  const hasActiveSearch = debouncedSearch.length > 0;
+  const showEmptyState = !loading && !error && total === 0 && !hasActiveSearch;
+  const showNoSearchResults = !loading && !error && total === 0 && hasActiveSearch;
+  const showDataTable = loading || total > 0;
+
   return (
     <div className="flex h-full flex-col">
-      <h1 className="text-[22px] font-medium text-text-primary">Proiecte</h1>
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-text-muted">
-          Această secțiune va fi disponibilă în curând.
-        </p>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-[22px] font-medium text-text-primary">Proiecte</h1>
+        {!showEmptyState && (
+          <button
+            type="button"
+            onClick={openCreate}
+            className="shrink-0 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
+          >
+            Proiect nou
+          </button>
+        )}
       </div>
+
+      {error && (
+        <div className="mt-4 flex items-center justify-between gap-4 rounded-md border border-border-subtle bg-[var(--color-toast-error-bg)] px-4 py-3">
+          <p className="text-sm text-danger">{error}</p>
+          <button
+            type="button"
+            onClick={() => void loadProjects(page, debouncedSearch || undefined)}
+            className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary"
+          >
+            Reîncearcă
+          </button>
+        </div>
+      )}
+
+      {!showEmptyState && (
+        <div className="mt-4">
+          <input
+            type="search"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            placeholder="Caută după denumire, cod sau client..."
+            aria-label="Caută după denumire, cod sau client"
+            className={searchInputClassName}
+          />
+        </div>
+      )}
+
+      {showNoSearchResults && (
+        <div className="mt-8 flex flex-col items-center justify-center gap-4 text-center">
+          <p className="text-sm text-text-muted">Nu există proiecte care să corespundă căutării.</p>
+        </div>
+      )}
+
+      {showEmptyState && (
+        <div className="flex flex-1 flex-col items-center justify-center gap-4">
+          <p className="text-sm text-text-muted">Niciun proiect încă.</p>
+          <button
+            type="button"
+            onClick={openCreate}
+            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
+          >
+            Proiect nou
+          </button>
+        </div>
+      )}
+
+      {showDataTable && (
+        <div className="mt-6">
+          <DataTable
+            columns={projectColumns}
+            data={projects}
+            rowKey={(row) => row.id}
+            rowAccentColor={(row) => row.color ?? 'var(--color-border-subtle)'}
+            loading={loading}
+            onRowClick={loading ? undefined : openEdit}
+          />
+          {!loading && total > 0 && (
+            <Pagination
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={total}
+              onPageChange={setPage}
+            />
+          )}
+        </div>
+      )}
+
+      {panel.open && (
+        <ProjectFormPanel
+          open
+          mode={panel.mode}
+          project={panel.project}
+          onClose={closePanel}
+          onSaved={handleSaved}
+        />
+      )}
     </div>
   );
 }

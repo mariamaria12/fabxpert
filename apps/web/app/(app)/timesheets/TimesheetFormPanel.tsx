@@ -234,7 +234,7 @@ export function TimesheetFormPanel({
 
     Promise.all([
       listPersons(1, LOOKUP_PAGE_SIZE),
-      listProjects(1, LOOKUP_PAGE_SIZE),
+      listProjects({ page: 1, pageSize: LOOKUP_PAGE_SIZE }),
       listActivities(),
     ])
       .then(([personsResponse, projectsResponse, activitiesResponse]) => {
