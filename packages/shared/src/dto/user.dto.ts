@@ -6,10 +6,11 @@ export type UserRole = (typeof USER_ROLE_VALUES)[number];
 
 const userRoleSchema = z.enum(USER_ROLE_VALUES);
 
+/** Accepts seed person ids with `p` prefix (same as timesheet personId). */
 const personIdSchema = z
   .string()
   .regex(
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    /^([0-9a-f]{8}|p[0-9a-f]{7})-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     'Invalid UUID format',
   );
 

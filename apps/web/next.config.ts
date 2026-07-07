@@ -11,7 +11,9 @@ const nextConfig: NextConfig = {
       { source: '/companii', destination: '/companies', permanent: true },
       { source: '/persoane', destination: '/people', permanent: true },
       { source: '/pontaje', destination: '/timesheets', permanent: true },
-      { source: '/utilizatori', destination: '/users', permanent: true },
+      { source: '/utilizatori', destination: '/admin', permanent: true },
+      { source: '/users', destination: '/admin', permanent: true },
+      { source: '/administrare', destination: '/admin', permanent: true },
     ];
   },
 };

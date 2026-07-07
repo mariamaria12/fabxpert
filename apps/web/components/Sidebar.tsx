@@ -12,7 +12,7 @@ const NAV_ITEMS = [
   { href: '/companies', icon: 'ti-building', label: 'Companii' },
   { href: '/people', icon: 'ti-users', label: 'Persoane' },
   { href: '/timesheets', icon: 'ti-clock', label: 'Pontaje' },
-  { href: '/users', icon: 'ti-user-shield', label: 'Utilizatori' },
+  { href: '/admin', icon: 'ti-settings', label: 'Administrare' },
 ] as const;
 
 function getInitials(user: MeResponse): string {

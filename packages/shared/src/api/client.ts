@@ -7,11 +7,18 @@
 export class ApiError extends Error {
   /** HTTP status code; 0 means a network-level failure (no HTTP response at all). */
   readonly status: number;
+  /** Zod field errors returned by the API validation pipe, when present. */
+  readonly validationErrors?: { path: string; message: string }[];
 
-  constructor(status: number, message: string) {
+  constructor(
+    status: number,
+    message: string,
+    validationErrors?: { path: string; message: string }[],
+  ) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.validationErrors = validationErrors;
   }
 }
 
@@ -50,6 +57,7 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
 
   if (!response.ok) {
     let message = `Request failed with status ${response.status}`;
+    let validationErrors: { path: string; message: string }[] | undefined;
     try {
       const body: unknown = await response.json();
       if (body !== null && typeof body === 'object' && 'message' in body) {
@@ -60,10 +68,18 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
           message = bodyMessage.join(', ');
         }
       }
+      if (
+        body !== null &&
+        typeof body === 'object' &&
+        'errors' in body &&
+        Array.isArray((body as { errors: unknown }).errors)
+      ) {
+        validationErrors = (body as { errors: { path: string; message: string }[] }).errors;
+      }
     } catch {
       // Body wasn't parseable JSON — keep the generic message.
     }
-    throw new ApiError(response.status, message);
+    throw new ApiError(response.status, message, validationErrors);
   }
 
   if (response.status === 204) {

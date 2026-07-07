@@ -10,6 +10,7 @@ import type {
   UpdateEmployeeRoleInput,
 } from '@fabxpert/shared/dto/employee-role.dto';
 import { notDeleted } from '../common/prisma/soft-delete.util';
+import { createOrReviveSoftDeletedByName } from '../common/prisma/lookup-revive-create.util';
 import { PrismaService } from '../prisma/prisma.service';
 
 function toEmployeeRoleDto(role: EmployeeRole): EmployeeRoleDto {
@@ -51,12 +52,22 @@ export class EmployeeRoleService {
   }
 
   async create(input: CreateEmployeeRoleInput): Promise<EmployeeRoleDto> {
-    try {
-      const role = await this.prisma.employeeRole.create({ data: input });
-      return toEmployeeRoleDto(role);
-    } catch (error) {
-      this.handleUniqueViolation(error);
-    }
+    const role = await createOrReviveSoftDeletedByName(input.name, {
+      findByName: (name) => this.prisma.employeeRole.findFirst({ where: { name } }),
+      conflictMessage: 'An employee role with this name already exists',
+      revive: (existing) =>
+        this.prisma.employeeRole.update({
+          where: { id: existing.id },
+          data: {
+            deletedAt: null,
+            isActive: input.isActive ?? true,
+          },
+        }),
+      create: () => this.prisma.employeeRole.create({ data: input }),
+      onUniqueViolation: (error) => this.handleUniqueViolation(error),
+    });
+
+    return toEmployeeRoleDto(role);
   }
 
   async update(id: string, input: UpdateEmployeeRoleInput): Promise<EmployeeRoleDto> {

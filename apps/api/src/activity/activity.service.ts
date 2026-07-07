@@ -10,6 +10,7 @@ import type {
   UpdateActivityInput,
 } from '@fabxpert/shared/dto/activity.dto';
 import { notDeleted } from '../common/prisma/soft-delete.util';
+import { createOrReviveSoftDeletedByName } from '../common/prisma/lookup-revive-create.util';
 import { PrismaService } from '../prisma/prisma.service';
 
 function toActivityDto(activity: Activity): ActivityDto {
@@ -52,12 +53,23 @@ export class ActivityService {
   }
 
   async create(input: CreateActivityInput): Promise<ActivityDto> {
-    try {
-      const activity = await this.prisma.activity.create({ data: input });
-      return toActivityDto(activity);
-    } catch (error) {
-      this.handleUniqueViolation(error);
-    }
+    const activity = await createOrReviveSoftDeletedByName(input.name, {
+      findByName: (name) => this.prisma.activity.findFirst({ where: { name } }),
+      conflictMessage: 'An activity with this name already exists',
+      revive: (existing) =>
+        this.prisma.activity.update({
+          where: { id: existing.id },
+          data: {
+            deletedAt: null,
+            isActive: input.isActive ?? true,
+            ...(input.color !== undefined ? { color: input.color } : {}),
+          },
+        }),
+      create: () => this.prisma.activity.create({ data: input }),
+      onUniqueViolation: (error) => this.handleUniqueViolation(error),
+    });
+
+    return toActivityDto(activity);
   }
 
   async update(id: string, input: UpdateActivityInput): Promise<ActivityDto> {
