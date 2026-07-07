@@ -1,0 +1,23 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": [
+      "ts-jest",
+      {
+        "tsconfig": "<rootDir>/tsconfig.e2e.json",
+        "diagnostics": { "ignoreCodes": [151002] }
+      }
+    ]
+  },
+  "moduleNameMapper": {
+    "^@fabxpert/shared/dto/(.+)$": "<rootDir>/../../../packages/shared/dist/dto/$1",
+    "^@fabxpert/shared$": "<rootDir>/../../../packages/shared/dist/index.js"
+  },
+  "globalSetup": "<rootDir>/global-setup.ts",
+  "setupFilesAfterEnv": ["<rootDir>/setup.ts"],
+  "testTimeout": 60000,
+  "maxWorkers": 1
+}

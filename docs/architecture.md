@@ -395,12 +395,22 @@ Sorting, filtering, and non-list response/error envelopes remain open — see Op
 
 ---
 
+# Testing
+
+The MVP uses **API-level end-to-end tests** only (no unit-test coverage target for MVP modules).
+
+- **Stack:** Jest + `@nestjs/testing` + supertest — full `AppModule` bootstrapped per suite, HTTP requests against the real NestJS pipeline.
+- **Database:** Tests run against a **dedicated Postgres database** via `TEST_DATABASE_URL` (see `apps/api/test/README.md`). Prisma migrations are applied before the suite; fixtures are seeded in setup. **Never** point tests at dev or production data.
+- **Priority:** Authorization rules (401/403 matrix), auth flows, and **cross-module business rules** (e.g. timesheet ↔ project/activity/person junctions). Basic CRUD happy paths are not exhaustively tested per field — rules and junctions are the focus.
+- **Execution:** `pnpm --filter @fabxpert/api test:e2e` (on demand; not part of the default build pipeline).
+
+---
+
 # Open Items (deferred, not blocking MVP start)
 
 These are acknowledged but intentionally deferred — not resolved here — so they don't block starting implementation prompts. They should be addressed when the relevant module is actually implemented:
 
 - API response/error format conventions for non-list endpoints (envelope shape, naming case in API vs DB)
-- Testing strategy (unit/e2e coverage expectations for MVP)
 - CI/CD pipeline (deployment *target* is now decided — see Deployment section — but no automated pipeline is set up yet; deploys are manual for MVP)
 
 ---
