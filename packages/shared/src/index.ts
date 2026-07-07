@@ -40,6 +40,22 @@ export type {
   UpdateActivityInput,
 } from './dto/activity.dto';
 export {
+  listEmployeeRoles,
+  getEmployeeRole,
+  createEmployeeRole,
+  updateEmployeeRole,
+  deleteEmployeeRole,
+} from './api/employee-role';
+export {
+  createEmployeeRoleSchema,
+  updateEmployeeRoleSchema,
+} from './dto/employee-role.dto';
+export type {
+  EmployeeRoleDto,
+  CreateEmployeeRoleInput,
+  UpdateEmployeeRoleInput,
+} from './dto/employee-role.dto';
+export {
   listPersons,
   getPerson,
   createPerson,

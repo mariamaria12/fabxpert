@@ -33,6 +33,10 @@
       "types": "./dist/dto/activity.dto.d.ts",
       "default": "./dist/dto/activity.dto.js"
     },
+    "./dto/employee-role.dto": {
+      "types": "./dist/dto/employee-role.dto.d.ts",
+      "default": "./dist/dto/employee-role.dto.js"
+    },
     "./dto/pagination.dto": {
       "types": "./dist/dto/pagination.dto.d.ts",
       "default": "./dist/dto/pagination.dto.js"

@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { AuthGuard } from './auth/guards/auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { CompanyModule } from './company/company.module';
+import { EmployeeRoleModule } from './employee-role/employee-role.module';
 import { PersonModule } from './person/person.module';
 import { ProjectModule } from './project/project.module';
 import { TimesheetModule } from './timesheet/timesheet.module';
@@ -21,6 +22,7 @@ import { PrismaModule } from './prisma/prisma.module';
     AuthModule,
     CompanyModule,
     ActivityModule,
+    EmployeeRoleModule,
     PersonModule,
     ProjectModule,
     UserModule,
