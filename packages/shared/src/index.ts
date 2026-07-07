@@ -62,3 +62,32 @@ export type {
   CreateUserInput,
   UpdateUserInput,
 } from './dto/user.dto';
+export {
+  startTimesheet,
+  stopTimesheet,
+  createTimesheet,
+  listTimesheets,
+  listMyTimesheets,
+  getTimesheet,
+  updateTimesheet,
+  deleteTimesheet,
+} from './api/timesheet';
+export type { ListTimesheetsParams } from './api/timesheet';
+export {
+  startTimesheetSchema,
+  startTimesheetBodySchema,
+  stopTimesheetSchema,
+  createTimesheetSchema,
+  updateTimesheetSchema,
+} from './dto/timesheet.dto';
+export type {
+  TimesheetDto,
+  TimesheetPersonDto,
+  TimesheetProjectDto,
+  TimesheetActivityDto,
+  StartTimesheetInput,
+  StartTimesheetBodyInput,
+  StopTimesheetInput,
+  CreateTimesheetInput,
+  UpdateTimesheetInput,
+} from './dto/timesheet.dto';

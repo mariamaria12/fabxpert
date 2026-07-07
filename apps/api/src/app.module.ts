@@ -8,6 +8,7 @@ import { AuthGuard } from './auth/guards/auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { CompanyModule } from './company/company.module';
 import { ProjectModule } from './project/project.module';
+import { TimesheetModule } from './timesheet/timesheet.module';
 import { UserModule } from './user/user.module';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -19,6 +20,7 @@ import { PrismaModule } from './prisma/prisma.module';
     CompanyModule,
     ProjectModule,
     UserModule,
+    TimesheetModule,
   ],
   controllers: [AppController],
   providers: [

@@ -21,6 +21,10 @@
       "types": "./dist/dto/user.dto.d.ts",
       "default": "./dist/dto/user.dto.js"
     },
+    "./dto/timesheet.dto": {
+      "types": "./dist/dto/timesheet.dto.d.ts",
+      "default": "./dist/dto/timesheet.dto.js"
+    },
     "./dto/pagination.dto": {
       "types": "./dist/dto/pagination.dto.d.ts",
       "default": "./dist/dto/pagination.dto.js"
