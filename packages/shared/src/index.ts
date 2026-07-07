@@ -23,3 +23,21 @@ export type {
   UpdateCompanyInput,
 } from './dto/company.dto';
 export type { PaginatedResponse, PaginationMeta } from './dto/pagination.dto';
+export {
+  listProjects,
+  getProject,
+  createProject,
+  updateProject,
+  deleteProject,
+} from './api/project';
+export {
+  createProjectSchema,
+  updateProjectSchema,
+  PROJECT_STATUS_VALUES,
+} from './dto/project.dto';
+export type {
+  ProjectDto,
+  ProjectStatus,
+  CreateProjectInput,
+  UpdateProjectInput,
+} from './dto/project.dto';

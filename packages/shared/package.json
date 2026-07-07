@@ -13,6 +13,10 @@
       "types": "./dist/dto/company.dto.d.ts",
       "default": "./dist/dto/company.dto.js"
     },
+    "./dto/project.dto": {
+      "types": "./dist/dto/project.dto.d.ts",
+      "default": "./dist/dto/project.dto.js"
+    },
     "./dto/pagination.dto": {
       "types": "./dist/dto/pagination.dto.d.ts",
       "default": "./dist/dto/pagination.dto.js"
