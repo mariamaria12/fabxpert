@@ -9,7 +9,8 @@ import {
   updateCompanySchema,
   type CompanyDto,
 } from '@fabxpert/shared';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type ClipboardEvent, type FormEvent } from 'react';
+import { parseExcelCompanyPaste } from './parseExcelCompanyPaste';
 import { ColorField } from '@/components/ColorField';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { useToast } from '@/context/ToastContext';
@@ -174,6 +175,10 @@ export function CompanyFormPanel({ open, mode, company, onClose, onSaved }: Comp
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [colorDraftInvalid, setColorDraftInvalid] = useState(false);
+  const [excelPasteText, setExcelPasteText] = useState('');
+  const [excelPasteError, setExcelPasteError] = useState<string | null>(null);
+  const [excelPasteSuccess, setExcelPasteSuccess] = useState<string | null>(null);
+  const [excelExtraColumnsIgnored, setExcelExtraColumnsIgnored] = useState(false);
 
   const isBusy = isSubmitting || isDeleting;
   const title = mode === 'create' ? 'Companie nouă' : 'Editează compania';
@@ -189,6 +194,10 @@ export function CompanyFormPanel({ open, mode, company, onClose, onSaved }: Comp
     setIsSubmitting(false);
     setIsDeleting(false);
     setValues(mode === 'edit' && company ? companyToFormValues(company) : EMPTY_FORM);
+    setExcelPasteText('');
+    setExcelPasteError(null);
+    setExcelPasteSuccess(null);
+    setExcelExtraColumnsIgnored(false);
   }, [open, mode, company]);
 
   function updateField(field: CompanyFormField, value: string) {
@@ -202,6 +211,35 @@ export function CompanyFormPanel({ open, mode, company, onClose, onSaved }: Comp
       return next;
     });
     setFormError(null);
+  }
+
+  function handleExcelPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    if (isBusy) {
+      return;
+    }
+
+    const text = event.clipboardData.getData('text/plain');
+    const result = parseExcelCompanyPaste(text);
+
+    event.preventDefault();
+
+    if (!result.ok) {
+      setExcelPasteError(result.error);
+      setExcelPasteSuccess(null);
+      setExcelExtraColumnsIgnored(false);
+      return;
+    }
+
+    setValues((current) => ({
+      ...current,
+      ...result.values,
+    }));
+    setFieldErrors({});
+    setFormError(null);
+    setExcelPasteText('');
+    setExcelPasteError(null);
+    setExcelPasteSuccess('Câmpurile au fost precompletate din Excel.');
+    setExcelExtraColumnsIgnored(result.extraColumnsIgnored);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -343,15 +381,6 @@ export function CompanyFormPanel({ open, mode, company, onClose, onSaved }: Comp
       footer={footer}
     >
       <form id="company-form" onSubmit={(event) => void handleSubmit(event)} className="flex flex-col gap-4">
-        <FormField
-          id="name"
-          label={FIELD_LABELS.name}
-          value={values.name}
-          error={fieldErrors.name}
-          disabled={isBusy}
-          onChange={(value) => updateField('name', value)}
-        />
-
         <ColorField
           id="color"
           label="Culoare"
@@ -371,6 +400,44 @@ export function CompanyFormPanel({ open, mode, company, onClose, onSaved }: Comp
             setFormError(null);
           }}
           onDraftInvalidChange={setColorDraftInvalid}
+        />
+
+        <div>
+          <label htmlFor="excel-paste" className="mb-1.5 block text-xs text-text-secondary">
+            Prepopulează din Excel
+          </label>
+          <textarea
+            id="excel-paste"
+            rows={2}
+            value={excelPasteText}
+            disabled={isBusy}
+            placeholder="Lipește aici un rând copiat din Excel"
+            onChange={(event) => setExcelPasteText(event.target.value)}
+            onPaste={handleExcelPaste}
+            className={`${inputClassName} resize-none`}
+          />
+          {excelPasteError && (
+            <p role="alert" className="mt-1 text-xs text-danger">
+              {excelPasteError}
+            </p>
+          )}
+          {excelPasteSuccess && (
+            <p className="mt-1 text-xs text-text-muted">{excelPasteSuccess}</p>
+          )}
+          {excelExtraColumnsIgnored && (
+            <p className="mt-1 text-xs text-text-muted">
+              Am folosit primele 10 coloane. Coloanele suplimentare au fost ignorate.
+            </p>
+          )}
+        </div>
+
+        <FormField
+          id="name"
+          label={FIELD_LABELS.name}
+          value={values.name}
+          error={fieldErrors.name}
+          disabled={isBusy}
+          onChange={(value) => updateField('name', value)}
         />
 
         {FIELD_ORDER.filter((field) => field !== 'name').map((field) => (
