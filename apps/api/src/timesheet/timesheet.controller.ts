@@ -11,6 +11,7 @@ import {
   Query,
   Req,
   Sse,
+  BadRequestException,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { z } from 'zod';
@@ -46,6 +47,8 @@ const listFiltersSchema = z.object({
   createdAtFrom: z.coerce.date().optional(),
   createdAtTo: z.coerce.date().optional(),
 });
+
+const projectSummaryPeriodSchema = z.enum(['all', 'month', 'week']);
 
 function parseListFilters(query: Record<string, string>) {
   const result = listFiltersSchema.safeParse({
@@ -92,6 +95,16 @@ export class TimesheetController {
     @Body(new ZodValidationPipe(stopTimesheetSchema)) input: StopTimesheetInput,
   ) {
     return this.timesheetService.stop(req.user, input);
+  }
+
+  @Get('project-summary')
+  @Roles('ADMIN')
+  projectSummary(@Query() query: Record<string, string>) {
+    const parsed = projectSummaryPeriodSchema.safeParse(query.period ?? 'all');
+    if (!parsed.success) {
+      throw new BadRequestException('Invalid period');
+    }
+    return this.timesheetService.getProjectSummary(parsed.data);
   }
 
   @Get('mine')

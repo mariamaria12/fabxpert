@@ -16,6 +16,10 @@ export const FIXTURES = {
       id: 'e2e00001-0000-0000-0000-000000000012',
       name: 'E2E Inactive Activity',
     },
+    second: {
+      id: 'e2e00001-0000-0000-0000-000000000013',
+      name: 'E2E Second Activity',
+    },
   },
   companies: {
     c1: {

@@ -134,6 +134,7 @@ export {
   getTimesheet,
   updateTimesheet,
   deleteTimesheet,
+  getProjectSummary,
   subscribeToTimesheets,
 } from './api/timesheet';
 export type {
@@ -153,6 +154,10 @@ export type {
   TimesheetPersonDto,
   TimesheetProjectDto,
   TimesheetActivityDto,
+  ProjectSummaryPeriod,
+  ProjectSummaryActivityRow,
+  ProjectSummaryProjectRow,
+  ProjectSummaryResponse,
   StartTimesheetInput,
   StartTimesheetBodyInput,
   StopTimesheetInput,

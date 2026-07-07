@@ -8,6 +8,7 @@ import {
 import { Prisma } from '@prisma/client';
 import type {
   CreateTimesheetInput,
+  ProjectSummaryPeriod,
   StartTimesheetBodyInput,
   StopTimesheetInput,
   TimesheetDto,
@@ -24,6 +25,13 @@ import {
   deletedTimesheetEvent,
   updatedTimesheetEvent,
 } from './timesheet-events.util';
+import {
+  buildProjectSummaryQuery,
+  resolveProjectSummaryPeriodRange,
+  shapeProjectSummary,
+  type ProjectSummaryResponse,
+  type ProjectSummarySqlRow,
+} from './timesheet-project-summary.util';
 
 const timesheetInclude = {
   person: {
@@ -221,6 +229,14 @@ export class TimesheetService {
       data: rows.map(toTimesheetDto),
       meta: { page, pageSize, total, totalPages },
     };
+  }
+
+  async getProjectSummary(period: ProjectSummaryPeriod): Promise<ProjectSummaryResponse> {
+    const { from, to } = resolveProjectSummaryPeriodRange(period);
+    const rows = await this.prisma.$queryRaw<ProjectSummarySqlRow[]>(
+      buildProjectSummaryQuery(from, to),
+    );
+    return shapeProjectSummary(rows, period);
   }
 
   async findMine(

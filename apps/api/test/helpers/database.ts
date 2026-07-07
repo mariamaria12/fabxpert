@@ -68,6 +68,12 @@ export async function seedFixtures(): Promise<void> {
         name: FIXTURES.activities.inactive.name,
         isActive: false,
       },
+      {
+        id: FIXTURES.activities.second.id,
+        name: FIXTURES.activities.second.name,
+        isActive: true,
+        color: '#AABBCC',
+      },
     ],
   });
 

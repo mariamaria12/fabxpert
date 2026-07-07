@@ -1,6 +1,8 @@
 import { getApiClientBaseUrl, request } from './client';
 import type {
   CreateTimesheetInput,
+  ProjectSummaryPeriod,
+  ProjectSummaryResponse,
   StartTimesheetBodyInput,
   StopTimesheetInput,
   TimesheetDto,
@@ -97,6 +99,14 @@ export function updateTimesheet(id: string, input: UpdateTimesheetInput) {
 
 export function deleteTimesheet(id: string) {
   return request<void>(`/timesheets/${id}`, { method: 'DELETE' });
+}
+
+export function getProjectSummary(period: ProjectSummaryPeriod = 'all') {
+  const searchParams = new URLSearchParams();
+  searchParams.set('period', period);
+  return request<ProjectSummaryResponse>(
+    `/timesheets/project-summary?${searchParams.toString()}`,
+  );
 }
 
 function isTimesheetEvent(value: unknown): value is TimesheetEvent {

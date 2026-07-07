@@ -10,6 +10,7 @@ import {
   type ProjectStatusGroup,
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRegisterPanouRefetch } from './PanouRefreshContext';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { Pagination } from '@/components/Pagination';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
@@ -150,6 +151,12 @@ export function ProjectsOverview() {
   useEffect(() => {
     void loadProjects(page, statusGroup);
   }, [page, statusGroup, loadProjects]);
+
+  const refetchProjects = useCallback(async () => {
+    await Promise.all([loadCounts(), loadProjects(page, statusGroup)]);
+  }, [loadCounts, loadProjects, page, statusGroup]);
+
+  useRegisterPanouRefetch('projects-overview', refetchProjects);
 
   function selectFilter(group: ProjectStatusGroup) {
     setStatusGroup(group);

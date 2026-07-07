@@ -2,6 +2,7 @@
 
 import { listTimesheets, type TimesheetDto } from '@fabxpert/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRegisterPanouRefetch } from './PanouRefreshContext';
 import { useTimesheetEvents } from '@/context/TimesheetEventsContext';
 import { formatActivityTime, todayCreatedAtRange } from '@/utils/timesheetEvents';
 import { formatProjectLabel } from '@/app/(app)/timesheets/timesheetFormat';
@@ -25,6 +26,16 @@ export function TodayActivityFeed() {
     });
     setItems(response.data);
   }, []);
+
+  const refetchFeed = useCallback(async () => {
+    try {
+      await loadFeed();
+    } catch {
+      setItems([]);
+    }
+  }, [loadFeed]);
+
+  useRegisterPanouRefetch('activity-feed', refetchFeed);
 
   useEffect(() => {
     let cancelled = false;

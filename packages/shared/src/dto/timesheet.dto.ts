@@ -87,3 +87,27 @@ export type TimesheetDto = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type ProjectSummaryPeriod = 'all' | 'month' | 'week';
+
+export type ProjectSummaryActivityRow = {
+  activityId: string | null;
+  activityName: string;
+  activityColor: string | null;
+  minutes: number;
+};
+
+export type ProjectSummaryProjectRow = {
+  id: string;
+  name: string;
+  code: string;
+  color: string | null;
+  company: { id: string; name: string };
+  totalMinutes: number;
+  activities: ProjectSummaryActivityRow[];
+};
+
+export type ProjectSummaryResponse = {
+  period: ProjectSummaryPeriod;
+  projects: ProjectSummaryProjectRow[];
+};
