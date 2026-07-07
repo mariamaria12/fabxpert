@@ -1,6 +1,9 @@
 import { ApiError, listMyTimesheets } from '@fabxpert/shared';
 import type { TimesheetDto } from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
+import { ActivityDot } from './ActivityDot';
+import { useToast } from '../context/ToastContext';
+import { apiErrorToastMessage } from '../utils/apiToastMessage';
 import {
   entryDurationMinutes,
   formatDayGroupHeader,
@@ -38,6 +41,7 @@ function formatEntryDuration(entry: TimesheetDto): string {
 }
 
 export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
+  const { showToast } = useToast();
   const [entries, setEntries] = useState<TimesheetDto[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -82,8 +86,8 @@ export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
       setEntries((current) => [...current, ...response.data]);
       setPage(response.meta.page);
       setTotalPages(response.meta.totalPages);
-    } catch {
-      setError('Nu s-au putut încărca mai multe pontaje.');
+    } catch (caught) {
+      showToast(apiErrorToastMessage(caught), 'error');
     } finally {
       setIsLoadingMore(false);
     }
@@ -143,7 +147,10 @@ export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
                             <span className="timesheet-entry-body">
                               <span className="timesheet-entry-project">{entry.project.name}</span>
                               {entry.activity ? (
-                                <span className="timesheet-entry-activity">{entry.activity.name}</span>
+                                <span className="timesheet-entry-activity">
+                                  <ActivityDot color={entry.activity.color} />
+                                  {entry.activity.name}
+                                </span>
                               ) : null}
                             </span>
                             <span className="timesheet-entry-duration">
@@ -170,7 +177,10 @@ export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
                           <span className="timesheet-entry-body">
                             <span className="timesheet-entry-project">{entry.project.name}</span>
                             {entry.activity ? (
-                              <span className="timesheet-entry-activity">{entry.activity.name}</span>
+                              <span className="timesheet-entry-activity">
+                                <ActivityDot color={entry.activity.color} />
+                                {entry.activity.name}
+                              </span>
                             ) : null}
                           </span>
                           <span className="timesheet-entry-duration">

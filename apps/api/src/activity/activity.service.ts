@@ -16,6 +16,7 @@ function toActivityDto(activity: Activity): ActivityDto {
   return {
     id: activity.id,
     name: activity.name,
+    color: activity.color,
     isActive: activity.isActive,
     createdAt: activity.createdAt.toISOString(),
     updatedAt: activity.updatedAt.toISOString(),

@@ -1,8 +1,10 @@
-import { ApiError, updateTimesheet } from '@fabxpert/shared';
+import { deleteTimesheet, updateTimesheet } from '@fabxpert/shared';
 import type { TimesheetDto } from '@fabxpert/shared';
 import { useState } from 'react';
 import { DurationInput } from './DurationInput';
 import { useDurationInput } from '../hooks/useDurationInput';
+import { useToast } from '../context/ToastContext';
+import { apiErrorToastMessage } from '../utils/apiToastMessage';
 import {
   endTimeFromStartAndHours,
   hoursFromEntryDuration,
@@ -15,7 +17,22 @@ interface TimesheetEditProps {
   onCancel: () => void;
 }
 
+function TrashIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7h12Z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function TimesheetEdit({ timesheet, onSaved, onCancel }: TimesheetEditProps) {
+  const { showToast } = useToast();
   const initialHours = hoursFromEntryDuration(timesheet) ?? 1;
   const {
     hoursInput,
@@ -28,7 +45,8 @@ export function TimesheetEdit({ timesheet, onSaved, onCancel }: TimesheetEditPro
   } = useDurationInput(initialHours);
   const [notes, setNotes] = useState(timesheet.notes ?? '');
   const [isSaving, setIsSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // UI-only: only today's closed entries are editable in mobile. The API PATCH
   // remains unrestricted for an employee's own entries — post-MVP we'll allow
@@ -45,11 +63,10 @@ export function TimesheetEdit({ timesheet, onSaved, onCancel }: TimesheetEditPro
   }
 
   async function handleSave() {
-    if (!parsedHours || isSaving) {
+    if (!parsedHours || isSaving || isDeleting) {
       return;
     }
 
-    setFormError(null);
     setIsSaving(true);
 
     try {
@@ -63,22 +80,35 @@ export function TimesheetEdit({ timesheet, onSaved, onCancel }: TimesheetEditPro
         notes: notes.trim() || undefined,
       });
 
+      showToast('Pontaj actualizat', 'success');
       onSaved();
     } catch (caught) {
-      if (caught instanceof ApiError && caught.status === 0) {
-        setFormError('Nu s-a putut contacta serverul.');
-      } else if (caught instanceof ApiError) {
-        setFormError(caught.message);
-      } else {
-        setFormError('A apărut o eroare. Încearcă din nou.');
-      }
+      showToast(apiErrorToastMessage(caught), 'error');
     } finally {
       setIsSaving(false);
     }
   }
 
+  async function handleDelete() {
+    if (isDeleting || isSaving) {
+      return;
+    }
+
+    setIsDeleting(true);
+
+    try {
+      await deleteTimesheet(timesheet.id);
+      showToast('Pontaj șters', 'success');
+      onSaved();
+    } catch (caught) {
+      showToast(apiErrorToastMessage(caught), 'error');
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   return (
-    <>
+    <div className="flow-screen">
       <div className="flow-content">
         {/* Project and activity are intentionally not editable here — changing what
             was worked on is admin territory (post-MVP). */}
@@ -88,10 +118,7 @@ export function TimesheetEdit({ timesheet, onSaved, onCancel }: TimesheetEditPro
           hoursInput={hoursInput}
           parsedHours={parsedHours}
           hourStep={hourStep}
-          onHoursInputChange={(value) => {
-            setHoursInput(value);
-            setFormError(null);
-          }}
+          onHoursInputChange={setHoursInput}
           onAdjustHours={adjustHours}
           onPreset={setHoursPreset}
         />
@@ -113,32 +140,70 @@ export function TimesheetEdit({ timesheet, onSaved, onCancel }: TimesheetEditPro
           </p>
         ) : null}
 
-        {formError ? (
-          <p className="flow-inline-error" role="alert">
-            {formError}
-          </p>
-        ) : null}
+        <div className="timesheet-delete-section">
+          <button
+            type="button"
+            className="flow-delete-link"
+            disabled={isSaving || isDeleting || confirmDelete}
+            onClick={() => setConfirmDelete(true)}
+          >
+            <TrashIcon />
+            <span>Șterge pontajul</span>
+          </button>
+        </div>
       </div>
 
       <div className="flow-footer flow-footer-stack">
-        <button
-          type="button"
-          className="flow-primary-button"
-          disabled={!canSave || isSaving}
-          onClick={() => void handleSave()}
-        >
-          {isSaving ? 'Se salvează…' : 'Salvează modificările'}
-        </button>
+        {confirmDelete ? (
+          <div
+            className="delete-footer-confirm"
+            role="alertdialog"
+            aria-labelledby="delete-footer-title"
+          >
+            <p id="delete-footer-title" className="delete-footer-text">
+              Sigur ștergi acest pontaj?
+            </p>
+            <div className="delete-footer-actions">
+              <button
+                type="button"
+                className="flow-danger-filled-button"
+                disabled={isDeleting}
+                onClick={() => void handleDelete()}
+              >
+                {isDeleting ? 'Se șterge…' : 'Șterge'}
+              </button>
+              <button
+                type="button"
+                className="flow-secondary-button"
+                disabled={isDeleting}
+                onClick={() => setConfirmDelete(false)}
+              >
+                Anulează
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="flow-primary-button"
+              disabled={!canSave || isSaving || isDeleting}
+              onClick={() => void handleSave()}
+            >
+              {isSaving ? 'Se salvează…' : 'Salvează modificările'}
+            </button>
 
-        <button
-          type="button"
-          className="flow-secondary-button"
-          disabled={isSaving}
-          onClick={onCancel}
-        >
-          Renunță
-        </button>
+            <button
+              type="button"
+              className="flow-secondary-button"
+              disabled={isSaving || isDeleting}
+              onClick={onCancel}
+            >
+              Renunță
+            </button>
+          </>
+        )}
       </div>
-    </>
+    </div>
   );
 }

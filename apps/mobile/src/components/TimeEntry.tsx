@@ -1,8 +1,10 @@
-import { ApiError, createTimesheet } from '@fabxpert/shared';
+import { createTimesheet } from '@fabxpert/shared';
 import type { ActivityDto, ProjectOptionDto } from '@fabxpert/shared';
 import { useState } from 'react';
 import { DurationInput } from './DurationInput';
 import { useDurationInput } from '../hooks/useDurationInput';
+import { useToast } from '../context/ToastContext';
+import { apiErrorToastMessage } from '../utils/apiToastMessage';
 import { intervalEndingNow } from '../utils/timeUtils';
 
 const DEFAULT_HOURS = 8;
@@ -14,6 +16,7 @@ interface TimeEntryProps {
 }
 
 export function TimeEntry({ project, activity, onSaved }: TimeEntryProps) {
+  const { showToast } = useToast();
   const {
     hoursInput,
     setHoursInput,
@@ -25,8 +28,6 @@ export function TimeEntry({ project, activity, onSaved }: TimeEntryProps) {
   } = useDurationInput(DEFAULT_HOURS);
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
 
   async function handleSave() {
     if (!parsedHours || isSaving) {
@@ -35,12 +36,9 @@ export function TimeEntry({ project, activity, onSaved }: TimeEntryProps) {
 
     const interval = intervalEndingNow(parsedHours);
     if (!interval) {
-      setFormError('Introdu un număr valid de ore.');
       return;
     }
 
-    setFormError(null);
-    setSuccessMessage(null);
     setIsSaving(true);
 
     try {
@@ -52,23 +50,17 @@ export function TimeEntry({ project, activity, onSaved }: TimeEntryProps) {
         notes: notes.trim() || undefined,
       });
 
-      setSuccessMessage('Pontaj salvat.');
-      window.setTimeout(() => {
-        onSaved();
-      }, 900);
+      showToast('Pontaj adăugat', 'success');
+      onSaved();
     } catch (caught) {
-      if (caught instanceof ApiError && caught.status === 0) {
-        setFormError('Nu s-a putut contacta serverul.');
-      } else {
-        setFormError('A apărut o eroare. Încearcă din nou.');
-      }
+      showToast(apiErrorToastMessage(caught), 'error');
     } finally {
       setIsSaving(false);
     }
   }
 
   return (
-    <>
+    <div className="flow-screen">
       <div className="flow-content">
         <h2 className="flow-heading">Adaugă timp</h2>
 
@@ -76,10 +68,7 @@ export function TimeEntry({ project, activity, onSaved }: TimeEntryProps) {
           hoursInput={hoursInput}
           parsedHours={parsedHours}
           hourStep={hourStep}
-          onHoursInputChange={(value) => {
-            setHoursInput(value);
-            setFormError(null);
-          }}
+          onHoursInputChange={setHoursInput}
           onAdjustHours={adjustHours}
           onPreset={setHoursPreset}
         />
@@ -100,30 +89,18 @@ export function TimeEntry({ project, activity, onSaved }: TimeEntryProps) {
             Introdu un număr valid de ore (ex. 4 sau 4,5)
           </p>
         ) : null}
-
-        {successMessage ? (
-          <p className="flow-success-text" role="status">
-            {successMessage}
-          </p>
-        ) : null}
-
-        {formError ? (
-          <p className="flow-inline-error" role="alert">
-            {formError}
-          </p>
-        ) : null}
       </div>
 
       <div className="flow-footer">
         <button
           type="button"
           className="flow-primary-button"
-          disabled={!canSave || isSaving || Boolean(successMessage)}
+          disabled={!canSave || isSaving}
           onClick={() => void handleSave()}
         >
           {isSaving ? 'Se salvează…' : 'Salvează pontajul'}
         </button>
       </div>
-    </>
+    </div>
   );
 }

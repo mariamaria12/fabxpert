@@ -207,7 +207,7 @@ describe('Timesheet rules (e2e)', () => {
     expect(response.body.message).toBe('endTime must be after startTime');
   });
 
-  it('ownership: EMPLOYEE PATCH other → 403; own → 200; EMPLOYEE DELETE → 403; ADMIN DELETE → 204 + soft delete', async () => {
+  it('ownership: EMPLOYEE PATCH other → 403; own → 200; EMPLOYEE DELETE other → 403; own → 204; ADMIN DELETE → 204 + soft delete', async () => {
     const create = await request(app.getHttpServer())
       .post('/timesheets')
       .set(authHeader(adminCookie))
@@ -236,23 +236,48 @@ describe('Timesheet rules (e2e)', () => {
 
     expect(patchOwn.status).toBe(200);
 
-    const employeeDelete = await request(app.getHttpServer())
+    const employeeDeleteOther = await request(app.getHttpServer())
+      .delete(`/timesheets/${timesheetId}`)
+      .set(authHeader(employee1Cookie));
+
+    expect(employeeDeleteOther.status).toBe(403);
+
+    const employeeDeleteOwn = await request(app.getHttpServer())
       .delete(`/timesheets/${timesheetId}`)
       .set(authHeader(employee2Cookie));
 
-    expect(employeeDelete.status).toBe(403);
-
-    const adminDelete = await request(app.getHttpServer())
-      .delete(`/timesheets/${timesheetId}`)
-      .set(authHeader(adminCookie));
-
-    expect(adminDelete.status).toBe(204);
+    expect(employeeDeleteOwn.status).toBe(204);
 
     const row = await getTestPrisma().timesheet.findUnique({
       where: { id: timesheetId },
       select: { deletedAt: true },
     });
     expect(row?.deletedAt).not.toBeNull();
+
+    const createForAdmin = await request(app.getHttpServer())
+      .post('/timesheets')
+      .set(authHeader(adminCookie))
+      .send({
+        personId: FIXTURES.persons.employee2.id,
+        projectId: FIXTURES.projects.ready.id,
+        startTime: new Date('2026-02-02T08:00:00.000Z').toISOString(),
+        endTime: new Date('2026-02-02T12:00:00.000Z').toISOString(),
+        notes: 'admin delete target',
+      });
+
+    expect(createForAdmin.status).toBe(201);
+
+    const adminDelete = await request(app.getHttpServer())
+      .delete(`/timesheets/${createForAdmin.body.id}`)
+      .set(authHeader(adminCookie));
+
+    expect(adminDelete.status).toBe(204);
+
+    const adminDeletedRow = await getTestPrisma().timesheet.findUnique({
+      where: { id: createForAdmin.body.id },
+      select: { deletedAt: true },
+    });
+    expect(adminDeletedRow?.deletedAt).not.toBeNull();
   });
 
   it('GET /timesheets/mine returns nested person/project/activity', async () => {

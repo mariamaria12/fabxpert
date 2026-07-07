@@ -1,6 +1,7 @@
 import { ApiError, listActivities } from '@fabxpert/shared';
 import type { ActivityDto } from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
+import { ActivityDot } from './ActivityDot';
 
 interface ActivitySelectProps {
   onChoose: (activity: ActivityDto) => void;
@@ -59,6 +60,7 @@ export function ActivitySelect({ onChoose }: ActivitySelectProps) {
                 className="option-row option-row-activity"
                 onClick={() => onChoose(activity)}
               >
+                <ActivityDot color={activity.color} />
                 <span className="option-row-body">
                   <span className="option-row-title">{activity.name}</span>
                 </span>

@@ -13,15 +13,15 @@ const employeeRoles = [
 ];
 
 const activities = [
-  'Debitare (inclusiv CNC intern)',
-  'Asamblare',
-  'Sudare',
-  'Vopsire',
-  'Rectificare',
-  'Premontaj/Montaj',
-  'Administrativ',
-  'CNC extern',
-];
+  { name: 'Debitare (inclusiv CNC intern)', color: '#3B7EA1' },
+  { name: 'Asamblare', color: '#7A8450' },
+  { name: 'Sudare', color: '#B5533C' },
+  { name: 'Vopsire', color: '#8E5FA8' },
+  { name: 'Rectificare', color: '#6B6B6B' },
+  { name: 'Premontaj/Montaj', color: '#C9A227' },
+  { name: 'Administrativ', color: '#8A8A8A' },
+  { name: 'CNC extern', color: '#2F6F4E' },
+] as const;
 
 // Stable IDs for seed Person placeholders — never change across re-seeds.
 const ADMIN_PERSON_ID = '00000000-0000-0000-0000-000000000001';
@@ -392,11 +392,11 @@ async function main() {
   console.log(`Done — ${employeeRoles.length} EmployeeRole rows seeded.\n`);
 
   console.log('Seeding Activity rows...');
-  for (const name of activities) {
+  for (const { name, color } of activities) {
     const activity = await prisma.activity.upsert({
       where: { name },
-      update: {},
-      create: { name },
+      update: { color },
+      create: { name, color },
     });
     console.log(`  ✓ ${activity.name} (${activity.id})`);
   }

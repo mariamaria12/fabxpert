@@ -39,6 +39,7 @@ const timesheetInclude = {
     select: {
       id: true,
       name: true,
+      color: true,
     },
   },
 } satisfies Prisma.TimesheetInclude;
@@ -298,8 +299,16 @@ export class TimesheetService {
     return toTimesheetDto(timesheet);
   }
 
-  async softDelete(id: string): Promise<void> {
-    await this.getTimesheetOrThrow(id);
+  async softDelete(actor: AuthenticatedUser, id: string): Promise<void> {
+    const existing = await this.getTimesheetOrThrow(id);
+
+    if (actor.role === 'EMPLOYEE') {
+      const personId = await this.resolveEmployeePersonId(actor.id);
+      if (existing.personId !== personId) {
+        throw new ForbiddenException('You do not have access to this timesheet');
+      }
+    }
+
     await this.prisma.timesheet.update({
       where: { id },
       data: { deletedAt: new Date() },

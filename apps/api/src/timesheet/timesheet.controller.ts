@@ -124,9 +124,12 @@ export class TimesheetController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'EMPLOYEE')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id', new ZodValidationPipe(idParamSchema)) id: string) {
-    await this.timesheetService.softDelete(id);
+  async remove(
+    @Req() req: Request & { user: AuthenticatedUser },
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
+  ) {
+    await this.timesheetService.softDelete(req.user, id);
   }
 }

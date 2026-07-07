@@ -30,6 +30,8 @@
   --color-accent-tint: rgba(217, 164, 65, 0.12);
   --color-accent-border: rgba(217, 164, 65, 0.45);
   --color-danger-text: #f09595;
+  --color-toast-success-bg: rgba(151, 196, 89, 0.16);
+  --color-toast-error-bg: rgba(181, 83, 60, 0.2);
   --color-success-icon: #97c459;
   --color-timer-stop: #b5533c;
   --color-timer-stop-text: #f5e8e4;

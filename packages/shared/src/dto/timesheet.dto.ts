@@ -69,6 +69,7 @@ export type TimesheetProjectDto = {
 export type TimesheetActivityDto = {
   id: string;
   name: string;
+  color: string | null;
 };
 
 export type TimesheetDto = {
