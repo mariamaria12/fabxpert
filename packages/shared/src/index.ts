@@ -24,6 +24,22 @@ export type {
 } from './dto/company.dto';
 export type { PaginatedResponse, PaginationMeta } from './dto/pagination.dto';
 export {
+  listActivities,
+  getActivity,
+  createActivity,
+  updateActivity,
+  deleteActivity,
+} from './api/activity';
+export {
+  createActivitySchema,
+  updateActivitySchema,
+} from './dto/activity.dto';
+export type {
+  ActivityDto,
+  CreateActivityInput,
+  UpdateActivityInput,
+} from './dto/activity.dto';
+export {
   listPersons,
   getPerson,
   createPerson,

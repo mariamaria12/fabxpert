@@ -29,6 +29,10 @@
       "types": "./dist/dto/person.dto.d.ts",
       "default": "./dist/dto/person.dto.js"
     },
+    "./dto/activity.dto": {
+      "types": "./dist/dto/activity.dto.d.ts",
+      "default": "./dist/dto/activity.dto.js"
+    },
     "./dto/pagination.dto": {
       "types": "./dist/dto/pagination.dto.d.ts",
       "default": "./dist/dto/pagination.dto.js"
