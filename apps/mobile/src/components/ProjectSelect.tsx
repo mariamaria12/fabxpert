@@ -5,6 +5,7 @@ import {
   formatTodayWorkedTotal,
   sumTodayClosedMinutes,
 } from '../utils/timeUtils';
+import { projectOptionTintStyle } from '../utils/colorUtils';
 
 interface ProjectSelectProps {
   onChoose: (project: ProjectOptionDto) => void;
@@ -130,12 +131,17 @@ export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectPro
 
       {!isLoading && !error && (
         <ul className="option-list" role="listbox" aria-label="Proiecte disponibile">
-          {projects.map((project) => (
+          {projects.map((project) => {
+            const tintStyle = projectOptionTintStyle(project.color);
+            const hasTint = Boolean(project.color && tintStyle.background);
+
+            return (
             <li key={project.id}>
               <button
                 type="button"
                 role="option"
-                className="option-row"
+                className={`option-row${hasTint ? ' option-row-project-tinted' : ''}`}
+                style={hasTint ? tintStyle : undefined}
                 onClick={() => onChoose(project)}
               >
                 <span
@@ -149,7 +155,8 @@ export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectPro
                 </span>
               </button>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>

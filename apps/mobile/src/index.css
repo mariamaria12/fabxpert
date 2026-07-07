@@ -624,6 +624,12 @@ body {
   background: var(--color-accent-tint);
 }
 
+.option-row-project-tinted:active,
+.option-row-project-tinted.option-row-selected {
+  border-width: 2px;
+  border-color: var(--color-accent-border);
+}
+
 .option-color-bar {
   flex-shrink: 0;
   border-radius: 3px;
