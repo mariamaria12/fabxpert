@@ -145,6 +145,7 @@ model Company {
   email               String?
   contactPerson       String?
   contactPersonPhone  String?
+  color               String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   deletedAt           DateTime?

@@ -17,6 +17,12 @@ export interface DataTableProps<T> {
   rowKey: (row: T) => string | number;
   /** When provided, renders a 6px colored bar as the leading column (Projects-style). */
   rowAccentColor?: (row: T) => string | undefined;
+  /** When set, rows become clickable (pointer + hover). */
+  onRowClick?: (row: T) => void;
+  /** Renders skeleton placeholder rows instead of data. */
+  loading?: boolean;
+  /** Skeleton row count when loading (default 5). */
+  loadingRowCount?: number;
 }
 
 function getCellValue<T>(row: T, key: string): ReactNode {
@@ -28,8 +34,24 @@ function getCellValue<T>(row: T, key: string): ReactNode {
   return String(value);
 }
 
-export function DataTable<T>({ columns, data, rowKey, rowAccentColor }: DataTableProps<T>) {
+function SkeletonCell() {
+  return (
+    <div className="h-3.5 w-3/4 max-w-[12rem] animate-pulse rounded bg-surface-raised" />
+  );
+}
+
+export function DataTable<T>({
+  columns,
+  data,
+  rowKey,
+  rowAccentColor,
+  onRowClick,
+  loading = false,
+  loadingRowCount = 5,
+}: DataTableProps<T>) {
   const showAccent = rowAccentColor !== undefined;
+  const colSpan = columns.length + (showAccent ? 1 : 0);
+  const interactive = onRowClick !== undefined;
 
   return (
     <div className="w-full overflow-x-auto border border-border-subtle">
@@ -50,12 +72,23 @@ export function DataTable<T>({ columns, data, rowKey, rowAccentColor }: DataTabl
           </tr>
         </thead>
         <tbody>
-          {data.length === 0 ? (
-            <tr>
-              <td
-                colSpan={columns.length + (showAccent ? 1 : 0)}
-                className="px-3 py-8 text-center text-text-muted"
+          {loading ? (
+            Array.from({ length: loadingRowCount }, (_, index) => (
+              <tr
+                key={`skeleton-${index}`}
+                className="border-b border-border-subtle last:border-b-0"
               >
+                {showAccent && <td className="w-1.5 p-0" aria-hidden="true" />}
+                {columns.map((column) => (
+                  <td key={column.key} className="px-3 py-2.5">
+                    <SkeletonCell />
+                  </td>
+                ))}
+              </tr>
+            ))
+          ) : data.length === 0 ? (
+            <tr>
+              <td colSpan={colSpan} className="px-3 py-8 text-center text-text-muted">
                 Niciun rezultat.
               </td>
             </tr>
@@ -65,7 +98,10 @@ export function DataTable<T>({ columns, data, rowKey, rowAccentColor }: DataTabl
               return (
                 <tr
                   key={rowKey(row)}
-                  className="border-b border-border-subtle transition-colors last:border-b-0 hover:bg-surface-raised"
+                  onClick={interactive ? () => onRowClick(row) : undefined}
+                  className={`border-b border-border-subtle transition-colors last:border-b-0 hover:bg-surface-raised${
+                    interactive ? ' cursor-pointer' : ''
+                  }`}
                 >
                   {showAccent && (
                     <td className="w-1.5 p-0" aria-hidden="true">

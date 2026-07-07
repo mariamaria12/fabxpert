@@ -23,6 +23,7 @@ function toCompanyDto(company: Company): CompanyDto {
     email: company.email,
     contactPerson: company.contactPerson,
     contactPersonPhone: company.contactPersonPhone,
+    color: company.color,
     createdAt: company.createdAt.toISOString(),
     updatedAt: company.updatedAt.toISOString(),
   };

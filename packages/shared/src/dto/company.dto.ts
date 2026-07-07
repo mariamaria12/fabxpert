@@ -7,6 +7,10 @@ const optionalEmail = z
   .optional()
   .transform((value) => (value === '' ? undefined : value));
 
+const hexColorSchema = z
+  .string()
+  .regex(/^#[0-9A-Fa-f]{6}$/, 'Color must be a hex value in the form #RRGGBB');
+
 export const createCompanySchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
   taxCode: optionalString,
@@ -18,9 +22,15 @@ export const createCompanySchema = z.object({
   email: optionalEmail,
   contactPerson: optionalString,
   contactPersonPhone: optionalString,
+  color: hexColorSchema.optional(),
 });
 
-export const updateCompanySchema = createCompanySchema.partial().refine(
+export const updateCompanySchema = createCompanySchema
+  .extend({
+    color: z.union([hexColorSchema, z.null()]).optional(),
+  })
+  .partial()
+  .refine(
   (data) => data.name === undefined || data.name.trim().length > 0,
   { message: 'Name cannot be empty', path: ['name'] },
 );
@@ -41,6 +51,7 @@ export type CompanyDto = {
   email: string | null;
   contactPerson: string | null;
   contactPersonPhone: string | null;
+  color: string | null;
   createdAt: string;
   updatedAt: string;
 };

@@ -1,6 +1,6 @@
 'use client';
 
-import { getMe } from '@fabxpert/shared';
+import { getMe, logout } from '@fabxpert/shared';
 import type { MeResponse } from '@fabxpert/shared';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -11,6 +11,7 @@ const SIDEBAR_COLLAPSED_KEY = 'fabxpert.sidebar-collapsed';
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<MeResponse | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -28,13 +29,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     getMe()
-      .then((me) => {
-        if (!cancelled) {
-          setUser(me);
+      .then(async (me) => {
+        if (cancelled) {
+          return;
         }
+
+        if (me.role !== 'ADMIN') {
+          await logout();
+          router.replace('/login');
+          return;
+        }
+
+        setUser(me);
+        setAuthReady(true);
       })
       .catch(() => {
-        router.replace('/login');
+        if (!cancelled) {
+          router.replace('/login');
+        }
       });
     return () => {
       cancelled = true;
@@ -45,6 +57,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const next = !collapsed;
     window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? '1' : '0');
     setCollapsed(next);
+  }
+
+  if (!authReady) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-bg">
+        <p className="text-sm text-text-muted">Se încarcă…</p>
+      </div>
+    );
   }
 
   return (

@@ -131,6 +131,7 @@ const companiesSeed = [
     legalRepresentative: 'Ion Vasilescu',
     contactPerson: 'Ion Vasilescu',
     contactPersonPhone: '0741223344',
+    color: '#7A8450',
   },
   {
     id: COMPANY_IDS.metalexport,
@@ -143,6 +144,7 @@ const companiesSeed = [
     legalRepresentative: 'Elena Popa',
     contactPerson: 'Elena Popa',
     contactPersonPhone: '0755667889',
+    color: '#3B7EA1',
   },
   {
     id: COMPANY_IDS.lidl,
@@ -155,6 +157,7 @@ const companiesSeed = [
     legalRepresentative: 'Andrei Marin',
     contactPerson: 'Andrei Marin',
     contactPersonPhone: '0212334556',
+    color: '#C9A227',
   },
   {
     id: COMPANY_IDS.steelcor,
@@ -167,6 +170,7 @@ const companiesSeed = [
     legalRepresentative: 'Sorina Dumitru',
     contactPerson: 'Sorina Dumitru',
     contactPersonPhone: '0729112233',
+    color: '#6B6B6B',
   },
   {
     id: COMPANY_IDS.dacia,
@@ -179,6 +183,7 @@ const companiesSeed = [
     legalRepresentative: 'Radu Constantin',
     contactPerson: 'Radu Constantin',
     contactPersonPhone: '0261445778',
+    color: '#B5533C',
   },
 ] as const;
 
@@ -298,6 +303,7 @@ async function seedCompanies() {
         legalRepresentative: company.legalRepresentative,
         contactPerson: company.contactPerson,
         contactPersonPhone: company.contactPersonPhone,
+        color: company.color,
       },
       create: { ...company },
     });
