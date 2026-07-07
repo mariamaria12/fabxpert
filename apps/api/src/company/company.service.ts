@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Company } from '@prisma/client';
 import type {
@@ -33,9 +34,19 @@ function toCompanyDto(company: Company): CompanyDto {
 export class CompanyService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(pagination: PaginationParams): Promise<PaginatedResponse<CompanyDto>> {
+  async findAll(
+    pagination: PaginationParams,
+    search?: string,
+  ): Promise<PaginatedResponse<CompanyDto>> {
     const { page, pageSize } = pagination;
-    const where = { ...notDeleted() };
+    const where: Prisma.CompanyWhereInput = { ...notDeleted() };
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { contactPerson: { contains: search, mode: 'insensitive' } },
+      ];
+    }
 
     const [total, rows] = await Promise.all([
       this.prisma.company.count({ where }),

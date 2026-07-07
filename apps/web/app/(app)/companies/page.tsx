@@ -11,6 +11,10 @@ import { Pagination } from '@/components/Pagination';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 
 const PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 300;
+
+const searchInputClassName =
+  'w-full max-w-md rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
 
 function nullableCell(value: string | null | undefined) {
   if (!value) {
@@ -42,16 +46,16 @@ const companyColumns: DataTableColumn<CompanyDto>[] = [
     render: (row) => nullableCell(row.taxCode),
   },
   {
-    key: 'phone',
-    header: 'Telefon',
+    key: 'contactPersonPhone',
+    header: 'Telefon POC',
     width: '150px',
     className: 'text-text-secondary',
-    render: (row) => nullableCell(row.phone),
+    render: (row) => nullableCell(row.contactPersonPhone),
   },
   {
-    key: 'legalRepresentative',
-    header: 'Reprezentant legal',
-    render: (row) => nullableCell(row.legalRepresentative),
+    key: 'contactPerson',
+    header: 'Persoana de contact',
+    render: (row) => nullableCell(row.contactPerson),
   },
   {
     key: 'email',
@@ -68,18 +72,35 @@ type PanelState =
 
 export default function CompaniesPage() {
   const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [companies, setCompanies] = useState<CompanyDto[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [panel, setPanel] = useState<PanelState>({ open: false });
 
-  const loadCompanies = useCallback(async (targetPage: number) => {
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchInput.trim());
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
+  const loadCompanies = useCallback(async (targetPage: number, search?: string) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await listCompanies({ page: targetPage, pageSize: PAGE_SIZE });
+      const response = await listCompanies({
+        page: targetPage,
+        pageSize: PAGE_SIZE,
+        search,
+      });
       setCompanies(response.data);
       setTotal(response.meta.total);
     } catch (caught) {
@@ -90,8 +111,8 @@ export default function CompaniesPage() {
   }, []);
 
   useEffect(() => {
-    void loadCompanies(page);
-  }, [page, loadCompanies]);
+    void loadCompanies(page, debouncedSearch || undefined);
+  }, [page, debouncedSearch, loadCompanies]);
 
   function openCreate() {
     setPanel({ open: true, mode: 'create', company: null });
@@ -106,11 +127,13 @@ export default function CompaniesPage() {
   }
 
   function handleSaved() {
-    void loadCompanies(page);
+    void loadCompanies(page, debouncedSearch || undefined);
   }
 
-  const showEmptyState = !loading && !error && total === 0;
-  const showTable = loading || total > 0;
+  const hasActiveSearch = debouncedSearch.length > 0;
+  const showEmptyState = !loading && !error && total === 0 && !hasActiveSearch;
+  const showNoSearchResults = !loading && !error && total === 0 && hasActiveSearch;
+  const showDataTable = loading || total > 0;
 
   return (
     <div className="flex h-full flex-col">
@@ -132,11 +155,30 @@ export default function CompaniesPage() {
           <p className="text-sm text-danger">{error}</p>
           <button
             type="button"
-            onClick={() => void loadCompanies(page)}
+            onClick={() => void loadCompanies(page, debouncedSearch || undefined)}
             className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary"
           >
             Reîncearcă
           </button>
+        </div>
+      )}
+
+      {!showEmptyState && (
+        <div className="mt-4">
+          <input
+            type="search"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            placeholder="Caută după denumire sau POC..."
+            aria-label="Caută după denumire sau POC"
+            className={searchInputClassName}
+          />
+        </div>
+      )}
+
+      {showNoSearchResults && (
+        <div className="mt-8 flex flex-col items-center justify-center gap-4 text-center">
+          <p className="text-sm text-text-muted">Nu există companii care să corespundă căutării.</p>
         </div>
       )}
 
@@ -153,7 +195,7 @@ export default function CompaniesPage() {
         </div>
       )}
 
-      {showTable && (
+      {showDataTable && (
         <div className="mt-6">
           <DataTable
             columns={companyColumns}

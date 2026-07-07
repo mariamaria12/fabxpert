@@ -31,7 +31,8 @@ export class CompanyController {
 
   @Get()
   findAll(@Query() query: Record<string, string>) {
-    return this.companyService.findAll(parsePagination(query));
+    const search = query.search?.trim() || undefined;
+    return this.companyService.findAll(parsePagination(query), search);
   }
 
   @Get(':id')

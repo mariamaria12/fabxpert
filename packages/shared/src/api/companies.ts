@@ -9,6 +9,7 @@ import type { PaginatedResponse } from '../dto/pagination.dto';
 export interface ListCompaniesParams {
   page?: number;
   pageSize?: number;
+  search?: string;
 }
 
 export function listCompanies(params: ListCompaniesParams = {}) {
@@ -18,6 +19,10 @@ export function listCompanies(params: ListCompaniesParams = {}) {
   }
   if (params.pageSize !== undefined) {
     searchParams.set('pageSize', String(params.pageSize));
+  }
+  const trimmedSearch = params.search?.trim();
+  if (trimmedSearch) {
+    searchParams.set('search', trimmedSearch);
   }
   const query = searchParams.toString();
   return request<PaginatedResponse<CompanyDto>>(`/companies${query ? `?${query}` : ''}`);
