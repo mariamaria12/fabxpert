@@ -50,6 +50,14 @@ export default defineConfig({
   ],
   server: {
     port: 3001,
+    proxy: {
+      // Same-origin /api in dev — mirrors Vercel rewrite so auth cookies work on mobile.
+      '/api': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
   },
   preview: {
     port: 3001,
