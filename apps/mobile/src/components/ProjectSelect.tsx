@@ -1,6 +1,7 @@
 import { ApiError, listAvailableProjects, listMyTimesheets, subscribeToAvailableProjects } from '@fabxpert/shared';
 import type { ProjectOptionDto } from '@fabxpert/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDelayedLoadingLabel } from '../hooks/useDelayedLoadingLabel';
 import {
   formatTodayWorkedTotal,
   sumTodayClosedMinutes,
@@ -51,58 +52,72 @@ function EyeIcon() {
 
 export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectProps) {
   const [projects, setProjects] = useState<ProjectOptionDto[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isFetchingProjects, setIsFetchingProjects] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [todayMinutes, setTodayMinutes] = useState(0);
   const [todayTotalLoaded, setTodayTotalLoaded] = useState(false);
+  const [isFetchingTodayTotal, setIsFetchingTodayTotal] = useState(true);
   const debounceRef = useRef<number | null>(null);
 
-  const loadProjects = useCallback(async () => {
+  const showProjectsLoadingLabel = useDelayedLoadingLabel(isFetchingProjects, {
+    hasData: projects.length > 0,
+  });
+  const showBannerLoadingLabel = useDelayedLoadingLabel(isFetchingTodayTotal, {
+    hasData: todayTotalLoaded,
+  });
+
+  const loadProjects = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent === true;
+
+    if (!silent) {
+      setIsFetchingProjects(true);
+      setError(null);
+    }
+
     try {
       const projectsData = await listAvailableProjects();
       setProjects(projectsData);
-      setError(null);
+      if (!silent) {
+        setError(null);
+      }
     } catch (caught) {
-      if (caught instanceof ApiError && caught.status === 0) {
-        setError('Nu s-a putut contacta serverul.');
-      } else {
-        setError('Nu s-au putut încărca proiectele.');
+      if (!silent) {
+        if (caught instanceof ApiError && caught.status === 0) {
+          setError('Nu s-a putut contacta serverul.');
+        } else {
+          setError('Nu s-au putut încărca proiectele.');
+        }
+      }
+    } finally {
+      if (!silent) {
+        setIsFetchingProjects(false);
       }
     }
   }, []);
 
-  const loadScreen = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    setTodayTotalLoaded(false);
+  const loadTodayTotal = useCallback(async () => {
+    setIsFetchingTodayTotal(true);
 
     try {
-      const [projectsData, minePage] = await Promise.all([
-        listAvailableProjects(),
-        listMyTimesheets(1),
-      ]);
-
-      setProjects(projectsData);
-
+      const minePage = await listMyTimesheets(1);
       // MVP: page 1 only (default pageSize, startTime desc). If a user has more
       // than a page of entries today, older ones that fell off page 1 are excluded.
       setTodayMinutes(sumTodayClosedMinutes(minePage.data));
-      setTodayTotalLoaded(true);
-    } catch (caught) {
-      if (caught instanceof ApiError && caught.status === 0) {
-        setError('Nu s-a putut contacta serverul.');
-      } else {
-        setError('Nu s-au putut încărca proiectele.');
+    } catch {
+      // Banner is secondary — keep previous value on refetch failure.
+      if (!todayTotalLoaded) {
+        setTodayMinutes(0);
       }
-      setTodayTotalLoaded(true);
     } finally {
-      setIsLoading(false);
+      setTodayTotalLoaded(true);
+      setIsFetchingTodayTotal(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadScreen();
-  }, [loadScreen]);
+    void loadProjects();
+    void loadTodayTotal();
+  }, [loadProjects, loadTodayTotal]);
 
   useEffect(() => {
     const unsubscribe = subscribeToAvailableProjects(() => {
@@ -111,7 +126,7 @@ export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectPro
       }
 
       debounceRef.current = window.setTimeout(() => {
-        void loadProjects();
+        void loadProjects({ silent: true });
         debounceRef.current = null;
       }, 1000);
     });
@@ -124,12 +139,16 @@ export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectPro
     };
   }, [loadProjects]);
 
-  const bannerText =
-    !todayTotalLoaded
-      ? 'Se încarcă…'
-      : todayMinutes > 0
-        ? `Azi ai lucrat ${formatTodayWorkedTotal(todayMinutes)}`
-        : 'Azi nu ai pontat încă';
+  const bannerText = showBannerLoadingLabel
+    ? 'Se încarcă…'
+    : todayMinutes > 0
+      ? `Azi ai lucrat ${formatTodayWorkedTotal(todayMinutes)}`
+      : 'Azi nu ai pontat încă';
+
+  const showProjectList = !error && projects.length > 0;
+  const showProjectError = !isFetchingProjects && Boolean(error);
+  const showEmptyProjects =
+    !isFetchingProjects && !error && projects.length === 0;
 
   return (
     <div className="flow-content">
@@ -153,18 +172,31 @@ export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectPro
       <p className="flow-step-label">PASUL 1 DIN 2</p>
       <h2 className="flow-heading">Alege proiectul</h2>
 
-      {isLoading && <p className="flow-status">Se încarcă proiectele…</p>}
+      {showProjectsLoadingLabel && (
+        <p className="flow-status">Se încarcă proiectele…</p>
+      )}
 
-      {!isLoading && error && (
+      {showProjectError && (
         <div className="flow-error-block">
           <p className="flow-error-text">{error}</p>
-          <button type="button" className="flow-retry-button" onClick={() => void loadScreen()}>
+          <button
+            type="button"
+            className="flow-retry-button"
+            onClick={() => {
+              void loadProjects();
+              void loadTodayTotal();
+            }}
+          >
             Reîncearcă
           </button>
         </div>
       )}
 
-      {!isLoading && !error && (
+      {showEmptyProjects && (
+        <p className="flow-status">Nu există proiecte disponibile.</p>
+      )}
+
+      {showProjectList && (
         <ul className="option-list" role="listbox" aria-label="Proiecte disponibile">
           {projects.map((project) => {
             const tintStyle = projectOptionTintStyle(project.color);

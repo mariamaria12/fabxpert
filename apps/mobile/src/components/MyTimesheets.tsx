@@ -3,6 +3,7 @@ import type { TimesheetDto } from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityDot } from './ActivityDot';
 import { useToast } from '../context/ToastContext';
+import { useDelayedLoadingLabel } from '../hooks/useDelayedLoadingLabel';
 import { apiErrorToastMessage } from '../utils/apiToastMessage';
 import {
   entryDurationMinutes,
@@ -45,12 +46,19 @@ export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
   const [entries, setEntries] = useState<TimesheetDto[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const showLoadingLabel = useDelayedLoadingLabel(isFetching, {
+    hasData: entries.length > 0,
+  });
+  const showLoadMoreLoadingLabel = useDelayedLoadingLabel(isLoadingMore, {
+    delayMs: 200,
+  });
+
   const loadFirstPage = useCallback(async () => {
-    setIsLoading(true);
+    setIsFetching(true);
     setError(null);
 
     try {
@@ -65,7 +73,7 @@ export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
         setError('Nu s-au putut încărca pontajele.');
       }
     } finally {
-      setIsLoading(false);
+      setIsFetching(false);
     }
   }, []);
 
@@ -94,12 +102,15 @@ export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
   }
 
   const dayGroups = groupEntriesByLocalDay(entries);
+  const showList = !error && dayGroups.length > 0;
+  const showError = !isFetching && Boolean(error);
+  const showEmpty = !isFetching && !error && dayGroups.length === 0;
 
   return (
     <div className="flow-content my-timesheets-content">
-      {isLoading ? <p className="flow-status">Se încarcă pontajele…</p> : null}
+      {showLoadingLabel ? <p className="flow-status">Se încarcă pontajele…</p> : null}
 
-      {!isLoading && error ? (
+      {showError ? (
         <div className="flow-error-block">
           <p className="flow-error-text">{error}</p>
           <button type="button" className="flow-retry-button" onClick={() => void loadFirstPage()}>
@@ -108,11 +119,9 @@ export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
         </div>
       ) : null}
 
-      {!isLoading && !error && dayGroups.length === 0 ? (
-        <p className="flow-status">Nu ai pontaje înregistrate.</p>
-      ) : null}
+      {showEmpty ? <p className="flow-status">Nu ai pontaje înregistrate.</p> : null}
 
-      {!isLoading && !error && dayGroups.length > 0 ? (
+      {showList ? (
         <div className="timesheet-day-groups">
           {dayGroups.map(({ dayKey, entries: dayEntries }) => {
             const { label, isToday } = formatDayGroupHeader(dayKey);
@@ -197,14 +206,14 @@ export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
         </div>
       ) : null}
 
-      {!isLoading && !error && page < totalPages ? (
+      {!isFetching && !error && page < totalPages ? (
         <button
           type="button"
           className="timesheet-load-more"
           disabled={isLoadingMore}
           onClick={() => void handleLoadMore()}
         >
-          {isLoadingMore ? 'Se încarcă…' : 'Încarcă mai multe'}
+          {showLoadMoreLoadingLabel ? 'Se încarcă…' : 'Încarcă mai multe'}
         </button>
       ) : null}
     </div>

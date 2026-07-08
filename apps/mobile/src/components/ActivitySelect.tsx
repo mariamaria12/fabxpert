@@ -1,6 +1,7 @@
 import { ApiError, listActivities } from '@fabxpert/shared';
 import type { ActivityDto } from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
+import { useDelayedLoadingLabel } from '../hooks/useDelayedLoadingLabel';
 import { ActivityDot } from './ActivityDot';
 
 interface ActivitySelectProps {
@@ -9,11 +10,15 @@ interface ActivitySelectProps {
 
 export function ActivitySelect({ onChoose }: ActivitySelectProps) {
   const [activities, setActivities] = useState<ActivityDto[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const showLoadingLabel = useDelayedLoadingLabel(isFetching, {
+    hasData: activities.length > 0,
+  });
+
   const loadActivities = useCallback(async () => {
-    setIsLoading(true);
+    setIsFetching(true);
     setError(null);
 
     try {
@@ -26,7 +31,7 @@ export function ActivitySelect({ onChoose }: ActivitySelectProps) {
         setError('Nu s-au putut încărca activitățile.');
       }
     } finally {
-      setIsLoading(false);
+      setIsFetching(false);
     }
   }, []);
 
@@ -34,14 +39,18 @@ export function ActivitySelect({ onChoose }: ActivitySelectProps) {
     void loadActivities();
   }, [loadActivities]);
 
+  const showList = !error && activities.length > 0;
+  const showError = !isFetching && Boolean(error);
+  const showEmpty = !isFetching && !error && activities.length === 0;
+
   return (
     <div className="flow-content">
       <p className="flow-step-label">PASUL 2 DIN 2</p>
       <h2 className="flow-heading">Alege activitatea</h2>
 
-      {isLoading && <p className="flow-status">Se încarcă activitățile…</p>}
+      {showLoadingLabel && <p className="flow-status">Se încarcă activitățile…</p>}
 
-      {!isLoading && error && (
+      {showError && (
         <div className="flow-error-block">
           <p className="flow-error-text">{error}</p>
           <button type="button" className="flow-retry-button" onClick={() => void loadActivities()}>
@@ -50,7 +59,9 @@ export function ActivitySelect({ onChoose }: ActivitySelectProps) {
         </div>
       )}
 
-      {!isLoading && !error && (
+      {showEmpty && <p className="flow-status">Nu există activități disponibile.</p>}
+
+      {showList && (
         <ul className="option-list" role="listbox" aria-label="Activități disponibile">
           {activities.map((activity) => (
             <li key={activity.id}>
