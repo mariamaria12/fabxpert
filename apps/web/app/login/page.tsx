@@ -2,7 +2,7 @@
 
 import { ApiError, getMe, login, logout } from '@fabxpert/shared';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,6 +12,32 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+
+  // Session cookie lives on the API host (Railway), not on the web app domain — auth is
+  // verified client-side via /auth/me, not via Next.js middleware.
+  useEffect(() => {
+    let cancelled = false;
+
+    getMe()
+      .then((me) => {
+        if (!cancelled && me.role === 'ADMIN') {
+          router.replace('/');
+        }
+      })
+      .catch(() => {
+        // No session — show the login form.
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsCheckingSession(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -44,6 +70,14 @@ export default function LoginPage() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  if (isCheckingSession) {
+    return (
+      <main className="flex min-h-dvh items-center justify-center bg-bg px-4">
+        <p className="text-sm text-text-muted">Se încarcă…</p>
+      </main>
+    );
   }
 
   return (
