@@ -66,9 +66,26 @@ pnpm --filter @fabxpert/db db:seed:dev
 ### 1. Supabase production database
 
 1. Create Supabase project `fabxpert-prod`.
-2. Copy **Session pooler** connection string → `DATABASE_URL`.
-3. Copy **Direct** (or session pooler on newer projects) connection string → `DIRECT_URL`.
+2. Copy **Session pooler** connection string (port **5432**, user `postgres.PROJECT_REF`) → `DATABASE_URL`.
+3. Copy the **same Session pooler** string → `DIRECT_URL` (see IPv4 note below).
 4. Do not run `migrate dev` against prod — Railway `start:prod` runs `migrate deploy`.
+
+#### Railway + Supabase: P1001 / "Can't reach database server"
+
+**Cause:** Supabase **direct** host `db.{ref}.supabase.co` is **IPv6-only** on the free tier. Railway **cannot reach IPv6** outbound ([Railway docs](https://docs.railway.com/reference/outbound-networking#outbound-ipv6)). `migrate deploy` uses `DIRECT_URL`, so a direct host fails at container start.
+
+**Fix (recommended):** use **Session pooler (port 5432)** for **both** variables on Railway:
+
+```text
+DATABASE_URL=postgresql://postgres.icniqqtjchvfcixqkgku:PASSWORD@aws-0-eu-west-1.pooler.supabase.com:5432/postgres
+DIRECT_URL=postgresql://postgres.icniqqtjchvfcixqkgku:PASSWORD@aws-0-eu-west-1.pooler.supabase.com:5432/postgres
+```
+
+(Same pattern as local dev `DATABASE_URL` — pooler user `postgres.{ref}`, not `postgres@db.{ref}.supabase.co`.)
+
+**Alternatives:** Supabase **IPv4 add-on** (paid) so `db.{ref}.supabase.co` works from Railway; or run `db:migrate:deploy` once from your laptop against prod, then only if you accept direct-host limitations.
+
+**Also check:** project not **Paused** in Supabase; real DB password (not `[YOUR-PASSWORD]`); URL-encode special characters in password; no quotes around values in Railway Variables.
 
 ### 2. Railway project
 
@@ -77,17 +94,16 @@ pnpm --filter @fabxpert/db db:seed:dev
 3. Railway reads `railway.json` for build/start/healthcheck.
 4. If overriding in dashboard:
    - **Install**: leave to Railpack auto-detect
-   - **Build**: `pnpm --filter @fabxpert/db db:generate && pnpm turbo build --filter=@fabxpert/api...`
-   - **Build**: `pnpm turbo build --filter=@fabxpert/api...`
-   - **Start**: `pnpm --filter @fabxpert/api start:prod`
+   - **Build:** `pnpm --filter @fabxpert/db db:generate && pnpm turbo build --filter=@fabxpert/api...`
+   - **Start:** `pnpm --filter @fabxpert/api start:prod`
 5. **Node version**: 22 (from `.nvmrc` / `engines`; required for pnpm 11.5.2).
 
 ### 3. Railway environment variables
 
 | Variable | Value source |
 |----------|----------------|
-| `DATABASE_URL` | Supabase prod session pooler |
-| `DIRECT_URL` | Supabase prod direct / migrate URL |
+| `DATABASE_URL` | Supabase prod **session pooler** `:5432` (`postgres.{ref}` user) |
+| `DIRECT_URL` | **Same session pooler URL** on Railway (not `db.{ref}.supabase.co` — IPv6) |
 | `JWT_SECRET` | Generate random 64+ byte secret |
 | `JWT_REMEMBER_EXPIRY_ADMIN` | `30d` |
 | `JWT_REMEMBER_EXPIRY_EMPLOYEE` | `365d` |
