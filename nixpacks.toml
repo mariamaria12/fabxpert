@@ -1,0 +1,19 @@
+# Railway/Nixpacks config for apps/api (monorepo root).
+# Node 24 + corepack + pnpm 11.5.2 fails with ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING.
+# Pin Node 20 to match .nvmrc and package.json engines.
+
+[variables]
+NIXPACKS_NODE_VERSION = "20"
+
+[phases.install]
+cmds = [
+  "npm install -g corepack@0.24.1 && corepack enable",
+  "corepack prepare pnpm@11.5.2 --activate",
+  "pnpm install --frozen-lockfile",
+]
+
+[phases.build]
+cmds = ["pnpm turbo build --filter=@fabxpert/api..."]
+
+[start]
+cmd = "pnpm --filter @fabxpert/api start:prod"

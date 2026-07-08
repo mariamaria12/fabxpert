@@ -2,18 +2,19 @@
 
 Monorepo strategy: **repo root** as Railway root directory, build via Turborepo (`--filter=@fabxpert/api...`), start via `@fabxpert/api` `start:prod`.
 
-See the numbered checklist at the bottom of this file and `railway.json` at the repo root for pinned commands.
+See the numbered checklist at the bottom of this file, `railway.json`, and `nixpacks.toml` at the repo root for pinned commands.
 
 ## Build pipeline
 
-1. `pnpm install --frozen-lockfile` — runs `@fabxpert/db` **postinstall** (`prisma generate`)
-2. `pnpm turbo build --filter=@fabxpert/api...` — runs `@fabxpert/db#generate` (uncached), workspace builds, then `@fabxpert/api` `prebuild`/`build`
-3. `pnpm --filter @fabxpert/api start:prod` — runs `prisma migrate deploy` then `node dist/main.js`
+1. **Nixpacks setup** — Node **20** (`NIXPACKS_NODE_VERSION`, see `nixpacks.toml`; Node 24 breaks corepack + pnpm 11)
+2. **Install** — `corepack prepare pnpm@11.5.2 --activate` + `pnpm install --frozen-lockfile` (runs `@fabxpert/db` postinstall → `prisma generate`)
+3. **Build** — `pnpm turbo build --filter=@fabxpert/api...`
+4. **Start** — `pnpm --filter @fabxpert/api start:prod` (migrate deploy + `node dist/main`)
 
-**Railway dashboard:** use the commands from `railway.json` at repo root. If you overrode them manually:
-- **Build:** `corepack enable && pnpm install --frozen-lockfile && pnpm turbo build --filter=@fabxpert/api...`  
-  (or `pnpm --filter @fabxpert/api build` — both work; `prebuild` runs `db:generate` before `nest build`)
-- **Start:** `pnpm --filter @fabxpert/api start:prod` — **not** `start` (dev) or bare `node dist/main` without migrations
+**Railway dashboard:** root directory `/`. Commands come from `nixpacks.toml` — do **not** override build/start unless you know why. If you must override:
+- **Build:** `pnpm turbo build --filter=@fabxpert/api...` only (install is a separate Nixpacks phase)
+- **Start:** `pnpm --filter @fabxpert/api start:prod`
+- **Optional env:** `NIXPACKS_NODE_VERSION=20` (redundant if `nixpacks.toml` is deployed)
 
 `DATABASE_URL` and `DIRECT_URL` must be set on Railway before build (Prisma reads them from the schema during `generate`; no DB connection is made).
 
