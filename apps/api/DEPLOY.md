@@ -6,9 +6,16 @@ See the numbered checklist at the bottom of this file and `railway.json` at the 
 
 ## Build pipeline
 
-1. `pnpm install --frozen-lockfile`
-2. `pnpm turbo build --filter=@fabxpert/api...` — builds `@fabxpert/shared`, `@fabxpert/db` (runs `prisma generate`), then `@fabxpert/api`
+1. `pnpm install --frozen-lockfile` — runs `@fabxpert/db` **postinstall** (`prisma generate`)
+2. `pnpm turbo build --filter=@fabxpert/api...` — runs `@fabxpert/db#generate` (uncached), workspace builds, then `@fabxpert/api` `prebuild`/`build`
 3. `pnpm --filter @fabxpert/api start:prod` — runs `prisma migrate deploy` then `node dist/main.js`
+
+**Railway dashboard:** use the commands from `railway.json` at repo root. If you overrode them manually:
+- **Build:** `corepack enable && pnpm install --frozen-lockfile && pnpm turbo build --filter=@fabxpert/api...`  
+  (or `pnpm --filter @fabxpert/api build` — both work; `prebuild` runs `db:generate` before `nest build`)
+- **Start:** `pnpm --filter @fabxpert/api start:prod` — **not** `start` (dev) or bare `node dist/main` without migrations
+
+`DATABASE_URL` and `DIRECT_URL` must be set on Railway before build (Prisma reads them from the schema during `generate`; no DB connection is made).
 
 Seeds are **never** run on deploy.
 

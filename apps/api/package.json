@@ -9,7 +9,7 @@
     "start": "node dist/main",
     "start:prod": "pnpm --filter @fabxpert/db db:migrate:deploy && node dist/main",
     "prestart": "pnpm --filter @fabxpert/shared build",
-    "prebuild": "pnpm --filter @fabxpert/shared build && pnpm --filter @fabxpert/db build",
+    "prebuild": "pnpm --filter @fabxpert/shared build && pnpm --filter @fabxpert/db db:generate",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "typecheck": "tsc --noEmit",
     "pretest:e2e": "pnpm --filter @fabxpert/shared build",

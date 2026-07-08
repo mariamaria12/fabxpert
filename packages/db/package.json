@@ -11,10 +11,12 @@
     "seed": "tsx prisma/seed.ts"
   },
   "scripts": {
-    "build": "prisma generate && tsc --project tsconfig.build.json",
+    "generate": "prisma generate --schema=./prisma/schema.prisma",
+    "postinstall": "prisma generate --schema=./prisma/schema.prisma",
+    "build": "pnpm run generate && tsc --project tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.ts\"",
-    "db:generate": "prisma generate",
+    "db:generate": "pnpm run generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:push": "prisma db push",
