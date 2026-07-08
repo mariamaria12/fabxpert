@@ -3,6 +3,7 @@ import type { MeResponse } from '@fabxpert/shared';
 import { useEffect, useState } from 'react';
 import { TimesheetFlow } from './components/TimesheetFlow';
 import { LoginScreen } from './LoginScreen';
+import { MobileLookupCacheProvider } from './context/MobileLookupCacheContext';
 
 export default function App() {
   const [user, setUser] = useState<MeResponse | null>(null);
@@ -36,7 +37,11 @@ export default function App() {
   }
 
   if (user) {
-    return <TimesheetFlow user={user} onLogout={() => setUser(null)} />;
+    return (
+      <MobileLookupCacheProvider>
+        <TimesheetFlow user={user} onLogout={() => setUser(null)} />
+      </MobileLookupCacheProvider>
+    );
   }
 
   return <LoginScreen onSuccess={setUser} />;

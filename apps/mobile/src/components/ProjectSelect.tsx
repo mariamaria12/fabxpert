@@ -1,6 +1,7 @@
-import { ApiError, listAvailableProjects, listMyTimesheets, subscribeToAvailableProjects } from '@fabxpert/shared';
+import { listMyTimesheets } from '@fabxpert/shared';
 import type { ProjectOptionDto } from '@fabxpert/shared';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useMobileLookupCache } from '../context/MobileLookupCacheContext';
 import {
   ProjectListSkeleton,
   TodayTotalBannerSkeleton,
@@ -54,45 +55,19 @@ function EyeIcon() {
 }
 
 export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectProps) {
-  const [projects, setProjects] = useState<ProjectOptionDto[]>([]);
-  const [isFetchingProjects, setIsFetchingProjects] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    projects,
+    projectsError,
+    isFetchingProjects,
+    refreshProjects,
+  } = useMobileLookupCache();
+
   const [todayMinutes, setTodayMinutes] = useState(0);
   const [todayTotalLoaded, setTodayTotalLoaded] = useState(false);
   const [isFetchingTodayTotal, setIsFetchingTodayTotal] = useState(true);
-  const debounceRef = useRef<number | null>(null);
 
-  const showProjectsSkeleton = isFetchingProjects && projects.length === 0 && !error;
+  const showProjectsSkeleton = isFetchingProjects && projects.length === 0 && !projectsError;
   const showBannerSkeleton = isFetchingTodayTotal && !todayTotalLoaded;
-
-  const loadProjects = useCallback(async (options?: { silent?: boolean }) => {
-    const silent = options?.silent === true;
-
-    if (!silent) {
-      setIsFetchingProjects(true);
-      setError(null);
-    }
-
-    try {
-      const projectsData = await listAvailableProjects();
-      setProjects(projectsData);
-      if (!silent) {
-        setError(null);
-      }
-    } catch (caught) {
-      if (!silent) {
-        if (caught instanceof ApiError && caught.status === 0) {
-          setError('Nu s-a putut contacta serverul.');
-        } else {
-          setError('Nu s-au putut încărca proiectele.');
-        }
-      }
-    } finally {
-      if (!silent) {
-        setIsFetchingProjects(false);
-      }
-    }
-  }, []);
 
   const loadTodayTotal = useCallback(async () => {
     setIsFetchingTodayTotal(true);
@@ -103,10 +78,7 @@ export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectPro
       // than a page of entries today, older ones that fell off page 1 are excluded.
       setTodayMinutes(sumTodayClosedMinutes(minePage.data));
     } catch {
-      // Banner is secondary — keep previous value on refetch failure.
-      if (!todayTotalLoaded) {
-        setTodayMinutes(0);
-      }
+      setTodayMinutes((current) => current);
     } finally {
       setTodayTotalLoaded(true);
       setIsFetchingTodayTotal(false);
@@ -114,39 +86,18 @@ export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectPro
   }, []);
 
   useEffect(() => {
-    void loadProjects();
     void loadTodayTotal();
-  }, [loadProjects, loadTodayTotal]);
-
-  useEffect(() => {
-    const unsubscribe = subscribeToAvailableProjects(() => {
-      if (debounceRef.current !== null) {
-        window.clearTimeout(debounceRef.current);
-      }
-
-      debounceRef.current = window.setTimeout(() => {
-        void loadProjects({ silent: true });
-        debounceRef.current = null;
-      }, 1000);
-    });
-
-    return () => {
-      unsubscribe();
-      if (debounceRef.current !== null) {
-        window.clearTimeout(debounceRef.current);
-      }
-    };
-  }, [loadProjects]);
+  }, [loadTodayTotal]);
 
   const bannerText =
     todayMinutes > 0
       ? `Azi ai lucrat ${formatTodayWorkedTotal(todayMinutes)}`
       : 'Azi nu ai pontat încă';
 
-  const showProjectList = !error && projects.length > 0;
-  const showProjectError = !isFetchingProjects && Boolean(error);
+  const showProjectList = !projectsError && projects.length > 0;
+  const showProjectError = !isFetchingProjects && Boolean(projectsError);
   const showEmptyProjects =
-    !isFetchingProjects && !error && projects.length === 0;
+    !isFetchingProjects && !projectsError && projects.length === 0;
 
   return (
     <div className="flow-content">
@@ -178,12 +129,12 @@ export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectPro
 
       {showProjectError && (
         <div className="flow-error-block">
-          <p className="flow-error-text">{error}</p>
+          <p className="flow-error-text">{projectsError}</p>
           <button
             type="button"
             className="flow-retry-button"
             onClick={() => {
-              void loadProjects();
+              void refreshProjects();
               void loadTodayTotal();
             }}
           >
