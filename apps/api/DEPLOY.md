@@ -6,8 +6,8 @@ See the numbered checklist at the bottom of this file, `railway.json`, and `nixp
 
 ## Build pipeline
 
-1. **Nixpacks setup** — Node **20** (`NIXPACKS_NODE_VERSION`, see `nixpacks.toml`; Node 24 breaks corepack + pnpm 11)
-2. **Install** — `corepack prepare pnpm@11.5.2 --activate` + `pnpm install --frozen-lockfile` (runs `@fabxpert/db` postinstall → `prisma generate`)
+1. **Nixpacks setup** — Node **20** (`NIXPACKS_NODE_VERSION`, see `nixpacks.toml`)
+2. **Install** — `npm install -g pnpm@11.5.2` + `pnpm install --frozen-lockfile` (no corepack — it breaks on Railway with `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`; runs `@fabxpert/db` postinstall → `prisma generate`)
 3. **Build** — `pnpm turbo build --filter=@fabxpert/api...`
 4. **Start** — `pnpm --filter @fabxpert/api start:prod` (migrate deploy + `node dist/main`)
 
@@ -76,7 +76,7 @@ pnpm --filter @fabxpert/db db:seed:dev
 2. **Root Directory**: `/` (repository root, not `apps/api`).
 3. Railway reads `railway.json` for build/start/healthcheck.
 4. If overriding in dashboard:
-   - **Install**: `corepack enable && pnpm install --frozen-lockfile`
+   - **Install**: leave to `nixpacks.toml` (`npm install -g pnpm@11.5.2 && pnpm install --frozen-lockfile`)
    - **Build**: `pnpm turbo build --filter=@fabxpert/api...`
    - **Start**: `pnpm --filter @fabxpert/api start:prod`
 5. **Node version**: 20 (from `.nvmrc` / `engines`).
