@@ -6,7 +6,7 @@ See the numbered checklist at the bottom of this file, `railway.json`, and `nixp
 
 ## Build pipeline
 
-1. **Railpack setup** — Node **20** (`.nvmrc` / `.node-version` / `engines`; Railpack is Railway’s default builder)
+1. **Railpack setup** — Node **22** (`.nvmrc` / `.node-version` / `engines`; pnpm 11 requires Node ≥ 22.13)
 2. **Install** — `corepack` + `pnpm install --frozen-lockfile` (Railpack auto-detects monorepo)
 3. **Build** — `pnpm --filter @fabxpert/db db:generate && pnpm turbo build --filter=@fabxpert/api...` (from `railway.json`; Prisma types must exist before `nest build`)
 4. **Start** — `pnpm --filter @fabxpert/api start:prod` (migrate deploy + `node dist/main`)
@@ -14,7 +14,7 @@ See the numbered checklist at the bottom of this file, `railway.json`, and `nixp
 **Railway dashboard:** root directory `/`. Commands come from `railway.json` — do **not** override build/start unless you know why. If you must override:
 - **Build:** `pnpm --filter @fabxpert/db db:generate && pnpm turbo build --filter=@fabxpert/api...`
 - **Start:** `pnpm --filter @fabxpert/api start:prod`
-- **Optional env:** `NIXPACKS_NODE_VERSION=20` only if you switch builder back to Nixpacks (`nixpacks.toml` fallback)
+- **Optional env:** `NIXPACKS_NODE_VERSION=22` only if you switch builder back to Nixpacks (`nixpacks.toml` fallback)
 
 `DATABASE_URL` and `DIRECT_URL` must be set on Railway before build (Prisma reads them from the schema during `generate`; no DB connection is made).
 
@@ -80,7 +80,7 @@ pnpm --filter @fabxpert/db db:seed:dev
    - **Build**: `pnpm --filter @fabxpert/db db:generate && pnpm turbo build --filter=@fabxpert/api...`
    - **Build**: `pnpm turbo build --filter=@fabxpert/api...`
    - **Start**: `pnpm --filter @fabxpert/api start:prod`
-5. **Node version**: 20 (from `.nvmrc` / `engines`).
+5. **Node version**: 22 (from `.nvmrc` / `engines`; required for pnpm 11.5.2).
 
 ### 3. Railway environment variables
 

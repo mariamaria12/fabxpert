@@ -1,10 +1,9 @@
 # Railway/Nixpacks config for apps/api (monorepo root).
-# Pin Node 20 (.nvmrc / engines). Do NOT use corepack for pnpm 11 — it fails on Railway
-# with ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING even on Node 20.
-# Install pnpm globally via npm instead.
+# Pin Node 22 (.nvmrc / engines). pnpm 11.5.2 requires Node >= 22.13 (node:sqlite).
+# Nixpacks fallback: install pnpm via npm instead of corepack if corepack fails.
 
 [variables]
-NIXPACKS_NODE_VERSION = "20"
+NIXPACKS_NODE_VERSION = "22"
 
 [phases.install]
 cmds = [
