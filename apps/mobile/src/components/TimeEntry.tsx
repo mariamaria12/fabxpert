@@ -3,6 +3,7 @@ import type { ActivityDto, ProjectOptionDto } from '@fabxpert/shared';
 import { useState } from 'react';
 import { DurationInput } from './DurationInput';
 import { useDurationInput } from '../hooks/useDurationInput';
+import { useMobileLookupCache } from '../context/MobileLookupCacheContext';
 import { useToast } from '../context/ToastContext';
 import { apiErrorToastMessage } from '../utils/apiToastMessage';
 import { intervalEndingNow } from '../utils/timeUtils';
@@ -17,6 +18,7 @@ interface TimeEntryProps {
 
 export function TimeEntry({ project, activity, onSaved }: TimeEntryProps) {
   const { showToast } = useToast();
+  const { refreshMyTimesheetsPage1 } = useMobileLookupCache();
   const {
     hoursInput,
     setHoursInput,
@@ -51,6 +53,7 @@ export function TimeEntry({ project, activity, onSaved }: TimeEntryProps) {
       });
 
       showToast('Pontaj adăugat', 'success');
+      void refreshMyTimesheetsPage1({ silent: true, force: true });
       onSaved();
     } catch (caught) {
       showToast(apiErrorToastMessage(caught), 'error');

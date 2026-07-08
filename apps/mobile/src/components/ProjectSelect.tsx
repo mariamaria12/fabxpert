@@ -1,15 +1,10 @@
-import { listMyTimesheets } from '@fabxpert/shared';
 import type { ProjectOptionDto } from '@fabxpert/shared';
-import { useCallback, useEffect, useState } from 'react';
 import { useMobileLookupCache } from '../context/MobileLookupCacheContext';
 import {
   ProjectListSkeleton,
   TodayTotalBannerSkeleton,
 } from './skeletons/OptionListSkeleton';
-import {
-  formatTodayWorkedTotal,
-  sumTodayClosedMinutes,
-} from '../utils/timeUtils';
+import { formatTodayWorkedTotal } from '../utils/timeUtils';
 import { projectOptionTintStyle } from '../utils/colorUtils';
 
 interface ProjectSelectProps {
@@ -60,34 +55,14 @@ export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectPro
     projectsError,
     isFetchingProjects,
     refreshProjects,
+    todayMinutes,
+    myTimesheetsPage1Loaded,
+    isFetchingMyTimesheetsPage1,
+    refreshMyTimesheetsPage1,
   } = useMobileLookupCache();
 
-  const [todayMinutes, setTodayMinutes] = useState(0);
-  const [todayTotalLoaded, setTodayTotalLoaded] = useState(false);
-  const [isFetchingTodayTotal, setIsFetchingTodayTotal] = useState(true);
-
   const showProjectsSkeleton = isFetchingProjects && projects.length === 0 && !projectsError;
-  const showBannerSkeleton = isFetchingTodayTotal && !todayTotalLoaded;
-
-  const loadTodayTotal = useCallback(async () => {
-    setIsFetchingTodayTotal(true);
-
-    try {
-      const minePage = await listMyTimesheets(1);
-      // MVP: page 1 only (default pageSize, startTime desc). If a user has more
-      // than a page of entries today, older ones that fell off page 1 are excluded.
-      setTodayMinutes(sumTodayClosedMinutes(minePage.data));
-    } catch {
-      setTodayMinutes((current) => current);
-    } finally {
-      setTodayTotalLoaded(true);
-      setIsFetchingTodayTotal(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadTodayTotal();
-  }, [loadTodayTotal]);
+  const showBannerSkeleton = isFetchingMyTimesheetsPage1 && !myTimesheetsPage1Loaded;
 
   const bannerText =
     todayMinutes > 0
@@ -106,10 +81,10 @@ export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectPro
       ) : (
         <button
           type="button"
-          className={`today-total-banner today-total-banner-tappable${todayMinutes === 0 && todayTotalLoaded ? ' today-total-banner-empty' : ''}`}
+          className={`today-total-banner today-total-banner-tappable${todayMinutes === 0 && myTimesheetsPage1Loaded ? ' today-total-banner-empty' : ''}`}
           aria-label="Vezi pontajele mele"
           aria-live="polite"
-          disabled={!todayTotalLoaded}
+          disabled={!myTimesheetsPage1Loaded}
           onClick={onOpenMyTimesheets}
         >
           <span className="today-total-banner-main">
@@ -135,7 +110,7 @@ export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectPro
             className="flow-retry-button"
             onClick={() => {
               void refreshProjects();
-              void loadTodayTotal();
+              void refreshMyTimesheetsPage1({ force: true });
             }}
           >
             Reîncearcă

@@ -1,7 +1,8 @@
-import { ApiError, listMyTimesheets } from '@fabxpert/shared';
+import { listMyTimesheets } from '@fabxpert/shared';
 import type { TimesheetDto } from '@fabxpert/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityDot } from './ActivityDot';
+import { useMobileLookupCache } from '../context/MobileLookupCacheContext';
 import { useToast } from '../context/ToastContext';
 import { apiErrorToastMessage } from '../utils/apiToastMessage';
 import {
@@ -42,36 +43,36 @@ function formatEntryDuration(entry: TimesheetDto): string {
 
 export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
   const { showToast } = useToast();
-  const [entries, setEntries] = useState<TimesheetDto[]>([]);
+  const {
+    myTimesheetsPage1,
+    myTimesheetsPage1Error,
+    myTimesheetsPage1Loaded,
+    isFetchingMyTimesheetsPage1,
+    refreshMyTimesheetsPage1,
+  } = useMobileLookupCache();
+
+  const [extraEntries, setExtraEntries] = useState<TimesheetDto[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [isFetching, setIsFetching] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadFirstPage = useCallback(async () => {
-    setIsFetching(true);
-    setError(null);
-
-    try {
-      const response = await listMyTimesheets(1);
-      setEntries(response.data);
-      setPage(response.meta.page);
-      setTotalPages(response.meta.totalPages);
-    } catch (caught) {
-      if (caught instanceof ApiError && caught.status === 0) {
-        setError('Nu s-a putut contacta serverul.');
-      } else {
-        setError('Nu s-au putut încărca pontajele.');
-      }
-    } finally {
-      setIsFetching(false);
-    }
-  }, []);
 
   useEffect(() => {
-    void loadFirstPage();
-  }, [loadFirstPage]);
+    if (!myTimesheetsPage1) {
+      return;
+    }
+
+    setPage(myTimesheetsPage1.meta.page);
+    setTotalPages(myTimesheetsPage1.meta.totalPages);
+    setExtraEntries([]);
+  }, [myTimesheetsPage1]);
+
+  const entries = useMemo(() => {
+    if (!myTimesheetsPage1) {
+      return [];
+    }
+
+    return [...myTimesheetsPage1.data, ...extraEntries];
+  }, [myTimesheetsPage1, extraEntries]);
 
   async function handleLoadMore() {
     if (isLoadingMore || page >= totalPages) {
@@ -83,7 +84,7 @@ export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
     try {
       const nextPage = page + 1;
       const response = await listMyTimesheets(nextPage);
-      setEntries((current) => [...current, ...response.data]);
+      setExtraEntries((current) => [...current, ...response.data]);
       setPage(response.meta.page);
       setTotalPages(response.meta.totalPages);
     } catch (caught) {
@@ -93,6 +94,8 @@ export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
     }
   }
 
+  const isFetching = isFetchingMyTimesheetsPage1 && !myTimesheetsPage1Loaded;
+  const error = myTimesheetsPage1Error;
   const dayGroups = groupEntriesByLocalDay(entries);
   const showList = !error && dayGroups.length > 0;
   const showError = !isFetching && Boolean(error);
@@ -103,7 +106,11 @@ export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
       {showError ? (
         <div className="flow-error-block">
           <p className="flow-error-text">{error}</p>
-          <button type="button" className="flow-retry-button" onClick={() => void loadFirstPage()}>
+          <button
+            type="button"
+            className="flow-retry-button"
+            onClick={() => void refreshMyTimesheetsPage1({ force: true })}
+          >
             Reîncearcă
           </button>
         </div>

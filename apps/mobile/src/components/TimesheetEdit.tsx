@@ -3,6 +3,7 @@ import type { TimesheetDto } from '@fabxpert/shared';
 import { useState } from 'react';
 import { DurationInput } from './DurationInput';
 import { useDurationInput } from '../hooks/useDurationInput';
+import { useMobileLookupCache } from '../context/MobileLookupCacheContext';
 import { useToast } from '../context/ToastContext';
 import { apiErrorToastMessage } from '../utils/apiToastMessage';
 import {
@@ -33,6 +34,7 @@ function TrashIcon() {
 
 export function TimesheetEdit({ timesheet, onSaved, onCancel }: TimesheetEditProps) {
   const { showToast } = useToast();
+  const { refreshMyTimesheetsPage1 } = useMobileLookupCache();
   const initialHours = hoursFromEntryDuration(timesheet) ?? 1;
   const {
     hoursInput,
@@ -81,6 +83,7 @@ export function TimesheetEdit({ timesheet, onSaved, onCancel }: TimesheetEditPro
       });
 
       showToast('Pontaj actualizat', 'success');
+      void refreshMyTimesheetsPage1({ silent: true, force: true });
       onSaved();
     } catch (caught) {
       showToast(apiErrorToastMessage(caught), 'error');
@@ -99,6 +102,7 @@ export function TimesheetEdit({ timesheet, onSaved, onCancel }: TimesheetEditPro
     try {
       await deleteTimesheet(timesheet.id);
       showToast('Pontaj șters', 'success');
+      void refreshMyTimesheetsPage1({ silent: true, force: true });
       onSaved();
     } catch (caught) {
       showToast(apiErrorToastMessage(caught), 'error');

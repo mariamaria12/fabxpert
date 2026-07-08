@@ -2,9 +2,10 @@ import {
   ApiError,
   listActivities,
   listAvailableProjects,
+  listMyTimesheets,
   subscribeToAvailableProjects,
 } from '@fabxpert/shared';
-import type { ActivityDto, ProjectOptionDto } from '@fabxpert/shared';
+import type { ActivityDto, PaginatedResponse, ProjectOptionDto, TimesheetDto } from '@fabxpert/shared';
 import {
   createContext,
   useCallback,
@@ -14,12 +15,29 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { sumTodayClosedMinutes } from '../utils/timeUtils';
 
 function apiErrorMessage(caught: unknown, fallback: string): string {
   if (caught instanceof ApiError && caught.status === 0) {
     return 'Nu s-a putut contacta serverul.';
   }
   return fallback;
+}
+
+let myTimesheetsPage1Inflight: Promise<PaginatedResponse<TimesheetDto>> | null = null;
+
+function fetchMyTimesheetsPage1(force = false): Promise<PaginatedResponse<TimesheetDto>> {
+  if (force) {
+    myTimesheetsPage1Inflight = null;
+  }
+
+  if (!myTimesheetsPage1Inflight) {
+    myTimesheetsPage1Inflight = listMyTimesheets(1).finally(() => {
+      myTimesheetsPage1Inflight = null;
+    });
+  }
+
+  return myTimesheetsPage1Inflight;
 }
 
 interface MobileLookupCacheContextValue {
@@ -32,6 +50,14 @@ interface MobileLookupCacheContextValue {
   projectsError: string | null;
   isFetchingProjects: boolean;
   refreshProjects: (options?: { silent?: boolean }) => Promise<void>;
+
+  myTimesheetsPage1: PaginatedResponse<TimesheetDto> | null;
+  myTimesheetsPage1Error: string | null;
+  myTimesheetsPage1Loaded: boolean;
+  isFetchingMyTimesheetsPage1: boolean;
+  refreshMyTimesheetsPage1: (options?: { silent?: boolean; force?: boolean }) => Promise<void>;
+
+  todayMinutes: number;
 }
 
 const MobileLookupCacheContext = createContext<MobileLookupCacheContextValue | null>(null);
@@ -44,6 +70,13 @@ export function MobileLookupCacheProvider({ children }: { children: ReactNode })
   const [projects, setProjects] = useState<ProjectOptionDto[]>([]);
   const [projectsError, setProjectsError] = useState<string | null>(null);
   const [isFetchingProjects, setIsFetchingProjects] = useState(true);
+
+  const [myTimesheetsPage1, setMyTimesheetsPage1] =
+    useState<PaginatedResponse<TimesheetDto> | null>(null);
+  const [myTimesheetsPage1Error, setMyTimesheetsPage1Error] = useState<string | null>(null);
+  const [myTimesheetsPage1Loaded, setMyTimesheetsPage1Loaded] = useState(false);
+  const [isFetchingMyTimesheetsPage1, setIsFetchingMyTimesheetsPage1] = useState(true);
+  const [todayMinutes, setTodayMinutes] = useState(0);
 
   const projectsDebounceRef = useRef<number | null>(null);
 
@@ -86,10 +119,38 @@ export function MobileLookupCacheProvider({ children }: { children: ReactNode })
     }
   }, []);
 
+  const refreshMyTimesheetsPage1 = useCallback(async (options?: { silent?: boolean; force?: boolean }) => {
+    const silent = options?.silent === true;
+    const force = options?.force === true;
+
+    if (!silent) {
+      setIsFetchingMyTimesheetsPage1(true);
+      setMyTimesheetsPage1Error(null);
+    }
+
+    try {
+      const response = await fetchMyTimesheetsPage1(force);
+      setMyTimesheetsPage1(response);
+      setTodayMinutes(sumTodayClosedMinutes(response.data));
+      setMyTimesheetsPage1Error(null);
+    } catch (caught) {
+      setMyTimesheetsPage1Error(
+        apiErrorMessage(caught, 'Nu s-au putut încărca pontajele.'),
+      );
+      setTodayMinutes((current) => current);
+    } finally {
+      setMyTimesheetsPage1Loaded(true);
+      if (!silent) {
+        setIsFetchingMyTimesheetsPage1(false);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     void refreshActivities();
     void refreshProjects();
-  }, [refreshActivities, refreshProjects]);
+    void refreshMyTimesheetsPage1();
+  }, [refreshActivities, refreshProjects, refreshMyTimesheetsPage1]);
 
   useEffect(() => {
     const unsubscribe = subscribeToAvailableProjects(() => {
@@ -122,6 +183,12 @@ export function MobileLookupCacheProvider({ children }: { children: ReactNode })
         projectsError,
         isFetchingProjects,
         refreshProjects,
+        myTimesheetsPage1,
+        myTimesheetsPage1Error,
+        myTimesheetsPage1Loaded,
+        isFetchingMyTimesheetsPage1,
+        refreshMyTimesheetsPage1,
+        todayMinutes,
       }}
     >
       {children}

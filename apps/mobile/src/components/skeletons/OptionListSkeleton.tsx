@@ -18,7 +18,9 @@ export function TodayTotalBannerSkeleton() {
         <span className="skeleton-block skeleton-banner-icon" />
         <span className="skeleton-block skeleton-banner-text" />
       </div>
-      <span className="skeleton-block skeleton-banner-eye" />
+      <span className="today-total-banner-eye">
+        <span className="skeleton-block skeleton-banner-eye-icon" />
+      </span>
     </div>
   );
 }
