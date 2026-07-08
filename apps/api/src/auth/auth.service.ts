@@ -2,9 +2,22 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Role } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import type { CookieOptions } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 
 export const AUTH_COOKIE_NAME = 'access_token';
+
+/** Cookie options for credentialed cross-origin auth (web on Vercel, API on Railway). */
+export function authCookieOptions(maxAgeMs?: number): CookieOptions {
+  const isProduction = process.env.NODE_ENV === 'production';
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    // Lax blocks the cookie on cross-site fetch (vercel.app → railway.app); None+Secure is required.
+    sameSite: isProduction ? 'none' : 'lax',
+    ...(maxAgeMs !== undefined ? { maxAge: maxAgeMs } : {}),
+  };
+}
 
 export interface LoginResult {
   token: string;

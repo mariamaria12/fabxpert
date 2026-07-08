@@ -9,7 +9,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { AUTH_COOKIE_NAME, AuthService } from './auth.service';
+import { AUTH_COOKIE_NAME, AuthService, authCookieOptions } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { LoginDto } from './dto/login.dto';
 import { AuthenticatedUser } from './jwt.strategy';
@@ -31,12 +31,7 @@ export class AuthController {
       dto.rememberMe ?? false,
     );
 
-    res.cookie(AUTH_COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      ...(cookieMaxAgeMs !== undefined ? { maxAge: cookieMaxAgeMs } : {}),
-    });
+    res.cookie(AUTH_COOKIE_NAME, token, authCookieOptions(cookieMaxAgeMs));
 
     return { success: true };
   }
@@ -45,7 +40,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   logout(@Res({ passthrough: true }) res: Response): { success: boolean } {
-    res.clearCookie(AUTH_COOKIE_NAME);
+    res.clearCookie(AUTH_COOKIE_NAME, authCookieOptions());
     return { success: true };
   }
 

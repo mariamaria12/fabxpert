@@ -2,6 +2,18 @@ import cookieParser from 'cookie-parser';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
+/** Normalize env origin values (trim, strip wrapping quotes, no trailing slash). */
+function normalizeOrigin(value: string): string {
+  let origin = value.trim();
+  if (
+    (origin.startsWith('"') && origin.endsWith('"')) ||
+    (origin.startsWith("'") && origin.endsWith("'"))
+  ) {
+    origin = origin.slice(1, -1).trim();
+  }
+  return origin.replace(/\/+$/, '');
+}
+
 function parseAllowedOrigins(): string[] {
   const webAppUrl = process.env.WEB_APP_URL?.trim();
   if (!webAppUrl) {
@@ -11,15 +23,15 @@ function parseAllowedOrigins(): string[] {
   const origins = new Set<string>();
 
   for (const origin of webAppUrl.split(',')) {
-    const trimmed = origin.trim();
-    if (trimmed) {
-      origins.add(trimmed);
+    const normalized = normalizeOrigin(origin);
+    if (normalized) {
+      origins.add(normalized);
     }
   }
 
   const mobileAppUrl = process.env.MOBILE_APP_URL?.trim();
   if (mobileAppUrl) {
-    origins.add(mobileAppUrl);
+    origins.add(normalizeOrigin(mobileAppUrl));
   }
 
   if (origins.size === 0) {
@@ -36,8 +48,16 @@ async function bootstrap() {
   // Credentialed CORS requires explicit origins — wildcard is not allowed.
   // WEB_APP_URL accepts a comma-separated list (prod: web + mobile Vercel URLs).
   // MOBILE_APP_URL is optional; kept for local dev convenience (localhost:3001).
+  const allowedOrigins = parseAllowedOrigins();
   app.enableCors({
-    origin: parseAllowedOrigins(),
+    origin(origin, callback) {
+      // Non-browser clients (curl, healthchecks) may omit Origin.
+      if (!origin || allowedOrigins.includes(normalizeOrigin(origin))) {
+        callback(null, true);
+        return;
+      }
+      callback(null, false);
+    },
     credentials: true,
   });
 
