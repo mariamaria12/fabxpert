@@ -7,14 +7,22 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export const AUTH_COOKIE_NAME = 'access_token';
 
+/** True when the API serves credentialed cross-origin clients (Vercel → Railway). */
+function useCrossOriginCookies(): boolean {
+  if (process.env.NODE_ENV === 'production') return true;
+  // Railway often omits NODE_ENV at runtime; RAILWAY_ENVIRONMENT is always set when deployed.
+  if (process.env.RAILWAY_ENVIRONMENT) return true;
+  return false;
+}
+
 /** Cookie options for credentialed cross-origin auth (web on Vercel, API on Railway). */
 export function authCookieOptions(maxAgeMs?: number): CookieOptions {
-  const isProduction = process.env.NODE_ENV === 'production';
+  const crossOrigin = useCrossOriginCookies();
   return {
     httpOnly: true,
-    secure: isProduction,
+    secure: crossOrigin,
     // Lax blocks the cookie on cross-site fetch (vercel.app → railway.app); None+Secure is required.
-    sameSite: isProduction ? 'none' : 'lax',
+    sameSite: crossOrigin ? 'none' : 'lax',
     ...(maxAgeMs !== undefined ? { maxAge: maxAgeMs } : {}),
   };
 }
