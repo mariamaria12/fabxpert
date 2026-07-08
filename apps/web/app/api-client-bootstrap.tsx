@@ -4,17 +4,14 @@
 // client. Rendered once from the root layout; the module-scope call below runs
 // both during SSR and in the browser bundle, before any page code makes requests.
 
-import { configureApiClient } from '@fabxpert/shared';
+import { configureApiClient, resolveApiBaseUrl } from '@fabxpert/shared';
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-
-if (!apiUrl) {
-  throw new Error(
-    'NEXT_PUBLIC_API_URL is not set. Add it to apps/web/.env (see .env.example).',
-  );
-}
-
-configureApiClient(apiUrl);
+configureApiClient(
+  resolveApiBaseUrl(process.env.NEXT_PUBLIC_API_URL, {
+    production: process.env.NODE_ENV === 'production',
+    pageOrigin: typeof window !== 'undefined' ? window.location.origin : undefined,
+  }),
+);
 
 export function ApiClientBootstrap() {
   return null;

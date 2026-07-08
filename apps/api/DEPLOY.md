@@ -133,6 +133,6 @@ Verify: `curl https://YOUR-RAILWAY-DOMAIN/health`
 
 ### 7. Connect frontends
 
-- **apps/web** (Vercel): `NEXT_PUBLIC_API_URL=https://YOUR-RAILWAY-DOMAIN`
-- **apps/mobile** (Vercel): `VITE_API_URL=/api` — requests go through `apps/mobile/vercel.json` rewrite to Railway (same-origin cookies; required on mobile Safari). Do **not** point mobile directly at the Railway URL in production.
+- **apps/web** (Vercel): keep `NEXT_PUBLIC_API_URL=https://YOUR-RAILWAY-DOMAIN` (rewrite upstream). The browser automatically calls `/api/...` on the web origin so cookies work — see `next.config.ts` rewrites.
+- **apps/mobile** (Vercel): `VITE_API_URL=/api` (or keep Railway URL — the app falls back to `/api` in production). Requests go through `apps/mobile/vercel.json` rewrite to Railway.
 - Ensure `WEB_APP_URL` on Railway lists both Vercel frontend origins exactly (scheme + host, no trailing slash).
