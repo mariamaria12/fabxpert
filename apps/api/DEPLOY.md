@@ -6,15 +6,15 @@ See the numbered checklist at the bottom of this file, `railway.json`, and `nixp
 
 ## Build pipeline
 
-1. **Nixpacks setup** — Node **20** (`NIXPACKS_NODE_VERSION`, see `nixpacks.toml`)
-2. **Install** — `npm install -g pnpm@11.5.2` + `pnpm install --frozen-lockfile` (no corepack — it breaks on Railway with `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`; runs `@fabxpert/db` postinstall → `prisma generate`)
-3. **Build** — `pnpm turbo build --filter=@fabxpert/api...`
+1. **Railpack setup** — Node **20** (`.nvmrc` / `.node-version` / `engines`; Railpack is Railway’s default builder)
+2. **Install** — `corepack` + `pnpm install --frozen-lockfile` (Railpack auto-detects monorepo)
+3. **Build** — `pnpm --filter @fabxpert/db db:generate && pnpm turbo build --filter=@fabxpert/api...` (from `railway.json`; Prisma types must exist before `nest build`)
 4. **Start** — `pnpm --filter @fabxpert/api start:prod` (migrate deploy + `node dist/main`)
 
-**Railway dashboard:** root directory `/`. Commands come from `nixpacks.toml` — do **not** override build/start unless you know why. If you must override:
-- **Build:** `pnpm turbo build --filter=@fabxpert/api...` only (install is a separate Nixpacks phase)
+**Railway dashboard:** root directory `/`. Commands come from `railway.json` — do **not** override build/start unless you know why. If you must override:
+- **Build:** `pnpm --filter @fabxpert/db db:generate && pnpm turbo build --filter=@fabxpert/api...`
 - **Start:** `pnpm --filter @fabxpert/api start:prod`
-- **Optional env:** `NIXPACKS_NODE_VERSION=20` (redundant if `nixpacks.toml` is deployed)
+- **Optional env:** `NIXPACKS_NODE_VERSION=20` only if you switch builder back to Nixpacks (`nixpacks.toml` fallback)
 
 `DATABASE_URL` and `DIRECT_URL` must be set on Railway before build (Prisma reads them from the schema during `generate`; no DB connection is made).
 
@@ -76,7 +76,8 @@ pnpm --filter @fabxpert/db db:seed:dev
 2. **Root Directory**: `/` (repository root, not `apps/api`).
 3. Railway reads `railway.json` for build/start/healthcheck.
 4. If overriding in dashboard:
-   - **Install**: leave to `nixpacks.toml` (`npm install -g pnpm@11.5.2 && pnpm install --frozen-lockfile`)
+   - **Install**: leave to Railpack auto-detect
+   - **Build**: `pnpm --filter @fabxpert/db db:generate && pnpm turbo build --filter=@fabxpert/api...`
    - **Build**: `pnpm turbo build --filter=@fabxpert/api...`
    - **Start**: `pnpm --filter @fabxpert/api start:prod`
 5. **Node version**: 20 (from `.nvmrc` / `engines`).

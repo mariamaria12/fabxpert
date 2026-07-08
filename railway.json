@@ -1,8 +1,8 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
-    "builder": "NIXPACKS",
-    "buildCommand": "pnpm turbo build --filter=@fabxpert/api..."
+    "builder": "RAILPACK",
+    "buildCommand": "pnpm --filter @fabxpert/db db:generate && pnpm turbo build --filter=@fabxpert/api..."
   },
   "deploy": {
     "startCommand": "pnpm --filter @fabxpert/api start:prod",

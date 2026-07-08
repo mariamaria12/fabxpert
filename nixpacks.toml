@@ -14,7 +14,10 @@ cmds = [
 ]
 
 [phases.build]
-cmds = ["pnpm turbo build --filter=@fabxpert/api..."]
+cmds = [
+  "pnpm --filter @fabxpert/db db:generate",
+  "pnpm turbo build --filter=@fabxpert/api...",
+]
 
 [start]
 cmd = "pnpm --filter @fabxpert/api start:prod"
