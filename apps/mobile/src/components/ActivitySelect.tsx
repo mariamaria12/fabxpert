@@ -1,7 +1,7 @@
 import { ApiError, listActivities } from '@fabxpert/shared';
 import type { ActivityDto } from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
-import { useDelayedLoadingLabel } from '../hooks/useDelayedLoadingLabel';
+import { ActivityListSkeleton } from './skeletons/OptionListSkeleton';
 import { ActivityDot } from './ActivityDot';
 
 interface ActivitySelectProps {
@@ -13,9 +13,7 @@ export function ActivitySelect({ onChoose }: ActivitySelectProps) {
   const [isFetching, setIsFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const showLoadingLabel = useDelayedLoadingLabel(isFetching, {
-    hasData: activities.length > 0,
-  });
+  const showSkeleton = isFetching && activities.length === 0 && !error;
 
   const loadActivities = useCallback(async () => {
     setIsFetching(true);
@@ -48,7 +46,7 @@ export function ActivitySelect({ onChoose }: ActivitySelectProps) {
       <p className="flow-step-label">PASUL 2 DIN 2</p>
       <h2 className="flow-heading">Alege activitatea</h2>
 
-      {showLoadingLabel && <p className="flow-status">Se încarcă activitățile…</p>}
+      {showSkeleton && <ActivityListSkeleton />}
 
       {showError && (
         <div className="flow-error-block">

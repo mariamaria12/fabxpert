@@ -1,7 +1,10 @@
 import { ApiError, listAvailableProjects, listMyTimesheets, subscribeToAvailableProjects } from '@fabxpert/shared';
 import type { ProjectOptionDto } from '@fabxpert/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useDelayedLoadingLabel } from '../hooks/useDelayedLoadingLabel';
+import {
+  ProjectListSkeleton,
+  TodayTotalBannerSkeleton,
+} from './skeletons/OptionListSkeleton';
 import {
   formatTodayWorkedTotal,
   sumTodayClosedMinutes,
@@ -59,12 +62,8 @@ export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectPro
   const [isFetchingTodayTotal, setIsFetchingTodayTotal] = useState(true);
   const debounceRef = useRef<number | null>(null);
 
-  const showProjectsLoadingLabel = useDelayedLoadingLabel(isFetchingProjects, {
-    hasData: projects.length > 0,
-  });
-  const showBannerLoadingLabel = useDelayedLoadingLabel(isFetchingTodayTotal, {
-    hasData: todayTotalLoaded,
-  });
+  const showProjectsSkeleton = isFetchingProjects && projects.length === 0 && !error;
+  const showBannerSkeleton = isFetchingTodayTotal && !todayTotalLoaded;
 
   const loadProjects = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent === true;
@@ -139,9 +138,8 @@ export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectPro
     };
   }, [loadProjects]);
 
-  const bannerText = showBannerLoadingLabel
-    ? 'Se încarcă…'
-    : todayMinutes > 0
+  const bannerText =
+    todayMinutes > 0
       ? `Azi ai lucrat ${formatTodayWorkedTotal(todayMinutes)}`
       : 'Azi nu ai pontat încă';
 
@@ -152,29 +150,31 @@ export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectPro
 
   return (
     <div className="flow-content">
-      <button
-        type="button"
-        className={`today-total-banner today-total-banner-tappable${todayMinutes === 0 && todayTotalLoaded ? ' today-total-banner-empty' : ''}`}
-        aria-label="Vezi pontajele mele"
-        aria-live="polite"
-        disabled={!todayTotalLoaded}
-        onClick={onOpenMyTimesheets}
-      >
-        <span className="today-total-banner-main">
-          <ClockIcon />
-          <p className="today-total-banner-text">{bannerText}</p>
-        </span>
-        <span className="today-total-banner-eye" aria-hidden="true">
-          <EyeIcon />
-        </span>
-      </button>
+      {showBannerSkeleton ? (
+        <TodayTotalBannerSkeleton />
+      ) : (
+        <button
+          type="button"
+          className={`today-total-banner today-total-banner-tappable${todayMinutes === 0 && todayTotalLoaded ? ' today-total-banner-empty' : ''}`}
+          aria-label="Vezi pontajele mele"
+          aria-live="polite"
+          disabled={!todayTotalLoaded}
+          onClick={onOpenMyTimesheets}
+        >
+          <span className="today-total-banner-main">
+            <ClockIcon />
+            <p className="today-total-banner-text">{bannerText}</p>
+          </span>
+          <span className="today-total-banner-eye" aria-hidden="true">
+            <EyeIcon />
+          </span>
+        </button>
+      )}
 
       <p className="flow-step-label">PASUL 1 DIN 2</p>
       <h2 className="flow-heading">Alege proiectul</h2>
 
-      {showProjectsLoadingLabel && (
-        <p className="flow-status">Se încarcă proiectele…</p>
-      )}
+      {showProjectsSkeleton && <ProjectListSkeleton />}
 
       {showProjectError && (
         <div className="flow-error-block">

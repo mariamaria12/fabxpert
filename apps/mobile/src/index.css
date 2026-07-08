@@ -557,6 +557,120 @@ body {
   color: var(--color-text-muted);
 }
 
+@keyframes skeleton-shimmer {
+  0% {
+    opacity: 0.45;
+  }
+
+  50% {
+    opacity: 0.9;
+  }
+
+  100% {
+    opacity: 0.45;
+  }
+}
+
+.skeleton-block {
+  display: block;
+  border-radius: 4px;
+  background: var(--color-border-subtle);
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-block {
+    animation: none;
+    opacity: 0.65;
+  }
+}
+
+.option-row-skeleton {
+  pointer-events: none;
+  cursor: default;
+}
+
+.skeleton-color-bar-project {
+  width: 5px;
+  align-self: stretch;
+  min-height: 36px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.skeleton-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.skeleton-line-title {
+  height: 14px;
+  width: 72%;
+}
+
+.skeleton-line-subtitle {
+  height: 12px;
+  width: 38%;
+}
+
+.option-list-skeleton .option-row-body .skeleton-line-title:nth-child(1) {
+  width: 72%;
+}
+
+.option-list-skeleton li:nth-child(2) .skeleton-line-title {
+  width: 64%;
+}
+
+.option-list-skeleton li:nth-child(3) .skeleton-line-title {
+  width: 80%;
+}
+
+.option-list-skeleton.option-list-skeleton-activities li:nth-child(1) .skeleton-line-title {
+  width: 58%;
+}
+
+.option-list-skeleton.option-list-skeleton-activities li:nth-child(2) .skeleton-line-title {
+  width: 70%;
+}
+
+.option-list-skeleton.option-list-skeleton-activities li:nth-child(3) .skeleton-line-title {
+  width: 52%;
+}
+
+.option-list-skeleton.option-list-skeleton-activities li:nth-child(4) .skeleton-line-title {
+  width: 66%;
+}
+
+.option-list-skeleton.option-list-skeleton-activities li:nth-child(5) .skeleton-line-title {
+  width: 48%;
+}
+
+.today-total-banner-skeleton {
+  pointer-events: none;
+}
+
+.skeleton-banner-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.skeleton-banner-text {
+  height: 14px;
+  flex: 1;
+  max-width: 180px;
+}
+
+.skeleton-banner-eye {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
 .flow-status-centered {
   flex: 1;
   display: flex;

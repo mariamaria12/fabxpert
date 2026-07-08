@@ -3,7 +3,6 @@ import type { TimesheetDto } from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityDot } from './ActivityDot';
 import { useToast } from '../context/ToastContext';
-import { useDelayedLoadingLabel } from '../hooks/useDelayedLoadingLabel';
 import { apiErrorToastMessage } from '../utils/apiToastMessage';
 import {
   entryDurationMinutes,
@@ -49,13 +48,6 @@ export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
   const [isFetching, setIsFetching] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const showLoadingLabel = useDelayedLoadingLabel(isFetching, {
-    hasData: entries.length > 0,
-  });
-  const showLoadMoreLoadingLabel = useDelayedLoadingLabel(isLoadingMore, {
-    delayMs: 200,
-  });
 
   const loadFirstPage = useCallback(async () => {
     setIsFetching(true);
@@ -108,8 +100,6 @@ export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
 
   return (
     <div className="flow-content my-timesheets-content">
-      {showLoadingLabel ? <p className="flow-status">Se încarcă pontajele…</p> : null}
-
       {showError ? (
         <div className="flow-error-block">
           <p className="flow-error-text">{error}</p>
@@ -213,7 +203,7 @@ export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
           disabled={isLoadingMore}
           onClick={() => void handleLoadMore()}
         >
-          {showLoadMoreLoadingLabel ? 'Se încarcă…' : 'Încarcă mai multe'}
+          Încarcă mai multe
         </button>
       ) : null}
     </div>
