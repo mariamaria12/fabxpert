@@ -26,7 +26,7 @@ export type PanouDashboardContextValue = {
 const PanouDashboardContext = createContext<PanouDashboardContextValue | null>(null);
 
 export function PanouDashboardProvider({ children }: { children: ReactNode }) {
-  const [activeView, setActiveView] = useState<PanouView>('hours');
+  const [activeView, setActiveView] = useState<PanouView>('projects');
   const [period, setPeriod] = useState<Period>({ kind: 'today' });
   const [metrics, setMetrics] = useState<DashboardMetricsResponse | null>(null);
 

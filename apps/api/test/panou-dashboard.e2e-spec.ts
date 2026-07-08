@@ -176,12 +176,17 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
     );
 
     expect(employee1Row.totalMinutes).toBe(270);
-    expect(employee1Row.activities).toHaveLength(2);
-    expect(employee1Row.activities[0].minutes).toBe(180);
+    expect(employee1Row.activities).toHaveLength(3);
+    expect(employee1Row.activities[0].minutes).toBe(120);
+    expect(employee1Row.activities[0].projectId).toBe(FIXTURES.projects.ready.id);
     expect(employee1Row.activities[0].activityId).toBe(FIXTURES.activities.active.id);
     expect(employee1Row.activities[1].minutes).toBe(90);
+    expect(employee1Row.activities[1].activityId).toBe(FIXTURES.activities.second.id);
+    expect(employee1Row.activities[2].minutes).toBe(60);
+    expect(employee1Row.activities[2].projectId).toBe(FIXTURES.projects.notReady.id);
     expect(employee2Row.totalMinutes).toBe(60);
     expect(employee2Row.activities).toHaveLength(1);
+    expect(employee2Row.activities[0].projectId).toBe(FIXTURES.projects.ready.id);
   });
 
   it('rejects invalid period on person-summary', async () => {

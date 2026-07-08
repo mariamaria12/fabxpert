@@ -115,7 +115,16 @@ export type ProjectSummaryResponse = {
   projects: ProjectSummaryProjectRow[];
 };
 
-export type PersonSummaryActivityRow = ProjectSummaryActivityRow;
+export type PersonSummaryActivityRow = {
+  projectId: string;
+  projectName: string;
+  projectCode: string;
+  projectColor: string | null;
+  activityId: string | null;
+  activityName: string;
+  activityColor: string | null;
+  minutes: number;
+};
 
 export type PersonSummaryPersonRow = {
   id: string;

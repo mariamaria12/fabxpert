@@ -5,6 +5,10 @@ export type PersonSummarySqlRow = {
   personId: string;
   firstName: string;
   lastName: string;
+  projectId: string;
+  projectName: string;
+  projectCode: string;
+  projectColor: string | null;
   activityId: string | null;
   activityName: string | null;
   activityColor: string | null;
@@ -24,6 +28,10 @@ export function buildPersonSummaryQuery(from: Date | null, to: Date | null) {
       pe.id AS "personId",
       pe."firstName" AS "firstName",
       pe."lastName" AS "lastName",
+      p.id AS "projectId",
+      p.name AS "projectName",
+      p.code AS "projectCode",
+      p.color AS "projectColor",
       t."activityId" AS "activityId",
       a.name AS "activityName",
       a.color AS "activityColor",
@@ -32,15 +40,21 @@ export function buildPersonSummaryQuery(from: Date | null, to: Date | null) {
       )::int AS minutes
     FROM timesheets t
     INNER JOIN persons pe ON pe.id = t."personId"
+    INNER JOIN projects p ON p.id = t."projectId"
     LEFT JOIN activities a ON a.id = t."activityId"
     WHERE t."deletedAt" IS NULL
       AND t."endTime" IS NOT NULL
       AND pe."deletedAt" IS NULL
+      AND p."deletedAt" IS NULL
       ${periodFilter}
     GROUP BY
       pe.id,
       pe."firstName",
       pe."lastName",
+      p.id,
+      p.name,
+      p.code,
+      p.color,
       t."activityId",
       a.name,
       a.color
@@ -81,6 +95,10 @@ export function shapePersonSummary(
 
     person.totalMinutes += minutes;
     person.activities.push({
+      projectId: row.projectId,
+      projectName: row.projectName,
+      projectCode: row.projectCode,
+      projectColor: row.projectColor,
       activityId: row.activityId,
       activityName: row.activityId ? (row.activityName ?? 'Activitate') : NO_ACTIVITY_LABEL,
       activityColor: row.activityColor,

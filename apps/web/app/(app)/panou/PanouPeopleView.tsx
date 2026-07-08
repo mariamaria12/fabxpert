@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
-import { ActivityBreakdownRows } from './ActivityBreakdownRows';
+import { PersonBreakdownRows } from './PersonBreakdownRows';
 import { usePanouDashboard } from './PanouDashboardContext';
 
 function PersonHoursCard({
@@ -46,7 +46,7 @@ function PersonHoursCard({
 
       {expanded && (
         <div className="border-t border-border-subtle px-4 py-3">
-          <ActivityBreakdownRows activities={person.activities} />
+          <PersonBreakdownRows activities={person.activities} />
         </div>
       )}
     </div>
