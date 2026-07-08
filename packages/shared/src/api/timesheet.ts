@@ -1,7 +1,8 @@
 import { getApiClientBaseUrl, request } from './client';
 import type {
   CreateTimesheetInput,
-  ProjectSummaryPeriod,
+  DashboardMetricsResponse,
+  PersonSummaryResponse,
   ProjectSummaryResponse,
   StartTimesheetBodyInput,
   StopTimesheetInput,
@@ -9,6 +10,7 @@ import type {
   UpdateTimesheetInput,
 } from '../dto/timesheet.dto';
 import type { PaginatedResponse } from '../dto/pagination.dto';
+import { isPeriodQueryReady, periodToQuery, type Period } from '../period';
 
 export type TimesheetEventType = 'created' | 'updated' | 'deleted';
 
@@ -23,8 +25,22 @@ export interface ListTimesheetsParams {
   pageSize?: number;
   personId?: string;
   projectId?: string;
+  period?: Period;
+  /** @deprecated Prefer `period`. Kept for createdAt-based filtering. */
   createdAtFrom?: string;
+  /** @deprecated Prefer `period`. Kept for createdAt-based filtering. */
   createdAtTo?: string;
+}
+
+function appendPeriodQuery(searchParams: URLSearchParams, period: Period): void {
+  const query = periodToQuery(period);
+  searchParams.set('period', query.period);
+  if (query.from?.trim()) {
+    searchParams.set('from', query.from.trim());
+  }
+  if (query.to?.trim()) {
+    searchParams.set('to', query.to.trim());
+  }
 }
 
 export function startTimesheet(input: StartTimesheetBodyInput) {
@@ -61,6 +77,9 @@ export function listTimesheets(params: ListTimesheetsParams = {}) {
   }
   if (params.projectId !== undefined) {
     searchParams.set('projectId', params.projectId);
+  }
+  if (params.period !== undefined && isPeriodQueryReady(params.period)) {
+    appendPeriodQuery(searchParams, params.period);
   }
   if (params.createdAtFrom !== undefined) {
     searchParams.set('createdAtFrom', params.createdAtFrom);
@@ -101,12 +120,24 @@ export function deleteTimesheet(id: string) {
   return request<void>(`/timesheets/${id}`, { method: 'DELETE' });
 }
 
-export function getProjectSummary(period: ProjectSummaryPeriod = 'all') {
+export function getProjectSummary(period: Period = { kind: 'today' }) {
   const searchParams = new URLSearchParams();
-  searchParams.set('period', period);
+  appendPeriodQuery(searchParams, period);
   return request<ProjectSummaryResponse>(
     `/timesheets/project-summary?${searchParams.toString()}`,
   );
+}
+
+export function getPersonSummary(period: Period = { kind: 'today' }) {
+  const searchParams = new URLSearchParams();
+  appendPeriodQuery(searchParams, period);
+  return request<PersonSummaryResponse>(
+    `/timesheets/person-summary?${searchParams.toString()}`,
+  );
+}
+
+export function getDashboardMetrics() {
+  return request<DashboardMetricsResponse>('/timesheets/dashboard-metrics');
 }
 
 function isTimesheetEvent(value: unknown): value is TimesheetEvent {

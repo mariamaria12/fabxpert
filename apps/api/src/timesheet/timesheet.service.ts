@@ -8,12 +8,15 @@ import {
 import { Prisma } from '@prisma/client';
 import type {
   CreateTimesheetInput,
-  ProjectSummaryPeriod,
+  ProjectSummaryResponse,
+  PersonSummaryResponse,
+  DashboardMetricsResponse,
   StartTimesheetBodyInput,
   StopTimesheetInput,
   TimesheetDto,
   UpdateTimesheetInput,
 } from '@fabxpert/shared/dto/timesheet.dto';
+import type { ResolvedSummaryPeriod } from './timesheet-summary-period.util';
 import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { PaginationParams } from '../common/pagination/parse-pagination.util';
@@ -27,11 +30,15 @@ import {
 } from './timesheet-events.util';
 import {
   buildProjectSummaryQuery,
-  resolveProjectSummaryPeriodRange,
   shapeProjectSummary,
-  type ProjectSummaryResponse,
   type ProjectSummarySqlRow,
 } from './timesheet-project-summary.util';
+import {
+  buildPersonSummaryQuery,
+  shapePersonSummary,
+  type PersonSummarySqlRow,
+} from './timesheet-person-summary.util';
+import { queryDashboardMetrics } from './timesheet-dashboard-metrics.util';
 
 const timesheetInclude = {
   person: {
@@ -65,6 +72,8 @@ type TimesheetWithRelations = Prisma.TimesheetGetPayload<{
 export interface TimesheetListFilters {
   personId?: string;
   projectId?: string;
+  startTimeFrom?: Date;
+  startTimeTo?: Date;
   createdAtFrom?: Date;
   createdAtTo?: Date;
 }
@@ -197,6 +206,16 @@ export class TimesheetService {
       ...notDeleted(),
       ...(filters.personId ? { personId: filters.personId } : {}),
       ...(filters.projectId ? { projectId: filters.projectId } : {}),
+      ...(filters.startTimeFrom !== undefined || filters.startTimeTo !== undefined
+        ? {
+            startTime: {
+              ...(filters.startTimeFrom !== undefined
+                ? { gte: filters.startTimeFrom }
+                : {}),
+              ...(filters.startTimeTo !== undefined ? { lt: filters.startTimeTo } : {}),
+            },
+          }
+        : {}),
       ...(filters.createdAtFrom !== undefined || filters.createdAtTo !== undefined
         ? {
             createdAt: {
@@ -231,12 +250,22 @@ export class TimesheetService {
     };
   }
 
-  async getProjectSummary(period: ProjectSummaryPeriod): Promise<ProjectSummaryResponse> {
-    const { from, to } = resolveProjectSummaryPeriodRange(period);
+  async getProjectSummary(resolved: ResolvedSummaryPeriod): Promise<ProjectSummaryResponse> {
     const rows = await this.prisma.$queryRaw<ProjectSummarySqlRow[]>(
-      buildProjectSummaryQuery(from, to),
+      buildProjectSummaryQuery(resolved.from, resolved.to),
     );
-    return shapeProjectSummary(rows, period);
+    return shapeProjectSummary(rows, resolved.period);
+  }
+
+  async getPersonSummary(resolved: ResolvedSummaryPeriod): Promise<PersonSummaryResponse> {
+    const rows = await this.prisma.$queryRaw<PersonSummarySqlRow[]>(
+      buildPersonSummaryQuery(resolved.from, resolved.to),
+    );
+    return shapePersonSummary(rows, resolved.period);
+  }
+
+  async getDashboardMetrics(): Promise<DashboardMetricsResponse> {
+    return queryDashboardMetrics(this.prisma);
   }
 
   async findMine(

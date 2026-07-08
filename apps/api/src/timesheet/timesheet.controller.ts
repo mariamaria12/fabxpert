@@ -11,7 +11,6 @@ import {
   Query,
   Req,
   Sse,
-  BadRequestException,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { z } from 'zod';
@@ -30,7 +29,8 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { parsePagination } from '../common/pagination/parse-pagination.util';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { TimesheetEventsService } from './timesheet-events.service';
-import { TimesheetService } from './timesheet.service';
+import { TimesheetService, type TimesheetListFilters } from './timesheet.service';
+import { parseSummaryPeriodQuery } from './timesheet-summary-period.util';
 
 const idParamSchema = z.string().trim().min(1);
 
@@ -48,8 +48,6 @@ const listFiltersSchema = z.object({
   createdAtTo: z.coerce.date().optional(),
 });
 
-const projectSummaryPeriodSchema = z.enum(['all', 'month', 'week']);
-
 function parseListFilters(query: Record<string, string>) {
   const result = listFiltersSchema.safeParse({
     personId: query.personId,
@@ -58,11 +56,17 @@ function parseListFilters(query: Record<string, string>) {
     createdAtTo: query.createdAtTo,
   });
 
-  if (!result.success) {
-    return {};
+  const filters: TimesheetListFilters = result.success ? { ...result.data } : {};
+
+  if (query.period) {
+    const resolved = parseSummaryPeriodQuery(query);
+    if (resolved.from && resolved.to) {
+      filters.startTimeFrom = resolved.from;
+      filters.startTimeTo = resolved.to;
+    }
   }
 
-  return result.data;
+  return filters;
 }
 
 @Controller('timesheets')
@@ -97,14 +101,24 @@ export class TimesheetController {
     return this.timesheetService.stop(req.user, input);
   }
 
+  @Get('dashboard-metrics')
+  @Roles('ADMIN')
+  dashboardMetrics() {
+    return this.timesheetService.getDashboardMetrics();
+  }
+
   @Get('project-summary')
   @Roles('ADMIN')
   projectSummary(@Query() query: Record<string, string>) {
-    const parsed = projectSummaryPeriodSchema.safeParse(query.period ?? 'all');
-    if (!parsed.success) {
-      throw new BadRequestException('Invalid period');
-    }
-    return this.timesheetService.getProjectSummary(parsed.data);
+    const resolved = parseSummaryPeriodQuery(query);
+    return this.timesheetService.getProjectSummary(resolved);
+  }
+
+  @Get('person-summary')
+  @Roles('ADMIN')
+  personSummary(@Query() query: Record<string, string>) {
+    const resolved = parseSummaryPeriodQuery(query);
+    return this.timesheetService.getPersonSummary(resolved);
   }
 
   @Get('mine')

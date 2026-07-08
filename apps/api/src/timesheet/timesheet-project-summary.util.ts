@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import type { ProjectSummaryPeriod } from '@fabxpert/shared/dto/timesheet.dto';
+import type { TimesheetSummaryPeriod } from '@fabxpert/shared/dto/timesheet.dto';
 
 export type ProjectSummarySqlRow = {
   projectId: string;
@@ -32,38 +32,11 @@ export type ProjectSummaryProjectRow = {
 };
 
 export type ProjectSummaryResponse = {
-  period: ProjectSummaryPeriod;
+  period: TimesheetSummaryPeriod;
   projects: ProjectSummaryProjectRow[];
 };
 
 const NO_ACTIVITY_LABEL = 'Fără activitate';
-
-/** Server-local calendar ranges; timezone simplification is intentional. */
-export function resolveProjectSummaryPeriodRange(
-  period: ProjectSummaryPeriod,
-  now = new Date(),
-): { from: Date | null; to: Date | null } {
-  if (period === 'all') {
-    return { from: null, to: null };
-  }
-
-  if (period === 'month') {
-    const from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-    const to = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0);
-    return { from, to };
-  }
-
-  const day = now.getDay();
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  const from = new Date(now);
-  from.setHours(0, 0, 0, 0);
-  from.setDate(from.getDate() + diffToMonday);
-
-  const to = new Date(from);
-  to.setDate(to.getDate() + 7);
-
-  return { from, to };
-}
 
 export function buildProjectSummaryQuery(from: Date | null, to: Date | null) {
   const periodFilter =
@@ -92,7 +65,6 @@ export function buildProjectSummaryQuery(from: Date | null, to: Date | null) {
     WHERE t."deletedAt" IS NULL
       AND t."endTime" IS NOT NULL
       AND p."deletedAt" IS NULL
-      AND p.status NOT IN ('FINALIZAT', 'ANULAT')
       ${periodFilter}
     GROUP BY
       p.id,
@@ -114,7 +86,7 @@ function toMinutes(value: number | bigint): number {
 
 export function shapeProjectSummary(
   rows: ProjectSummarySqlRow[],
-  period: ProjectSummaryPeriod,
+  period: TimesheetSummaryPeriod,
 ): ProjectSummaryResponse {
   const byProject = new Map<string, ProjectSummaryProjectRow>();
 

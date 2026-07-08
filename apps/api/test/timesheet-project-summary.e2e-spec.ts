@@ -31,7 +31,7 @@ describe('Timesheet project summary (e2e)', () => {
     expect(response.status).toBe(403);
   });
 
-  it('aggregates closed timesheets for in-progress projects only', async () => {
+  it('aggregates closed timesheets by project for the selected period', async () => {
     await request(app.getHttpServer())
       .post('/timesheets')
       .set(authHeader(adminCookie))
@@ -87,11 +87,19 @@ describe('Timesheet project summary (e2e)', () => {
       .expect(200);
 
     expect(summary.body.period).toBe('all');
-    expect(summary.body.projects).toHaveLength(1);
-    expect(summary.body.projects[0].id).toBe(FIXTURES.projects.ready.id);
-    expect(summary.body.projects[0].totalMinutes).toBe(210);
+    expect(summary.body.projects).toHaveLength(2);
 
-    const activities = summary.body.projects[0].activities as Array<{
+    const readyProject = summary.body.projects.find(
+      (project: { id: string }) => project.id === FIXTURES.projects.ready.id,
+    );
+    const finalizedProject = summary.body.projects.find(
+      (project: { id: string }) => project.id === FIXTURES.projects.notReady.id,
+    );
+
+    expect(readyProject.totalMinutes).toBe(210);
+    expect(finalizedProject.totalMinutes).toBe(60);
+
+    const activities = readyProject.activities as Array<{
       activityId: string | null;
       minutes: number;
     }>;

@@ -88,7 +88,10 @@ export type TimesheetDto = {
   updatedAt: string;
 };
 
-export type ProjectSummaryPeriod = 'all' | 'month' | 'week';
+export type TimesheetSummaryPeriod = 'today' | 'week' | 'month' | 'all' | 'custom';
+
+/** @deprecated Use TimesheetSummaryPeriod — kept as alias for project-summary responses */
+export type ProjectSummaryPeriod = TimesheetSummaryPeriod;
 
 export type ProjectSummaryActivityRow = {
   activityId: string | null;
@@ -108,6 +111,33 @@ export type ProjectSummaryProjectRow = {
 };
 
 export type ProjectSummaryResponse = {
-  period: ProjectSummaryPeriod;
+  period: TimesheetSummaryPeriod;
   projects: ProjectSummaryProjectRow[];
+};
+
+export type PersonSummaryActivityRow = ProjectSummaryActivityRow;
+
+export type PersonSummaryPersonRow = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  totalMinutes: number;
+  activities: PersonSummaryActivityRow[];
+};
+
+export type PersonSummaryResponse = {
+  period: TimesheetSummaryPeriod;
+  persons: PersonSummaryPersonRow[];
+};
+
+export type DashboardMetricsResponse = {
+  inProgressProjectCount: number;
+  todayTotalMinutes: number;
+  todayDistinctPersonCount: number;
+};
+
+export type TimesheetSummaryParams = {
+  period?: TimesheetSummaryPeriod;
+  from?: string;
+  to?: string;
 };

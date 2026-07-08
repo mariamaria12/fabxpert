@@ -1,9 +1,10 @@
 'use client';
 
-import { TodayActivityFeed } from './TodayActivityFeed';
-import { ProjectsOverview } from './ProjectsOverview';
-import { ProjectHoursOverview } from './ProjectHoursOverview';
 import { PanouRefreshProvider, usePanouRefresh } from './PanouRefreshContext';
+import { PanouContentViews } from './panou/PanouContentViews';
+import { PanouDashboardProvider } from './panou/PanouDashboardContext';
+import { PanouMetricCards } from './panou/PanouMetricCards';
+import { PanouPeriodFilter } from './panou/PanouPeriodFilter';
 
 function formatUpdatedAt(date: Date): string {
   return date.toLocaleTimeString('ro-RO', {
@@ -18,7 +19,10 @@ function DashboardPageContent() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-[22px] font-medium text-text-primary">Panou</h1>
+        <div>
+          <p className="text-xs text-text-muted">Tablou de bord</p>
+          <h1 className="text-[22px] font-medium text-text-primary">Panou</h1>
+        </div>
         <div className="flex shrink-0 items-center gap-3">
           {lastUpdated && (
             <span className="hidden text-xs text-text-muted sm:inline">
@@ -39,9 +43,10 @@ function DashboardPageContent() {
           </button>
         </div>
       </div>
-      <ProjectsOverview />
-      <ProjectHoursOverview />
-      <TodayActivityFeed />
+
+      <PanouMetricCards />
+      <PanouPeriodFilter />
+      <PanouContentViews />
     </div>
   );
 }
@@ -49,7 +54,9 @@ function DashboardPageContent() {
 export default function DashboardPage() {
   return (
     <PanouRefreshProvider>
-      <DashboardPageContent />
+      <PanouDashboardProvider>
+        <DashboardPageContent />
+      </PanouDashboardProvider>
     </PanouRefreshProvider>
   );
 }

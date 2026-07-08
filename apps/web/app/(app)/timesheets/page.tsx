@@ -2,14 +2,15 @@
 
 import {
   listTimesheets,
+  type Period,
   type TimesheetDto,
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
+import { PeriodFilter } from '@/components/PeriodFilter';
 import { TimesheetFormPanel } from './TimesheetFormPanel';
 import {
-  CLIENT_FILTER_FETCH_SIZE,
+  CLIENT_SEARCH_FETCH_SIZE,
   paginateSlice,
-  timesheetMatchesDateRange,
   timesheetMatchesPersonSearch,
 } from './timesheetFilters';
 import {
@@ -28,9 +29,6 @@ const SEARCH_DEBOUNCE_MS = 300;
 const searchInputClassName =
   'w-full min-w-[14rem] max-w-md rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
 
-const dateInputClassName =
-  'rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
-
 function nullableCell(value: string | null | undefined) {
   if (!value) {
     return <span className="text-text-muted">—</span>;
@@ -47,8 +45,7 @@ export default function TimesheetsPage() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [period, setPeriod] = useState<Period>({ kind: 'today' });
   const [timesheets, setTimesheets] = useState<TimesheetDto[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -64,43 +61,26 @@ export default function TimesheetsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, dateFrom, dateTo]);
+  }, [debouncedSearch, period]);
 
-  const hasActiveFilters =
-    debouncedSearch.length > 0 || dateFrom.length > 0 || dateTo.length > 0;
+  const hasActiveFilters = debouncedSearch.length > 0 || period.kind !== 'today';
 
   const loadTimesheets = useCallback(
-    async (
-      targetPage: number,
-      search?: string,
-      from?: string,
-      to?: string,
-    ) => {
+    async (targetPage: number, search: string, activePeriod: Period) => {
       setLoading(true);
       setError(null);
 
-      const useClientFilters = Boolean(search || from || to);
-
       try {
-        if (useClientFilters) {
+        if (search) {
           const response = await listTimesheets({
             page: 1,
-            pageSize: CLIENT_FILTER_FETCH_SIZE,
+            pageSize: CLIENT_SEARCH_FETCH_SIZE,
+            period: activePeriod,
           });
 
-          let filtered = response.data;
-
-          if (search) {
-            filtered = filtered.filter((timesheet) =>
-              timesheetMatchesPersonSearch(timesheet, search),
-            );
-          }
-
-          if (from || to) {
-            filtered = filtered.filter((timesheet) =>
-              timesheetMatchesDateRange(timesheet, from, to),
-            );
-          }
+          const filtered = response.data.filter((timesheet) =>
+            timesheetMatchesPersonSearch(timesheet, search),
+          );
 
           setTimesheets(paginateSlice(filtered, targetPage, PAGE_SIZE));
           setTotal(filtered.length);
@@ -108,6 +88,7 @@ export default function TimesheetsPage() {
           const response = await listTimesheets({
             page: targetPage,
             pageSize: PAGE_SIZE,
+            period: activePeriod,
           });
           setTimesheets(response.data);
           setTotal(response.meta.total);
@@ -122,13 +103,8 @@ export default function TimesheetsPage() {
   );
 
   useEffect(() => {
-    void loadTimesheets(
-      page,
-      debouncedSearch || undefined,
-      dateFrom || undefined,
-      dateTo || undefined,
-    );
-  }, [page, debouncedSearch, dateFrom, dateTo, loadTimesheets]);
+    void loadTimesheets(page, debouncedSearch, period);
+  }, [page, debouncedSearch, period, loadTimesheets]);
 
   function openCreate() {
     setPanel({ open: true, mode: 'create', timesheet: null });
@@ -143,12 +119,7 @@ export default function TimesheetsPage() {
   }
 
   function handleSaved() {
-    void loadTimesheets(
-      page,
-      debouncedSearch || undefined,
-      dateFrom || undefined,
-      dateTo || undefined,
-    );
+    void loadTimesheets(page, debouncedSearch, period);
   }
 
   const showEmptyState = !loading && !error && total === 0 && !hasActiveFilters;
@@ -208,14 +179,7 @@ export default function TimesheetsPage() {
           <p className="text-sm text-danger">{error}</p>
           <button
             type="button"
-            onClick={() =>
-              void loadTimesheets(
-                page,
-                debouncedSearch || undefined,
-                dateFrom || undefined,
-                dateTo || undefined,
-              )
-            }
+            onClick={() => void loadTimesheets(page, debouncedSearch, period)}
             className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary"
           >
             Reîncearcă
@@ -224,8 +188,10 @@ export default function TimesheetsPage() {
       )}
 
       {!showEmptyState && (
-        <div className="mt-4 flex flex-wrap items-end gap-4">
-          <div className="min-w-[14rem] flex-1">
+        <div className="mt-4 space-y-4">
+          <PeriodFilter value={period} onChange={setPeriod} />
+
+          <div className="min-w-[14rem] max-w-md">
             <input
               type="search"
               value={searchInput}
@@ -233,32 +199,6 @@ export default function TimesheetsPage() {
               placeholder="Caută după persoană..."
               aria-label="Caută după persoană"
               className={searchInputClassName}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="date-from" className="mb-1.5 block text-xs text-text-secondary">
-              De la
-            </label>
-            <input
-              id="date-from"
-              type="date"
-              value={dateFrom}
-              onChange={(event) => setDateFrom(event.target.value)}
-              className={dateInputClassName}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="date-to" className="mb-1.5 block text-xs text-text-secondary">
-              Până la
-            </label>
-            <input
-              id="date-to"
-              type="date"
-              value={dateTo}
-              onChange={(event) => setDateTo(event.target.value)}
-              className={dateInputClassName}
             />
           </div>
         </div>

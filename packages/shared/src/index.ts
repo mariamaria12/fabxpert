@@ -107,6 +107,20 @@ export {
 } from './projectStatus';
 export type { ProjectStatusMeta } from './projectStatus';
 export {
+  type Period,
+  type PeriodQueryParams,
+  periodToQuery,
+  isPeriodQueryReady,
+  periodsEqual,
+} from './period';
+export {
+  formatRomanianDayMonth,
+  formatRomanianMonthName,
+  formatRomanianDayMonthRange,
+  formatCustomPeriodSubLabel,
+  formatPeriodCardSubLabel,
+} from './periodDisplay';
+export {
   listUsers,
   getUser,
   createUser,
@@ -135,6 +149,8 @@ export {
   updateTimesheet,
   deleteTimesheet,
   getProjectSummary,
+  getPersonSummary,
+  getDashboardMetrics,
   subscribeToTimesheets,
 } from './api/timesheet';
 export type {
@@ -154,10 +170,16 @@ export type {
   TimesheetPersonDto,
   TimesheetProjectDto,
   TimesheetActivityDto,
+  TimesheetSummaryPeriod,
+  TimesheetSummaryParams,
   ProjectSummaryPeriod,
   ProjectSummaryActivityRow,
   ProjectSummaryProjectRow,
   ProjectSummaryResponse,
+  PersonSummaryActivityRow,
+  PersonSummaryPersonRow,
+  PersonSummaryResponse,
+  DashboardMetricsResponse,
   StartTimesheetInput,
   StartTimesheetBodyInput,
   StopTimesheetInput,
