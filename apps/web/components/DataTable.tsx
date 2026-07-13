@@ -23,6 +23,8 @@ export interface DataTableProps<T> {
   loading?: boolean;
   /** Skeleton row count when loading (default 5). */
   loadingRowCount?: number;
+  /** Message shown in the table body when not loading and data is empty. */
+  emptyMessage?: string;
 }
 
 function getCellValue<T>(row: T, key: string): ReactNode {
@@ -48,6 +50,7 @@ export function DataTable<T>({
   onRowClick,
   loading = false,
   loadingRowCount = 5,
+  emptyMessage = 'Niciun rezultat.',
 }: DataTableProps<T>) {
   const showAccent = rowAccentColor !== undefined;
   const colSpan = columns.length + (showAccent ? 1 : 0);
@@ -89,7 +92,7 @@ export function DataTable<T>({
           ) : data.length === 0 ? (
             <tr>
               <td colSpan={colSpan} className="px-3 py-8 text-center text-text-muted">
-                Niciun rezultat.
+                {emptyMessage}
               </td>
             </tr>
           ) : (

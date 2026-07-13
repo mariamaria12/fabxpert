@@ -122,9 +122,9 @@ export default function TimesheetsPage() {
     void loadTimesheets(page, debouncedSearch, period);
   }
 
-  const showEmptyState = !loading && !error && total === 0 && !hasActiveFilters;
-  const showNoFilterResults = !loading && !error && total === 0 && hasActiveFilters;
-  const showDataTable = loading || total > 0;
+  const tableEmptyMessage = hasActiveFilters
+    ? 'Nu există pontaje care să corespundă filtrelor.'
+    : 'Nu există pontaje pentru perioada selectată.';
 
   const timesheetColumns: DataTableColumn<TimesheetDto>[] = [
     {
@@ -163,15 +163,13 @@ export default function TimesheetsPage() {
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-[22px] font-medium text-text-primary">Pontaje</h1>
-        {!showEmptyState && (
-          <button
-            type="button"
-            onClick={openCreate}
-            className="shrink-0 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
-          >
-            Pontaj nou
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={openCreate}
+          className="shrink-0 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
+        >
+          Pontaj nou
+        </button>
       </div>
 
       {error && (
@@ -187,63 +185,39 @@ export default function TimesheetsPage() {
         </div>
       )}
 
-      {!showEmptyState && (
-        <div className="mt-4 space-y-4">
-          <PeriodFilter value={period} onChange={setPeriod} />
+      <div className="mt-4 space-y-4">
+        <PeriodFilter value={period} onChange={setPeriod} />
 
-          <div className="min-w-[14rem] max-w-md">
-            <input
-              type="search"
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Caută după persoană..."
-              aria-label="Caută după persoană"
-              className={searchInputClassName}
-            />
-          </div>
-        </div>
-      )}
-
-      {showNoFilterResults && (
-        <div className="mt-8 flex flex-col items-center justify-center gap-4 text-center">
-          <p className="text-sm text-text-muted">
-            Nu există pontaje care să corespundă filtrelor.
-          </p>
-        </div>
-      )}
-
-      {showEmptyState && (
-        <div className="flex flex-1 flex-col items-center justify-center gap-4">
-          <p className="text-sm text-text-muted">Niciun pontaj încă.</p>
-          <button
-            type="button"
-            onClick={openCreate}
-            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
-          >
-            Pontaj nou
-          </button>
-        </div>
-      )}
-
-      {showDataTable && (
-        <div className="mt-6">
-          <DataTable
-            columns={timesheetColumns}
-            data={timesheets}
-            rowKey={(row) => row.id}
-            loading={loading}
-            onRowClick={loading ? undefined : openEdit}
+        <div className="min-w-[14rem] max-w-md">
+          <input
+            type="search"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            placeholder="Caută după persoană..."
+            aria-label="Caută după persoană"
+            className={searchInputClassName}
           />
-          {!loading && total > 0 && (
-            <Pagination
-              page={page}
-              pageSize={PAGE_SIZE}
-              total={total}
-              onPageChange={setPage}
-            />
-          )}
         </div>
-      )}
+      </div>
+
+      <div className="mt-6">
+        <DataTable
+          columns={timesheetColumns}
+          data={timesheets}
+          rowKey={(row) => row.id}
+          loading={loading}
+          emptyMessage={tableEmptyMessage}
+          onRowClick={loading ? undefined : openEdit}
+        />
+        {!loading && total > 0 && (
+          <Pagination
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+          />
+        )}
+      </div>
 
       {panel.open && (
         <TimesheetFormPanel
