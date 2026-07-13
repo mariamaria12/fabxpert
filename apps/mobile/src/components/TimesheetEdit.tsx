@@ -7,8 +7,8 @@ import { useMobileLookupCache } from '../context/MobileLookupCacheContext';
 import { useToast } from '../context/ToastContext';
 import { apiErrorToastMessage } from '../utils/apiToastMessage';
 import {
+  durationPartsFromEntry,
   endTimeFromStartAndHours,
-  hoursFromEntryDuration,
   isEditableTodayEntry,
 } from '../utils/timeUtils';
 
@@ -35,16 +35,22 @@ function TrashIcon() {
 export function TimesheetEdit({ timesheet, onSaved, onCancel }: TimesheetEditProps) {
   const { showToast } = useToast();
   const { refreshMyTimesheetsPage1 } = useMobileLookupCache();
-  const initialHours = hoursFromEntryDuration(timesheet) ?? 1;
+  const entryParts = durationPartsFromEntry(timesheet);
+  const initialDurationHours = entryParts
+    ? entryParts.hours + entryParts.minutes / 60
+    : 1;
   const {
     hoursInput,
     setHoursInput,
-    parsedHours,
+    selectedMinutes,
+    parsedDurationHours,
     canSave,
     hourStep,
     adjustHours,
     setHoursPreset,
-  } = useDurationInput(initialHours);
+    setMinutePreset,
+    activeHourPreset,
+  } = useDurationInput(initialDurationHours);
   const [notes, setNotes] = useState(timesheet.notes ?? '');
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -65,7 +71,7 @@ export function TimesheetEdit({ timesheet, onSaved, onCancel }: TimesheetEditPro
   }
 
   async function handleSave() {
-    if (!parsedHours || isSaving || isDeleting) {
+    if (!parsedDurationHours || isSaving || isDeleting) {
       return;
     }
 
@@ -74,7 +80,7 @@ export function TimesheetEdit({ timesheet, onSaved, onCancel }: TimesheetEditPro
     try {
       const startTime = new Date(timesheet.startTime);
       // Keep the original startTime; endTime reflects the adjusted duration.
-      const endTime = endTimeFromStartAndHours(startTime, parsedHours);
+      const endTime = endTimeFromStartAndHours(startTime, parsedDurationHours);
 
       await updateTimesheet(timesheet.id, {
         startTime,
@@ -120,11 +126,13 @@ export function TimesheetEdit({ timesheet, onSaved, onCancel }: TimesheetEditPro
 
         <DurationInput
           hoursInput={hoursInput}
-          parsedHours={parsedHours}
+          selectedMinutes={selectedMinutes}
+          activeHourPreset={activeHourPreset}
           hourStep={hourStep}
           onHoursInputChange={setHoursInput}
           onAdjustHours={adjustHours}
-          onPreset={setHoursPreset}
+          onHourPreset={setHoursPreset}
+          onMinutePreset={setMinutePreset}
         />
 
         <label className="notes-field">
@@ -140,7 +148,7 @@ export function TimesheetEdit({ timesheet, onSaved, onCancel }: TimesheetEditPro
 
         {hoursInput !== '' && !canSave ? (
           <p className="flow-inline-error" role="alert">
-            Introdu un număr valid de ore (ex. 4 sau 4,5)
+            Introdu o durată validă (ex. 4h sau 2h30m)
           </p>
         ) : null}
 

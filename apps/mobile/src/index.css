@@ -1003,6 +1003,18 @@ body {
   opacity: 0.9;
 }
 
+.minutes-presets {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.minutes-preset-button {
+  min-width: 64px;
+}
+
 .time-field {
   display: flex;
   flex-direction: column;

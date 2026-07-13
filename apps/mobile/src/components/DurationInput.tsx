@@ -1,21 +1,28 @@
+import { DURATION_MINUTE_PRESETS } from '../utils/timeUtils';
+import type { DurationMinutePreset } from '../utils/timeUtils';
+
 const HOUR_PRESETS = [2, 4, 6, 8] as const;
 
 interface DurationInputProps {
   hoursInput: string;
-  parsedHours: number | null;
+  selectedMinutes: DurationMinutePreset;
+  activeHourPreset: number | null;
   hourStep: number;
   onHoursInputChange: (value: string) => void;
   onAdjustHours: (delta: number) => void;
-  onPreset: (hours: number) => void;
+  onHourPreset: (hours: number) => void;
+  onMinutePreset: (minutes: DurationMinutePreset) => void;
 }
 
 export function DurationInput({
   hoursInput,
-  parsedHours,
+  selectedMinutes,
+  activeHourPreset,
   hourStep,
   onHoursInputChange,
   onAdjustHours,
-  onPreset,
+  onHourPreset,
+  onMinutePreset,
 }: DurationInputProps) {
   return (
     <div className="hours-entry">
@@ -30,12 +37,12 @@ export function DurationInput({
         </button>
 
         <label className="hours-input-wrap">
-          <span className="hours-input-label">Ore</span>
+          <span className="hours-input-label">Durată</span>
           <input
             type="text"
-            inputMode="decimal"
+            inputMode="text"
             className="hours-input"
-            placeholder="0"
+            placeholder="0h"
             value={hoursInput}
             onChange={(event) => onHoursInputChange(event.target.value)}
           />
@@ -56,10 +63,23 @@ export function DurationInput({
           <button
             key={preset}
             type="button"
-            className={`hours-preset-button${parsedHours === preset ? ' hours-preset-button-active' : ''}`}
-            onClick={() => onPreset(preset)}
+            className={`hours-preset-button${activeHourPreset === preset ? ' hours-preset-button-active' : ''}`}
+            onClick={() => onHourPreset(preset)}
           >
             {preset}h
+          </button>
+        ))}
+      </div>
+
+      <div className="minutes-presets" role="group" aria-label="Minute">
+        {DURATION_MINUTE_PRESETS.map((preset) => (
+          <button
+            key={preset}
+            type="button"
+            className={`hours-preset-button minutes-preset-button${selectedMinutes === preset ? ' hours-preset-button-active' : ''}`}
+            onClick={() => onMinutePreset(preset)}
+          >
+            {preset}m
           </button>
         ))}
       </div>

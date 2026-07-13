@@ -68,6 +68,163 @@ export function parseHoursInput(value: string): number | null {
   return hours;
 }
 
+export const DURATION_MINUTE_PRESETS = [15, 30, 45] as const;
+
+export type DurationMinutePreset = 0 | (typeof DURATION_MINUTE_PRESETS)[number];
+
+export function isDurationMinutePreset(value: number): value is DurationMinutePreset {
+  return value === 0 || value === 15 || value === 30 || value === 45;
+}
+
+export function durationPartsFromTotalHours(totalHours: number): {
+  hours: number;
+  minutes: DurationMinutePreset;
+} {
+  const totalMinutes = Math.max(0, Math.round(totalHours * 60));
+  const hours = Math.floor(totalMinutes / 60);
+  const remainder = totalMinutes % 60;
+
+  return {
+    hours,
+    minutes: isDurationMinutePreset(remainder) ? remainder : 0,
+  };
+}
+
+export function hasFractionalHoursInput(value: string): boolean {
+  const normalized = value.trim().replace(',', '.');
+  if (!normalized.includes('.')) {
+    return false;
+  }
+
+  const hours = Number.parseFloat(normalized);
+  return Number.isFinite(hours) && !Number.isInteger(hours);
+}
+
+export function parseWholeHoursInput(value: string): number | null {
+  const normalized = value.trim().replace(',', '.');
+  if (normalized === '') {
+    return null;
+  }
+
+  const hours = Number.parseFloat(normalized);
+  if (!Number.isFinite(hours) || hours < 0 || !Number.isInteger(hours)) {
+    return null;
+  }
+
+  return hours;
+}
+
+export function combineHoursAndMinutes(
+  wholeHours: number,
+  minutes: DurationMinutePreset,
+): number {
+  return wholeHours + minutes / 60;
+}
+
+export function formatDurationInputDisplay(
+  wholeHours: number,
+  minutes: DurationMinutePreset,
+): string {
+  if (wholeHours === 0 && minutes === 0) {
+    return '';
+  }
+
+  if (wholeHours === 0) {
+    return `${minutes}m`;
+  }
+
+  if (minutes === 0) {
+    return `${wholeHours}h`;
+  }
+
+  return `${wholeHours}h${minutes}m`;
+}
+
+export function parseDurationInputParts(value: string): {
+  hours: number;
+  minutes: number;
+} | null {
+  const trimmed = value.trim().toLowerCase();
+  if (trimmed === '') {
+    return null;
+  }
+
+  const hoursMinutesMatch = /^(\d+)h(?:(\d+)m)?$/.exec(trimmed);
+  if (hoursMinutesMatch) {
+    const hours = Number.parseInt(hoursMinutesMatch[1], 10);
+    const minutes = hoursMinutesMatch[2]
+      ? Number.parseInt(hoursMinutesMatch[2], 10)
+      : 0;
+
+    if (minutes < 0 || minutes >= 60 || (hours === 0 && minutes === 0)) {
+      return null;
+    }
+
+    return { hours, minutes };
+  }
+
+  const minutesOnlyMatch = /^(\d+)m$/.exec(trimmed);
+  if (minutesOnlyMatch) {
+    const minutes = Number.parseInt(minutesOnlyMatch[1], 10);
+    if (minutes <= 0 || minutes >= 60) {
+      return null;
+    }
+
+    return { hours: 0, minutes };
+  }
+
+  if (hasFractionalHoursInput(trimmed)) {
+    const totalHours = parseHoursInput(trimmed);
+    if (totalHours === null) {
+      return null;
+    }
+
+    const totalMinutes = Math.round(totalHours * 60);
+    return {
+      hours: Math.floor(totalMinutes / 60),
+      minutes: totalMinutes % 60,
+    };
+  }
+
+  const wholeHours = parseWholeHoursInput(trimmed);
+  if (wholeHours !== null && wholeHours > 0) {
+    return { hours: wholeHours, minutes: 0 };
+  }
+
+  return null;
+}
+
+export function getWholeHoursFromInput(value: string): number {
+  const parts = parseDurationInputParts(value);
+  return parts?.hours ?? 0;
+}
+
+export function getPresetMinutesFromInput(value: string): DurationMinutePreset {
+  const parts = parseDurationInputParts(value);
+  if (parts && isDurationMinutePreset(parts.minutes)) {
+    return parts.minutes;
+  }
+
+  return 0;
+}
+
+export function resolveDurationHours(
+  hoursInput: string,
+  selectedMinutes: DurationMinutePreset,
+): number | null {
+  const parts = parseDurationInputParts(hoursInput);
+  if (parts) {
+    const total = parts.hours + parts.minutes / 60;
+    return total > 0 ? total : null;
+  }
+
+  if (selectedMinutes > 0) {
+    return selectedMinutes / 60;
+  }
+
+  return null;
+}
+
 export function formatHoursDisplay(hours: number): string {
   return Number.isInteger(hours) ? String(hours) : hours.toFixed(1).replace(/\.0$/, '');
 }
@@ -166,6 +323,17 @@ export function sumDayClosedMinutes(entries: TimesheetDurationEntry[]): number {
   }
 
   return totalMinutes;
+}
+
+export function durationPartsFromEntry(
+  entry: TimesheetDurationEntry,
+): { hours: number; minutes: DurationMinutePreset } | null {
+  const totalMinutes = entryDurationMinutes(entry);
+  if (totalMinutes === null) {
+    return null;
+  }
+
+  return durationPartsFromTotalHours(totalMinutes / 60);
 }
 
 export function hoursFromEntryDuration(entry: TimesheetDurationEntry): number | null {

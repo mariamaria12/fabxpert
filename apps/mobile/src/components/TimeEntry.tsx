@@ -22,21 +22,24 @@ export function TimeEntry({ project, activity, onSaved }: TimeEntryProps) {
   const {
     hoursInput,
     setHoursInput,
-    parsedHours,
+    selectedMinutes,
+    parsedDurationHours,
     canSave,
     hourStep,
     adjustHours,
     setHoursPreset,
+    setMinutePreset,
+    activeHourPreset,
   } = useDurationInput(DEFAULT_HOURS);
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   async function handleSave() {
-    if (!parsedHours || isSaving) {
+    if (!parsedDurationHours || isSaving) {
       return;
     }
 
-    const interval = intervalEndingNow(parsedHours);
+    const interval = intervalEndingNow(parsedDurationHours);
     if (!interval) {
       return;
     }
@@ -69,11 +72,13 @@ export function TimeEntry({ project, activity, onSaved }: TimeEntryProps) {
 
         <DurationInput
           hoursInput={hoursInput}
-          parsedHours={parsedHours}
+          selectedMinutes={selectedMinutes}
+          activeHourPreset={activeHourPreset}
           hourStep={hourStep}
           onHoursInputChange={setHoursInput}
           onAdjustHours={adjustHours}
-          onPreset={setHoursPreset}
+          onHourPreset={setHoursPreset}
+          onMinutePreset={setMinutePreset}
         />
 
         <label className="notes-field">
@@ -89,7 +94,7 @@ export function TimeEntry({ project, activity, onSaved }: TimeEntryProps) {
 
         {hoursInput !== '' && !canSave ? (
           <p className="flow-inline-error" role="alert">
-            Introdu un număr valid de ore (ex. 4 sau 4,5)
+            Introdu o durată validă (ex. 4h sau 2h30m)
           </p>
         ) : null}
       </div>
