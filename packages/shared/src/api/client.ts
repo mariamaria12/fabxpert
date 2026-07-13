@@ -102,3 +102,70 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
   }
   return JSON.parse(text) as T;
 }
+
+function parseContentDispositionFilename(header: string | null): string | undefined {
+  if (!header) {
+    return undefined;
+  }
+
+  const utf8Match = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1].trim());
+  }
+
+  const asciiMatch = /filename="?([^";]+)"?/i.exec(header);
+  return asciiMatch?.[1]?.trim();
+}
+
+export type BlobDownload = {
+  blob: Blob;
+  filename?: string;
+};
+
+/**
+ * Binary download helper — preserves auth cookies; use for export endpoints.
+ */
+export async function requestBlob(
+  path: string,
+  options: RequestInit = {},
+): Promise<BlobDownload> {
+  if (baseUrl === null) {
+    throw new Error(
+      'API client is not configured. Call configureApiClient(baseUrl) once at app startup.',
+    );
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      ...options,
+      headers: options.headers,
+      credentials: 'include',
+    });
+  } catch {
+    throw new ApiError(0, 'Network request failed');
+  }
+
+  if (!response.ok) {
+    let message = `Request failed with status ${response.status}`;
+    try {
+      const body: unknown = await response.json();
+      if (body !== null && typeof body === 'object' && 'message' in body) {
+        const bodyMessage = (body as { message: unknown }).message;
+        if (typeof bodyMessage === 'string') {
+          message = bodyMessage;
+        } else if (Array.isArray(bodyMessage)) {
+          message = bodyMessage.join(', ');
+        }
+      }
+    } catch {
+      // Body wasn't parseable JSON — keep the generic message.
+    }
+    throw new ApiError(response.status, message);
+  }
+
+  return {
+    blob: await response.blob(),
+    filename: parseContentDispositionFilename(response.headers.get('Content-Disposition')),
+  };
+}

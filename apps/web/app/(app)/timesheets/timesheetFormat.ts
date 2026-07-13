@@ -43,6 +43,16 @@ export function formatTimesheetDuration(timesheet: TimesheetDto): string {
   return formatDurationMinutes(timesheet.durationMinutes);
 }
 
+/** Decimal hours as in the Excel export (Nr. ORE LUCRATE). */
+export function formatExportHours(durationMinutes: number): string {
+  const hours = durationMinutes / 60;
+  return Number.isInteger(hours) ? String(hours) : hours.toFixed(1);
+}
+
+export function workDateMonthNumber(iso: string): number {
+  return new Date(iso).getMonth() + 1;
+}
+
 export function getLocalDayKey(iso: string): string {
   return workDateToDayKey(iso);
 }

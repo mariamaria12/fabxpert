@@ -8,6 +8,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { PeriodFilter } from '@/components/PeriodFilter';
 import { TimesheetFormPanel } from './TimesheetFormPanel';
+import { TimesheetExportPanel } from './TimesheetExportPanel';
 import {
   CLIENT_SEARCH_FETCH_SIZE,
   paginateSlice,
@@ -51,6 +52,7 @@ export default function TimesheetsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [panel, setPanel] = useState<PanelState>({ open: false });
+  const [exportOpen, setExportOpen] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -163,13 +165,23 @@ export default function TimesheetsPage() {
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-[22px] font-medium text-text-primary">Pontaje</h1>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="shrink-0 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
-        >
-          Pontaj nou
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setExportOpen(true)}
+            className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary"
+          >
+            <i className="ti ti-file-spreadsheet text-base" aria-hidden="true" />
+            Export Excel
+          </button>
+          <button
+            type="button"
+            onClick={openCreate}
+            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
+          >
+            Pontaj nou
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -226,6 +238,14 @@ export default function TimesheetsPage() {
           timesheet={panel.timesheet}
           onClose={closePanel}
           onSaved={handleSaved}
+        />
+      )}
+
+      {exportOpen && (
+        <TimesheetExportPanel
+          open
+          initialPeriod={period}
+          onClose={() => setExportOpen(false)}
         />
       )}
     </div>

@@ -150,10 +150,12 @@ export {
   getProjectSummary,
   getPersonSummary,
   getDashboardMetrics,
+  exportTimesheetsXlsx,
   subscribeToTimesheets,
 } from './api/timesheet';
 export type {
   ListTimesheetsParams,
+  ExportTimesheetsParams,
   TimesheetEvent,
   TimesheetEventType,
 } from './api/timesheet';

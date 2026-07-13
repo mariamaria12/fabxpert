@@ -37,6 +37,10 @@ import {
   type PersonSummarySqlRow,
 } from './timesheet-person-summary.util';
 import { queryDashboardMetrics } from './timesheet-dashboard-metrics.util';
+import {
+  buildTimesheetExportFilename,
+  buildTimesheetExportXlsx,
+} from './timesheet-export-xlsx.util';
 
 const timesheetInclude = {
   person: {
@@ -140,31 +144,7 @@ export class TimesheetService {
     filters: TimesheetListFilters,
   ): Promise<PaginatedResponse<TimesheetDto>> {
     const { page, pageSize } = pagination;
-    const where: Prisma.TimesheetWhereInput = {
-      ...notDeleted(),
-      ...(filters.personId ? { personId: filters.personId } : {}),
-      ...(filters.projectId ? { projectId: filters.projectId } : {}),
-      ...(filters.workDateFrom !== undefined || filters.workDateTo !== undefined
-        ? {
-            workDate: {
-              ...(filters.workDateFrom !== undefined
-                ? { gte: filters.workDateFrom }
-                : {}),
-              ...(filters.workDateTo !== undefined ? { lt: filters.workDateTo } : {}),
-            },
-          }
-        : {}),
-      ...(filters.createdAtFrom !== undefined || filters.createdAtTo !== undefined
-        ? {
-            createdAt: {
-              ...(filters.createdAtFrom !== undefined
-                ? { gte: filters.createdAtFrom }
-                : {}),
-              ...(filters.createdAtTo !== undefined ? { lt: filters.createdAtTo } : {}),
-            },
-          }
-        : {}),
-    };
+    const where = this.buildListWhere(filters);
 
     const orderByCreatedAt =
       filters.createdAtFrom !== undefined || filters.createdAtTo !== undefined;
@@ -206,6 +186,38 @@ export class TimesheetService {
 
   async getDashboardMetrics(): Promise<DashboardMetricsResponse> {
     return queryDashboardMetrics(this.prisma);
+  }
+
+  /**
+   * Flat export listing: workDate asc, person name, project name.
+   * Used by GET /timesheets/export.xlsx (payroll format).
+   */
+  async exportXlsx(
+    resolved: ResolvedSummaryPeriod,
+    filters: Pick<TimesheetListFilters, 'personId' | 'projectId'>,
+  ): Promise<{ buffer: Buffer; filename: string }> {
+    const where = this.buildListWhere({
+      ...filters,
+      workDateFrom: resolved.from ?? undefined,
+      workDateTo: resolved.to ?? undefined,
+    });
+
+    const rows = await this.prisma.timesheet.findMany({
+      where,
+      include: timesheetInclude,
+      orderBy: [
+        { workDate: 'asc' },
+        { person: { lastName: 'asc' } },
+        { person: { firstName: 'asc' } },
+        { project: { name: 'asc' } },
+      ],
+    });
+
+    const buffer = await buildTimesheetExportXlsx(rows);
+    return {
+      buffer,
+      filename: buildTimesheetExportFilename(resolved),
+    };
   }
 
   async findMine(
@@ -321,6 +333,34 @@ export class TimesheetService {
     });
 
     this.timesheetEvents.emit(deletedTimesheetEvent(id, existing.person));
+  }
+
+  private buildListWhere(filters: TimesheetListFilters): Prisma.TimesheetWhereInput {
+    return {
+      ...notDeleted(),
+      ...(filters.personId ? { personId: filters.personId } : {}),
+      ...(filters.projectId ? { projectId: filters.projectId } : {}),
+      ...(filters.workDateFrom !== undefined || filters.workDateTo !== undefined
+        ? {
+            workDate: {
+              ...(filters.workDateFrom !== undefined
+                ? { gte: filters.workDateFrom }
+                : {}),
+              ...(filters.workDateTo !== undefined ? { lt: filters.workDateTo } : {}),
+            },
+          }
+        : {}),
+      ...(filters.createdAtFrom !== undefined || filters.createdAtTo !== undefined
+        ? {
+            createdAt: {
+              ...(filters.createdAtFrom !== undefined
+                ? { gte: filters.createdAtFrom }
+                : {}),
+              ...(filters.createdAtTo !== undefined ? { lt: filters.createdAtTo } : {}),
+            },
+          }
+        : {}),
+    };
   }
 
   private rejectPersonIdFromEmployee(role: string, personId?: string): void {

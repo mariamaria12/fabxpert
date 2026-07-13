@@ -10,9 +10,10 @@ import {
   Post,
   Query,
   Req,
+  Res,
   Sse,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { z } from 'zod';
 import {
   createTimesheetSchema,
@@ -96,6 +97,24 @@ export class TimesheetController {
   personSummary(@Query() query: Record<string, string>) {
     const resolved = parseSummaryPeriodQuery(query);
     return this.timesheetService.getPersonSummary(resolved);
+  }
+
+  @Get('export.xlsx')
+  @Roles('ADMIN')
+  async exportXlsx(@Query() query: Record<string, string>, @Res() res: Response) {
+    const resolved = parseSummaryPeriodQuery(query);
+    const filters = parseListFilters(query);
+    const { buffer, filename } = await this.timesheetService.exportXlsx(resolved, {
+      personId: filters.personId,
+      projectId: filters.projectId,
+    });
+
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+    res.send(buffer);
   }
 
   @Get('mine')

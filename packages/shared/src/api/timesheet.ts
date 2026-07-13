@@ -1,4 +1,4 @@
-import { getApiClientBaseUrl, request } from './client';
+import { getApiClientBaseUrl, request, requestBlob } from './client';
 import type {
   CreateTimesheetInput,
   DashboardMetricsResponse,
@@ -28,6 +28,22 @@ export interface ListTimesheetsParams {
   createdAtFrom?: string;
   /** @deprecated Prefer `period`. Kept for createdAt-based filtering. */
   createdAtTo?: string;
+}
+
+export interface ExportTimesheetsParams {
+  period: Period;
+  personId?: string;
+  projectId?: string;
+}
+
+function appendExportQuery(searchParams: URLSearchParams, params: ExportTimesheetsParams): void {
+  appendPeriodQuery(searchParams, params.period);
+  if (params.personId !== undefined) {
+    searchParams.set('personId', params.personId);
+  }
+  if (params.projectId !== undefined) {
+    searchParams.set('projectId', params.projectId);
+  }
 }
 
 function appendPeriodQuery(searchParams: URLSearchParams, period: Period): void {
@@ -122,6 +138,12 @@ export function getPersonSummary(period: Period = { kind: 'today' }) {
 
 export function getDashboardMetrics() {
   return request<DashboardMetricsResponse>('/timesheets/dashboard-metrics');
+}
+
+export function exportTimesheetsXlsx(params: ExportTimesheetsParams) {
+  const searchParams = new URLSearchParams();
+  appendExportQuery(searchParams, params);
+  return requestBlob(`/timesheets/export.xlsx?${searchParams.toString()}`);
 }
 
 function isTimesheetEvent(value: unknown): value is TimesheetEvent {
