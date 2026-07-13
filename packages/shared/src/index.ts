@@ -141,8 +141,6 @@ export type {
   UpdateUserInput,
 } from './dto/user.dto';
 export {
-  startTimesheet,
-  stopTimesheet,
   createTimesheet,
   listTimesheets,
   listMyTimesheets,
@@ -160,9 +158,6 @@ export type {
   TimesheetEventType,
 } from './api/timesheet';
 export {
-  startTimesheetSchema,
-  startTimesheetBodySchema,
-  stopTimesheetSchema,
   createTimesheetSchema,
   updateTimesheetSchema,
 } from './dto/timesheet.dto';
@@ -181,9 +176,14 @@ export type {
   PersonSummaryPersonRow,
   PersonSummaryResponse,
   DashboardMetricsResponse,
-  StartTimesheetInput,
-  StartTimesheetBodyInput,
-  StopTimesheetInput,
   CreateTimesheetInput,
   UpdateTimesheetInput,
 } from './dto/timesheet.dto';
+export {
+  normalizeWorkDate,
+  parseWorkDateString,
+  todayWorkDate,
+  todayDateInputValue,
+  workDateToDayKey,
+  isSameWorkDate,
+} from './workDate';

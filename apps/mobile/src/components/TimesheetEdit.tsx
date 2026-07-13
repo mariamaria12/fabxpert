@@ -8,7 +8,6 @@ import { useToast } from '../context/ToastContext';
 import { apiErrorToastMessage } from '../utils/apiToastMessage';
 import {
   durationPartsFromEntry,
-  endTimeFromStartAndHours,
   isEditableTodayEntry,
 } from '../utils/timeUtils';
 
@@ -78,13 +77,8 @@ export function TimesheetEdit({ timesheet, onSaved, onCancel }: TimesheetEditPro
     setIsSaving(true);
 
     try {
-      const startTime = new Date(timesheet.startTime);
-      // Keep the original startTime; endTime reflects the adjusted duration.
-      const endTime = endTimeFromStartAndHours(startTime, parsedDurationHours);
-
       await updateTimesheet(timesheet.id, {
-        startTime,
-        endTime,
+        durationMinutes: Math.round(parsedDurationHours * 60),
         notes: notes.trim() || undefined,
       });
 

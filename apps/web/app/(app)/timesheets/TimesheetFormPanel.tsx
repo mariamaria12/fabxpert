@@ -10,6 +10,7 @@ import {
   listProjects,
   updateTimesheet,
   updateTimesheetSchema,
+  todayDateInputValue,
   type ActivityDto,
   type PersonDto,
   type ProjectDto,
@@ -17,9 +18,9 @@ import {
 } from '@fabxpert/shared';
 import { useEffect, useState, type FormEvent } from 'react';
 import {
-  combineDateAndTime,
   isoToDateInput,
-  isoToTimeInput,
+  durationMinutesToHoursInput,
+  parseDurationMinutesInput,
 } from './timesheetFormat';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { useToast } from '@/context/ToastContext';
@@ -29,9 +30,8 @@ interface TimesheetFormValues {
   personId: string;
   projectId: string;
   activityId: string;
-  date: string;
-  startTime: string;
-  endTime: string;
+  workDate: string;
+  duration: string;
   notes: string;
 }
 
@@ -39,34 +39,38 @@ const EMPTY_FORM: TimesheetFormValues = {
   personId: '',
   projectId: '',
   activityId: '',
-  date: '',
-  startTime: '',
-  endTime: '',
+  workDate: '',
+  duration: '',
   notes: '',
 };
+
+function createEmptyForm(): TimesheetFormValues {
+  return {
+    ...EMPTY_FORM,
+    workDate: todayDateInputValue(),
+  };
+}
 
 function timesheetToFormValues(timesheet: TimesheetDto): TimesheetFormValues {
   return {
     personId: timesheet.personId,
     projectId: timesheet.projectId,
     activityId: timesheet.activityId ?? '',
-    date: isoToDateInput(timesheet.startTime),
-    startTime: isoToTimeInput(timesheet.startTime),
-    endTime: timesheet.endTime ? isoToTimeInput(timesheet.endTime) : '',
+    workDate: isoToDateInput(timesheet.workDate),
+    duration: durationMinutesToHoursInput(timesheet.durationMinutes),
     notes: timesheet.notes ?? '',
   };
 }
 
 function buildPayload(values: TimesheetFormValues) {
-  const startTime = combineDateAndTime(values.date, values.startTime);
-  const endTime = values.endTime ? combineDateAndTime(values.date, values.endTime) : undefined;
+  const durationMinutes = parseDurationMinutesInput(values.duration);
 
   return {
     personId: values.personId,
     projectId: values.projectId,
     activityId: values.activityId || undefined,
-    startTime: startTime ?? new Date(),
-    endTime,
+    workDate: values.workDate || undefined,
+    durationMinutes: durationMinutes ?? 0,
     notes: values.notes.trim() || undefined,
   };
 }
@@ -83,11 +87,8 @@ function mapZodFieldErrors(error: {
   if (flat.projectId?.[0]) {
     mapped.projectId = 'Proiectul este obligatoriu.';
   }
-  if (flat.startTime?.[0]) {
-    mapped.startTime = 'Ora de start este obligatorie.';
-  }
-  if (flat.endTime?.[0]) {
-    mapped.endTime = 'Ora de stop trebuie să fie după ora de start.';
+  if (flat.durationMinutes?.[0]) {
+    mapped.duration = 'Durata trebuie să fie un număr pozitiv de minute.';
   }
 
   return mapped;
@@ -267,7 +268,7 @@ export function TimesheetFormPanel({
     setConfirmDelete(false);
     setIsSubmitting(false);
     setIsDeleting(false);
-    setValues(mode === 'edit' && timesheet ? timesheetToFormValues(timesheet) : EMPTY_FORM);
+    setValues(mode === 'edit' && timesheet ? timesheetToFormValues(timesheet) : createEmptyForm());
   }, [open, mode, timesheet]);
 
   function updateField(field: keyof TimesheetFormValues, value: string) {
@@ -292,15 +293,21 @@ export function TimesheetFormPanel({
     setFormError(null);
     setFieldErrors({});
 
-    if (!values.date || !values.startTime) {
+    if (!values.workDate || !values.duration) {
       const nextErrors: Partial<Record<keyof TimesheetFormValues, string>> = {};
-      if (!values.date) {
-        nextErrors.date = 'Data este obligatorie.';
+      if (!values.workDate) {
+        nextErrors.workDate = 'Data este obligatorie.';
       }
-      if (!values.startTime) {
-        nextErrors.startTime = 'Ora de start este obligatorie.';
+      if (!values.duration) {
+        nextErrors.duration = 'Durata este obligatorie.';
       }
       setFieldErrors(nextErrors);
+      return;
+    }
+
+    const durationMinutes = parseDurationMinutesInput(values.duration);
+    if (durationMinutes === null || durationMinutes <= 0) {
+      setFieldErrors({ duration: 'Introdu o durată validă (ex. 4h sau 2h30m).' });
       return;
     }
 
@@ -485,35 +492,24 @@ export function TimesheetFormPanel({
         />
 
         <FormField
-          id="date"
-          label="Data"
+          id="workDate"
+          label="Data lucrată"
           type="date"
-          value={values.date}
-          error={fieldErrors.date}
+          value={values.workDate}
+          error={fieldErrors.workDate}
           disabled={isBusy}
           required
-          onChange={(value) => updateField('date', value)}
+          onChange={(value) => updateField('workDate', value)}
         />
 
         <FormField
-          id="startTime"
-          label="Ora start"
-          type="time"
-          value={values.startTime}
-          error={fieldErrors.startTime}
+          id="duration"
+          label="Durată"
+          value={values.duration}
+          error={fieldErrors.duration}
           disabled={isBusy}
           required
-          onChange={(value) => updateField('startTime', value)}
-        />
-
-        <FormField
-          id="endTime"
-          label="Ora stop"
-          type="time"
-          value={values.endTime}
-          error={fieldErrors.endTime}
-          disabled={isBusy}
-          onChange={(value) => updateField('endTime', value)}
+          onChange={(value) => updateField('duration', value)}
         />
 
         <div>

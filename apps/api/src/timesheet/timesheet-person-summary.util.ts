@@ -20,7 +20,7 @@ const NO_ACTIVITY_LABEL = 'Fără activitate';
 export function buildPersonSummaryQuery(from: Date | null, to: Date | null) {
   const periodFilter =
     from && to
-      ? Prisma.sql`AND t."startTime" >= ${from} AND t."startTime" < ${to}`
+      ? Prisma.sql`AND t."workDate" >= ${from} AND t."workDate" < ${to}`
       : Prisma.empty;
 
   return Prisma.sql`
@@ -35,15 +35,12 @@ export function buildPersonSummaryQuery(from: Date | null, to: Date | null) {
       t."activityId" AS "activityId",
       a.name AS "activityName",
       a.color AS "activityColor",
-      FLOOR(
-        SUM(EXTRACT(EPOCH FROM (t."endTime" - t."startTime"))) / 60
-      )::int AS minutes
+      SUM(t."durationMinutes")::int AS minutes
     FROM timesheets t
     INNER JOIN persons pe ON pe.id = t."personId"
     INNER JOIN projects p ON p.id = t."projectId"
     LEFT JOIN activities a ON a.id = t."activityId"
     WHERE t."deletedAt" IS NULL
-      AND t."endTime" IS NOT NULL
       AND pe."deletedAt" IS NULL
       AND p."deletedAt" IS NULL
       ${periodFilter}

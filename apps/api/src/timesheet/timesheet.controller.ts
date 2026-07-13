@@ -16,12 +16,8 @@ import { Request } from 'express';
 import { z } from 'zod';
 import {
   createTimesheetSchema,
-  startTimesheetBodySchema,
-  stopTimesheetSchema,
   updateTimesheetSchema,
   type CreateTimesheetInput,
-  type StartTimesheetBodyInput,
-  type StopTimesheetInput,
   type UpdateTimesheetInput,
 } from '@fabxpert/shared/dto/timesheet.dto';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
@@ -61,8 +57,8 @@ function parseListFilters(query: Record<string, string>) {
   if (query.period) {
     const resolved = parseSummaryPeriodQuery(query);
     if (resolved.from && resolved.to) {
-      filters.startTimeFrom = resolved.from;
-      filters.startTimeTo = resolved.to;
+      filters.workDateFrom = resolved.from;
+      filters.workDateTo = resolved.to;
     }
   }
 
@@ -80,25 +76,6 @@ export class TimesheetController {
   @Roles('ADMIN')
   stream() {
     return this.timesheetEvents.subscribe();
-  }
-
-  @Post('start')
-  @Roles('ADMIN', 'EMPLOYEE')
-  @HttpCode(HttpStatus.CREATED)
-  start(
-    @Req() req: Request & { user: AuthenticatedUser },
-    @Body(new ZodValidationPipe(startTimesheetBodySchema)) input: StartTimesheetBodyInput,
-  ) {
-    return this.timesheetService.start(req.user, input);
-  }
-
-  @Post('stop')
-  @Roles('ADMIN', 'EMPLOYEE')
-  stop(
-    @Req() req: Request & { user: AuthenticatedUser },
-    @Body(new ZodValidationPipe(stopTimesheetSchema)) input: StopTimesheetInput,
-  ) {
-    return this.timesheetService.stop(req.user, input);
   }
 
   @Get('dashboard-metrics')
@@ -139,11 +116,11 @@ export class TimesheetController {
   @Post()
   @Roles('ADMIN', 'EMPLOYEE')
   @HttpCode(HttpStatus.CREATED)
-  createManual(
+  create(
     @Req() req: Request & { user: AuthenticatedUser },
     @Body(new ZodValidationPipe(createTimesheetSchema)) input: CreateTimesheetInput,
   ) {
-    return this.timesheetService.createManual(req.user, input);
+    return this.timesheetService.create(req.user, input);
   }
 
   @Get(':id')

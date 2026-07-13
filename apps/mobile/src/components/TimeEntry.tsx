@@ -1,4 +1,4 @@
-import { createTimesheet } from '@fabxpert/shared';
+import { createTimesheet, todayDateInputValue } from '@fabxpert/shared';
 import type { ActivityDto, ProjectOptionDto } from '@fabxpert/shared';
 import { useState } from 'react';
 import { DurationInput } from './DurationInput';
@@ -6,7 +6,6 @@ import { useDurationInput } from '../hooks/useDurationInput';
 import { useMobileLookupCache } from '../context/MobileLookupCacheContext';
 import { useToast } from '../context/ToastContext';
 import { apiErrorToastMessage } from '../utils/apiToastMessage';
-import { intervalEndingNow } from '../utils/timeUtils';
 
 const DEFAULT_HOURS = 8;
 
@@ -32,6 +31,7 @@ export function TimeEntry({ project, activity, onSaved }: TimeEntryProps) {
     activeHourPreset,
   } = useDurationInput(DEFAULT_HOURS);
   const [notes, setNotes] = useState('');
+  const [workDate, setWorkDate] = useState(todayDateInputValue);
   const [isSaving, setIsSaving] = useState(false);
 
   async function handleSave() {
@@ -39,8 +39,8 @@ export function TimeEntry({ project, activity, onSaved }: TimeEntryProps) {
       return;
     }
 
-    const interval = intervalEndingNow(parsedDurationHours);
-    if (!interval) {
+    const durationMinutes = Math.round(parsedDurationHours * 60);
+    if (durationMinutes <= 0) {
       return;
     }
 
@@ -50,8 +50,8 @@ export function TimeEntry({ project, activity, onSaved }: TimeEntryProps) {
       await createTimesheet({
         projectId: project.id,
         activityId: activity.id,
-        startTime: interval.startTime,
-        endTime: interval.endTime,
+        durationMinutes,
+        workDate,
         notes: notes.trim() || undefined,
       });
 
@@ -69,6 +69,16 @@ export function TimeEntry({ project, activity, onSaved }: TimeEntryProps) {
     <div className="flow-screen">
       <div className="flow-content">
         <h2 className="flow-heading">Adaugă timp</h2>
+
+        <label className="time-field">
+          <span className="time-field-label">Data</span>
+          <input
+            type="date"
+            className="time-input"
+            value={workDate}
+            onChange={(event) => setWorkDate(event.target.value)}
+          />
+        </label>
 
         <DurationInput
           hoursInput={hoursInput}

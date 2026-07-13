@@ -31,7 +31,7 @@ describe('Timesheet project summary (e2e)', () => {
     expect(response.status).toBe(403);
   });
 
-  it('aggregates closed timesheets by project for the selected period', async () => {
+  it('aggregates timesheets by project for the selected period using durationMinutes', async () => {
     await request(app.getHttpServer())
       .post('/timesheets')
       .set(authHeader(adminCookie))
@@ -39,8 +39,8 @@ describe('Timesheet project summary (e2e)', () => {
         personId: FIXTURES.persons.employee1.id,
         projectId: FIXTURES.projects.ready.id,
         activityId: FIXTURES.activities.active.id,
-        startTime: '2026-07-01T08:00:00.000Z',
-        endTime: '2026-07-01T10:00:00.000Z',
+        workDate: '2026-07-01',
+        durationMinutes: 120,
       })
       .expect(201);
 
@@ -51,15 +51,9 @@ describe('Timesheet project summary (e2e)', () => {
         personId: FIXTURES.persons.employee1.id,
         projectId: FIXTURES.projects.ready.id,
         activityId: FIXTURES.activities.second.id,
-        startTime: '2026-07-01T11:00:00.000Z',
-        endTime: '2026-07-01T12:30:00.000Z',
+        workDate: '2026-07-01',
+        durationMinutes: 90,
       })
-      .expect(201);
-
-    await request(app.getHttpServer())
-      .post('/timesheets/start')
-      .set(authHeader(employee1Cookie))
-      .send({ projectId: FIXTURES.projects.ready.id })
       .expect(201);
 
     await request(app.getHttpServer())
@@ -75,8 +69,8 @@ describe('Timesheet project summary (e2e)', () => {
         personId: FIXTURES.persons.employee1.id,
         projectId: FIXTURES.projects.notReady.id,
         activityId: FIXTURES.activities.active.id,
-        startTime: '2026-07-02T08:00:00.000Z',
-        endTime: '2026-07-02T09:00:00.000Z',
+        workDate: '2026-07-02',
+        durationMinutes: 60,
       })
       .expect(201);
 

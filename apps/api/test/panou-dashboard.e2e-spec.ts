@@ -4,10 +4,12 @@ import { createTestApp } from './helpers/app';
 import { authHeader, login } from './helpers/auth';
 import { E2E_PASSWORD, FIXTURES } from './helpers/fixtures';
 
-function localTodayIsoTime(hours: number, minutes: number): string {
+function localTodayWorkDate(): string {
   const date = new Date();
-  date.setHours(hours, minutes, 0, 0);
-  return date.toISOString();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 describe('Panou dashboard metrics and summaries (e2e)', () => {
@@ -65,8 +67,8 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
         personId: FIXTURES.persons.employee1.id,
         projectId: FIXTURES.projects.ready.id,
         activityId: FIXTURES.activities.active.id,
-        startTime: localTodayIsoTime(8, 0),
-        endTime: localTodayIsoTime(10, 0),
+        workDate: localTodayWorkDate(),
+        durationMinutes: 120,
       })
       .expect(201);
 
@@ -77,8 +79,8 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
         personId: FIXTURES.persons.employee1.id,
         projectId: FIXTURES.projects.ready.id,
         activityId: FIXTURES.activities.second.id,
-        startTime: localTodayIsoTime(11, 0),
-        endTime: localTodayIsoTime(12, 30),
+        workDate: localTodayWorkDate(),
+        durationMinutes: 90,
       })
       .expect(201);
 
@@ -89,15 +91,9 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
         personId: FIXTURES.persons.employee2.id,
         projectId: FIXTURES.projects.ready.id,
         activityId: FIXTURES.activities.active.id,
-        startTime: localTodayIsoTime(9, 0),
-        endTime: localTodayIsoTime(10, 0),
+        workDate: localTodayWorkDate(),
+        durationMinutes: 60,
       })
-      .expect(201);
-
-    await request(app.getHttpServer())
-      .post('/timesheets/start')
-      .set(authHeader(employee1Cookie))
-      .send({ projectId: FIXTURES.projects.ready.id })
       .expect(201);
 
     await request(app.getHttpServer())
@@ -113,8 +109,8 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
         personId: FIXTURES.persons.employee1.id,
         projectId: FIXTURES.projects.notReady.id,
         activityId: FIXTURES.activities.active.id,
-        startTime: localTodayIsoTime(14, 0),
-        endTime: localTodayIsoTime(15, 0),
+        workDate: localTodayWorkDate(),
+        durationMinutes: 60,
       })
       .expect(201);
 

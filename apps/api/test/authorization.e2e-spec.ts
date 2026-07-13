@@ -109,12 +109,14 @@ describe('Authorization (e2e)', () => {
     { label: 'employee-roles list', method: 'get', path: '/employee-roles' },
     { label: 'projects available', method: 'get', path: '/projects/available' },
     {
-      label: 'timesheets start',
+      label: 'timesheets create',
       method: 'post',
-      path: '/timesheets/start',
-      body: { projectId: FIXTURES.projects.ready.id },
+      path: '/timesheets',
+      body: {
+        projectId: FIXTURES.projects.ready.id,
+        durationMinutes: 30,
+      },
     },
-    { label: 'timesheets stop', method: 'post', path: '/timesheets/stop', body: {} },
     { label: 'timesheets mine', method: 'get', path: '/timesheets/mine' },
   ];
 

@@ -85,23 +85,17 @@ describe('Timesheet createdAt filter (e2e)', () => {
     await app.close();
   });
 
-  async function stopIfOpen(cookie: string) {
-    await request(app.getHttpServer())
-      .post('/timesheets/stop')
-      .set(authHeader(cookie))
-      .send({});
-  }
-
   it('listTimesheets supports createdAtFrom/createdAtTo', async () => {
-    await stopIfOpen(employee1Cookie);
-
-    const start = await request(app.getHttpServer())
-      .post('/timesheets/start')
+    const create = await request(app.getHttpServer())
+      .post('/timesheets')
       .set(authHeader(employee1Cookie))
-      .send({ projectId: FIXTURES.projects.ready.id });
+      .send({
+        projectId: FIXTURES.projects.ready.id,
+        durationMinutes: 45,
+      });
 
-    expect(start.status).toBe(201);
-    const createdAt = start.body.createdAt as string;
+    expect(create.status).toBe(201);
+    const createdAt = create.body.createdAt as string;
     const from = new Date(new Date(createdAt).getTime() - 60_000).toISOString();
     const to = new Date(new Date(createdAt).getTime() + 60_000).toISOString();
 
@@ -111,7 +105,7 @@ describe('Timesheet createdAt filter (e2e)', () => {
       .set(authHeader(adminCookie));
 
     expect(filtered.status).toBe(200);
-    expect(filtered.body.data.some((row: { id: string }) => row.id === start.body.id)).toBe(
+    expect(filtered.body.data.some((row: { id: string }) => row.id === create.body.id)).toBe(
       true,
     );
 
@@ -125,9 +119,7 @@ describe('Timesheet createdAt filter (e2e)', () => {
 
     expect(empty.status).toBe(200);
     expect(
-      empty.body.data.some((row: { id: string }) => row.id === start.body.id),
+      empty.body.data.some((row: { id: string }) => row.id === create.body.id),
     ).toBe(false);
-
-    await stopIfOpen(employee1Cookie);
   });
 });

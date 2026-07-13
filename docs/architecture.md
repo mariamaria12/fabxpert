@@ -158,10 +158,10 @@ What shipped in the mobile PWA (employee flow):
 3. **Activity selection** — required in the UI flow (activity is optional in the API schema).
 4. **Duration-based manual entry** — user enters hours worked; frontend converts to a closed interval `[now − X hours, now]` via `createTimesheet`. Whole-hour stepper (1–16), half-hour precision via free typing; quick presets 2/4/6/8h; optional notes.
 5. **My timesheets** — paginated list grouped by calendar day (local time); day totals; tap today's entries to edit.
-6. **Edit/delete today only (UI rule)** — older entries are read-only in mobile; edit adjusts duration (keeping original `startTime`, shifting `endTime`) and notes; delete uses footer confirmation. **Not enforced server-side** — post-MVP editing of older entries is planned, so PATCH/DELETE remain unrestricted by date for an employee's own rows.
+6. **Edit/delete today only (UI rule)** — older entries are read-only in mobile; edit adjusts `durationMinutes` and notes (`workDate` not editable in MVP); delete uses footer confirmation. **Not enforced server-side** — post-MVP editing of older entries is planned, so PATCH/DELETE remain unrestricted by date for an employee's own rows.
 7. **Toast notifications** — centralized success/error feedback for save/edit/delete operations (inline errors kept for form validation and list retry blocks).
 
-**Live timer:** a start/stop timer was built, then **removed from the mobile UI**. API endpoints `POST /timesheets/start` and `POST /timesheets/stop` remain; they are currently unused by any client. API cleanup is deferred (see Open Items).
+**Live timer:** a start/stop timer was built, then **removed from the mobile UI**. The API endpoints `POST /timesheets/start` and `POST /timesheets/stop` have also been **removed** as part of the `workDate` + `durationMinutes` restructure (no open timesheets).
 
 **Navigation:** persistent header (wordmark resets flow); contextual sub-header on project/activity/time-entry steps; back arrows clear selections.
 
@@ -248,7 +248,6 @@ Full access to all REST modules:
 | `GET /projects/available` | Execution-ready projects only (`readyForExecution=true`), reduced DTO (id, name, code, color) |
 | `GET /activities`, `GET /employee-roles` | Active rows only; `?includeInactive=true` is ignored (ADMIN-only filter) |
 | Timesheets | Create closed entries (`POST /timesheets`), list own (`GET /timesheets/mine`), get/patch/delete **own** entries (ownership via linked `Person.id`); `personId` is **never** accepted from employee requests — always resolved server-side from the authenticated user |
-| `POST /timesheets/start`, `POST /timesheets/stop` | Still exposed on the API (built for live timer); **unused by mobile V1** after timer UI removal |
 
 Employees cannot access admin list endpoints (`GET /projects`, `GET /timesheets`, user/person/company CRUD, etc.).
 
@@ -312,11 +311,11 @@ Belongs to one `Company`. `name`, `code` (unique, manually assigned), `status` (
 - `userId` — **who entered** the record (actor; may differ when admin logs on behalf).
 - `projectId` — required.
 - `activityId` — optional.
-- `startTime` — required.
-- `endTime` — optional (nullable for open entries; mobile V1 always creates closed entries).
+- `workDate` — calendar day the work was done (stored as `DateTime` at local midnight; time component ignored).
+- `durationMinutes` — whole minutes worked (e.g. 90 = 1h30m); positive integer, validated at app layer.
 - `notes` — optional.
 
-At most one open timesheet (`endTime IS NULL`) per person (API enforces on start/manual create).
+**workDate convention:** API, mobile, and web treat `workDate` as day granularity only. Values are normalized to start-of-local-day (`00:00:00`). Period filters (today/week/month/custom) and aggregations filter on `workDate`, not `createdAt`. Panou "Activitate azi" feed uses `workDate` for consistency with work done today.
 
 ---
 
@@ -488,7 +487,6 @@ Acknowledged gaps — address when the relevant work is prioritized:
 - **Non-list response/error envelope** — single-resource endpoints return the DTO directly; no unified `{ data, error }` wrapper.
 - **CI/CD pipeline** — deployment targets are decided (see Deployment); deploys are manual for MVP.
 - **PWA assets** — manifest/icons are placeholders; production-quality icons deferred.
-- **Timer API cleanup** — `POST /timesheets/start|stop` remain after mobile timer removal; remove or repurpose once post-MVP direction is validated.
 - **Night-shift / timezone edge cases** — mobile "today" grouping and banner totals use device local calendar day; cross-midnight and TZ quirks noted, not solved in MVP.
 - **Auth vs soft-delete** — JWT validation checks `isActive` but does not yet filter `User.deletedAt`; user soft-delete currently sets `deletedAt` only (rely on admin process or follow-up hardening if needed).
 

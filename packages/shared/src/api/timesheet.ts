@@ -4,8 +4,6 @@ import type {
   DashboardMetricsResponse,
   PersonSummaryResponse,
   ProjectSummaryResponse,
-  StartTimesheetBodyInput,
-  StopTimesheetInput,
   TimesheetDto,
   UpdateTimesheetInput,
 } from '../dto/timesheet.dto';
@@ -41,20 +39,6 @@ function appendPeriodQuery(searchParams: URLSearchParams, period: Period): void 
   if (query.to?.trim()) {
     searchParams.set('to', query.to.trim());
   }
-}
-
-export function startTimesheet(input: StartTimesheetBodyInput) {
-  return request<TimesheetDto>('/timesheets/start', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
-}
-
-export function stopTimesheet(input: StopTimesheetInput = {}) {
-  return request<TimesheetDto>('/timesheets/stop', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
 }
 
 export function createTimesheet(input: CreateTimesheetInput) {

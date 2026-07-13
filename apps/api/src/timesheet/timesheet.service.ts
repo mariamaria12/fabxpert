@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -11,11 +10,10 @@ import type {
   ProjectSummaryResponse,
   PersonSummaryResponse,
   DashboardMetricsResponse,
-  StartTimesheetBodyInput,
-  StopTimesheetInput,
   TimesheetDto,
   UpdateTimesheetInput,
 } from '@fabxpert/shared/dto/timesheet.dto';
+import { parseWorkDateString, todayWorkDate } from '@fabxpert/shared/workDate';
 import type { ResolvedSummaryPeriod } from './timesheet-summary-period.util';
 import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
@@ -72,8 +70,8 @@ type TimesheetWithRelations = Prisma.TimesheetGetPayload<{
 export interface TimesheetListFilters {
   personId?: string;
   projectId?: string;
-  startTimeFrom?: Date;
-  startTimeTo?: Date;
+  workDateFrom?: Date;
+  workDateTo?: Date;
   createdAtFrom?: Date;
   createdAtTo?: Date;
 }
@@ -81,8 +79,8 @@ export interface TimesheetListFilters {
 function toTimesheetDto(timesheet: TimesheetWithRelations): TimesheetDto {
   return {
     id: timesheet.id,
-    startTime: timesheet.startTime.toISOString(),
-    endTime: timesheet.endTime?.toISOString() ?? null,
+    workDate: timesheet.workDate.toISOString(),
+    durationMinutes: timesheet.durationMinutes,
     notes: timesheet.notes,
     personId: timesheet.personId,
     userId: timesheet.userId,
@@ -103,63 +101,7 @@ export class TimesheetService {
     private readonly timesheetEvents: TimesheetEventsService,
   ) {}
 
-  async start(
-    actor: AuthenticatedUser,
-    input: StartTimesheetBodyInput,
-  ): Promise<TimesheetDto> {
-    this.rejectPersonIdFromEmployee(actor.role, input.personId);
-
-    const personId = await this.resolveTargetPersonId(actor, input.personId);
-    await this.assertProjectExists(input.projectId, actor.role === 'EMPLOYEE');
-    if (input.activityId !== undefined) {
-      await this.assertActivityExists(input.activityId);
-    }
-
-    const now = new Date();
-
-    const timesheet = await this.prisma.$transaction(async (tx) => {
-      await this.assertNoOpenTimesheetInTx(tx, personId);
-
-      return tx.timesheet.create({
-        data: {
-          personId,
-          userId: actor.id,
-          projectId: input.projectId,
-          activityId: input.activityId,
-          notes: input.notes,
-          startTime: now,
-        },
-        include: timesheetInclude,
-      });
-    });
-
-    const dto = toTimesheetDto(timesheet);
-    this.timesheetEvents.emit(createdTimesheetEvent(dto.id, dto.person));
-    return dto;
-  }
-
-  async stop(actor: AuthenticatedUser, input: StopTimesheetInput): Promise<TimesheetDto> {
-    this.rejectPersonIdFromEmployee(actor.role, input.personId);
-
-    const personId = await this.resolveTargetPersonId(actor, input.personId);
-    const open = await this.findOpenTimesheet(personId);
-
-    if (!open) {
-      throw new NotFoundException('No open timesheet to stop');
-    }
-
-    const timesheet = await this.prisma.timesheet.update({
-      where: { id: open.id },
-      data: { endTime: new Date() },
-      include: timesheetInclude,
-    });
-
-    const dto = toTimesheetDto(timesheet);
-    this.timesheetEvents.emit(updatedTimesheetEvent(dto.id, dto.person));
-    return dto;
-  }
-
-  async createManual(
+  async create(
     actor: AuthenticatedUser,
     input: CreateTimesheetInput,
   ): Promise<TimesheetDto> {
@@ -171,25 +113,21 @@ export class TimesheetService {
       await this.assertActivityExists(input.activityId);
     }
 
-    this.assertValidInterval(input.startTime, input.endTime);
+    const workDate = input.workDate
+      ? parseWorkDateString(input.workDate)
+      : todayWorkDate();
 
-    const timesheet = await this.prisma.$transaction(async (tx) => {
-      if (input.endTime === undefined) {
-        await this.assertNoOpenTimesheetInTx(tx, personId);
-      }
-
-      return tx.timesheet.create({
-        data: {
-          personId,
-          userId: actor.id,
-          projectId: input.projectId,
-          activityId: input.activityId,
-          notes: input.notes,
-          startTime: input.startTime,
-          endTime: input.endTime,
-        },
-        include: timesheetInclude,
-      });
+    const timesheet = await this.prisma.timesheet.create({
+      data: {
+        personId,
+        userId: actor.id,
+        projectId: input.projectId,
+        activityId: input.activityId,
+        notes: input.notes,
+        workDate,
+        durationMinutes: input.durationMinutes,
+      },
+      include: timesheetInclude,
     });
 
     const dto = toTimesheetDto(timesheet);
@@ -206,13 +144,13 @@ export class TimesheetService {
       ...notDeleted(),
       ...(filters.personId ? { personId: filters.personId } : {}),
       ...(filters.projectId ? { projectId: filters.projectId } : {}),
-      ...(filters.startTimeFrom !== undefined || filters.startTimeTo !== undefined
+      ...(filters.workDateFrom !== undefined || filters.workDateTo !== undefined
         ? {
-            startTime: {
-              ...(filters.startTimeFrom !== undefined
-                ? { gte: filters.startTimeFrom }
+            workDate: {
+              ...(filters.workDateFrom !== undefined
+                ? { gte: filters.workDateFrom }
                 : {}),
-              ...(filters.startTimeTo !== undefined ? { lt: filters.startTimeTo } : {}),
+              ...(filters.workDateTo !== undefined ? { lt: filters.workDateTo } : {}),
             },
           }
         : {}),
@@ -236,7 +174,9 @@ export class TimesheetService {
       this.prisma.timesheet.findMany({
         where,
         include: timesheetInclude,
-        orderBy: orderByCreatedAt ? { createdAt: 'desc' } : { startTime: 'desc' },
+        orderBy: orderByCreatedAt
+          ? { createdAt: 'desc' }
+          : [{ workDate: 'desc' }, { createdAt: 'desc' }],
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
@@ -282,7 +222,7 @@ export class TimesheetService {
       this.prisma.timesheet.findMany({
         where,
         include: timesheetInclude,
-        orderBy: { startTime: 'desc' },
+        orderBy: [{ workDate: 'desc' }, { createdAt: 'desc' }],
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
@@ -325,11 +265,6 @@ export class TimesheetService {
       }
     }
 
-    const nextPersonId =
-      actor.role === 'ADMIN' && input.personId !== undefined
-        ? input.personId
-        : existing.personId;
-
     if (input.personId !== undefined && actor.role === 'ADMIN') {
       await this.assertPersonExists(input.personId);
     }
@@ -337,8 +272,6 @@ export class TimesheetService {
     const nextProjectId = input.projectId ?? existing.projectId;
     const nextActivityId =
       input.activityId !== undefined ? input.activityId : existing.activityId;
-    const nextStartTime = input.startTime ?? existing.startTime;
-    const nextEndTime = input.endTime !== undefined ? input.endTime : existing.endTime;
 
     await this.assertProjectExists(
       nextProjectId,
@@ -348,27 +281,23 @@ export class TimesheetService {
       await this.assertActivityExists(nextActivityId);
     }
 
-    this.assertValidInterval(nextStartTime, nextEndTime);
-
-    const timesheet = await this.prisma.$transaction(async (tx) => {
-      if (nextEndTime === null) {
-        await this.assertNoOpenTimesheetInTx(tx, nextPersonId, id);
-      }
-
-      return tx.timesheet.update({
-        where: { id },
-        data: {
-          ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
-          ...(input.activityId !== undefined ? { activityId: input.activityId } : {}),
-          ...(input.startTime !== undefined ? { startTime: input.startTime } : {}),
-          ...(input.endTime !== undefined ? { endTime: input.endTime } : {}),
-          ...(input.notes !== undefined ? { notes: input.notes } : {}),
-          ...(actor.role === 'ADMIN' && input.personId !== undefined
-            ? { personId: input.personId }
-            : {}),
-        },
-        include: timesheetInclude,
-      });
+    const timesheet = await this.prisma.timesheet.update({
+      where: { id },
+      data: {
+        ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
+        ...(input.activityId !== undefined ? { activityId: input.activityId } : {}),
+        ...(input.workDate !== undefined
+          ? { workDate: parseWorkDateString(input.workDate) }
+          : {}),
+        ...(input.durationMinutes !== undefined
+          ? { durationMinutes: input.durationMinutes }
+          : {}),
+        ...(input.notes !== undefined ? { notes: input.notes } : {}),
+        ...(actor.role === 'ADMIN' && input.personId !== undefined
+          ? { personId: input.personId }
+          : {}),
+      },
+      include: timesheetInclude,
     });
 
     const dto = toTimesheetDto(timesheet);
@@ -398,22 +327,6 @@ export class TimesheetService {
     if (role === 'EMPLOYEE' && personId !== undefined) {
       throw new BadRequestException('personId must not be supplied by employees');
     }
-  }
-
-  private async resolveTargetPersonId(
-    actor: AuthenticatedUser,
-    explicitPersonId?: string,
-  ): Promise<string> {
-    if (actor.role === 'EMPLOYEE') {
-      return this.resolveEmployeePersonId(actor.id);
-    }
-
-    if (explicitPersonId !== undefined) {
-      await this.assertPersonExists(explicitPersonId);
-      return explicitPersonId;
-    }
-
-    return this.resolveEmployeePersonId(actor.id);
   }
 
   private async resolveManualCreatePersonId(
@@ -463,41 +376,6 @@ export class TimesheetService {
     }
 
     return timesheet;
-  }
-
-  private async findOpenTimesheet(personId: string) {
-    return this.prisma.timesheet.findFirst({
-      where: {
-        personId,
-        endTime: null,
-        ...notDeleted(),
-      },
-    });
-  }
-
-  private async assertNoOpenTimesheetInTx(
-    tx: Prisma.TransactionClient,
-    personId: string,
-    excludeId?: string,
-  ): Promise<void> {
-    const open = await tx.timesheet.findFirst({
-      where: {
-        personId,
-        endTime: null,
-        ...notDeleted(),
-        ...(excludeId ? { id: { not: excludeId } } : {}),
-      },
-    });
-
-    if (open) {
-      throw new ConflictException('This person already has an open timesheet');
-    }
-  }
-
-  private assertValidInterval(startTime: Date, endTime?: Date | null): void {
-    if (endTime !== undefined && endTime !== null && endTime <= startTime) {
-      throw new BadRequestException('endTime must be after startTime');
-    }
   }
 
   private async assertProjectExists(

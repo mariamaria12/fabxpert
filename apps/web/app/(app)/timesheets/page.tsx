@@ -45,7 +45,7 @@ export default function TimesheetsPage() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [period, setPeriod] = useState<Period>({ kind: 'today' });
+  const [period, setPeriod] = useState<Period>({ kind: 'month' });
   const [timesheets, setTimesheets] = useState<TimesheetDto[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -63,7 +63,7 @@ export default function TimesheetsPage() {
     setPage(1);
   }, [debouncedSearch, period]);
 
-  const hasActiveFilters = debouncedSearch.length > 0 || period.kind !== 'today';
+  const hasActiveFilters = debouncedSearch.length > 0 || period.kind !== 'month';
 
   const loadTimesheets = useCallback(
     async (targetPage: number, search: string, activePeriod: Period) => {
@@ -148,14 +148,14 @@ export default function TimesheetsPage() {
       header: 'Data',
       width: '110px',
       className: 'text-text-secondary',
-      render: (row) => formatRomanianDate(row.startTime),
+      render: (row) => formatRomanianDate(row.workDate),
     },
     {
       key: 'duration',
       header: 'Durată',
       width: '90px',
       className: 'text-text-secondary',
-      render: (row) => nullableCell(formatTimesheetDuration(row)),
+      render: (row) => formatTimesheetDuration(row),
     },
   ];
 

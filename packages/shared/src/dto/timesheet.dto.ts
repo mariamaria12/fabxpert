@@ -10,26 +10,17 @@ const uuidSchema = z
 
 const optionalNotes = z.string().optional();
 
-export const startTimesheetSchema = z.object({
-  projectId: uuidSchema,
-  activityId: uuidSchema.optional(),
-  notes: optionalNotes,
-});
+const durationMinutesSchema = z.number().int().positive();
 
-/** Superset for start/stop — personId is validated in the service (ADMIN only). */
-export const startTimesheetBodySchema = startTimesheetSchema.extend({
-  personId: uuidSchema.optional(),
-});
-
-export const stopTimesheetSchema = z.object({
-  personId: uuidSchema.optional(),
-});
+const workDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'workDate must be YYYY-MM-DD');
 
 export const createTimesheetSchema = z.object({
   projectId: uuidSchema,
   activityId: uuidSchema.optional(),
-  startTime: z.coerce.date(),
-  endTime: z.coerce.date().optional(),
+  workDate: workDateSchema.optional(),
+  durationMinutes: durationMinutesSchema,
   notes: optionalNotes,
   personId: uuidSchema.optional(),
 });
@@ -38,8 +29,8 @@ export const updateTimesheetSchema = z
   .object({
     projectId: uuidSchema.optional(),
     activityId: uuidSchema.optional(),
-    startTime: z.coerce.date().optional(),
-    endTime: z.coerce.date().optional(),
+    workDate: workDateSchema.optional(),
+    durationMinutes: durationMinutesSchema.optional(),
     notes: optionalNotes,
     personId: uuidSchema.optional(),
   })
@@ -47,9 +38,6 @@ export const updateTimesheetSchema = z
     message: 'At least one field must be provided',
   });
 
-export type StartTimesheetInput = z.infer<typeof startTimesheetSchema>;
-export type StartTimesheetBodyInput = z.infer<typeof startTimesheetBodySchema>;
-export type StopTimesheetInput = z.infer<typeof stopTimesheetSchema>;
 export type CreateTimesheetInput = z.infer<typeof createTimesheetSchema>;
 export type UpdateTimesheetInput = z.infer<typeof updateTimesheetSchema>;
 
@@ -74,8 +62,8 @@ export type TimesheetActivityDto = {
 
 export type TimesheetDto = {
   id: string;
-  startTime: string;
-  endTime: string | null;
+  workDate: string;
+  durationMinutes: number;
   notes: string | null;
   personId: string;
   userId: string;

@@ -26,22 +26,18 @@ export async function queryDashboardMetrics(
         AND p.status NOT IN ('FINALIZAT', 'ANULAT')
     `,
     prisma.$queryRaw<MinutesRow[]>`
-      SELECT FLOOR(
-        SUM(EXTRACT(EPOCH FROM (t."endTime" - t."startTime"))) / 60
-      )::int AS minutes
+      SELECT SUM(t."durationMinutes")::int AS minutes
       FROM timesheets t
       WHERE t."deletedAt" IS NULL
-        AND t."endTime" IS NOT NULL
-        AND t."startTime" >= ${from}
-        AND t."startTime" < ${to}
+        AND t."workDate" >= ${from}
+        AND t."workDate" < ${to}
     `,
     prisma.$queryRaw<CountRow[]>`
       SELECT COUNT(DISTINCT t."personId")::int AS count
       FROM timesheets t
       WHERE t."deletedAt" IS NULL
-        AND t."endTime" IS NOT NULL
-        AND t."startTime" >= ${from}
-        AND t."startTime" < ${to}
+        AND t."workDate" >= ${from}
+        AND t."workDate" < ${to}
     `,
   ]);
 

@@ -187,17 +187,18 @@ model Project {
 // personId  — whose time is being logged.
 // userId    — who created/entered the record (may differ, e.g. admin logging on behalf).
 // activityId — optional; can be assigned after the entry is created.
-// endTime   — optional; a timesheet can be started without being stopped yet (Mobile V1).
+// workDate  — calendar day the work was done (stored as DateTime at local midnight; time ignored).
+// durationMinutes — whole minutes worked (e.g. 90 = 1h30m).
 // ---------------------------------------------------------------------------
 
 model Timesheet {
-  id        String    @id @default(uuid())
-  startTime DateTime
-  endTime   DateTime?
-  notes     String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  id              String    @id @default(uuid())
+  workDate        DateTime  @default(now())
+  durationMinutes Int
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
 
   personId String
   person   Person @relation(fields: [personId], references: [id])

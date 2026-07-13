@@ -4,11 +4,13 @@ import { createTestApp } from './helpers/app';
 import { authHeader, login } from './helpers/auth';
 import { E2E_PASSWORD, FIXTURES } from './helpers/fixtures';
 
-function localIsoDateTime(daysOffset: number, hours: number, minutes: number): string {
+function localWorkDateOnly(daysOffset = 0): string {
   const date = new Date();
   date.setDate(date.getDate() + daysOffset);
-  date.setHours(hours, minutes, 0, 0);
-  return date.toISOString();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function localIsoDateOnly(daysOffset = 0): string {
@@ -46,8 +48,8 @@ describe('Timesheet list period filter (e2e)', () => {
         personId: FIXTURES.persons.employee1.id,
         projectId: FIXTURES.projects.ready.id,
         activityId: FIXTURES.activities.active.id,
-        startTime: localIsoDateTime(0, 8, 0),
-        endTime: localIsoDateTime(0, 9, 0),
+        workDate: localWorkDateOnly(0),
+        durationMinutes: 60,
       })
       .expect(201);
 
@@ -58,8 +60,8 @@ describe('Timesheet list period filter (e2e)', () => {
         personId: FIXTURES.persons.employee2.id,
         projectId: FIXTURES.projects.ready.id,
         activityId: FIXTURES.activities.active.id,
-        startTime: localIsoDateTime(-1, 8, 0),
-        endTime: localIsoDateTime(-1, 9, 0),
+        workDate: localWorkDateOnly(-1),
+        durationMinutes: 60,
       })
       .expect(201);
 

@@ -41,6 +41,10 @@
       "types": "./dist/dto/pagination.dto.d.ts",
       "default": "./dist/dto/pagination.dto.js"
     },
+    "./workDate": {
+      "types": "./dist/workDate.d.ts",
+      "default": "./dist/workDate.js"
+    },
     "./styles/tokens.css": "./styles/tokens.css"
   },
   "scripts": {
