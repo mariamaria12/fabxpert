@@ -1,8 +1,10 @@
-import type { ActivityDto, MeResponse, ProjectOptionDto, TimesheetDto } from '@fabxpert/shared';
+import type { ActivityDto, LeaveRequestDto, MeResponse, ProjectOptionDto, TimesheetDto } from '@fabxpert/shared';
 import { useCallback, useState } from 'react';
 import { ActivitySelect } from './ActivitySelect';
 import { AppHeader } from './AppHeader';
 import { ContextSubHeader } from './ContextSubHeader';
+import { LeaveRequestForm } from './LeaveRequestForm';
+import { MyLeaveRequests } from './MyLeaveRequests';
 import { MyTimesheets } from './MyTimesheets';
 import { ProjectSelect } from './ProjectSelect';
 import { TimeEntry } from './TimeEntry';
@@ -19,12 +21,15 @@ export function TimesheetFlow({ user, onLogout }: TimesheetFlowProps) {
   const [selectedProject, setSelectedProject] = useState<ProjectOptionDto | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<ActivityDto | null>(null);
   const [editingTimesheet, setEditingTimesheet] = useState<TimesheetDto | null>(null);
+  const [editingLeaveRequest, setEditingLeaveRequest] = useState<LeaveRequestDto | null>(null);
+  const [leaveListRefreshToken, setLeaveListRefreshToken] = useState(0);
 
   const resetToProjectSelect = useCallback(() => {
     setStep('selectProject');
     setSelectedProject(null);
     setSelectedActivity(null);
     setEditingTimesheet(null);
+    setEditingLeaveRequest(null);
   }, []);
 
   const handleWordmarkPress = useCallback(() => {
@@ -75,6 +80,36 @@ export function TimesheetFlow({ user, onLogout }: TimesheetFlowProps) {
     setStep('myTimesheets');
   }
 
+  function handleOpenLeave() {
+    setEditingLeaveRequest(null);
+    setStep('myLeaveRequests');
+  }
+
+  function handleBackFromLeave() {
+    resetToProjectSelect();
+  }
+
+  function handleOpenCreateLeave() {
+    setEditingLeaveRequest(null);
+    setStep('leaveRequestForm');
+  }
+
+  function handleEditLeave(request: LeaveRequestDto) {
+    setEditingLeaveRequest(request);
+    setStep('leaveRequestForm');
+  }
+
+  function handleBackFromLeaveForm() {
+    setEditingLeaveRequest(null);
+    setStep('myLeaveRequests');
+  }
+
+  function handleLeaveFormSaved() {
+    setLeaveListRefreshToken((token) => token + 1);
+    setEditingLeaveRequest(null);
+    setStep('myLeaveRequests');
+  }
+
   const showFlowSubHeader =
     step === 'selectActivity' || step === 'timeEntry' || step === 'editTimesheet';
 
@@ -87,8 +122,27 @@ export function TimesheetFlow({ user, onLogout }: TimesheetFlowProps) {
         user={user}
         onLogout={onLogout}
         onWordmarkPress={handleWordmarkPress}
-        screenTitle={step === 'myTimesheets' ? 'Pontajele mele' : undefined}
-        onScreenBack={step === 'myTimesheets' ? handleBackFromMyTimesheets : undefined}
+        onOpenLeave={handleOpenLeave}
+        screenTitle={
+          step === 'myTimesheets'
+            ? 'Pontajele mele'
+            : step === 'myLeaveRequests'
+              ? 'Concediile mele'
+              : step === 'leaveRequestForm'
+                ? editingLeaveRequest
+                  ? 'Editează cererea'
+                  : 'Cerere nouă'
+                : undefined
+        }
+        onScreenBack={
+          step === 'myTimesheets'
+            ? handleBackFromMyTimesheets
+            : step === 'myLeaveRequests'
+              ? handleBackFromLeave
+              : step === 'leaveRequestForm'
+                ? handleBackFromLeaveForm
+                : undefined
+        }
       />
 
       {showFlowSubHeader && step === 'editTimesheet' && editProject ? (
@@ -146,6 +200,22 @@ export function TimesheetFlow({ user, onLogout }: TimesheetFlowProps) {
             timesheet={editingTimesheet}
             onSaved={handleBackFromEdit}
             onCancel={handleBackFromEdit}
+          />
+        ) : null}
+
+        {step === 'myLeaveRequests' ? (
+          <MyLeaveRequests
+            refreshToken={leaveListRefreshToken}
+            onCreateNew={handleOpenCreateLeave}
+            onEditRequest={handleEditLeave}
+          />
+        ) : null}
+
+        {step === 'leaveRequestForm' ? (
+          <LeaveRequestForm
+            editingRequest={editingLeaveRequest}
+            onSaved={handleLeaveFormSaved}
+            onCancel={handleBackFromLeaveForm}
           />
         ) : null}
       </main>

@@ -12,6 +12,7 @@ import { EmployeeRoleModule } from './employee-role/employee-role.module';
 import { PersonModule } from './person/person.module';
 import { ProjectModule } from './project/project.module';
 import { TimesheetModule } from './timesheet/timesheet.module';
+import { LeaveModule } from './leave/leave.module';
 import { UserModule } from './user/user.module';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -27,6 +28,7 @@ import { PrismaModule } from './prisma/prisma.module';
     ProjectModule,
     UserModule,
     TimesheetModule,
+    LeaveModule,
   ],
   controllers: [AppController],
   providers: [

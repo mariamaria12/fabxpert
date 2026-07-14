@@ -190,3 +190,46 @@ export {
   workDateToDayKey,
   isSameWorkDate,
 } from './workDate';
+export {
+  countInclusiveLeaveDays,
+  leaveRequestYear,
+} from './leaveDays';
+export {
+  LEAVE_TYPE_OPTIONS,
+  getLeaveTypeLabel,
+  getLeaveStatusLabel,
+  formatLeaveDayCount,
+  formatLeaveDateRange,
+} from './leaveLabels';
+export {
+  createLeaveRequest,
+  listMyLeaveRequests,
+  getMyLeaveBalance,
+  updateLeaveRequest,
+  cancelLeaveRequest,
+  listLeaveRequests,
+  getLeaveRequest,
+  reviewLeaveRequest,
+  getLeaveBalance,
+} from './api/leave';
+export type { ListLeaveRequestsParams } from './api/leave';
+export {
+  createLeaveRequestSchema,
+  updateLeaveRequestSchema,
+  reviewLeaveRequestSchema,
+  LEAVE_TYPE_VALUES,
+  LEAVE_STATUS_VALUES,
+} from './dto/leave.dto';
+export type {
+  LeaveType,
+  LeaveStatus,
+  LeaveRequestDto,
+  LeaveRequestPersonDto,
+  LeaveRequestReviewerDto,
+  LeaveBalanceDto,
+  EmployeeLeaveRequestResponse,
+  ReviewLeaveRequestResponse,
+  CreateLeaveRequestInput,
+  UpdateLeaveRequestInput,
+  ReviewLeaveRequestInput,
+} from './dto/leave.dto';

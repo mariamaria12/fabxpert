@@ -18,7 +18,7 @@ export async function queryDashboardMetrics(
 ): Promise<DashboardMetricsResponse> {
   const { from, to } = getTodayRange(now);
 
-  const [projectCountRows, minutesRows, personCountRows] = await Promise.all([
+  const [projectCountRows, minutesRows, personCountRows, onLeaveCountRows] = await Promise.all([
     prisma.$queryRaw<CountRow[]>`
       SELECT COUNT(*)::int AS count
       FROM projects p
@@ -39,11 +39,20 @@ export async function queryDashboardMetrics(
         AND t."workDate" >= ${from}
         AND t."workDate" < ${to}
     `,
+    prisma.$queryRaw<CountRow[]>`
+      SELECT COUNT(DISTINCT lr."personId")::int AS count
+      FROM leave_requests lr
+      WHERE lr."deletedAt" IS NULL
+        AND lr.status = 'APROBAT'
+        AND lr."startDate" < ${to}
+        AND lr."endDate" >= ${from}
+    `,
   ]);
 
   return {
     inProgressProjectCount: toNumber(projectCountRows[0]?.count),
     todayTotalMinutes: toNumber(minutesRows[0]?.minutes),
     todayDistinctPersonCount: toNumber(personCountRows[0]?.count),
+    todayOnLeaveCount: toNumber(onLeaveCountRows[0]?.count),
   };
 }

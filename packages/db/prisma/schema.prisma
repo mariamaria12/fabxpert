@@ -34,6 +34,18 @@ enum ProjectStatus {
   ANULAT           // Cancelled
 }
 
+enum LeaveType {
+  ODIHNA   // Annual leave — consumes annualLeaveDays balance when approved
+  MEDICAL  // Medical leave — does not affect balance
+  NEPLATIT // Unpaid leave — does not affect balance
+}
+
+enum LeaveStatus {
+  IN_ASTEPTARE // Pending review (default)
+  APROBAT      // Approved
+  RESPINS      // Rejected
+}
+
 // ---------------------------------------------------------------------------
 // EmployeeRole
 // Admin-managed lookup table for job roles (e.g. "Sudor", "Vopsitor").
@@ -87,6 +99,8 @@ model Person {
   lastName   String
   email      String?
   phone      String?
+  /// Yearly ODIHNA entitlement (admin-editable). Balance is computed, not stored.
+  annualLeaveDays Int   @default(21)
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   deletedAt  DateTime?
@@ -100,6 +114,8 @@ model Person {
 
   // Timesheets where this Person is the subject of the logged time.
   timesheets Timesheet[]
+
+  leaveRequests LeaveRequest[]
 
   @@map("persons")
 }
@@ -125,6 +141,8 @@ model User {
 
   // Timesheets created/entered by this User (may differ from the Person whose time is logged).
   timesheets Timesheet[]
+
+  reviewedLeaveRequests LeaveRequest[]
 
   @@map("users")
 }
@@ -217,4 +235,31 @@ model Timesheet {
   activity   Activity? @relation(fields: [activityId], references: [id])
 
   @@map("timesheets")
+}
+
+// ---------------------------------------------------------------------------
+// LeaveRequest
+// Employee leave requests with admin approval workflow.
+// Balance for ODIHNA is computed from approved requests — not stored on Person.
+// ---------------------------------------------------------------------------
+
+model LeaveRequest {
+  id        String       @id @default(uuid())
+  type      LeaveType
+  startDate DateTime
+  endDate   DateTime
+  status    LeaveStatus  @default(IN_ASTEPTARE)
+  reason    String?
+  reviewedAt DateTime?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  deletedAt DateTime?
+
+  personId String
+  person   Person @relation(fields: [personId], references: [id])
+
+  reviewedByUserId String?
+  reviewedBy       User?   @relation(fields: [reviewedByUserId], references: [id])
+
+  @@map("leave_requests")
 }

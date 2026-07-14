@@ -41,6 +41,18 @@
       "types": "./dist/dto/pagination.dto.d.ts",
       "default": "./dist/dto/pagination.dto.js"
     },
+    "./dto/leave.dto": {
+      "types": "./dist/dto/leave.dto.d.ts",
+      "default": "./dist/dto/leave.dto.js"
+    },
+    "./leaveDays": {
+      "types": "./dist/leaveDays.d.ts",
+      "default": "./dist/leaveDays.js"
+    },
+    "./leaveLabels": {
+      "types": "./dist/leaveLabels.d.ts",
+      "default": "./dist/leaveLabels.js"
+    },
     "./workDate": {
       "types": "./dist/workDate.d.ts",
       "default": "./dist/workDate.js"

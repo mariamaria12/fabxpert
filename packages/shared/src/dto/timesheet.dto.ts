@@ -131,6 +131,8 @@ export type DashboardMetricsResponse = {
   inProgressProjectCount: number;
   todayTotalMinutes: number;
   todayDistinctPersonCount: number;
+  /** Distinct persons with an approved leave request covering today. */
+  todayOnLeaveCount: number;
 };
 
 export type TimesheetSummaryParams = {

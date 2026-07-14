@@ -368,6 +368,81 @@ async function main() {
   await seedProjects();
   await seedProjectRoleVisibility();
   await seedTestEmployeePairs();
+  await seedLeaveRequests();
+}
+
+const LEAVE_REQUEST_IDS = {
+  pendingOdihna: 'l0000000-0000-0000-0000-000000000001',
+  approvedMedical: 'l0000000-0000-0000-0000-000000000002',
+} as const;
+
+async function seedLeaveRequests() {
+  const ionPersonId = 'p0000000-0000-0000-0000-000000000001';
+  const adminUser = await prisma.user.findFirst({
+    where: { role: 'ADMIN', deletedAt: null },
+    select: { id: true },
+  });
+
+  const pendingStart = new Date(new Date().getFullYear(), 5, 10, 0, 0, 0, 0);
+  const pendingEnd = new Date(new Date().getFullYear(), 5, 12, 0, 0, 0, 0);
+  const medicalStart = new Date(new Date().getFullYear(), 2, 3, 0, 0, 0, 0);
+  const medicalEnd = new Date(new Date().getFullYear(), 2, 4, 0, 0, 0, 0);
+
+  await prisma.leaveRequest.upsert({
+    where: { id: LEAVE_REQUEST_IDS.pendingOdihna },
+    update: {
+      personId: ionPersonId,
+      type: 'ODIHNA',
+      startDate: pendingStart,
+      endDate: pendingEnd,
+      status: 'IN_ASTEPTARE',
+      reason: 'Concediu de vară',
+      reviewedByUserId: null,
+      reviewedAt: null,
+      deletedAt: null,
+    },
+    create: {
+      id: LEAVE_REQUEST_IDS.pendingOdihna,
+      personId: ionPersonId,
+      type: 'ODIHNA',
+      startDate: pendingStart,
+      endDate: pendingEnd,
+      status: 'IN_ASTEPTARE',
+      reason: 'Concediu de vară',
+    },
+  });
+
+  if (!adminUser) {
+    return;
+  }
+
+  await prisma.leaveRequest.upsert({
+    where: { id: LEAVE_REQUEST_IDS.approvedMedical },
+    update: {
+      personId: ionPersonId,
+      type: 'MEDICAL',
+      startDate: medicalStart,
+      endDate: medicalEnd,
+      status: 'APROBAT',
+      reason: 'Certificat medical',
+      reviewedByUserId: adminUser.id,
+      reviewedAt: new Date(),
+      deletedAt: null,
+    },
+    create: {
+      id: LEAVE_REQUEST_IDS.approvedMedical,
+      personId: ionPersonId,
+      type: 'MEDICAL',
+      startDate: medicalStart,
+      endDate: medicalEnd,
+      status: 'APROBAT',
+      reason: 'Certificat medical',
+      reviewedByUserId: adminUser.id,
+      reviewedAt: new Date(),
+    },
+  });
+
+  console.log('  ✓ Sample leave requests seeded.\n');
 }
 
 main()

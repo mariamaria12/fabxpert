@@ -7,6 +7,7 @@ interface AppHeaderProps {
   user: MeResponse;
   onLogout: () => void;
   onWordmarkPress: () => void;
+  onOpenLeave?: () => void;
   screenTitle?: string;
   onScreenBack?: () => void;
 }
@@ -15,6 +16,7 @@ export function AppHeader({
   user,
   onLogout,
   onWordmarkPress,
+  onOpenLeave,
   screenTitle,
   onScreenBack,
 }: AppHeaderProps) {
@@ -98,6 +100,20 @@ export function AppHeader({
           <div className="app-header-dropdown" role="menu">
             <p className="app-header-dropdown-name">{getUserDisplayName(user)}</p>
             <p className="app-header-dropdown-email">{user.email}</p>
+            {onOpenLeave ? (
+              <button
+                type="button"
+                className="app-header-dropdown-action"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onOpenLeave();
+                }}
+              >
+                <CalendarOffIcon />
+                <span>Concediu</span>
+              </button>
+            ) : null}
             <button
               type="button"
               className="app-header-dropdown-logout"
@@ -113,5 +129,19 @@ export function AppHeader({
         )}
       </div>
     </header>
+  );
+}
+
+function CalendarOffIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M4 7h16M7 3v4M17 3v4M5 11h14M9 15l6 6M15 15l-6 6"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

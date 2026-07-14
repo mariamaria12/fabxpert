@@ -3,4 +3,6 @@ export type FlowStep =
   | 'selectActivity'
   | 'timeEntry'
   | 'myTimesheets'
-  | 'editTimesheet';
+  | 'editTimesheet'
+  | 'myLeaveRequests'
+  | 'leaveRequestForm';

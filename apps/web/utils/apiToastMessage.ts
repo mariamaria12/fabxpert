@@ -10,5 +10,9 @@ export function apiErrorToastMessage(caught: unknown): string {
     return 'Acces interzis. Conectează-te cu un cont de administrator.';
   }
 
+  if (caught instanceof ApiError && caught.status === 409 && caught.message) {
+    return caught.message;
+  }
+
   return 'A apărut o eroare.';
 }

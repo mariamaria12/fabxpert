@@ -13,6 +13,18 @@ export default defineConfig({
         find: /^@fabxpert\/shared$/,
         replacement: path.resolve(appDir, '../../packages/shared/src/index.ts'),
       },
+      {
+        find: '@fabxpert/shared/leaveLabels',
+        replacement: path.resolve(appDir, '../../packages/shared/src/leaveLabels.ts'),
+      },
+      {
+        find: '@fabxpert/shared/leaveDays',
+        replacement: path.resolve(appDir, '../../packages/shared/src/leaveDays.ts'),
+      },
+      {
+        find: '@fabxpert/shared/workDate',
+        replacement: path.resolve(appDir, '../../packages/shared/src/workDate.ts'),
+      },
     ],
   },
   plugins: [

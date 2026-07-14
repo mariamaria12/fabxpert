@@ -33,6 +33,7 @@ export async function truncateAllTables(): Promise<void> {
   const client = getTestPrisma();
   await client.$executeRawUnsafe(`
     TRUNCATE TABLE
+      leave_requests,
       timesheets,
       users,
       projects,

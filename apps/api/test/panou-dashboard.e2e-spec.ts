@@ -185,6 +185,33 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
     expect(employee2Row.activities[0].projectId).toBe(FIXTURES.projects.ready.id);
   });
 
+  it('dashboard metrics include todayOnLeaveCount for approved leave covering today', async () => {
+    const today = localTodayWorkDate();
+
+    const create = await request(app.getHttpServer())
+      .post('/leave-requests')
+      .set(authHeader(employee1Cookie))
+      .send({
+        type: 'ODIHNA',
+        startDate: today,
+        endDate: today,
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post(`/leave-requests/${create.body.leaveRequest.id}/review`)
+      .set(authHeader(adminCookie))
+      .send({ status: 'APROBAT' })
+      .expect(200);
+
+    const metrics = await request(app.getHttpServer())
+      .get('/timesheets/dashboard-metrics')
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    expect(metrics.body.todayOnLeaveCount).toBeGreaterThanOrEqual(1);
+  });
+
   it('rejects invalid period on person-summary', async () => {
     const response = await request(app.getHttpServer())
       .get('/timesheets/person-summary')

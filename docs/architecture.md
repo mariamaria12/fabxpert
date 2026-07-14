@@ -248,6 +248,7 @@ Full access to all REST modules:
 | `GET /projects/available` | Execution-ready projects only (`readyForExecution=true`), reduced DTO (id, name, code, color) |
 | `GET /activities`, `GET /employee-roles` | Active rows only; `?includeInactive=true` is ignored (ADMIN-only filter) |
 | Timesheets | Create closed entries (`POST /timesheets`), list own (`GET /timesheets/mine`), get/patch/delete **own** entries (ownership via linked `Person.id`); `personId` is **never** accepted from employee requests — always resolved server-side from the authenticated user |
+| Leave | Create/list own (`POST /leave-requests`, `GET /leave-requests/mine`), balance (`GET /leave-requests/my-balance`), patch/delete **own** pending requests; `personId` from auth only |
 
 Employees cannot access admin list endpoints (`GET /projects`, `GET /timesheets`, user/person/company CRUD, etc.).
 
@@ -281,7 +282,7 @@ Same pattern as EmployeeRole, plus optional `color` (hex `#RRGGBB`). Referenced 
 
 ### Person
 
-Employee record: `firstName`, `lastName` required; `email`, `phone` optional. Optional FK `employeeRoleId` → `EmployeeRole`.
+Employee record: `firstName`, `lastName` required; `email`, `phone` optional. Optional FK `employeeRoleId` → `EmployeeRole`. `annualLeaveDays` (default `21`) — admin-editable yearly `ODIHNA` entitlement; balance is computed from approved requests, not stored as a running counter.
 
 **User relationship:** 1:1 optional from Person's side (`Person.user` may be null); **required** from User's side (`User.personId` unique). Not every Person has login access.
 
@@ -316,6 +317,35 @@ Belongs to one `Company`. `name`, `code` (unique, manually assigned), `status` (
 - `notes` — optional.
 
 **workDate convention:** API, mobile, and web treat `workDate` as day granularity only. Values are normalized to start-of-local-day (`00:00:00`). Period filters (today/week/month/custom) and aggregations filter on `workDate`, not `createdAt`. Panou "Activitate azi" feed uses `workDate` for consistency with work done today.
+
+---
+
+### Leave (concedii)
+
+Fixed compile-time enums — not admin-managed lookups:
+
+- **LeaveType:** `ODIHNA`, `MEDICAL`, `NEPLATIT`
+- **LeaveStatus:** `IN_ASTEPTARE` (default), `APROBAT`, `RESPINS`
+
+**Person.annualLeaveDays** (default `21`, admin-editable) is the yearly **entitlement** for `ODIHNA` only. It is **not** decremented on approval — balance is **computed** at read time from approved `ODIHNA` requests in the current calendar year plus this field. Single source of truth avoids drift between a stored counter and request history.
+
+**LeaveRequest:** `personId`, `type`, `startDate`, `endDate` (date semantics, same `YYYY-MM-DD` wire format as `workDate`), `status`, optional `reason`, optional `reviewedByUserId` / `reviewedAt`, audit + soft delete.
+
+**Balance (ODIHNA only):**
+
+- `usedDays` = sum of inclusive day counts of `APROBAT` `ODIHNA` requests for the person in the **current calendar year** (year attributed by `startDate` — see simplifications below).
+- `remainingDays` = `person.annualLeaveDays − usedDays`.
+- `MEDICAL` and `NEPLATIT` never affect balance.
+
+**Workflow:** Employees create requests (`IN_ASTEPTARE`); admins approve/reject via `POST /leave-requests/:id/review`. Employees may edit/cancel **own** pending requests only. No balance pre-check at request time; admin may approve even when it would exceed entitlement (response includes `overBalanceWarning` — policy may tighten later). Admins may change an existing decision (`APROBAT` ↔ `RESPINS`).
+
+**MVP simplifications (revisit post-MVP):**
+
+1. **Day counting** — inclusive **calendar** days (`endDate − startDate + 1`); weekends and Romanian public holidays are **not** excluded. Logic lives in `packages/shared/src/leaveDays.ts` (`countInclusiveLeaveDays`).
+2. **Year attribution** — requests count toward the calendar year of `startDate` only; spans across year boundaries are not split.
+3. **Over-balance approval** — allowed with a warning flag; not hard-blocked.
+4. **No balance check at request time** — employees may submit when low/negative remaining; UI uses `GET /leave-requests/my-balance` (and balance on create/update responses) to warn.
+5. **Admin create-on-behalf** — not in Stage 1; `personId` always from auth for employee creates.
 
 ---
 

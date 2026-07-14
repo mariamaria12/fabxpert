@@ -22,7 +22,9 @@ export const createPersonSchema = z.object({
   employeeRoleId: employeeRoleIdSchema.optional(),
 });
 
-export const updatePersonSchema = createPersonSchema.partial().refine(
+export const updatePersonSchema = createPersonSchema.partial().extend({
+  annualLeaveDays: z.number().int().nonnegative().optional(),
+}).refine(
   (data) => data.firstName === undefined || data.firstName.trim().length > 0,
   { message: 'First name cannot be empty', path: ['firstName'] },
 ).refine(
@@ -47,6 +49,7 @@ export type PersonDto = {
   phone: string | null;
   employeeRoleId: string | null;
   employeeRole: PersonEmployeeRoleDto | null;
+  annualLeaveDays: number;
   createdAt: string;
   updatedAt: string;
 };

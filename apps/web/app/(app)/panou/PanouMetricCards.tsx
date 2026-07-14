@@ -69,8 +69,16 @@ export function PanouMetricCards() {
 
   useRegisterPanouRefetch('dashboard-metrics', loadMetrics);
 
+  const onLeaveCount = metrics?.todayOnLeaveCount ?? 0;
+  const cardClassName =
+    'flex flex-col items-start rounded-md border border-border-subtle bg-surface px-3 py-2.5 text-left';
+
   return (
-    <div className="mt-6 grid gap-3 md:grid-cols-3">
+    <div
+      className={`mt-4 grid gap-2 sm:grid-cols-2 ${
+        onLeaveCount > 0 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'
+      }`}
+    >
       {METRIC_CARDS.map((card) => {
         const isSelected = activeView === card.id;
         return (
@@ -79,22 +87,33 @@ export function PanouMetricCards() {
             type="button"
             aria-pressed={isSelected}
             onClick={() => selectView(card.id)}
-            className={`flex flex-col items-start rounded-md border px-4 py-4 text-left transition-colors ${
+            className={`${cardClassName} transition-colors ${
               isSelected
                 ? 'border-accent/30 bg-accent/10 text-accent'
-                : 'border-border-subtle bg-surface text-text-secondary hover:bg-surface-raised hover:text-text-primary'
+                : 'text-text-secondary hover:bg-surface-raised hover:text-text-primary'
             }`}
           >
-            <span className="inline-flex items-center gap-2 text-sm font-medium">
-              <i className={`ti ${card.icon} text-base`} aria-hidden="true" />
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium">
+              <i className={`ti ${card.icon} text-sm`} aria-hidden="true" />
               {card.label}
             </span>
-            <span className="mt-2 text-2xl font-medium tabular-nums text-text-primary">
+            <span className="mt-1 text-lg font-medium tabular-nums text-text-primary">
               {formatMetricValue(card.metricKey, metrics)}
             </span>
           </button>
         );
       })}
+      {onLeaveCount > 0 && (
+        <div className={`${cardClassName} text-text-secondary`}>
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium">
+            <i className="ti ti-calendar-off text-sm" aria-hidden="true" />
+            În concediu azi
+          </span>
+          <span className="mt-1 text-lg font-medium tabular-nums text-text-primary">
+            {onLeaveCount}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

@@ -5,14 +5,16 @@ import type { MeResponse } from '@fabxpert/shared';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { InitialsAvatar, PersonAvatar } from '@/components/PersonAvatar';
+import { useLeavePendingCount } from '@/context/LeavePendingCountContext';
 
-// Routes are English; visible labels stay Romanian.
+// Routes are English; visible labels stay Romanian. /concedii uses Romanian path by product choice.
 const NAV_ITEMS = [
   { href: '/', icon: 'ti-layout-dashboard', label: 'Panou' },
   { href: '/projects', icon: 'ti-clipboard-list', label: 'Proiecte' },
   { href: '/companies', icon: 'ti-building', label: 'Companii' },
   { href: '/people', icon: 'ti-users', label: 'Persoane' },
   { href: '/timesheets', icon: 'ti-clock', label: 'Pontaje' },
+  { href: '/concedii', icon: 'ti-calendar-off', label: 'Concedii', badgeKey: 'leavePending' as const },
   { href: '/admin', icon: 'ti-settings', label: 'Administrare' },
 ] as const;
 
@@ -39,6 +41,7 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { pendingCount } = useLeavePendingCount();
 
   async function handleLogout() {
     await logout();
@@ -93,6 +96,10 @@ export function Sidebar({
         {NAV_ITEMS.map((item) => {
           const isActive =
             item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+          const badge =
+            'badgeKey' in item && item.badgeKey === 'leavePending' && pendingCount > 0
+              ? pendingCount
+              : null;
           return (
             <Link
               key={item.href}
@@ -107,8 +114,24 @@ export function Sidebar({
                   : 'text-text-muted hover:bg-surface-raised hover:text-text-secondary'
               }`}
             >
-              <i className={`ti ${item.icon} text-lg`} aria-hidden="true" />
-              {!collapsed && <span>{item.label}</span>}
+              <span className="relative shrink-0">
+                <i className={`ti ${item.icon} text-lg`} aria-hidden="true" />
+                {collapsed && badge !== null ? (
+                  <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-accent text-[10px] font-semibold text-accent-contrast">
+                    {badge > 9 ? '9+' : badge}
+                  </span>
+                ) : null}
+              </span>
+              {!collapsed && (
+                <>
+                  <span className="min-w-0 flex-1">{item.label}</span>
+                  {badge !== null ? (
+                    <span className="shrink-0 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-accent-contrast">
+                      {badge > 99 ? '99+' : badge}
+                    </span>
+                  ) : null}
+                </>
+              )}
             </Link>
           );
         })}

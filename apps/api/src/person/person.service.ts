@@ -30,6 +30,7 @@ function toPersonDto(person: PersonWithRole): PersonDto {
     phone: person.phone,
     employeeRoleId: person.employeeRoleId,
     employeeRole: person.employeeRole,
+    annualLeaveDays: person.annualLeaveDays,
     createdAt: person.createdAt.toISOString(),
     updatedAt: person.updatedAt.toISOString(),
   };
