@@ -11,18 +11,10 @@ export function PanouContentViews() {
 
   return (
     <>
-      <div className={activeView === 'hours' ? undefined : 'hidden'}>
-        <PanouHoursView />
-      </div>
-      <div className={activeView === 'projects' ? undefined : 'hidden'}>
-        <PanouProjectsView />
-      </div>
-      <div className={activeView === 'people' ? undefined : 'hidden'}>
-        <PanouPeopleView />
-      </div>
-      <div className={activeView === 'onLeave' ? undefined : 'hidden'}>
-        <PanouOnLeaveView />
-      </div>
+      {activeView === 'hours' && <PanouHoursView />}
+      {activeView === 'projects' && <PanouProjectsView />}
+      {activeView === 'people' && <PanouPeopleView />}
+      {activeView === 'onLeave' && <PanouOnLeaveView />}
     </>
   );
 }

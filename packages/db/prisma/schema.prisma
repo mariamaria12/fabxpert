@@ -200,6 +200,7 @@ model Project {
 
   visibleForRoles EmployeeRole[]
 
+  @@index([deletedAt, status])
   @@map("projects")
 }
 
@@ -234,6 +235,9 @@ model Timesheet {
   activityId String?
   activity   Activity? @relation(fields: [activityId], references: [id])
 
+  @@index([deletedAt, workDate])
+  @@index([personId])
+  @@index([projectId])
   @@map("timesheets")
 }
 
@@ -261,5 +265,7 @@ model LeaveRequest {
   reviewedByUserId String?
   reviewedBy       User?   @relation(fields: [reviewedByUserId], references: [id])
 
+  @@index([deletedAt, status, startDate, endDate])
+  @@index([personId, type, status, startDate])
   @@map("leave_requests")
 }

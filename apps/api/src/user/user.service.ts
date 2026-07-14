@@ -31,6 +31,9 @@ const userSelect = {
       id: true,
       firstName: true,
       lastName: true,
+      employeeRole: {
+        select: { name: true },
+      },
     },
   },
 } satisfies Prisma.UserSelect;
@@ -44,7 +47,12 @@ function toUserDto(user: UserWithPerson): UserDto {
     role: user.role,
     isActive: user.isActive,
     personId: user.personId,
-    person: user.person,
+    person: {
+      id: user.person.id,
+      firstName: user.person.firstName,
+      lastName: user.person.lastName,
+      employeeRole: user.person.employeeRole,
+    },
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };

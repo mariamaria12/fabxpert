@@ -79,6 +79,16 @@ export class LeaveController {
     return this.leaveService.getBalanceForPerson(personId);
   }
 
+  @Get('balances')
+  @Roles('ADMIN')
+  listBalances(@Query('year') year?: string) {
+    const parsedYear = year ? Number.parseInt(year, 10) : new Date().getFullYear();
+    if (!Number.isFinite(parsedYear) || parsedYear < 2000 || parsedYear > 2100) {
+      throw new BadRequestException('Invalid year');
+    }
+    return this.leaveService.findAllBalances(parsedYear);
+  }
+
   @Get('on-leave')
   @Roles('ADMIN')
   findOnLeave(@Query() query: Record<string, string>) {

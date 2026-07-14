@@ -43,6 +43,7 @@ export type UserPersonDto = {
   id: string;
   firstName: string;
   lastName: string;
+  employeeRole: { name: string } | null;
 };
 
 /** API-facing User shape — passwordHash is never exposed. */

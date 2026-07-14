@@ -95,6 +95,24 @@ export type LeaveBalanceDto = {
   remainingDays: number;
 };
 
+export type LeaveBalancePersonDto = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  annualLeaveDays: number;
+  employeeRole: { name: string } | null;
+};
+
+export type LeaveBalanceRowDto = {
+  person: LeaveBalancePersonDto;
+  balance: LeaveBalanceDto;
+};
+
+export type LeaveBalancesResponse = {
+  year: number;
+  rows: LeaveBalanceRowDto[];
+};
+
 export type OnLeaveResponse = {
   period: TimesheetSummaryPeriod;
   requests: LeaveRequestDto[];

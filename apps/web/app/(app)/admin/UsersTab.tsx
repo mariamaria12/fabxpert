@@ -1,12 +1,10 @@
 'use client';
 
 import {
-  listPersons,
   listUsers,
-  type PersonDto,
   type UserDto,
 } from '@fabxpert/shared';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { UserFormPanel } from './UserFormPanel';
 import { PersonAvatar } from '@/components/PersonAvatar';
 import { Pagination } from '@/components/Pagination';
@@ -29,13 +27,17 @@ function rolePillClass(role: UserDto['role']): string {
     : 'bg-status-ciorna-bg text-status-ciorna-text';
 }
 
+function personSubtitle(user: UserDto): string {
+  const roleName = user.person.employeeRole?.name ?? '—';
+  return `${user.person.firstName} ${user.person.lastName} · ${roleName}`;
+}
+
 export function UsersTab({ active }: UsersTabProps) {
   const [page, setPage] = useState(1);
   const [users, setUsers] = useState<UserDto[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [personsById, setPersonsById] = useState<Map<string, PersonDto>>(new Map());
   const [panel, setPanel] = useState<PanelState>({ open: false });
 
   const loadUsers = useCallback(async (targetPage: number) => {
@@ -43,14 +45,9 @@ export function UsersTab({ active }: UsersTabProps) {
     setError(null);
 
     try {
-      const [usersResponse, personsResponse] = await Promise.all([
-        listUsers(targetPage, PAGE_SIZE),
-        listPersons(1, 500),
-      ]);
-
+      const usersResponse = await listUsers(targetPage, PAGE_SIZE);
       setUsers(usersResponse.data);
       setTotal(usersResponse.meta.total);
-      setPersonsById(new Map(personsResponse.data.map((person) => [person.id, person])));
     } catch (caught) {
       setError(apiErrorToastMessage(caught));
     } finally {
@@ -63,17 +60,6 @@ export function UsersTab({ active }: UsersTabProps) {
       void loadUsers(page);
     }
   }, [active, page, loadUsers]);
-
-  const subtitleByPersonId = useMemo(() => {
-    const map = new Map<string, string>();
-
-    for (const [personId, person] of personsById) {
-      const roleName = person.employeeRole?.name ?? '—';
-      map.set(personId, `${person.firstName} ${person.lastName} · ${roleName}`);
-    }
-
-    return map;
-  }, [personsById]);
 
   function openCreate() {
     setPanel({ open: true, mode: 'create', user: null });
@@ -157,10 +143,7 @@ export function UsersTab({ active }: UsersTabProps) {
                       <PersonAvatar person={user.person} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium text-text-primary">{user.email}</p>
-                        <p className="truncate text-sm text-text-muted">
-                          {subtitleByPersonId.get(user.personId) ??
-                            `${user.person.firstName} ${user.person.lastName} · —`}
-                        </p>
+                        <p className="truncate text-sm text-text-muted">{personSubtitle(user)}</p>
                       </div>
                       <span
                         className={`hidden shrink-0 rounded px-2 py-0.5 text-xs font-medium sm:inline-block ${rolePillClass(user.role)}`}

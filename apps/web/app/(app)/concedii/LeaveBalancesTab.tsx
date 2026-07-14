@@ -1,26 +1,42 @@
 'use client';
 
 import {
-  getLeaveBalance,
-  listPersons,
+  listLeaveBalances,
   type LeaveBalanceDto,
+  type LeaveBalanceRowDto,
   type PersonDto,
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { LeaveAllocationPanel } from './LeaveAllocationPanel';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { PersonName } from '@/components/PersonAvatar';
-import { loadAllPages } from '@/utils/loadAllPages';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 
 type BalanceRow = {
   person: PersonDto;
-  balance: LeaveBalanceDto | null;
+  balance: LeaveBalanceDto;
 };
 
 type PanelState =
   | { open: false }
   | { open: true; person: PersonDto; balance: LeaveBalanceDto | null };
+
+function toPersonDto(row: LeaveBalanceRowDto): PersonDto {
+  return {
+    id: row.person.id,
+    firstName: row.person.firstName,
+    lastName: row.person.lastName,
+    email: null,
+    phone: null,
+    employeeRoleId: null,
+    annualLeaveDays: row.person.annualLeaveDays,
+    employeeRole: row.person.employeeRole
+      ? { id: '', name: row.person.employeeRole.name }
+      : null,
+    createdAt: '',
+    updatedAt: '',
+  };
+}
 
 interface LeaveBalancesTabProps {
   refreshToken: number;
@@ -32,25 +48,18 @@ export function LeaveBalancesTab({ refreshToken }: LeaveBalancesTabProps) {
   const [error, setError] = useState<string | null>(null);
   const [panel, setPanel] = useState<PanelState>({ open: false });
 
-  // MVP: one getLeaveBalance call per person after listing persons.
-  // Flag for post-MVP: a single admin balances endpoint would avoid N+1.
   const loadBalances = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const persons = await loadAllPages((page, pageSize) => listPersons(page, pageSize));
-      const balances = await Promise.all(
-        persons.map(async (person) => {
-          try {
-            const balance = await getLeaveBalance(person.id);
-            return { person, balance };
-          } catch {
-            return { person, balance: null };
-          }
-        }),
+      const response = await listLeaveBalances();
+      setRows(
+        response.rows.map((row) => ({
+          person: toPersonDto(row),
+          balance: row.balance,
+        })),
       );
-      setRows(balances);
     } catch (caught) {
       setError(apiErrorToastMessage(caught));
     } finally {
@@ -92,18 +101,15 @@ export function LeaveBalancesTab({ refreshToken }: LeaveBalancesTabProps) {
       header: 'Folosite',
       width: '90px',
       className: 'text-text-secondary',
-      render: (row) => (row.balance ? row.balance.usedDays : '—'),
+      render: (row) => row.balance.usedDays,
     },
     {
       key: 'remainingDays',
       header: 'Rămase',
       width: '90px',
-      render: (row) =>
-        row.balance ? (
-          <span className="font-medium text-text-primary">{row.balance.remainingDays}</span>
-        ) : (
-          <span className="text-text-muted">—</span>
-        ),
+      render: (row) => (
+        <span className="font-medium text-text-primary">{row.balance.remainingDays}</span>
+      ),
     },
     {
       key: 'actions',

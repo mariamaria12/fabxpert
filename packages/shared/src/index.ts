@@ -213,6 +213,7 @@ export {
   getLeaveRequest,
   reviewLeaveRequest,
   getLeaveBalance,
+  listLeaveBalances,
 } from './api/leave';
 export type { ListLeaveRequestsParams } from './api/leave';
 export {
@@ -229,6 +230,8 @@ export type {
   LeaveRequestPersonDto,
   LeaveRequestReviewerDto,
   LeaveBalanceDto,
+  LeaveBalanceRowDto,
+  LeaveBalancesResponse,
   EmployeeLeaveRequestResponse,
   ReviewLeaveRequestResponse,
   OnLeaveResponse,

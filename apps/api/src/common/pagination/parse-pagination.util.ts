@@ -1,5 +1,6 @@
 export const DEFAULT_PAGE = 1;
 export const DEFAULT_PAGE_SIZE = 20;
+export const MAX_PAGE_SIZE = 200;
 
 export interface PaginationParams {
   page: number;
@@ -10,7 +11,10 @@ export interface PaginationParams {
 export function parsePagination(query: Record<string, string | undefined>): PaginationParams {
   return {
     page: parsePositiveInt(query.page, DEFAULT_PAGE),
-    pageSize: parsePositiveInt(query.pageSize, DEFAULT_PAGE_SIZE),
+    pageSize: Math.min(
+      parsePositiveInt(query.pageSize, DEFAULT_PAGE_SIZE),
+      MAX_PAGE_SIZE,
+    ),
   };
 }
 

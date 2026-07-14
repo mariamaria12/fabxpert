@@ -10,6 +10,7 @@ import type {
   CreateLeaveRequestInput,
   EmployeeLeaveRequestResponse,
   LeaveBalanceDto,
+  LeaveBalancesResponse,
   LeaveRequestDto,
   OnLeaveResponse,
   ReviewLeaveRequestInput,
@@ -124,6 +125,65 @@ export class LeaveService {
   async getBalanceForPerson(personId: string): Promise<LeaveBalanceDto> {
     await this.assertPersonExists(personId);
     return this.computeBalance(personId);
+  }
+
+  async findAllBalances(year = new Date().getFullYear()): Promise<LeaveBalancesResponse> {
+    const yearStart = new Date(year, 0, 1, 0, 0, 0, 0);
+    const yearEnd = new Date(year + 1, 0, 1, 0, 0, 0, 0);
+
+    const [persons, approvedOdihna] = await Promise.all([
+      this.prisma.person.findMany({
+        where: notDeleted(),
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          annualLeaveDays: true,
+          employeeRole: {
+            select: { name: true },
+          },
+        },
+        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      }),
+      this.prisma.leaveRequest.findMany({
+        where: {
+          type: 'ODIHNA',
+          status: 'APROBAT',
+          ...notDeleted(),
+          startDate: { gte: yearStart, lt: yearEnd },
+        },
+        select: {
+          personId: true,
+          startDate: true,
+          endDate: true,
+        },
+      }),
+    ]);
+
+    const usedDaysByPerson = new Map<string, number>();
+    for (const request of approvedOdihna) {
+      const days = countInclusiveLeaveDays(request.startDate, request.endDate);
+      usedDaysByPerson.set(
+        request.personId,
+        (usedDaysByPerson.get(request.personId) ?? 0) + days,
+      );
+    }
+
+    return {
+      year,
+      rows: persons.map((person) => {
+        const usedDays = usedDaysByPerson.get(person.id) ?? 0;
+        return {
+          person,
+          balance: {
+            personId: person.id,
+            annualLeaveDays: person.annualLeaveDays,
+            usedDays,
+            remainingDays: person.annualLeaveDays - usedDays,
+          },
+        };
+      }),
+    };
   }
 
   async findAll(

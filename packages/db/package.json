@@ -23,6 +23,8 @@
     "db:seed": "prisma db seed",
     "db:seed:dev": "tsx prisma/seed.ts",
     "db:seed:prod": "tsx prisma/seed.prod.ts",
+    "db:seed:perf": "tsx prisma/seed-perf.ts",
+    "db:seed:perf:clear": "tsx prisma/seed-perf-clear.ts",
     "db:studio": "prisma studio"
   },
   "dependencies": {

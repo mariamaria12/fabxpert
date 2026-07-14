@@ -322,4 +322,23 @@ describe('Leave requests (e2e)', () => {
     expect(balanceAfter.body.usedDays).toBe(balanceBefore.body.usedDays);
     expect(balanceAfter.body.remainingDays).toBe(30 - balanceAfter.body.usedDays);
   });
+
+  it('GET /leave-requests/balances returns all person balances in one call', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/leave-requests/balances')
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    expect(response.body.year).toBe(new Date().getFullYear());
+    expect(Array.isArray(response.body.rows)).toBe(true);
+    expect(response.body.rows.length).toBeGreaterThan(0);
+
+    const employee1Row = response.body.rows.find(
+      (row: { person: { id: string } }) => row.person.id === FIXTURES.persons.employee1.id,
+    );
+    expect(employee1Row).toBeDefined();
+    expect(employee1Row.balance.personId).toBe(FIXTURES.persons.employee1.id);
+    expect(typeof employee1Row.balance.usedDays).toBe('number');
+    expect(typeof employee1Row.balance.remainingDays).toBe('number');
+  });
 });

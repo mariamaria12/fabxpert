@@ -5,6 +5,7 @@ import type {
   CreateLeaveRequestInput,
   EmployeeLeaveRequestResponse,
   LeaveBalanceDto,
+  LeaveBalancesResponse,
   LeaveRequestDto,
   LeaveStatus,
   OnLeaveResponse,
@@ -115,4 +116,15 @@ export function reviewLeaveRequest(id: string, input: ReviewLeaveRequestInput) {
 
 export function getLeaveBalance(personId: string) {
   return request<LeaveBalanceDto>(`/leave-requests/balance/${personId}`);
+}
+
+export function listLeaveBalances(year?: number) {
+  const searchParams = new URLSearchParams();
+  if (year !== undefined) {
+    searchParams.set('year', String(year));
+  }
+  const query = searchParams.toString();
+  return request<LeaveBalancesResponse>(
+    `/leave-requests/balances${query ? `?${query}` : ''}`,
+  );
 }
