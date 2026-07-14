@@ -13,7 +13,7 @@ interface LeaveAllocationPanelProps {
   person: PersonDto;
   balance: LeaveBalanceDto | null;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (updated?: PersonDto) => void;
 }
 
 export function LeaveAllocationPanel({
@@ -54,9 +54,9 @@ export function LeaveAllocationPanel({
     setIsSaving(true);
 
     try {
-      await updatePerson(person.id, { annualLeaveDays: parsed });
+      const saved = await updatePerson(person.id, { annualLeaveDays: parsed });
       showToast('Zile alocate actualizate', 'success');
-      onSaved();
+      onSaved(saved);
       onClose();
     } catch (caught) {
       showToast(apiErrorToastMessage(caught), 'error');

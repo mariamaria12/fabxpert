@@ -9,6 +9,7 @@ import { UserFormPanel } from './UserFormPanel';
 import { PersonAvatar } from '@/components/PersonAvatar';
 import { Pagination } from '@/components/Pagination';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { replaceById } from '@/utils/replaceById';
 
 const PAGE_SIZE = 20;
 
@@ -73,7 +74,12 @@ export function UsersTab({ active }: UsersTabProps) {
     setPanel({ open: false });
   }
 
-  function handleSaved() {
+  function handleSaved(updated?: UserDto) {
+    if (updated) {
+      setUsers((current) => replaceById(current, updated));
+      return;
+    }
+
     void loadUsers(page);
   }
 

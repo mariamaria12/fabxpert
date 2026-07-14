@@ -10,11 +10,6 @@ import { PeriodFilter } from '@/components/PeriodFilter';
 import { TimesheetFormPanel } from './TimesheetFormPanel';
 import { TimesheetExportPanel } from './TimesheetExportPanel';
 import {
-  CLIENT_SEARCH_FETCH_SIZE,
-  paginateSlice,
-  timesheetMatchesPersonSearch,
-} from './timesheetFilters';
-import {
   formatRomanianDate,
   formatTimesheetDuration,
   formatProjectLabel,
@@ -24,6 +19,7 @@ import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { Pagination } from '@/components/Pagination';
 import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { replaceById } from '@/utils/replaceById';
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -75,28 +71,14 @@ export default function TimesheetsPage() {
       setError(null);
 
       try {
-        if (search) {
-          const response = await listTimesheets({
-            page: 1,
-            pageSize: CLIENT_SEARCH_FETCH_SIZE,
-            period: activePeriod,
-          });
-
-          const filtered = response.data.filter((timesheet) =>
-            timesheetMatchesPersonSearch(timesheet, search),
-          );
-
-          setTimesheets(paginateSlice(filtered, targetPage, PAGE_SIZE));
-          setTotal(filtered.length);
-        } else {
-          const response = await listTimesheets({
-            page: targetPage,
-            pageSize: PAGE_SIZE,
-            period: activePeriod,
-          });
-          setTimesheets(response.data);
-          setTotal(response.meta.total);
-        }
+        const response = await listTimesheets({
+          page: targetPage,
+          pageSize: PAGE_SIZE,
+          period: activePeriod,
+          ...(search ? { search } : {}),
+        });
+        setTimesheets(response.data);
+        setTotal(response.meta.total);
       } catch (caught) {
         setError(apiErrorToastMessage(caught));
       } finally {
@@ -122,7 +104,12 @@ export default function TimesheetsPage() {
     setPanel({ open: false });
   }
 
-  function handleSaved() {
+  function handleSaved(updated?: TimesheetDto) {
+    if (updated) {
+      setTimesheets((current) => replaceById(current, updated));
+      return;
+    }
+
     void loadTimesheets(page, debouncedSearch, period);
   }
 

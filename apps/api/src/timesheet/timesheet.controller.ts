@@ -55,6 +55,11 @@ function parseListFilters(query: Record<string, string>) {
 
   const filters: TimesheetListFilters = result.success ? { ...result.data } : {};
 
+  const search = query.search?.trim();
+  if (search) {
+    filters.search = search;
+  }
+
   if (query.period) {
     const resolved = parseSummaryPeriodQuery(query);
     if (resolved.from && resolved.to) {

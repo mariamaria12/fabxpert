@@ -17,6 +17,7 @@ import { useLeavePendingCount } from '@/context/LeavePendingCountContext';
 import { useToast } from '@/context/ToastContext';
 import { loadAllPages } from '@/utils/loadAllPages';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { removeById, replaceById } from '@/utils/replaceById';
 import {
   formatLeaveDateRange,
   formatReviewedAt,
@@ -134,10 +135,29 @@ export function LeaveRequestsTab({ onBalancesRefresh }: LeaveRequestsTabProps) {
     setPanel({ open: false });
   }
 
-  function handleReviewed() {
-    void loadRequests(page, statusFilter, personId);
+  // Review changes status: if the row no longer matches the active status filter,
+  // remove it locally instead of swapping in place (e.g. approve under "În așteptare").
+  function applyReviewedRequest(updated: LeaveRequestDto) {
+    const stillVisible = statusFilter === 'ALL' || statusFilter === updated.status;
+
+    setRequests((current) => {
+      if (!stillVisible) {
+        return removeById(current, updated.id).items;
+      }
+
+      return replaceById(current, updated);
+    });
+
+    if (!stillVisible) {
+      setTotal((current) => Math.max(0, current - 1));
+    }
+
     void refreshPendingCount();
     onBalancesRefresh?.();
+  }
+
+  function handleReviewed(updated: LeaveRequestDto) {
+    applyReviewedRequest(updated);
   }
 
   async function handleQuickReview(
@@ -158,7 +178,7 @@ export function LeaveRequestsTab({ onBalancesRefresh }: LeaveRequestsTabProps) {
         showToast('Atenție: cererea depășește soldul de odihnă.', 'error');
       }
 
-      handleReviewed();
+      handleReviewed(response.leaveRequest);
     } catch (caught) {
       showToast(apiErrorToastMessage(caught), 'error');
     } finally {

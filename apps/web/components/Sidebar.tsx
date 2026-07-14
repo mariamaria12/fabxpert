@@ -51,7 +51,7 @@ export function Sidebar({
   return (
     <aside
       className={`${className} flex-col overflow-hidden border-r border-border-subtle bg-surface transition-[width] duration-150 ${
-        collapsed ? 'w-14' : 'w-[168px]'
+        collapsed ? 'w-14' : 'w-[200px]'
       }`}
     >
       {/* Wordmark + collapse toggle — single row in both states */}

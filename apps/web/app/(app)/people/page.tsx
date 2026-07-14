@@ -16,6 +16,7 @@ import { Pagination } from '@/components/Pagination';
 import { PersonName } from '@/components/PersonAvatar';
 import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { replaceById } from '@/utils/replaceById';
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -122,7 +123,12 @@ export default function PeoplePage() {
     setPanel({ open: false });
   }
 
-  function handleSaved() {
+  function handleSaved(updated?: PersonDto) {
+    if (updated) {
+      setPersons((current) => replaceById(current, updated));
+      return;
+    }
+
     void loadPersons(page, debouncedSearch || undefined);
   }
 

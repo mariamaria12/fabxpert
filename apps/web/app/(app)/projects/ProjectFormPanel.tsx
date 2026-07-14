@@ -6,8 +6,6 @@ import {
   createProjectSchema,
   deleteProject,
   getProject,
-  listCompanies,
-  listEmployeeRoles,
   PROJECT_STATUS_META,
   PROJECT_STATUS_VALUES,
   updateProject,
@@ -25,7 +23,10 @@ import { TextField } from '@/components/TextField';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
-import { loadAllPages } from '@/utils/loadAllPages';
+import {
+  getProjectFormCompanies,
+  getProjectFormEmployeeRoles,
+} from '@/utils/projectFormLookups';
 import { buildStableIndexMap, getRolePaletteColor } from '@/components/roleColors';
 
 interface ProjectFormValues {
@@ -162,21 +163,12 @@ function buildUpdatePayload(values: ProjectFormValues) {
 const inputClassName =
   'w-full rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
 
-const LOOKUP_PAGE_SIZE = 200;
-
-async function loadAllCompanies(): Promise<CompanyDto[]> {
-  return loadAllPages(
-    (page, pageSize) => listCompanies({ page, pageSize }),
-    LOOKUP_PAGE_SIZE,
-  );
-}
-
 export interface ProjectFormPanelProps {
   open: boolean;
   mode: 'create' | 'edit';
   project: ProjectDto | null;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (updated?: ProjectDto) => void;
 }
 
 export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: ProjectFormPanelProps) {
@@ -205,32 +197,35 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
       return;
     }
 
-    let cancelled = false;
+    const controller = new AbortController();
     setCompaniesLoading(true);
     setEmployeeRolesLoading(true);
 
-    Promise.all([loadAllCompanies(), listEmployeeRoles()])
+    Promise.all([getProjectFormCompanies(), getProjectFormEmployeeRoles()])
       .then(([companyRows, roleRows]) => {
-        if (!cancelled) {
-          setCompanies(companyRows);
-          setEmployeeRoles(roleRows);
+        if (controller.signal.aborted) {
+          return;
         }
+        setCompanies(companyRows);
+        setEmployeeRoles(roleRows);
       })
       .catch(() => {
-        if (!cancelled) {
-          setCompanies([]);
-          setEmployeeRoles([]);
+        if (controller.signal.aborted) {
+          return;
         }
+        setCompanies([]);
+        setEmployeeRoles([]);
       })
       .finally(() => {
-        if (!cancelled) {
-          setCompaniesLoading(false);
-          setEmployeeRolesLoading(false);
+        if (controller.signal.aborted) {
+          return;
         }
+        setCompaniesLoading(false);
+        setEmployeeRolesLoading(false);
       });
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [open]);
 
@@ -423,9 +418,9 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
 
     setIsSubmitting(true);
     try {
-      await updateProject(project.id, parsed.data);
+      const saved = await updateProject(project.id, parsed.data);
       showToast('Proiect actualizat', 'success');
-      onSaved();
+      onSaved(saved);
       onClose();
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 409) {

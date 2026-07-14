@@ -24,7 +24,7 @@ interface LeaveReviewPanelProps {
   open: boolean;
   request: LeaveRequestDto;
   onClose: () => void;
-  onReviewed: () => void;
+  onReviewed: (updated: LeaveRequestDto) => void;
 }
 
 export function LeaveReviewPanel({
@@ -104,7 +104,7 @@ export function LeaveReviewPanel({
         showToast('Atenție: cererea depășește soldul de odihnă.', 'error');
       }
 
-      onReviewed();
+      onReviewed(response.leaveRequest);
       onClose();
     } catch (caught) {
       showToast(apiErrorToastMessage(caught), 'error');

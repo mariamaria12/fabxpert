@@ -7,6 +7,7 @@ import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { compareStableLookupOrder } from '@/components/roleColors';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { replaceById } from '@/utils/replaceById';
 
 export interface LookupItemBase {
   id: string;
@@ -252,18 +253,22 @@ export function LookupManager<TItem extends LookupItem, TCreate, TUpdate>({
         }
         await createItem(parsed.data);
         showToast(copy.createdToast, 'success');
-      } else if (editorMode === 'edit' && editingId) {
+        closeEditor();
+        await loadItems();
+        return;
+      }
+
+      if (editorMode === 'edit' && editingId) {
         const parsed = updateSchema.safeParse(buildUpdateInput(formValues));
         if (!parsed.success) {
           setFormError(copy.nameRequiredError);
           return;
         }
-        await updateItem(editingId, parsed.data);
+        const updated = await updateItem(editingId, parsed.data);
         showToast(copy.updatedToast, 'success');
+        closeEditor();
+        setItems((current) => replaceById(current, updated));
       }
-
-      closeEditor();
-      await loadItems();
     } catch (caught) {
       if (caught instanceof ApiError && (caught.status === 409 || caught.status === 400)) {
         setFormError(mapDuplicateError(caught.message, copy));

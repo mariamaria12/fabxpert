@@ -23,6 +23,7 @@ export interface ListTimesheetsParams {
   pageSize?: number;
   personId?: string;
   projectId?: string;
+  search?: string;
   period?: Period;
   /** @deprecated Prefer `period`. Kept for createdAt-based filtering. */
   createdAtFrom?: string;
@@ -77,6 +78,9 @@ export function listTimesheets(params: ListTimesheetsParams = {}) {
   }
   if (params.projectId !== undefined) {
     searchParams.set('projectId', params.projectId);
+  }
+  if (params.search?.trim()) {
+    searchParams.set('search', params.search.trim());
   }
   if (params.period !== undefined && isPeriodQueryReady(params.period)) {
     appendPeriodQuery(searchParams, params.period);

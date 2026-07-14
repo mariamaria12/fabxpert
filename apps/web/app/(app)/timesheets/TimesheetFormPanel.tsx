@@ -103,7 +103,7 @@ export interface TimesheetFormPanelProps {
   mode: 'create' | 'edit';
   timesheet: TimesheetDto | null;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (updated?: TimesheetDto) => void;
 }
 
 const LOOKUP_PAGE_SIZE = 500;
@@ -256,9 +256,9 @@ export function TimesheetFormPanel({
 
     setIsSubmitting(true);
     try {
-      await updateTimesheet(timesheet.id, parsed.data);
+      const saved = await updateTimesheet(timesheet.id, parsed.data);
       showToast('Pontaj actualizat', 'success');
-      onSaved();
+      onSaved(saved);
       onClose();
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 400) {

@@ -80,7 +80,7 @@ export interface PersonFormPanelProps {
   mode: 'create' | 'edit';
   person: PersonDto | null;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (updated?: PersonDto) => void;
 }
 
 export function PersonFormPanel({ open, mode, person, onClose, onSaved }: PersonFormPanelProps) {
@@ -191,9 +191,9 @@ export function PersonFormPanel({ open, mode, person, onClose, onSaved }: Person
 
     setIsSubmitting(true);
     try {
-      await updatePerson(person.id, parsed.data);
+      const saved = await updatePerson(person.id, parsed.data);
       showToast('Persoană actualizată', 'success');
-      onSaved();
+      onSaved(saved);
       onClose();
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 400) {

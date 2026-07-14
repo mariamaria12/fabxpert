@@ -10,6 +10,7 @@ import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { Pagination } from '@/components/Pagination';
 import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { replaceById } from '@/utils/replaceById';
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -128,7 +129,12 @@ export default function CompaniesPage() {
     setPanel({ open: false });
   }
 
-  function handleSaved() {
+  function handleSaved(updated?: CompanyDto) {
+    if (updated) {
+      setCompanies((current) => replaceById(current, updated));
+      return;
+    }
+
     void loadCompanies(page, debouncedSearch || undefined);
   }
 

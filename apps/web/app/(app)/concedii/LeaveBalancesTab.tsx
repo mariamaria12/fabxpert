@@ -79,8 +79,29 @@ export function LeaveBalancesTab({ refreshToken }: LeaveBalancesTabProps) {
     setPanel({ open: false });
   }
 
-  function handleSaved() {
-    void loadBalances();
+  function handleSaved(updated?: PersonDto) {
+    if (!updated) {
+      void loadBalances();
+      return;
+    }
+
+    setRows((current) =>
+      current.map((row) => {
+        if (row.person.id !== updated.id) {
+          return row;
+        }
+
+        const usedDays = row.balance.usedDays;
+        return {
+          person: updated,
+          balance: {
+            ...row.balance,
+            annualLeaveDays: updated.annualLeaveDays,
+            remainingDays: updated.annualLeaveDays - usedDays,
+          },
+        };
+      }),
+    );
   }
 
   const columns: DataTableColumn<BalanceRow>[] = [

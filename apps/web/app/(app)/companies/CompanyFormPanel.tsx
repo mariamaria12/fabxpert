@@ -131,7 +131,7 @@ export interface CompanyFormPanelProps {
   mode: 'create' | 'edit';
   company: CompanyDto | null;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (updated?: CompanyDto) => void;
 }
 
 export function CompanyFormPanel({ open, mode, company, onClose, onSaved }: CompanyFormPanelProps) {
@@ -262,9 +262,9 @@ export function CompanyFormPanel({ open, mode, company, onClose, onSaved }: Comp
 
     setIsSubmitting(true);
     try {
-      await updateCompany(company.id, parsed.data);
+      const saved = await updateCompany(company.id, parsed.data);
       showToast('Companie actualizată', 'success');
-      onSaved();
+      onSaved(saved);
       onClose();
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 400) {

@@ -92,4 +92,36 @@ describe('Timesheet list period filter (e2e)', () => {
 
     expect(today).not.toBe(yesterday);
   });
+
+  it('filters GET /timesheets by person name search at DB level', async () => {
+    const list = await request(app.getHttpServer())
+      .get('/timesheets')
+      .query({
+        period: 'month',
+        search: 'EmployeeOne',
+        pageSize: 50,
+      })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    expect(list.body.meta.total).toBeGreaterThanOrEqual(1);
+    expect(
+      list.body.data.every(
+        (row: { person: { id: string } }) => row.person.id === FIXTURES.persons.employee1.id,
+      ),
+    ).toBe(true);
+
+    const noMatch = await request(app.getHttpServer())
+      .get('/timesheets')
+      .query({
+        period: 'month',
+        search: 'zzznomatchperson',
+        pageSize: 50,
+      })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    expect(noMatch.body.meta.total).toBe(0);
+    expect(noMatch.body.data).toHaveLength(0);
+  });
 });

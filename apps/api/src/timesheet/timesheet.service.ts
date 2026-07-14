@@ -74,10 +74,31 @@ type TimesheetWithRelations = Prisma.TimesheetGetPayload<{
 export interface TimesheetListFilters {
   personId?: string;
   projectId?: string;
+  search?: string;
   workDateFrom?: Date;
   workDateTo?: Date;
   createdAtFrom?: Date;
   createdAtTo?: Date;
+}
+
+function buildPersonSearchWhere(search: string): Prisma.PersonWhereInput {
+  const tokens = search
+    .trim()
+    .split(/\s+/)
+    .filter((token) => token.length > 0);
+
+  if (tokens.length === 0) {
+    return {};
+  }
+
+  return {
+    AND: tokens.map((token) => ({
+      OR: [
+        { firstName: { contains: token, mode: 'insensitive' } },
+        { lastName: { contains: token, mode: 'insensitive' } },
+      ],
+    })),
+  };
 }
 
 function toTimesheetDto(timesheet: TimesheetWithRelations): TimesheetDto {
@@ -340,6 +361,7 @@ export class TimesheetService {
       ...notDeleted(),
       ...(filters.personId ? { personId: filters.personId } : {}),
       ...(filters.projectId ? { projectId: filters.projectId } : {}),
+      ...(filters.search ? { person: buildPersonSearchWhere(filters.search) } : {}),
       ...(filters.workDateFrom !== undefined || filters.workDateTo !== undefined
         ? {
             workDate: {

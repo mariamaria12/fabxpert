@@ -134,7 +134,7 @@ export interface UserFormPanelProps {
   mode: 'create' | 'edit';
   user: UserDto | null;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (updated?: UserDto) => void;
 }
 
 const LOOKUP_PAGE_SIZE = 200;
@@ -318,9 +318,9 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
 
     setIsSubmitting(true);
     try {
-      await updateUser(user.id, parsed.data);
+      const saved = await updateUser(user.id, parsed.data);
       showToast('Utilizator actualizat', 'success');
-      onSaved();
+      onSaved(saved);
       onClose();
     } catch (caught) {
       if (caught instanceof ApiError && (caught.status === 400 || caught.status === 409)) {

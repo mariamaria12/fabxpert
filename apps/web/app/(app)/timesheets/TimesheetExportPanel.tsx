@@ -15,7 +15,7 @@ import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import {
-  CLIENT_SEARCH_FETCH_SIZE,
+  EXPORT_PREVIEW_FETCH_SIZE,
   sortTimesheetsForExport,
 } from './timesheetFilters';
 import {
@@ -103,7 +103,7 @@ export function TimesheetExportPanel({
     try {
       const response = await listTimesheets({
         page: 1,
-        pageSize: CLIENT_SEARCH_FETCH_SIZE,
+        pageSize: EXPORT_PREVIEW_FETCH_SIZE,
         period: activePeriod,
       });
 
