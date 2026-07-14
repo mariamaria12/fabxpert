@@ -15,11 +15,11 @@ import {
   timesheetMatchesPersonSearch,
 } from './timesheetFilters';
 import {
-  formatProjectLabel,
   formatRomanianDate,
   formatTimesheetDuration,
-  personFullName,
+  formatProjectLabel,
 } from './timesheetFormat';
+import { PersonName } from '@/components/PersonAvatar';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { Pagination } from '@/components/Pagination';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
@@ -132,8 +132,7 @@ export default function TimesheetsPage() {
     {
       key: 'person',
       header: 'Persoană',
-      className: 'font-medium',
-      render: (row) => personFullName(row),
+      render: (row) => <PersonName person={row.person} nameClassName="font-medium" />,
     },
     {
       key: 'project',

@@ -13,6 +13,7 @@ import {
 } from './personSearch';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { Pagination } from '@/components/Pagination';
+import { PersonName } from '@/components/PersonAvatar';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 
 const PAGE_SIZE = 20;
@@ -28,16 +29,11 @@ function nullableCell(value: string | null | undefined) {
   return value;
 }
 
-function personFullName(person: PersonDto) {
-  return `${person.firstName} ${person.lastName}`;
-}
-
 const personColumns: DataTableColumn<PersonDto>[] = [
   {
     key: 'name',
     header: 'Nume',
-    className: 'font-medium',
-    render: (row) => personFullName(row),
+    render: (row) => <PersonName person={row} nameClassName="font-medium" />,
   },
   {
     key: 'employeeRole',

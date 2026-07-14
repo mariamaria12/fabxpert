@@ -4,6 +4,7 @@ import { logout } from '@fabxpert/shared';
 import type { MeResponse } from '@fabxpert/shared';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { InitialsAvatar, PersonAvatar } from '@/components/PersonAvatar';
 
 // Routes are English; visible labels stay Romanian.
 const NAV_ITEMS = [
@@ -15,11 +16,8 @@ const NAV_ITEMS = [
   { href: '/admin', icon: 'ti-settings', label: 'Administrare' },
 ] as const;
 
-function getInitials(user: MeResponse): string {
-  if (user.person) {
-    return (user.person.firstName[0] + user.person.lastName[0]).toUpperCase();
-  }
-  return user.email.slice(0, 2).toUpperCase();
+function getEmailInitials(email: string): string {
+  return email.slice(0, 2).toUpperCase();
 }
 
 interface SidebarProps {
@@ -122,12 +120,11 @@ export function Sidebar({
           collapsed ? 'flex-col items-center gap-2' : 'items-center gap-2'
         }`}
       >
-        <div
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-medium text-accent-contrast"
-          title={user?.email}
-        >
-          {user ? getInitials(user) : '·'}
-        </div>
+        {user?.person ? (
+          <PersonAvatar person={user.person} />
+        ) : (
+          <InitialsAvatar initials={user ? getEmailInitials(user.email) : '·'} />
+        )}
         {!collapsed && user && (
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs text-text-secondary" title={user.email}>

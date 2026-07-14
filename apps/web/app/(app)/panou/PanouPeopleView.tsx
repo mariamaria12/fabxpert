@@ -3,6 +3,7 @@
 import { getPersonSummary, type PersonSummaryPersonRow } from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
+import { PersonName } from '@/components/PersonAvatar';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 import { PersonBreakdownRows } from './PersonBreakdownRows';
@@ -25,11 +26,11 @@ function PersonHoursCard({
         aria-expanded={expanded}
         className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-raised"
       >
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-medium text-text-primary">
-            {person.firstName} {person.lastName}
-          </p>
-        </div>
+        <PersonName
+          person={person}
+          className="min-w-0 flex-1"
+          nameClassName="font-medium text-text-primary"
+        />
         <div className="flex shrink-0 items-center gap-3">
           <div className="text-right">
             <p className="font-mono text-base font-medium text-text-primary">

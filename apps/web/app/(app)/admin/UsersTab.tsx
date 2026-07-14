@@ -7,7 +7,8 @@ import {
   type UserDto,
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getUserInitials, UserFormPanel } from './UserFormPanel';
+import { UserFormPanel } from './UserFormPanel';
+import { PersonAvatar } from '@/components/PersonAvatar';
 import { Pagination } from '@/components/Pagination';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 
@@ -153,9 +154,7 @@ export function UsersTab({ active }: UsersTabProps) {
                       onClick={() => openEdit(user)}
                       className="flex min-w-0 flex-1 items-center gap-3 text-left"
                     >
-                      <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-medium text-accent-contrast">
-                        {getUserInitials(user)}
-                      </div>
+                      <PersonAvatar person={user.person} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium text-text-primary">{user.email}</p>
                         <p className="truncate text-sm text-text-muted">
