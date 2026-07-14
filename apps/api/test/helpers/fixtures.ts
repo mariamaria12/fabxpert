@@ -7,6 +7,10 @@ export const FIXTURES = {
     id: 'e2e00001-0000-0000-0000-000000000010',
     name: 'E2E Welder',
   },
+  employeeRole2: {
+    id: 'e2e00001-0000-0000-0000-000000000014',
+    name: 'E2E Operator',
+  },
   activities: {
     active: {
       id: 'e2e00001-0000-0000-0000-000000000011',
@@ -43,6 +47,10 @@ export const FIXTURES = {
     deleted: {
       id: 'e2e00001-0000-0000-0000-000000000032',
       code: 'E2E-DELETED',
+    },
+    roleRestricted: {
+      id: 'e2e00001-0000-0000-0000-000000000033',
+      code: 'E2E-ROLEREADY',
     },
   },
   persons: {

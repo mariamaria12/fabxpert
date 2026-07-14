@@ -50,6 +50,8 @@ model EmployeeRole {
 
   persons Person[]
 
+  visibleForProjects Project[]
+
   @@map("employee_roles")
 }
 
@@ -177,6 +179,8 @@ model Project {
   company   Company @relation(fields: [companyId], references: [id])
 
   timesheets Timesheet[]
+
+  visibleForRoles EmployeeRole[]
 
   @@map("projects")
 }

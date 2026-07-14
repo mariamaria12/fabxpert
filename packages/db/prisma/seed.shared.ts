@@ -8,6 +8,7 @@ export const employeeRoles = [
   'Lăcătuș mecanic',
   'Muncitor necalificat',
   'Administrativ',
+  'Operator CNC',
 ] as const;
 
 export const activities = [

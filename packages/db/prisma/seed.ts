@@ -281,6 +281,30 @@ async function seedProjects() {
   console.log(`Done — ${projectsSeed.length} Project rows seeded.\n`);
 }
 
+/** One role-restricted ready project for manual testing; most projects stay visible to all. */
+async function seedProjectRoleVisibility() {
+  const cncRole = await prisma.employeeRole.findUnique({
+    where: { name: 'Operator CNC' },
+  });
+  if (!cncRole) {
+    return;
+  }
+
+  const project = await prisma.project.findUnique({ where: { code: 'PRJ-0005' } });
+  if (!project) {
+    return;
+  }
+
+  await prisma.project.update({
+    where: { id: project.id },
+    data: {
+      visibleForRoles: { set: [{ id: cncRole.id }] },
+    },
+  });
+
+  console.log(`  ✓ ${project.code} visible only for "${cncRole.name}"\n`);
+}
+
 async function seedTestEmployeePairs() {
   const testPassword = process.env.TEST_USERS_SEED_PASSWORD;
   if (!testPassword) {
@@ -342,6 +366,7 @@ async function main() {
   console.log('');
   await seedCompanies();
   await seedProjects();
+  await seedProjectRoleVisibility();
   await seedTestEmployeePairs();
 }
 

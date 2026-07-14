@@ -9,9 +9,11 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   Sse,
   BadRequestException,
 } from '@nestjs/common';
+import { Request } from 'express';
 import {
   createProjectSchema,
   updateProjectSchema,
@@ -22,6 +24,7 @@ import { z } from 'zod';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { parsePagination } from '../common/pagination/parse-pagination.util';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { ProjectAvailabilityEventsService } from './project-availability-events.service';
 import { ProjectService } from './project.service';
 
@@ -44,8 +47,8 @@ export class ProjectController {
 
   @Get('available')
   @Roles('ADMIN', 'EMPLOYEE')
-  findAvailable() {
-    return this.projectService.findAvailable();
+  findAvailable(@Req() req: Request & { user: AuthenticatedUser }) {
+    return this.projectService.findAvailable(req.user);
   }
 
   @Get()

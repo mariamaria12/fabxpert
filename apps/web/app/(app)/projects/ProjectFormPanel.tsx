@@ -5,17 +5,21 @@ import {
   createProject,
   createProjectSchema,
   deleteProject,
+  getProject,
   listCompanies,
+  listEmployeeRoles,
   PROJECT_STATUS_META,
   PROJECT_STATUS_VALUES,
   updateProject,
   updateProjectSchema,
   type CompanyDto,
+  type EmployeeRoleDto,
   type ProjectDto,
   type ProjectStatus,
 } from '@fabxpert/shared';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { ColorField } from '@/components/ColorField';
+import { SearchableMultiSelect } from '@/components/SearchableMultiSelect';
 import { SearchableSelect, type SearchableSelectOption } from '@/components/SearchableSelect';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { useToast } from '@/context/ToastContext';
@@ -31,6 +35,7 @@ interface ProjectFormValues {
   dueDate: string;
   color: string | null;
   readyForExecution: boolean;
+  visibleForRoleIds: string[];
 }
 
 const EMPTY_FORM: ProjectFormValues = {
@@ -42,6 +47,7 @@ const EMPTY_FORM: ProjectFormValues = {
   dueDate: '',
   color: null,
   readyForExecution: false,
+  visibleForRoleIds: [],
 };
 
 function isoToDateInput(iso: string | null): string {
@@ -61,6 +67,7 @@ function projectToFormValues(project: ProjectDto): ProjectFormValues {
     dueDate: isoToDateInput(project.dueDate),
     color: project.color,
     readyForExecution: project.readyForExecution,
+    visibleForRoleIds: (project.visibleForRoles ?? []).map((role) => role.id),
   };
 }
 
@@ -70,6 +77,9 @@ function mapApiFormError(message: string): string {
   }
   if (message === 'companyId does not reference an existing company') {
     return 'Clientul selectat nu există.';
+  }
+  if (message === 'One or more visibleForRoleIds do not reference existing employee roles') {
+    return 'Una sau mai multe funcții selectate nu există.';
   }
   return message;
 }
@@ -126,6 +136,7 @@ function buildCreatePayload(values: ProjectFormValues) {
     companyId: values.companyId,
     status: values.status,
     readyForExecution: values.readyForExecution,
+    visibleForRoleIds: values.visibleForRoleIds,
     ...(values.startDate ? { startDate: values.startDate } : {}),
     ...(values.dueDate ? { dueDate: values.dueDate } : {}),
     ...(values.color ? { color: values.color } : {}),
@@ -139,6 +150,7 @@ function buildUpdatePayload(values: ProjectFormValues) {
     companyId: values.companyId,
     status: values.status,
     readyForExecution: values.readyForExecution,
+    visibleForRoleIds: values.visibleForRoleIds,
     ...(values.startDate ? { startDate: values.startDate } : {}),
     ...(values.dueDate ? { dueDate: values.dueDate } : {}),
     color: values.color,
@@ -178,6 +190,10 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
   const [colorDraftInvalid, setColorDraftInvalid] = useState(false);
   const [companies, setCompanies] = useState<CompanyDto[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(false);
+  const [employeeRoles, setEmployeeRoles] = useState<EmployeeRoleDto[]>([]);
+  const [employeeRolesLoading, setEmployeeRolesLoading] = useState(false);
+  const [editProject, setEditProject] = useState<ProjectDto | null>(null);
+  const [editProjectLoading, setEditProjectLoading] = useState(false);
 
   const isBusy = isSubmitting || isDeleting;
   const title = mode === 'create' ? 'Proiect nou' : 'Editează proiectul';
@@ -189,21 +205,25 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
 
     let cancelled = false;
     setCompaniesLoading(true);
+    setEmployeeRolesLoading(true);
 
-    loadAllCompanies()
-      .then((rows) => {
+    Promise.all([loadAllCompanies(), listEmployeeRoles()])
+      .then(([companyRows, roleRows]) => {
         if (!cancelled) {
-          setCompanies(rows);
+          setCompanies(companyRows);
+          setEmployeeRoles(roleRows);
         }
       })
       .catch(() => {
         if (!cancelled) {
           setCompanies([]);
+          setEmployeeRoles([]);
         }
       })
       .finally(() => {
         if (!cancelled) {
           setCompaniesLoading(false);
+          setEmployeeRolesLoading(false);
         }
       });
 
@@ -222,7 +242,43 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
     setConfirmDelete(false);
     setIsSubmitting(false);
     setIsDeleting(false);
-    setValues(mode === 'edit' && project ? projectToFormValues(project) : EMPTY_FORM);
+    setEditProject(null);
+
+    if (mode === 'create') {
+      setValues(EMPTY_FORM);
+      setEditProjectLoading(false);
+      return;
+    }
+
+    if (!project) {
+      return;
+    }
+
+    setValues(projectToFormValues(project));
+    setEditProjectLoading(true);
+
+    let cancelled = false;
+    getProject(project.id)
+      .then((fullProject) => {
+        if (!cancelled) {
+          setEditProject(fullProject);
+          setValues(projectToFormValues(fullProject));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setEditProject(project);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setEditProjectLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [open, mode, project]);
 
   const companyOptions = useMemo((): SearchableSelectOption[] => {
@@ -231,6 +287,27 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
       label: company.name,
     }));
   }, [companies]);
+
+  const employeeRoleOptions = useMemo((): SearchableSelectOption[] => {
+    const seen = new Set<string>();
+    const options: SearchableSelectOption[] = [];
+
+    for (const role of employeeRoles) {
+      seen.add(role.id);
+      options.push({ id: role.id, label: role.name });
+    }
+
+    const assignedRoles = editProject?.visibleForRoles ?? project?.visibleForRoles ?? [];
+    for (const role of assignedRoles) {
+      if (seen.has(role.id)) {
+        continue;
+      }
+      seen.add(role.id);
+      options.push({ id: role.id, label: `${role.name} (inactivă)` });
+    }
+
+    return options.sort((left, right) => left.label.localeCompare(right.label, 'ro'));
+  }, [employeeRoles, editProject, project]);
 
   const selectedCompanyLabel = useMemo(() => {
     if (!values.companyId) {
@@ -482,6 +559,34 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
         />
 
         <div>
+          <label className="inline-flex items-center gap-2 text-sm text-text-secondary">
+            <input
+              type="checkbox"
+              checked={values.readyForExecution}
+              disabled={isBusy}
+              onChange={(event) => updateField('readyForExecution', event.target.checked)}
+              className="size-4 rounded border-border accent-accent"
+            />
+            Gata de execuție
+          </label>
+          <p className="mt-1.5 text-xs text-text-muted">
+            Proiectele gata de execuție apar angajaților în aplicația mobilă.
+          </p>
+        </div>
+
+        <SearchableMultiSelect
+          id="visibleForRoleIds"
+          label="Vizibil pentru"
+          values={values.visibleForRoleIds}
+          options={employeeRoleOptions}
+          disabled={isBusy || employeeRolesLoading || editProjectLoading}
+          placeholder="Caută funcție…"
+          emptyMessage="Nicio funcție găsită."
+          helperText="Lasă gol pentru a fi vizibil tuturor angajaților."
+          onChange={(visibleForRoleIds) => updateField('visibleForRoleIds', visibleForRoleIds)}
+        />
+
+        <div>
           <label htmlFor="status" className="mb-1.5 block text-xs text-text-secondary">
             Status
           </label>
@@ -526,22 +631,6 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
             onChange={(event) => updateField('dueDate', event.target.value)}
             className={`${inputClassName} [color-scheme:dark]`}
           />
-        </div>
-
-        <div>
-          <label className="inline-flex items-center gap-2 text-sm text-text-secondary">
-            <input
-              type="checkbox"
-              checked={values.readyForExecution}
-              disabled={isBusy}
-              onChange={(event) => updateField('readyForExecution', event.target.checked)}
-              className="size-4 rounded border-border accent-accent"
-            />
-            Gata de execuție
-          </label>
-          <p className="mt-1.5 text-xs text-text-muted">
-            Controlează vizibilitatea proiectului pentru angajați în aplicația mobilă.
-          </p>
         </div>
 
         {formError && (

@@ -133,6 +133,23 @@ export default function ProjectsPage() {
             nullableCell(null)
           ),
       },
+      {
+        key: 'visibleForRoles',
+        header: 'Vizibil pentru',
+        width: '160px',
+        className: 'text-text-secondary',
+        render: (row) => {
+          const roles = row.visibleForRoles ?? [];
+          if (roles.length === 0) {
+            return <span className="text-text-muted">Toți</span>;
+          }
+          return (
+            <span className="truncate" title={roles.map((role) => role.name).join(', ')}>
+              {roles.map((role) => role.name).join(', ')}
+            </span>
+          );
+        },
+      },
     ];
   }, []);
 

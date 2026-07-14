@@ -48,12 +48,19 @@ export async function seedFixtures(): Promise<void> {
   const client = getTestPrisma();
   const passwordHash = await bcrypt.hash(E2E_PASSWORD, 12);
 
-  await client.employeeRole.create({
-    data: {
-      id: FIXTURES.employeeRole.id,
-      name: FIXTURES.employeeRole.name,
-      isActive: true,
-    },
+  await client.employeeRole.createMany({
+    data: [
+      {
+        id: FIXTURES.employeeRole.id,
+        name: FIXTURES.employeeRole.name,
+        isActive: true,
+      },
+      {
+        id: FIXTURES.employeeRole2.id,
+        name: FIXTURES.employeeRole2.name,
+        isActive: true,
+      },
+    ],
   });
 
   await client.activity.createMany({
@@ -110,7 +117,24 @@ export async function seedFixtures(): Promise<void> {
         readyForExecution: true,
         deletedAt: new Date('2020-01-01T00:00:00.000Z'),
       },
+      {
+        id: FIXTURES.projects.roleRestricted.id,
+        name: 'E2E Role Restricted Project',
+        code: FIXTURES.projects.roleRestricted.code,
+        companyId: FIXTURES.companies.c1.id,
+        readyForExecution: true,
+        color: '#778899',
+      },
     ],
+  });
+
+  await client.project.update({
+    where: { id: FIXTURES.projects.roleRestricted.id },
+    data: {
+      visibleForRoles: {
+        connect: [{ id: FIXTURES.employeeRole.id }],
+      },
+    },
   });
 
   await client.person.createMany({

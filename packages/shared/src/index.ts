@@ -93,6 +93,7 @@ export type {
   ProjectDto,
   ProjectCompanyDto,
   ProjectOptionDto,
+  ProjectVisibleRoleDto,
   ProjectStatus,
   ProjectStatusGroup,
   CreateProjectInput,

@@ -49,6 +49,48 @@ function EyeIcon() {
   );
 }
 
+function RefreshIcon({ spinning }: { spinning: boolean }) {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={spinning ? 'flow-refresh-icon flow-refresh-icon-spinning' : 'flow-refresh-icon'}
+    >
+      <path
+        d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M3 3v5h5"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M16 16h5v5"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectProps) {
   const {
     projects,
@@ -98,7 +140,19 @@ export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectPro
       )}
 
       <p className="flow-step-label">PASUL 1 DIN 2</p>
-      <h2 className="flow-heading">Alege proiectul</h2>
+      <div className="flow-heading-row">
+        <h2 className="flow-heading">Alege proiectul</h2>
+        <button
+          type="button"
+          className="flow-refresh-button"
+          onClick={() => void refreshProjects()}
+          disabled={isFetchingProjects}
+          aria-label="Reîmprospătează proiectele"
+          aria-busy={isFetchingProjects}
+        >
+          <RefreshIcon spinning={isFetchingProjects} />
+        </button>
+      </div>
 
       {showProjectsSkeleton && <ProjectListSkeleton />}
 
