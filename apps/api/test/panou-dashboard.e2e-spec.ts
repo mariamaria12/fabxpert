@@ -210,6 +210,25 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
       .expect(200);
 
     expect(metrics.body.todayOnLeaveCount).toBeGreaterThanOrEqual(1);
+
+    const onLeaveToday = await request(app.getHttpServer())
+      .get('/leave-requests/on-leave')
+      .query({ period: 'today' })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    const matchingRow = onLeaveToday.body.requests.find(
+      (row: { id: string }) => row.id === create.body.leaveRequest.id,
+    );
+    expect(matchingRow).toMatchObject({
+      person: {
+        id: FIXTURES.persons.employee1.id,
+      },
+      type: 'ODIHNA',
+      startDate: today,
+      endDate: today,
+      dayCount: 1,
+    });
   });
 
   it('rejects invalid period on person-summary', async () => {

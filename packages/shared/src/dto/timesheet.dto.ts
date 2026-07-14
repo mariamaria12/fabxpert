@@ -76,7 +76,7 @@ export type TimesheetDto = {
   updatedAt: string;
 };
 
-export type TimesheetSummaryPeriod = 'today' | 'week' | 'month' | 'all' | 'custom';
+export type TimesheetSummaryPeriod = 'today' | 'yesterday' | 'week' | 'month' | 'all' | 'custom';
 
 /** @deprecated Use TimesheetSummaryPeriod — kept as alias for project-summary responses */
 export type ProjectSummaryPeriod = TimesheetSummaryPeriod;

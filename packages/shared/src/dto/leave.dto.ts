@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { TimesheetSummaryPeriod } from './timesheet.dto';
 
 export const LEAVE_TYPE_VALUES = ['ODIHNA', 'MEDICAL', 'NEPLATIT'] as const;
 export const LEAVE_STATUS_VALUES = [
@@ -93,6 +94,14 @@ export type LeaveBalanceDto = {
   usedDays: number;
   remainingDays: number;
 };
+
+export type OnLeaveResponse = {
+  period: TimesheetSummaryPeriod;
+  requests: LeaveRequestDto[];
+};
+
+/** @deprecated Use OnLeaveResponse */
+export type OnLeaveTodayResponse = OnLeaveResponse;
 
 /** Employee create/update responses include current balance for UI warnings. */
 export type EmployeeLeaveRequestResponse = {

@@ -58,6 +58,13 @@ export function resolveSummaryPeriodRange(
     };
   }
 
+  if (period === 'yesterday') {
+    const to = startOfToday(now);
+    const from = new Date(to);
+    from.setDate(from.getDate() - 1);
+    return { period, from, to };
+  }
+
   if (period === 'month') {
     const from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
     const to = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0);
@@ -108,6 +115,7 @@ export function parseSummaryPeriodQuery(query: Record<string, string>): Resolved
 function zSafePeriod(value: string): TimesheetSummaryPeriod | null {
   if (
     value === 'today' ||
+    value === 'yesterday' ||
     value === 'week' ||
     value === 'month' ||
     value === 'all' ||

@@ -1,11 +1,13 @@
 import { request } from './client';
 import type { PaginatedResponse } from '../dto/pagination.dto';
+import { periodToQuery, type Period } from '../period';
 import type {
   CreateLeaveRequestInput,
   EmployeeLeaveRequestResponse,
   LeaveBalanceDto,
   LeaveRequestDto,
   LeaveStatus,
+  OnLeaveResponse,
   ReviewLeaveRequestInput,
   ReviewLeaveRequestResponse,
   UpdateLeaveRequestInput,
@@ -79,6 +81,25 @@ export function listLeaveRequests(params?: ListLeaveRequestsParams) {
   return request<PaginatedResponse<LeaveRequestDto>>(
     `/leave-requests${buildListQuery(params)}`,
   );
+}
+
+export function getOnLeave(period: Period = { kind: 'today' }) {
+  const searchParams = new URLSearchParams();
+  const query = periodToQuery(period);
+  searchParams.set('period', query.period);
+  if (query.from?.trim()) {
+    searchParams.set('from', query.from.trim());
+  }
+  if (query.to?.trim()) {
+    searchParams.set('to', query.to.trim());
+  }
+  const queryString = searchParams.toString();
+  return request<OnLeaveResponse>(`/leave-requests/on-leave${queryString ? `?${queryString}` : ''}`);
+}
+
+/** @deprecated Use getOnLeave */
+export function getOnLeaveToday() {
+  return getOnLeave({ kind: 'today' });
 }
 
 export function getLeaveRequest(id: string) {

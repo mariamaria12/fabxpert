@@ -10,7 +10,7 @@ import {
 import type { DashboardMetricsResponse, Period } from '@fabxpert/shared';
 import { isPeriodQueryReady } from '@fabxpert/shared';
 
-export type PanouView = 'projects' | 'hours' | 'people';
+export type PanouView = 'projects' | 'hours' | 'people' | 'onLeave';
 
 export type PanouDashboardContextValue = {
   activeView: PanouView;
@@ -30,7 +30,8 @@ export function PanouDashboardProvider({ children }: { children: ReactNode }) {
   const [period, setPeriod] = useState<Period>({ kind: 'today' });
   const [metrics, setMetrics] = useState<DashboardMetricsResponse | null>(null);
 
-  const showPeriodSelector = activeView === 'hours' || activeView === 'people';
+  const showPeriodSelector =
+    activeView === 'hours' || activeView === 'people' || activeView === 'onLeave';
   const periodReady = isPeriodQueryReady(period);
 
   const value = useMemo(

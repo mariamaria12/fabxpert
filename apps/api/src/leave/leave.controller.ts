@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  BadRequestException,
   HttpCode,
   HttpStatus,
   Param,
@@ -27,6 +28,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { parsePagination } from '../common/pagination/parse-pagination.util';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { LeaveService, type LeaveRequestListFilters } from './leave.service';
+import { parseSummaryPeriodQuery } from '../timesheet/timesheet-summary-period.util';
 
 const idParamSchema = z.string().trim().min(1);
 
@@ -75,6 +77,17 @@ export class LeaveController {
     @Param('personId', new ZodValidationPipe(uuidQuerySchema)) personId: string,
   ) {
     return this.leaveService.getBalanceForPerson(personId);
+  }
+
+  @Get('on-leave')
+  @Roles('ADMIN')
+  findOnLeave(@Query() query: Record<string, string>) {
+    const resolved = parseSummaryPeriodQuery(query);
+    if (resolved.from === null || resolved.to === null) {
+      throw new BadRequestException('on-leave requires a bounded period');
+    }
+
+    return this.leaveService.findOnLeave(resolved.period, resolved.from, resolved.to);
   }
 
   @Get()

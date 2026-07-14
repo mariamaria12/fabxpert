@@ -4,6 +4,7 @@ import { usePanouDashboard } from './PanouDashboardContext';
 import { PanouHoursView } from './PanouHoursView';
 import { PanouProjectsView } from './PanouProjectsView';
 import { PanouPeopleView } from './PanouPeopleView';
+import { PanouOnLeaveView } from './PanouOnLeaveView';
 
 export function PanouContentViews() {
   const { activeView } = usePanouDashboard();
@@ -18,6 +19,9 @@ export function PanouContentViews() {
       </div>
       <div className={activeView === 'people' ? undefined : 'hidden'}>
         <PanouPeopleView />
+      </div>
+      <div className={activeView === 'onLeave' ? undefined : 'hidden'}>
+        <PanouOnLeaveView />
       </div>
     </>
   );

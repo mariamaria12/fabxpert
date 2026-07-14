@@ -2,6 +2,7 @@ import type { TimesheetSummaryPeriod } from './dto/timesheet.dto';
 
 export type Period =
   | { kind: 'today' }
+  | { kind: 'yesterday' }
   | { kind: 'week' }
   | { kind: 'month' }
   | { kind: 'custom'; from: string; to: string };

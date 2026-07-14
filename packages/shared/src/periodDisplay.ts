@@ -102,12 +102,18 @@ export function getCalendarMonthRange(now = new Date()): { from: Date; to: Date 
 }
 
 export function formatPeriodCardSubLabel(
-  kind: 'today' | 'week' | 'month' | 'custom',
+  kind: 'today' | 'yesterday' | 'week' | 'month' | 'custom',
   now = new Date(),
   custom?: { from: string; to: string },
 ): string {
   if (kind === 'today') {
     return formatRomanianDayMonth(now);
+  }
+
+  if (kind === 'yesterday') {
+    const yesterday = startOfToday(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return formatRomanianDayMonth(yesterday);
   }
 
   if (kind === 'week') {

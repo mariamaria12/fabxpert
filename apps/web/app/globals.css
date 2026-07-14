@@ -1,6 +1,15 @@
 @import 'tailwindcss';
 @config '../tailwind.config.ts';
 
+/* Popover/dropdown elevation — web-only extensions atop shared tokens. */
+:root {
+  --color-surface-popover: #35342c;
+  --color-surface-popover-hover: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.24);
+  --color-accent-tint-strong: rgba(217, 164, 65, 0.28);
+  --shadow-popover: 0 12px 32px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
 html {
   font-size: 20px;
 }

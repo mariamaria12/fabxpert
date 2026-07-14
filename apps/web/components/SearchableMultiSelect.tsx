@@ -12,13 +12,14 @@ import {
 import { createPortal } from 'react-dom';
 import { computeDropdownPlacement } from './dropdownPlacement';
 import {
-  FORM_COMBO_INPUT_CLASS,
   FORM_DROPDOWN_CLASS,
+  FORM_DROPDOWN_EMPTY_CLASS,
   FORM_LABEL_CLASS,
   formDropdownOptionClass,
 } from './formFieldStyles';
 import { matchesSearchText } from '@/utils/searchText';
 import type { SearchableSelectOption } from './SearchableSelect';
+import { contrastTextOnHex } from './roleColors';
 import { getBusinessInputAutofillProps } from './inputAutofill';
 
 export interface SearchableMultiSelectProps {
@@ -81,11 +82,11 @@ export function SearchableMultiSelect({
   const firstSelectableId = selectableOptions[0]?.id ?? null;
 
   const updateDropdownPosition = useCallback(() => {
-    if (!inputRef.current) {
+    if (!fieldRef.current) {
       return;
     }
 
-    setDropdownStyle(computeDropdownPlacement(inputRef.current));
+    setDropdownStyle(computeDropdownPlacement(fieldRef.current));
   }, []);
 
   useEffect(() => {
@@ -239,7 +240,7 @@ export function SearchableMultiSelect({
             }}
           >
             {selectableOptions.length === 0 ? (
-              <li className="px-3 py-2 text-sm text-text-muted">{emptyMessage}</li>
+              <li className={FORM_DROPDOWN_EMPTY_CLASS}>{emptyMessage}</li>
             ) : (
               selectableOptions.map((option) => {
                 const isHighlighted = option.id === highlightedId;
@@ -251,9 +252,16 @@ export function SearchableMultiSelect({
                       aria-selected={false}
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => addOption(option)}
-                      className={formDropdownOptionClass(isHighlighted)}
+                      className={`${formDropdownOptionClass(isHighlighted)} items-center`}
                     >
-                      <span className={`truncate${isHighlighted ? ' font-medium' : ''}`}>{option.label}</span>
+                      {option.color ? (
+                        <span
+                          className="size-2.5 shrink-0 rounded-sm"
+                          style={{ backgroundColor: option.color }}
+                          aria-hidden="true"
+                        />
+                      ) : null}
+                      <span className="min-w-0 flex-1 font-medium">{option.label}</span>
                     </button>
                   </li>
                 );
@@ -270,56 +278,90 @@ export function SearchableMultiSelect({
         {label}
       </label>
 
-      {selectedOptions.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-2">
-          {selectedOptions.map((option) => (
-            <span
-              key={option.id}
-              className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-surface-raised px-2 py-1 text-xs text-text-primary"
-            >
-              <span>{option.label}</span>
-              <button
-                type="button"
-                disabled={disabled}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => removeOption(option.id)}
-                aria-label={`Elimină ${option.label}`}
-                className="text-text-muted transition-colors hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <i className="ti ti-x text-sm" aria-hidden="true" />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-
       <div ref={fieldRef} className="relative">
-        <input
-          ref={inputRef}
-          id={id}
-          type="text"
-          value={query}
-          disabled={disabled}
-          placeholder={placeholder}
+        <div
           role="combobox"
           aria-expanded={isOpen}
           aria-controls={listboxId}
           aria-haspopup="listbox"
-          aria-autocomplete="list"
-          {...getBusinessInputAutofillProps(autofillTrapId)}
-          onFocus={openDropdown}
-          onBlur={handleInputBlur}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            if (!isOpen) {
-              openDropdown();
+          aria-labelledby={`${id}-label`}
+          onMouseDown={(event) => {
+            if (disabled) {
+              return;
             }
+            const target = event.target as HTMLElement;
+            if (target.closest('button')) {
+              return;
+            }
+            event.preventDefault();
+            inputRef.current?.focus();
+            openDropdown();
           }}
-          onKeyDown={handleKeyDown}
-          className={FORM_COMBO_INPUT_CLASS}
-        />
+          className={`flex min-h-[42px] w-full flex-wrap items-center gap-1.5 rounded-md border border-border bg-bg py-2 pl-3 pr-10 transition-colors hover:border-text-muted/40 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/25${
+            disabled ? ' cursor-not-allowed opacity-60' : ''
+          }`}
+        >
+          {selectedOptions.map((option) => {
+            const chipTextColor = option.color ? contrastTextOnHex(option.color) : undefined;
+
+            return (
+              <span
+                key={option.id}
+                className={`inline-flex max-w-full items-center gap-1 rounded border px-1.5 py-0.5 text-xs${
+                  option.color ? '' : ' border-border-subtle bg-surface text-text-primary'
+                }`}
+                style={
+                  option.color
+                    ? {
+                        backgroundColor: option.color,
+                        borderColor: option.color,
+                        color: chipTextColor,
+                      }
+                    : undefined
+                }
+              >
+                <span>{option.label}</span>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => removeOption(option.id)}
+                  aria-label={`Elimină ${option.label}`}
+                  className="shrink-0 opacity-80 transition-opacity hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  style={chipTextColor ? { color: chipTextColor } : undefined}
+                >
+                  <i className="ti ti-x text-xs" aria-hidden="true" />
+                </button>
+              </span>
+            );
+          })}
+
+          <input
+            ref={inputRef}
+            id={id}
+            type="text"
+            value={query}
+            disabled={disabled}
+            placeholder={selectedOptions.length === 0 ? placeholder : ''}
+            aria-autocomplete="list"
+            {...getBusinessInputAutofillProps(autofillTrapId)}
+            onFocus={openDropdown}
+            onBlur={handleInputBlur}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              if (!isOpen) {
+                openDropdown();
+              }
+            }}
+            onKeyDown={handleKeyDown}
+            className={`min-w-[6rem] border-0 bg-transparent py-0.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-0 disabled:cursor-not-allowed${
+              selectedOptions.length === 0 ? 'min-w-0 flex-1 basis-full' : 'flex-1 basis-[6rem]'
+            }`}
+          />
+        </div>
+
         <i
-          className={`ti ${isOpen ? 'ti-chevron-up' : 'ti-chevron-down'} pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-base text-text-secondary`}
+          className={`ti ${isOpen ? 'ti-chevron-up' : 'ti-chevron-down'} pointer-events-none absolute right-3 top-3 text-base text-text-secondary`}
           aria-hidden="true"
         />
       </div>

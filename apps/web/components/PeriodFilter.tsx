@@ -12,6 +12,7 @@ type PeriodKind = Period['kind'];
 
 const PERIOD_CARDS: { kind: PeriodKind; label: string }[] = [
   { kind: 'today', label: 'Azi' },
+  { kind: 'yesterday', label: 'Ieri' },
   { kind: 'week', label: 'Săptămâna' },
   { kind: 'month', label: 'Luna' },
   { kind: 'custom', label: 'Interval' },
@@ -86,7 +87,7 @@ export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) 
     }
   }, [value]);
 
-  function selectPreset(kind: 'today' | 'week' | 'month') {
+  function selectPreset(kind: 'today' | 'yesterday' | 'week' | 'month') {
     setCustomMode(false);
     setCustomError(null);
     onChange({ kind });
@@ -127,7 +128,7 @@ export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) 
   return (
     <div className={className}>
       <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
-        <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {PERIOD_CARDS.map((card) => {
             const selected = isCardSelected(value, card.kind, customMode);
             return (

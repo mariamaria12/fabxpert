@@ -14,6 +14,7 @@ import { computeDropdownPlacement } from './dropdownPlacement';
 import {
   FORM_COMBO_INPUT_CLASS,
   FORM_DROPDOWN_CLASS,
+  FORM_DROPDOWN_EMPTY_CLASS,
   FORM_LABEL_CLASS,
   formDropdownOptionClass,
 } from './formFieldStyles';
@@ -26,6 +27,7 @@ export interface SearchableSelectOption {
   description?: string;
   disabled?: boolean;
   disabledSuffix?: string;
+  color?: string | null;
 }
 
 export interface SearchableSelectProps {
@@ -266,31 +268,37 @@ export function SearchableSelect({
             }}
           >
             {filteredOptions.length === 0 ? (
-              <li className="px-3 py-2 text-sm text-text-muted">{emptyMessage}</li>
+              <li className={FORM_DROPDOWN_EMPTY_CLASS}>{emptyMessage}</li>
             ) : (
               filteredOptions.map((option) => {
                 const isHighlighted = option.id === highlightedOptionId;
+                const isSelected = value === option.id;
                 return (
                   <li key={option.id} role="presentation">
                     <button
                       type="button"
                       role="option"
-                      aria-selected={value === option.id}
+                      aria-selected={isSelected}
                       disabled={option.disabled}
                       onMouseDown={(event) => {
                         event.preventDefault();
                         selectOption(option);
                       }}
-                      className={formDropdownOptionClass(isHighlighted)}
+                      className={formDropdownOptionClass(isHighlighted, isSelected)}
                     >
-                      <span className={option.disabled ? 'text-text-muted' : 'font-medium'}>
+                      <span
+                        className={`min-w-0 flex-1 ${option.disabled ? 'text-text-muted' : 'font-medium'}`}
+                      >
                         {option.label}
                       </span>
                       {option.description && (
-                        <span className="text-text-muted">· {option.description}</span>
+                        <span className="shrink-0 text-text-secondary">· {option.description}</span>
                       )}
                       {option.disabled && option.disabledSuffix && (
-                        <span className="text-text-muted">· {option.disabledSuffix}</span>
+                        <span className="shrink-0 text-text-muted">· {option.disabledSuffix}</span>
+                      )}
+                      {isSelected && (
+                        <i className="ti ti-check shrink-0 text-base text-accent" aria-hidden="true" />
                       )}
                     </button>
                   </li>

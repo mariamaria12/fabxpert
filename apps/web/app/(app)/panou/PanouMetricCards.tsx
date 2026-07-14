@@ -51,7 +51,7 @@ export function PanouMetricCards() {
 
   function selectView(view: PanouView) {
     setActiveView(view);
-    if (view === 'hours' || view === 'people') {
+    if (view === 'hours' || view === 'people' || view === 'onLeave') {
       setPeriod({ kind: 'today' });
     }
   }
@@ -104,7 +104,19 @@ export function PanouMetricCards() {
         );
       })}
       {onLeaveCount > 0 && (
-        <div className={`${cardClassName} text-text-secondary`}>
+        <button
+          type="button"
+          aria-pressed={activeView === 'onLeave'}
+          onClick={() => {
+            setActiveView('onLeave');
+            setPeriod({ kind: 'today' });
+          }}
+          className={`${cardClassName} transition-colors ${
+            activeView === 'onLeave'
+              ? 'border-accent/30 bg-accent/10 text-accent'
+              : 'text-text-secondary hover:bg-surface-raised hover:text-text-primary'
+          }`}
+        >
           <span className="inline-flex items-center gap-1.5 text-xs font-medium">
             <i className="ti ti-calendar-off text-sm" aria-hidden="true" />
             În concediu azi
@@ -112,7 +124,7 @@ export function PanouMetricCards() {
           <span className="mt-1 text-lg font-medium tabular-nums text-text-primary">
             {onLeaveCount}
           </span>
-        </div>
+        </button>
       )}
     </div>
   );

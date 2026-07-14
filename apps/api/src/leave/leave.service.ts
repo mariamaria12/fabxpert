@@ -11,10 +11,12 @@ import type {
   EmployeeLeaveRequestResponse,
   LeaveBalanceDto,
   LeaveRequestDto,
+  OnLeaveResponse,
   ReviewLeaveRequestInput,
   ReviewLeaveRequestResponse,
   UpdateLeaveRequestInput,
 } from '@fabxpert/shared/dto/leave.dto';
+import type { TimesheetSummaryPeriod } from '@fabxpert/shared/dto/timesheet.dto';
 import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
 import {
   countInclusiveLeaveDays,
@@ -147,6 +149,32 @@ export class LeaveService {
     return {
       data: rows.map(toLeaveRequestDto),
       meta: { page, pageSize, total, totalPages },
+    };
+  }
+
+  async findOnLeave(
+    period: TimesheetSummaryPeriod,
+    from: Date,
+    to: Date,
+  ): Promise<OnLeaveResponse> {
+    const rows = await this.prisma.leaveRequest.findMany({
+      where: {
+        ...notDeleted(),
+        status: 'APROBAT',
+        startDate: { lt: to },
+        endDate: { gte: from },
+      },
+      include: leaveRequestInclude,
+      orderBy: [
+        { person: { lastName: 'asc' } },
+        { person: { firstName: 'asc' } },
+        { startDate: 'asc' },
+      ],
+    });
+
+    return {
+      period,
+      requests: rows.map(toLeaveRequestDto),
     };
   }
 

@@ -26,6 +26,7 @@ import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { loadAllPages } from '@/utils/loadAllPages';
+import { buildStableIndexMap, getRolePaletteColor } from '@/components/roleColors';
 
 interface ProjectFormValues {
   name: string;
@@ -299,19 +300,42 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
   const employeeRoleOptions = useMemo((): SearchableSelectOption[] => {
     const seen = new Set<string>();
     const options: SearchableSelectOption[] = [];
+    const rolesForColorIndex: EmployeeRoleDto[] = [...employeeRoles];
+
+    const assignedRoles = editProject?.visibleForRoles ?? project?.visibleForRoles ?? [];
+    for (const role of assignedRoles) {
+      if (!rolesForColorIndex.some((entry) => entry.id === role.id)) {
+        rolesForColorIndex.push({
+          id: role.id,
+          name: role.name,
+          isActive: false,
+          createdAt: role.id,
+          updatedAt: role.id,
+        });
+      }
+    }
+
+    const roleColorById = buildStableIndexMap(rolesForColorIndex);
 
     for (const role of employeeRoles) {
       seen.add(role.id);
-      options.push({ id: role.id, label: role.name });
+      options.push({
+        id: role.id,
+        label: role.name,
+        color: getRolePaletteColor(roleColorById.get(role.id) ?? 0),
+      });
     }
 
-    const assignedRoles = editProject?.visibleForRoles ?? project?.visibleForRoles ?? [];
     for (const role of assignedRoles) {
       if (seen.has(role.id)) {
         continue;
       }
       seen.add(role.id);
-      options.push({ id: role.id, label: `${role.name} (inactivă)` });
+      options.push({
+        id: role.id,
+        label: `${role.name} (inactivă)`,
+        color: getRolePaletteColor(roleColorById.get(role.id) ?? 0),
+      });
     }
 
     return options.sort((left, right) => left.label.localeCompare(right.label, 'ro'));
@@ -514,6 +538,34 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
           onDraftInvalidChange={setColorDraftInvalid}
         />
 
+        <SearchableMultiSelect
+          id="visibleForRoleIds"
+          label="Vizibil pentru"
+          values={values.visibleForRoleIds}
+          options={employeeRoleOptions}
+          disabled={isBusy || employeeRolesLoading || editProjectLoading}
+          placeholder="Caută funcție…"
+          emptyMessage="Nicio funcție găsită."
+          helperText="Lasă gol pentru a fi vizibil tuturor angajaților."
+          onChange={(visibleForRoleIds) => updateField('visibleForRoleIds', visibleForRoleIds)}
+        />
+
+        <div>
+          <label className="inline-flex items-center gap-2 text-sm text-text-secondary">
+            <input
+              type="checkbox"
+              checked={values.readyForExecution}
+              disabled={isBusy}
+              onChange={(event) => updateField('readyForExecution', event.target.checked)}
+              className="size-4 rounded border-border accent-accent"
+            />
+            Gata de execuție
+          </label>
+          <p className="mt-1.5 text-xs text-text-muted">
+            Proiectele gata de execuție apar angajaților în aplicația mobilă.
+          </p>
+        </div>
+
         <TextField
           id="name"
           label="Nume"
@@ -552,34 +604,6 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
               updateField('companyId', companyId);
             }
           }}
-        />
-
-        <div>
-          <label className="inline-flex items-center gap-2 text-sm text-text-secondary">
-            <input
-              type="checkbox"
-              checked={values.readyForExecution}
-              disabled={isBusy}
-              onChange={(event) => updateField('readyForExecution', event.target.checked)}
-              className="size-4 rounded border-border accent-accent"
-            />
-            Gata de execuție
-          </label>
-          <p className="mt-1.5 text-xs text-text-muted">
-            Proiectele gata de execuție apar angajaților în aplicația mobilă.
-          </p>
-        </div>
-
-        <SearchableMultiSelect
-          id="visibleForRoleIds"
-          label="Vizibil pentru"
-          values={values.visibleForRoleIds}
-          options={employeeRoleOptions}
-          disabled={isBusy || employeeRolesLoading || editProjectLoading}
-          placeholder="Caută funcție…"
-          emptyMessage="Nicio funcție găsită."
-          helperText="Lasă gol pentru a fi vizibil tuturor angajaților."
-          onChange={(visibleForRoleIds) => updateField('visibleForRoleIds', visibleForRoleIds)}
         />
 
         <SearchableSelect
