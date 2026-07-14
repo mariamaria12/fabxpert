@@ -13,7 +13,7 @@ type PeriodKind = Period['kind'];
 const PERIOD_CARDS: { kind: PeriodKind; label: string }[] = [
   { kind: 'today', label: 'Azi' },
   { kind: 'yesterday', label: 'Ieri' },
-  { kind: 'week', label: 'Săptămâna' },
+  { kind: 'week', label: 'Săpt.' },
   { kind: 'month', label: 'Luna' },
   { kind: 'custom', label: 'Interval' },
 ];
