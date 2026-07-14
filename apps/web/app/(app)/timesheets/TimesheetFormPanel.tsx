@@ -23,6 +23,7 @@ import {
   parseDurationMinutesInput,
 } from './timesheetFormat';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
+import { SelectField } from '@/components/SelectField';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 
@@ -132,58 +133,6 @@ function FormField({
         onChange={(event) => onChange(event.target.value)}
         className={inputClassName}
       />
-      {error && (
-        <p role="alert" className="mt-1 text-xs text-danger">
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
-
-interface SelectFieldProps {
-  id: keyof TimesheetFormValues;
-  label: string;
-  value: string;
-  error?: string;
-  disabled?: boolean;
-  required?: boolean;
-  placeholder: string;
-  options: { id: string; label: string }[];
-  onChange: (value: string) => void;
-}
-
-function SelectField({
-  id,
-  label,
-  value,
-  error,
-  disabled,
-  required,
-  placeholder,
-  options,
-  onChange,
-}: SelectFieldProps) {
-  return (
-    <div>
-      <label htmlFor={id} className="mb-1.5 block text-xs text-text-secondary">
-        {label}
-        {required && <span className="text-danger"> *</span>}
-      </label>
-      <select
-        id={id}
-        value={value}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-        className={inputClassName}
-      >
-        <option value="">{placeholder}</option>
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.label}
-          </option>
-        ))}
-      </select>
       {error && (
         <p role="alert" className="mt-1 text-xs text-danger">
           {error}
@@ -464,6 +413,7 @@ export function TimesheetFormPanel({
           error={fieldErrors.personId}
           disabled={isBusy}
           required
+          allowEmpty
           placeholder="Selectează persoana"
           options={personOptions}
           onChange={(value) => updateField('personId', value)}
@@ -476,6 +426,7 @@ export function TimesheetFormPanel({
           error={fieldErrors.projectId}
           disabled={isBusy}
           required
+          allowEmpty
           placeholder="Selectează proiectul"
           options={projectOptions}
           onChange={(value) => updateField('projectId', value)}
@@ -486,6 +437,7 @@ export function TimesheetFormPanel({
           label="Activitate"
           value={values.activityId}
           disabled={isBusy}
+          allowEmpty
           placeholder="Fără activitate"
           options={activityOptions}
           onChange={(value) => updateField('activityId', value)}

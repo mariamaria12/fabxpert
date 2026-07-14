@@ -10,6 +10,13 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { computeDropdownPlacement } from './dropdownPlacement';
+import {
+  FORM_COMBO_INPUT_CLASS,
+  FORM_DROPDOWN_CLASS,
+  FORM_LABEL_CLASS,
+  formDropdownOptionClass,
+} from './formFieldStyles';
 import { matchesSearchText } from '@/utils/searchText';
 
 export interface SearchableSelectOption {
@@ -33,10 +40,9 @@ export interface SearchableSelectProps {
   error?: string;
   /** Shown when value is set but the matching option is not loaded yet. */
   selectedLabel?: string;
+  /** When false, selection cannot be cleared (always shows chevron, no ×). */
+  clearable?: boolean;
 }
-
-const inputClassName =
-  'w-full rounded-md border border-border bg-surface-raised py-[10px] pl-3 pr-9 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
 
 export function SearchableSelect({
   id,
@@ -50,8 +56,10 @@ export function SearchableSelect({
   disabled = false,
   error,
   selectedLabel,
+  clearable = true,
 }: SearchableSelectProps) {
   const listboxId = useId();
+  const autofillTrapId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLUListElement>(null);
@@ -62,6 +70,7 @@ export function SearchableSelect({
     top: number;
     left: number;
     width: number;
+    maxHeight: number;
   } | null>(null);
 
   const selectedOption = useMemo(
@@ -87,16 +96,11 @@ export function SearchableSelect({
   const firstSelectableId = selectableOptions[0]?.id ?? null;
 
   const updateDropdownPosition = useCallback(() => {
-    const rect = inputRef.current?.getBoundingClientRect();
-    if (!rect) {
+    if (!inputRef.current) {
       return;
     }
 
-    setDropdownStyle({
-      top: rect.bottom + 4,
-      left: rect.left,
-      width: rect.width,
-    });
+    setDropdownStyle(computeDropdownPlacement(inputRef.current));
   }, []);
 
   useEffect(() => {
@@ -136,8 +140,8 @@ export function SearchableSelect({
       setQuery('');
     }
 
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => document.removeEventListener('mousedown', handlePointerDown);
+    document.addEventListener('mousedown', handlePointerDown, true);
+    return () => document.removeEventListener('mousedown', handlePointerDown, true);
   }, [isOpen]);
 
   function openDropdown() {
@@ -252,11 +256,12 @@ export function SearchableSelect({
             id={listboxId}
             role="listbox"
             aria-labelledby={`${id}-label`}
-            className="fixed z-[60] max-h-60 overflow-y-auto rounded-md border border-border bg-surface py-1 shadow-lg"
+            className={FORM_DROPDOWN_CLASS}
             style={{
               top: dropdownStyle.top,
               left: dropdownStyle.left,
               width: dropdownStyle.width,
+              maxHeight: dropdownStyle.maxHeight,
             }}
           >
             {filteredOptions.length === 0 ? (
@@ -275,11 +280,7 @@ export function SearchableSelect({
                         event.preventDefault();
                         selectOption(option);
                       }}
-                      className={`flex w-full items-baseline gap-2 px-3 py-2 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                        isHighlighted
-                          ? 'bg-accent/10 text-accent'
-                          : 'text-text-primary hover:bg-surface-raised'
-                      }`}
+                      className={formDropdownOptionClass(isHighlighted)}
                     >
                       <span className={option.disabled ? 'text-text-muted' : 'font-medium'}>
                         {option.label}
@@ -302,7 +303,7 @@ export function SearchableSelect({
 
   return (
     <div ref={containerRef} className="relative">
-      <label id={`${id}-label`} htmlFor={id} className="mb-1.5 block text-xs text-text-secondary">
+      <label id={`${id}-label`} htmlFor={id} className={FORM_LABEL_CLASS}>
         {label}
         {required && <span className="text-danger"> *</span>}
       </label>
@@ -311,11 +312,17 @@ export function SearchableSelect({
         <input
           ref={inputRef}
           id={id}
+          name={`combobox-${autofillTrapId.replace(/:/g, '')}`}
           type="text"
           role="combobox"
           aria-expanded={isOpen}
           aria-controls={listboxId}
+          aria-haspopup="listbox"
           aria-autocomplete="list"
+          autoComplete="new-password"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
           value={displayValue}
           disabled={disabled}
           placeholder={placeholder}
@@ -324,7 +331,7 @@ export function SearchableSelect({
           onChange={(event) => {
             const nextText = event.target.value;
             setQuery(nextText);
-            if (value !== null && nextText !== closedLabel) {
+            if (value !== null && nextText !== closedLabel && clearable) {
               onChange(null);
             }
             if (!isOpen) {
@@ -334,19 +341,24 @@ export function SearchableSelect({
             setHighlightedId(firstSelectableId);
           }}
           onKeyDown={handleKeyDown}
-          className={inputClassName}
+          className={FORM_COMBO_INPUT_CLASS}
         />
 
-        {value && !disabled && (
+        {value && !disabled && clearable ? (
           <button
             type="button"
             aria-label="Șterge selecția"
             onMouseDown={(event) => event.preventDefault()}
             onClick={clearSelection}
-            className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded text-text-muted transition-colors hover:bg-surface hover:text-text-primary"
+            className="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded text-text-secondary transition-colors hover:bg-surface hover:text-text-primary"
           >
-            <i className="ti ti-x text-sm" aria-hidden="true" />
+            <i className="ti ti-x text-base" aria-hidden="true" />
           </button>
+        ) : (
+          <i
+            className={`ti ${isOpen ? 'ti-chevron-up' : 'ti-chevron-down'} pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-base text-text-secondary`}
+            aria-hidden="true"
+          />
         )}
       </div>
 

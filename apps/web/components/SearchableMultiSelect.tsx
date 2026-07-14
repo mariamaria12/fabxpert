@@ -10,6 +10,13 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { computeDropdownPlacement } from './dropdownPlacement';
+import {
+  FORM_COMBO_INPUT_CLASS,
+  FORM_DROPDOWN_CLASS,
+  FORM_LABEL_CLASS,
+  formDropdownOptionClass,
+} from './formFieldStyles';
 import { matchesSearchText } from '@/utils/searchText';
 import type { SearchableSelectOption } from './SearchableSelect';
 
@@ -25,44 +32,6 @@ export interface SearchableMultiSelectProps {
   disabled?: boolean;
   error?: string;
 }
-
-const DROPDOWN_GAP_PX = 4;
-const DROPDOWN_MAX_HEIGHT_PX = 224;
-
-type DropdownPlacement = {
-  top: number;
-  left: number;
-  width: number;
-  maxHeight: number;
-};
-
-function computeDropdownPlacement(input: HTMLElement): DropdownPlacement {
-  const rect = input.getBoundingClientRect();
-  const spaceBelow = window.innerHeight - rect.bottom - DROPDOWN_GAP_PX;
-  const spaceAbove = rect.top - DROPDOWN_GAP_PX;
-  const openUpward = spaceBelow < 180 && spaceAbove > spaceBelow;
-
-  if (openUpward) {
-    const maxHeight = Math.min(DROPDOWN_MAX_HEIGHT_PX, spaceAbove);
-    return {
-      top: rect.top - DROPDOWN_GAP_PX - maxHeight,
-      left: rect.left,
-      width: rect.width,
-      maxHeight,
-    };
-  }
-
-  const maxHeight = Math.min(DROPDOWN_MAX_HEIGHT_PX, spaceBelow);
-  return {
-    top: rect.bottom + DROPDOWN_GAP_PX,
-    left: rect.left,
-    width: rect.width,
-    maxHeight,
-  };
-}
-
-const inputClassName =
-  'w-full rounded-md border border-border bg-surface-raised py-[10px] pl-3 pr-9 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
 
 export function SearchableMultiSelect({
   id,
@@ -83,7 +52,7 @@ export function SearchableMultiSelect({
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
-  const [dropdownStyle, setDropdownStyle] = useState<DropdownPlacement | null>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<ReturnType<typeof computeDropdownPlacement> | null>(null);
 
   const selectedOptions = useMemo(
     () => options.filter((option) => values.includes(option.id)),
@@ -177,9 +146,8 @@ export function SearchableMultiSelect({
       return;
     }
     onChange([...values, option.id]);
-    setQuery('');
-    setHighlightedId(firstSelectableId);
-    inputRef.current?.focus();
+    closeDropdown();
+    inputRef.current?.blur();
   }
 
   function removeOption(optionId: string) {
@@ -260,7 +228,7 @@ export function SearchableMultiSelect({
             id={listboxId}
             role="listbox"
             aria-labelledby={`${id}-label`}
-            className="fixed z-[70] overflow-y-auto rounded-md border border-border-subtle bg-surface py-1 shadow-lg"
+            className={FORM_DROPDOWN_CLASS}
             style={{
               top: dropdownStyle.top,
               left: dropdownStyle.left,
@@ -281,13 +249,9 @@ export function SearchableMultiSelect({
                       aria-selected={false}
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => addOption(option)}
-                      className={`flex w-full items-center px-3 py-2 text-left text-sm transition-colors ${
-                        isHighlighted
-                          ? 'bg-surface-raised text-text-primary'
-                          : 'text-text-primary hover:bg-surface-raised'
-                      }`}
+                      className={formDropdownOptionClass(isHighlighted)}
                     >
-                      <span className="truncate">{option.label}</span>
+                      <span className={`truncate${isHighlighted ? ' font-medium' : ''}`}>{option.label}</span>
                     </button>
                   </li>
                 );
@@ -300,7 +264,7 @@ export function SearchableMultiSelect({
 
   return (
     <div>
-      <label id={`${id}-label`} htmlFor={id} className="mb-1.5 block text-xs text-text-secondary">
+      <label id={`${id}-label`} htmlFor={id} className={FORM_LABEL_CLASS}>
         {label}
       </label>
 
@@ -349,10 +313,10 @@ export function SearchableMultiSelect({
             }
           }}
           onKeyDown={handleKeyDown}
-          className={inputClassName}
+          className={FORM_COMBO_INPUT_CLASS}
         />
         <i
-          className={`ti ${isOpen ? 'ti-chevron-up' : 'ti-chevron-down'} pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-text-muted`}
+          className={`ti ${isOpen ? 'ti-chevron-up' : 'ti-chevron-down'} pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-base text-text-secondary`}
           aria-hidden="true"
         />
       </div>

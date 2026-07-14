@@ -16,6 +16,7 @@ import {
 } from '@fabxpert/shared';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { SearchableSelect, type SearchableSelectOption } from '@/components/SearchableSelect';
+import { SelectField } from '@/components/SelectField';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
@@ -481,21 +482,18 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
           onChange={(value) => updateField('password', value)}
         />
 
-        <div>
-          <label htmlFor="role" className="mb-1.5 block text-xs text-text-secondary">
-            Rol<span className="text-danger"> *</span>
-          </label>
-          <select
-            id="role"
-            value={values.role}
-            disabled={isBusy}
-            onChange={(event) => updateField('role', event.target.value as UserRole)}
-            className={inputClassName}
-          >
-            <option value="ADMIN">ADMIN</option>
-            <option value="EMPLOYEE">EMPLOYEE</option>
-          </select>
-        </div>
+        <SelectField
+          id="role"
+          label="Rol"
+          required
+          value={values.role}
+          disabled={isBusy}
+          options={[
+            { id: 'ADMIN', label: 'ADMIN' },
+            { id: 'EMPLOYEE', label: 'EMPLOYEE' },
+          ]}
+          onChange={(value) => updateField('role', value as UserRole)}
+        />
 
         <SearchableSelect
           id="personId"

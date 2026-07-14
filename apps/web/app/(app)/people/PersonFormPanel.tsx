@@ -13,6 +13,7 @@ import {
 } from '@fabxpert/shared';
 import { useEffect, useState, type FormEvent } from 'react';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
+import { SelectField } from '@/components/SelectField';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 
@@ -116,39 +117,6 @@ function FormField({
           {error}
         </p>
       )}
-    </div>
-  );
-}
-
-interface SelectFieldProps {
-  id: keyof PersonFormValues;
-  label: string;
-  value: string;
-  disabled?: boolean;
-  options: EmployeeRoleDto[];
-  onChange: (value: string) => void;
-}
-
-function SelectField({ id, label, value, disabled, options, onChange }: SelectFieldProps) {
-  return (
-    <div>
-      <label htmlFor={id} className="mb-1.5 block text-xs text-text-secondary">
-        {label}
-      </label>
-      <select
-        id={id}
-        value={value}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-        className={inputClassName}
-      >
-        <option value="">Fără funcție</option>
-        {options.map((role) => (
-          <option key={role.id} value={role.id}>
-            {role.name}
-          </option>
-        ))}
-      </select>
     </div>
   );
 }
@@ -382,7 +350,9 @@ export function PersonFormPanel({ open, mode, person, onClose, onSaved }: Person
           label="Funcție"
           value={values.employeeRoleId}
           disabled={isBusy}
-          options={employeeRoles}
+          allowEmpty
+          placeholder="Fără funcție"
+          options={employeeRoles.map((role) => ({ id: role.id, label: role.name }))}
           onChange={(value) => updateField('employeeRoleId', value)}
         />
 

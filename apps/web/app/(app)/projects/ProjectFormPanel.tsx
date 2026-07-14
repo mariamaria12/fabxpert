@@ -288,6 +288,13 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
     }));
   }, [companies]);
 
+  const statusOptions = useMemo((): SearchableSelectOption[] => {
+    return PROJECT_STATUS_VALUES.map((status) => ({
+      id: status,
+      label: PROJECT_STATUS_META[status].label,
+    }));
+  }, []);
+
   const employeeRoleOptions = useMemo((): SearchableSelectOption[] => {
     const seen = new Set<string>();
     const options: SearchableSelectOption[] = [];
@@ -548,14 +555,19 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
           id="companyId"
           label="Client"
           required
-          placeholder="Caută clientul…"
+          clearable={false}
+          placeholder="Caută client…"
           emptyMessage="Niciun client găsit."
           value={values.companyId || null}
           selectedLabel={selectedCompanyLabel}
           options={companyOptions}
           disabled={isBusy || companiesLoading}
           error={fieldErrors.companyId}
-          onChange={(companyId) => updateField('companyId', companyId ?? '')}
+          onChange={(companyId) => {
+            if (companyId) {
+              updateField('companyId', companyId);
+            }
+          }}
         />
 
         <div>
@@ -586,24 +598,21 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
           onChange={(visibleForRoleIds) => updateField('visibleForRoleIds', visibleForRoleIds)}
         />
 
-        <div>
-          <label htmlFor="status" className="mb-1.5 block text-xs text-text-secondary">
-            Status
-          </label>
-          <select
-            id="status"
-            value={values.status}
-            disabled={isBusy}
-            onChange={(event) => updateField('status', event.target.value as ProjectStatus)}
-            className={inputClassName}
-          >
-            {PROJECT_STATUS_VALUES.map((status) => (
-              <option key={status} value={status}>
-                {PROJECT_STATUS_META[status].label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <SearchableSelect
+          id="status"
+          label="Status"
+          clearable={false}
+          placeholder="Caută status…"
+          emptyMessage="Niciun status găsit."
+          value={values.status}
+          options={statusOptions}
+          disabled={isBusy}
+          onChange={(status) => {
+            if (status) {
+              updateField('status', status as ProjectStatus);
+            }
+          }}
+        />
 
         <div>
           <label htmlFor="startDate" className="mb-1.5 block text-xs text-text-secondary">

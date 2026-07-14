@@ -36,6 +36,9 @@ export interface ColorFieldProps {
 const inputClassName =
   'w-full rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
 
+const SWATCH_BAND_SCROLL_CLASS =
+  'overflow-x-auto rounded-md border border-border-subtle [scrollbar-color:var(--color-border)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent';
+
 function normalizeHex(hex: string): string {
   return hex.toUpperCase();
 }
@@ -88,14 +91,12 @@ function SwatchButton({
       aria-pressed={selected}
       onClick={onClick}
       style={style}
-      className={`relative flex size-[34px] items-center justify-center rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-50 ${className}${
-        selected ? ' ring-2 ring-text-primary ring-offset-1 ring-offset-surface' : ''
-      }`}
+      className={`relative flex h-8 min-w-8 shrink-0 items-center justify-center transition-[filter] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-50 ${selected ? 'brightness-110' : ''} ${className}`}
     >
       {children}
       {selected && checkHex && (
         <i
-          className="ti ti-check absolute text-sm leading-none"
+          className="ti ti-check absolute text-xs leading-none"
           style={{ color: checkIconColor(checkHex) }}
           aria-hidden="true"
         />
@@ -185,47 +186,53 @@ export function ColorField({
         {label}
       </p>
 
-      <div
-        role="group"
-        aria-labelledby={`${id}-label`}
-        className="grid grid-cols-6 gap-2"
-      >
-        {COLOR_PRESETS.map((hex) => (
+      <div className={SWATCH_BAND_SCROLL_CLASS}>
+        <div
+          role="group"
+          aria-labelledby={`${id}-label`}
+          className="flex min-w-full flex-nowrap"
+        >
+          {COLOR_PRESETS.map((hex, index) => (
+            <SwatchButton
+              key={hex}
+              ariaLabel={hex}
+              disabled={disabled}
+              selected={selectedPreset === hex}
+              checkHex={hex}
+              onClick={() => selectPreset(hex)}
+              style={{ backgroundColor: hex }}
+              className={`flex-1${index === 0 ? ' rounded-l-md' : ''}`}
+            />
+          ))}
+
           <SwatchButton
-            key={hex}
-            ariaLabel={hex}
+            ariaLabel="Fără culoare"
             disabled={disabled}
-            selected={selectedPreset === hex}
-            checkHex={hex}
-            onClick={() => selectPreset(hex)}
-            style={{ backgroundColor: hex }}
-          />
-        ))}
+            selected={isNoColorSelected}
+            onClick={selectNoColor}
+            className="border-l border-dashed border-border bg-surface"
+          >
+            {isNoColorSelected ? (
+              <i className="ti ti-check text-xs text-text-primary" aria-hidden="true" />
+            ) : (
+              <i className="ti ti-x text-xs text-text-muted" aria-hidden="true" />
+            )}
+          </SwatchButton>
 
-        <SwatchButton
-          ariaLabel="Fără culoare"
-          disabled={disabled}
-          selected={isNoColorSelected}
-          onClick={selectNoColor}
-          className="border border-dashed border-border bg-transparent"
-        >
-          {!isNoColorSelected && (
-            <i className="ti ti-x text-sm text-text-muted" aria-hidden="true" />
-          )}
-          {isNoColorSelected && (
-            <i className="ti ti-check text-sm text-text-primary" aria-hidden="true" />
-          )}
-        </SwatchButton>
-
-        <SwatchButton
-          ariaLabel="Culoare personalizată"
-          disabled={disabled}
-          selected={false}
-          onClick={openCustomFlow}
-          className="border border-border bg-transparent"
-        >
-          <i className="ti ti-plus text-sm text-text-muted" aria-hidden="true" />
-        </SwatchButton>
+          <SwatchButton
+            ariaLabel="Culoare personalizată"
+            disabled={disabled}
+            selected={customValue}
+            onClick={openCustomFlow}
+            className="rounded-r-md border border-l-0 border-border bg-surface"
+          >
+            {customValue ? (
+              <i className="ti ti-check text-xs text-text-primary" aria-hidden="true" />
+            ) : (
+              <i className="ti ti-plus text-xs text-text-muted" aria-hidden="true" />
+            )}
+          </SwatchButton>
+        </div>
       </div>
 
       {showCustomRow && (
