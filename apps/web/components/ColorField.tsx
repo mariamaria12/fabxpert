@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useBusinessAutofillProps } from './inputAutofill';
 
 const HEX_REGEX = /^#[0-9A-Fa-f]{6}$/;
 const PICKER_FALLBACK = '#6B6B6B';
@@ -116,6 +117,7 @@ export function ColorField({
 }: ColorFieldProps) {
   const pickerId = useId();
   const pickerRef = useRef<HTMLInputElement>(null);
+  const businessAutofill = useBusinessAutofillProps();
   const [customOpen, setCustomOpen] = useState(false);
   const [textValue, setTextValue] = useState(value ?? '');
 
@@ -267,6 +269,7 @@ export function ColorField({
             onChange={(event) => handleTextChange(event.target.value)}
             onBlur={handleTextBlur}
             className={`${inputClassName} font-mono`}
+            {...businessAutofill}
           />
           {customValue && (
             <span className="shrink-0 text-xs text-text-muted">custom</span>

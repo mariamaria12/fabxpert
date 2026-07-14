@@ -6,6 +6,7 @@ import {
   type Period,
 } from '@fabxpert/shared';
 import { useEffect, useState } from 'react';
+import { useBusinessAutofillProps } from '@/components/inputAutofill';
 
 type PeriodKind = Period['kind'];
 
@@ -63,6 +64,7 @@ export type PeriodFilterProps = {
 };
 
 export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) {
+  const businessAutofill = useBusinessAutofillProps();
   const [now, setNow] = useState(() => new Date());
   const [customMode, setCustomMode] = useState(false);
   const [draftFrom, setDraftFrom] = useState('');
@@ -180,6 +182,7 @@ export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) 
                   setCustomError(null);
                 }}
                 className={dateInputClassName}
+                {...businessAutofill}
               />
             </div>
             <div>
@@ -195,6 +198,7 @@ export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) 
                   setCustomError(null);
                 }}
                 className={dateInputClassName}
+                {...businessAutofill}
               />
             </div>
             <button

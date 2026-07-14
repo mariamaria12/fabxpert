@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ProjectFormPanel } from './ProjectFormPanel';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { Pagination } from '@/components/Pagination';
+import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 
 const PAGE_SIZE = 20;
@@ -56,6 +57,7 @@ type PanelState =
   | { open: true; mode: 'edit'; project: ProjectDto };
 
 export default function ProjectsPage() {
+  const businessAutofill = useBusinessAutofillProps();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -234,6 +236,7 @@ export default function ProjectsPage() {
             placeholder="Caută după denumire, cod sau client..."
             aria-label="Caută după denumire, cod sau client"
             className={searchInputClassName}
+            {...businessAutofill}
           />
         </div>
       )}

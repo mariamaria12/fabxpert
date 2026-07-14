@@ -24,6 +24,9 @@ import {
 } from './timesheetFormat';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { SelectField } from '@/components/SelectField';
+import { TextField } from '@/components/TextField';
+import { useBusinessAutofillProps } from '@/components/inputAutofill';
+import { FORM_FIELD_CLASS } from '@/components/formFieldStyles';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 
@@ -95,53 +98,6 @@ function mapZodFieldErrors(error: {
   return mapped;
 }
 
-const inputClassName =
-  'w-full rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
-
-interface FormFieldProps {
-  id: keyof TimesheetFormValues;
-  label: string;
-  value: string;
-  error?: string;
-  disabled?: boolean;
-  required?: boolean;
-  type?: 'text' | 'date' | 'time';
-  onChange: (value: string) => void;
-}
-
-function FormField({
-  id,
-  label,
-  value,
-  error,
-  disabled,
-  required,
-  type = 'text',
-  onChange,
-}: FormFieldProps) {
-  return (
-    <div>
-      <label htmlFor={id} className="mb-1.5 block text-xs text-text-secondary">
-        {label}
-        {required && <span className="text-danger"> *</span>}
-      </label>
-      <input
-        id={id}
-        type={type}
-        value={value}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-        className={inputClassName}
-      />
-      {error && (
-        <p role="alert" className="mt-1 text-xs text-danger">
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
-
 export interface TimesheetFormPanelProps {
   open: boolean;
   mode: 'create' | 'edit';
@@ -160,6 +116,7 @@ export function TimesheetFormPanel({
   onSaved,
 }: TimesheetFormPanelProps) {
   const { showToast } = useToast();
+  const businessAutofill = useBusinessAutofillProps();
   const [values, setValues] = useState<TimesheetFormValues>(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof TimesheetFormValues, string>>
@@ -443,7 +400,7 @@ export function TimesheetFormPanel({
           onChange={(value) => updateField('activityId', value)}
         />
 
-        <FormField
+        <TextField
           id="workDate"
           label="Data lucrată"
           type="date"
@@ -454,7 +411,7 @@ export function TimesheetFormPanel({
           onChange={(value) => updateField('workDate', value)}
         />
 
-        <FormField
+        <TextField
           id="duration"
           label="Durată"
           value={values.duration}
@@ -474,7 +431,8 @@ export function TimesheetFormPanel({
             value={values.notes}
             disabled={isBusy}
             onChange={(event) => updateField('notes', event.target.value)}
-            className={inputClassName}
+            className={`${FORM_FIELD_CLASS} resize-none`}
+            {...businessAutofill}
           />
         </div>
 

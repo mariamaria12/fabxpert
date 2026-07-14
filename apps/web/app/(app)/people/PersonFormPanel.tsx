@@ -12,8 +12,9 @@ import {
   type PersonDto,
 } from '@fabxpert/shared';
 import { useEffect, useState, type FormEvent } from 'react';
-import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { SelectField } from '@/components/SelectField';
+import { SlideOverPanel } from '@/components/SlideOverPanel';
+import { TextField } from '@/components/TextField';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 
@@ -72,53 +73,6 @@ function buildCreatePayload(values: PersonFormValues) {
 
 function buildUpdatePayload(values: PersonFormValues) {
   return buildCreatePayload(values);
-}
-
-const inputClassName =
-  'w-full rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
-
-interface FormFieldProps {
-  id: keyof PersonFormValues;
-  label: string;
-  value: string;
-  error?: string;
-  disabled?: boolean;
-  required?: boolean;
-  type?: 'text' | 'email';
-  onChange: (value: string) => void;
-}
-
-function FormField({
-  id,
-  label,
-  value,
-  error,
-  disabled,
-  required,
-  type = 'text',
-  onChange,
-}: FormFieldProps) {
-  return (
-    <div>
-      <label htmlFor={id} className="mb-1.5 block text-xs text-text-secondary">
-        {label}
-        {required && <span className="text-danger"> *</span>}
-      </label>
-      <input
-        id={id}
-        type={type}
-        value={value}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-        className={inputClassName}
-      />
-      {error && (
-        <p role="alert" className="mt-1 text-xs text-danger">
-          {error}
-        </p>
-      )}
-    </div>
-  );
 }
 
 export interface PersonFormPanelProps {
@@ -325,7 +279,7 @@ export function PersonFormPanel({ open, mode, person, onClose, onSaved }: Person
       footer={footer}
     >
       <form id="person-form" onSubmit={(event) => void handleSubmit(event)} className="flex flex-col gap-4">
-        <FormField
+        <TextField
           id="firstName"
           label="Prenume"
           value={values.firstName}
@@ -335,7 +289,7 @@ export function PersonFormPanel({ open, mode, person, onClose, onSaved }: Person
           onChange={(value) => updateField('firstName', value)}
         />
 
-        <FormField
+        <TextField
           id="lastName"
           label="Nume"
           value={values.lastName}
@@ -356,7 +310,7 @@ export function PersonFormPanel({ open, mode, person, onClose, onSaved }: Person
           onChange={(value) => updateField('employeeRoleId', value)}
         />
 
-        <FormField
+        <TextField
           id="email"
           label="E-mail"
           type="email"
@@ -366,7 +320,7 @@ export function PersonFormPanel({ open, mode, person, onClose, onSaved }: Person
           onChange={(value) => updateField('email', value)}
         />
 
-        <FormField
+        <TextField
           id="phone"
           label="Telefon"
           value={values.phone}

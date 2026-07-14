@@ -3,6 +3,7 @@
 import { ApiError } from '@fabxpert/shared';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { ColorField } from '@/components/ColorField';
+import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { compareStableLookupOrder } from '@/components/roleColors';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
@@ -148,6 +149,7 @@ export function LookupManager<TItem extends LookupItem, TCreate, TUpdate>({
   getDotColor,
 }: LookupManagerProps<TItem, TCreate, TUpdate>) {
   const { showToast } = useToast();
+  const businessAutofill = useBusinessAutofillProps();
   const [items, setItems] = useState<TItem[]>([]);
   const [columnById, setColumnById] = useState<Map<string, ColumnSide>>(new Map());
   const [loading, setLoading] = useState(false);
@@ -316,6 +318,7 @@ export function LookupManager<TItem extends LookupItem, TCreate, TUpdate>({
           }}
           className={inputClassName}
           autoFocus
+          {...businessAutofill}
         />
 
         {hasColor && (

@@ -1,11 +1,12 @@
 import { createTimesheet, todayDateInputValue } from '@fabxpert/shared';
 import type { ActivityDto, ProjectOptionDto } from '@fabxpert/shared';
-import { useState } from 'react';
+import { useState, useId, useMemo } from 'react';
 import { DurationInput } from './DurationInput';
 import { useDurationInput } from '../hooks/useDurationInput';
 import { useMobileLookupCache } from '../context/MobileLookupCacheContext';
 import { useToast } from '../context/ToastContext';
 import { apiErrorToastMessage } from '../utils/apiToastMessage';
+import { getBusinessInputAutofillProps } from '../utils/inputAutofill';
 
 const DEFAULT_HOURS = 8;
 
@@ -17,6 +18,11 @@ interface TimeEntryProps {
 
 export function TimeEntry({ project, activity, onSaved }: TimeEntryProps) {
   const { showToast } = useToast();
+  const autofillTrapId = useId();
+  const businessAutofill = useMemo(
+    () => getBusinessInputAutofillProps(autofillTrapId),
+    [autofillTrapId],
+  );
   const { refreshMyTimesheetsPage1 } = useMobileLookupCache();
   const {
     hoursInput,
@@ -77,6 +83,7 @@ export function TimeEntry({ project, activity, onSaved }: TimeEntryProps) {
             className="time-input"
             value={workDate}
             onChange={(event) => setWorkDate(event.target.value)}
+            {...businessAutofill}
           />
         </label>
 
@@ -99,6 +106,7 @@ export function TimeEntry({ project, activity, onSaved }: TimeEntryProps) {
             placeholder="Detalii despre lucrare…"
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
+            {...businessAutofill}
           />
         </label>
 

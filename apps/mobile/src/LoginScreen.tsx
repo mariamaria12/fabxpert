@@ -1,6 +1,7 @@
 import { ApiError, getMe, login, logout } from '@fabxpert/shared';
 import type { MeResponse } from '@fabxpert/shared';
 import { useState } from 'react';
+import { getCredentialInputAutofillProps } from './utils/inputAutofill';
 
 interface LoginScreenProps {
   onSuccess: (user: MeResponse) => void;
@@ -66,9 +67,9 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
         <form className="login-form" onSubmit={handleSubmit}>
           <input
             id="username"
-            type="text"
-            autoComplete="username"
+            type="email"
             inputMode="email"
+            {...getCredentialInputAutofillProps('username')}
             aria-label="Utilizator"
             value={username}
             onChange={(event) => setUsername(event.target.value)}
@@ -80,7 +81,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
             <input
               id="password"
               type={showPassword ? 'text' : 'password'}
-              autoComplete="current-password"
+              {...getCredentialInputAutofillProps('current-password')}
               aria-label="Parolă"
               value={password}
               onChange={(event) => setPassword(event.target.value)}

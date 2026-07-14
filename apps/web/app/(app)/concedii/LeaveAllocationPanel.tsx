@@ -2,6 +2,7 @@
 
 import { updatePerson, type LeaveBalanceDto, type PersonDto } from '@fabxpert/shared';
 import { useEffect, useState } from 'react';
+import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { PersonName } from '@/components/PersonAvatar';
 import { useToast } from '@/context/ToastContext';
@@ -23,6 +24,7 @@ export function LeaveAllocationPanel({
   onSaved,
 }: LeaveAllocationPanelProps) {
   const { showToast } = useToast();
+  const businessAutofill = useBusinessAutofillProps();
   const [annualLeaveDays, setAnnualLeaveDays] = useState(String(person.annualLeaveDays));
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -121,6 +123,7 @@ export function LeaveAllocationPanel({
             value={annualLeaveDays}
             onChange={(event) => setAnnualLeaveDays(event.target.value)}
             className="w-full rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+            {...businessAutofill}
           />
           {fieldError ? <span className="text-xs text-danger">{fieldError}</span> : null}
         </label>

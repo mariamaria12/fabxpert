@@ -6,9 +6,10 @@ import {
   updateLeaveRequest,
 } from '@fabxpert/shared';
 import type { LeaveBalanceDto, LeaveRequestDto, LeaveType } from '@fabxpert/shared';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useId } from 'react';
 import { useToast } from '../context/ToastContext';
 import { apiErrorToastMessage } from '../utils/apiToastMessage';
+import { getBusinessInputAutofillProps } from '../utils/inputAutofill';
 import {
   countLeaveDaysFromIso,
   formatLeaveDayCount,
@@ -41,6 +42,11 @@ export function LeaveRequestForm({
   onCancel,
 }: LeaveRequestFormProps) {
   const { showToast } = useToast();
+  const autofillTrapId = useId();
+  const businessAutofill = useMemo(
+    () => getBusinessInputAutofillProps(autofillTrapId),
+    [autofillTrapId],
+  );
   const isEditing = editingRequest !== null;
 
   const [type, setType] = useState<LeaveType>(editingRequest?.type ?? 'ODIHNA');
@@ -159,6 +165,7 @@ export function LeaveRequestForm({
               className="time-input leave-date-input"
               value={startDate}
               onChange={(event) => setStartDate(event.target.value)}
+              {...businessAutofill}
             />
           </label>
 
@@ -170,6 +177,7 @@ export function LeaveRequestForm({
               value={endDate}
               min={startDate || undefined}
               onChange={(event) => setEndDate(event.target.value)}
+              {...businessAutofill}
             />
           </label>
         </div>
@@ -200,6 +208,7 @@ export function LeaveRequestForm({
             placeholder="Motivul cererii…"
             value={reason}
             onChange={(event) => setReason(event.target.value)}
+            {...businessAutofill}
           />
         </label>
 

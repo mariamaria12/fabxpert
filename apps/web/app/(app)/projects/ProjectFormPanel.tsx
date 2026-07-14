@@ -21,6 +21,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { ColorField } from '@/components/ColorField';
 import { SearchableMultiSelect } from '@/components/SearchableMultiSelect';
 import { SearchableSelect, type SearchableSelectOption } from '@/components/SearchableSelect';
+import { TextField } from '@/components/TextField';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
@@ -513,43 +514,26 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
           onDraftInvalidChange={setColorDraftInvalid}
         />
 
-        <div>
-          <label htmlFor="name" className="mb-1.5 block text-xs text-text-secondary">
-            Nume<span className="text-danger"> *</span>
-          </label>
-          <input
-            id="name"
-            type="text"
-            value={values.name}
-            disabled={isBusy}
-            onChange={(event) => updateField('name', event.target.value)}
-            className={inputClassName}
-          />
-          {fieldErrors.name && (
-            <p role="alert" className="mt-1 text-xs text-danger">
-              {fieldErrors.name}
-            </p>
-          )}
-        </div>
+        <TextField
+          id="name"
+          label="Nume"
+          required
+          value={values.name}
+          error={fieldErrors.name}
+          disabled={isBusy}
+          onChange={(value) => updateField('name', value)}
+        />
 
-        <div>
-          <label htmlFor="code" className="mb-1.5 block text-xs text-text-secondary">
-            Cod<span className="text-danger"> *</span>
-          </label>
-          <input
-            id="code"
-            type="text"
-            value={values.code}
-            disabled={isBusy}
-            onChange={(event) => updateField('code', event.target.value)}
-            className={`${inputClassName} font-mono`}
-          />
-          {fieldErrors.code && (
-            <p role="alert" className="mt-1 text-xs text-danger">
-              {fieldErrors.code}
-            </p>
-          )}
-        </div>
+        <TextField
+          id="code"
+          label="Cod"
+          required
+          value={values.code}
+          error={fieldErrors.code}
+          disabled={isBusy}
+          className={`${inputClassName} font-mono`}
+          onChange={(value) => updateField('code', value)}
+        />
 
         <SearchableSelect
           id="companyId"
@@ -614,33 +598,25 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
           }}
         />
 
-        <div>
-          <label htmlFor="startDate" className="mb-1.5 block text-xs text-text-secondary">
-            Dată începere
-          </label>
-          <input
-            id="startDate"
-            type="date"
-            value={values.startDate}
-            disabled={isBusy}
-            onChange={(event) => updateField('startDate', event.target.value)}
-            className={`${inputClassName} [color-scheme:dark]`}
-          />
-        </div>
+        <TextField
+          id="startDate"
+          label="Dată începere"
+          type="date"
+          value={values.startDate}
+          disabled={isBusy}
+          className={`${inputClassName} [color-scheme:dark]`}
+          onChange={(value) => updateField('startDate', value)}
+        />
 
-        <div>
-          <label htmlFor="dueDate" className="mb-1.5 block text-xs text-text-secondary">
-            Termen
-          </label>
-          <input
-            id="dueDate"
-            type="date"
-            value={values.dueDate}
-            disabled={isBusy}
-            onChange={(event) => updateField('dueDate', event.target.value)}
-            className={`${inputClassName} [color-scheme:dark]`}
-          />
-        </div>
+        <TextField
+          id="dueDate"
+          label="Termen"
+          type="date"
+          value={values.dueDate}
+          disabled={isBusy}
+          className={`${inputClassName} [color-scheme:dark]`}
+          onChange={(value) => updateField('dueDate', value)}
+        />
 
         {formError && (
           <p role="alert" className="text-sm text-danger">

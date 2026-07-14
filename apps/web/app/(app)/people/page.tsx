@@ -14,6 +14,7 @@ import {
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { Pagination } from '@/components/Pagination';
 import { PersonName } from '@/components/PersonAvatar';
+import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 
 const PAGE_SIZE = 20;
@@ -61,6 +62,7 @@ type PanelState =
   | { open: true; mode: 'edit'; person: PersonDto };
 
 export default function PeoplePage() {
+  const businessAutofill = useBusinessAutofillProps();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -166,6 +168,7 @@ export default function PeoplePage() {
             placeholder="Caută după nume, e-mail, telefon sau funcție..."
             aria-label="Caută după nume, e-mail, telefon sau funcție"
             className={searchInputClassName}
+            {...businessAutofill}
           />
         </div>
       )}

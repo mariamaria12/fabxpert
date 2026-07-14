@@ -22,6 +22,7 @@ import {
 import { PersonName } from '@/components/PersonAvatar';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { Pagination } from '@/components/Pagination';
+import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 
 const PAGE_SIZE = 20;
@@ -43,6 +44,7 @@ type PanelState =
   | { open: true; mode: 'edit'; timesheet: TimesheetDto };
 
 export default function TimesheetsPage() {
+  const businessAutofill = useBusinessAutofillProps();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -207,6 +209,7 @@ export default function TimesheetsPage() {
             placeholder="Caută după persoană..."
             aria-label="Caută după persoană"
             className={searchInputClassName}
+            {...businessAutofill}
           />
         </div>
       </div>

@@ -17,6 +17,7 @@ import {
   FORM_LABEL_CLASS,
   formDropdownOptionClass,
 } from './formFieldStyles';
+import { getBusinessInputAutofillProps } from './inputAutofill';
 import { matchesSearchText } from '@/utils/searchText';
 
 export interface SearchableSelectOption {
@@ -312,17 +313,13 @@ export function SearchableSelect({
         <input
           ref={inputRef}
           id={id}
-          name={`combobox-${autofillTrapId.replace(/:/g, '')}`}
           type="text"
           role="combobox"
           aria-expanded={isOpen}
           aria-controls={listboxId}
           aria-haspopup="listbox"
           aria-autocomplete="list"
-          autoComplete="new-password"
-          autoCorrect="off"
-          autoCapitalize="off"
-          spellCheck={false}
+          {...getBusinessInputAutofillProps(autofillTrapId)}
           value={displayValue}
           disabled={disabled}
           placeholder={placeholder}

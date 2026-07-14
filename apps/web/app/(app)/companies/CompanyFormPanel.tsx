@@ -12,6 +12,8 @@ import {
 import { useEffect, useState, type ClipboardEvent, type FormEvent } from 'react';
 import { parseExcelCompanyPaste } from './parseExcelCompanyPaste';
 import { ColorField } from '@/components/ColorField';
+import { useBusinessAutofillProps } from '@/components/inputAutofill';
+import { TextField } from '@/components/TextField';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
@@ -124,40 +126,6 @@ function buildUpdatePayload(values: CompanyFormValues) {
 const inputClassName =
   'w-full rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
 
-interface FormFieldProps {
-  id: CompanyFormField;
-  label: string;
-  value: string;
-  error?: string;
-  disabled?: boolean;
-  type?: 'text' | 'email';
-  onChange: (value: string) => void;
-}
-
-function FormField({ id, label, value, error, disabled, type = 'text', onChange }: FormFieldProps) {
-  return (
-    <div>
-      <label htmlFor={id} className="mb-1.5 block text-xs text-text-secondary">
-        {label}
-        {id === 'name' && <span className="text-danger"> *</span>}
-      </label>
-      <input
-        id={id}
-        type={type}
-        value={value}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-        className={inputClassName}
-      />
-      {error && (
-        <p role="alert" className="mt-1 text-xs text-danger">
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
-
 export interface CompanyFormPanelProps {
   open: boolean;
   mode: 'create' | 'edit';
@@ -168,6 +136,7 @@ export interface CompanyFormPanelProps {
 
 export function CompanyFormPanel({ open, mode, company, onClose, onSaved }: CompanyFormPanelProps) {
   const { showToast } = useToast();
+  const businessAutofill = useBusinessAutofillProps();
   const [values, setValues] = useState<CompanyFormValues>(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<CompanyFormField | 'color', string>>>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -415,6 +384,7 @@ export function CompanyFormPanel({ open, mode, company, onClose, onSaved }: Comp
             onChange={(event) => setExcelPasteText(event.target.value)}
             onPaste={handleExcelPaste}
             className={`${inputClassName} resize-none`}
+            {...businessAutofill}
           />
           {excelPasteError && (
             <p role="alert" className="mt-1 text-xs text-danger">
@@ -431,9 +401,10 @@ export function CompanyFormPanel({ open, mode, company, onClose, onSaved }: Comp
           )}
         </div>
 
-        <FormField
+        <TextField
           id="name"
           label={FIELD_LABELS.name}
+          required
           value={values.name}
           error={fieldErrors.name}
           disabled={isBusy}
@@ -441,7 +412,7 @@ export function CompanyFormPanel({ open, mode, company, onClose, onSaved }: Comp
         />
 
         {FIELD_ORDER.filter((field) => field !== 'name').map((field) => (
-          <FormField
+          <TextField
             key={field}
             id={field}
             label={FIELD_LABELS[field]}

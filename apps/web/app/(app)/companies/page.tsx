@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { CompanyFormPanel } from './CompanyFormPanel';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { Pagination } from '@/components/Pagination';
+import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 
 const PAGE_SIZE = 20;
@@ -71,6 +72,7 @@ type PanelState =
   | { open: true; mode: 'edit'; company: CompanyDto };
 
 export default function CompaniesPage() {
+  const businessAutofill = useBusinessAutofillProps();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -172,6 +174,7 @@ export default function CompaniesPage() {
             placeholder="Caută după denumire sau POC..."
             aria-label="Caută după denumire sau POC"
             className={searchInputClassName}
+            {...businessAutofill}
           />
         </div>
       )}

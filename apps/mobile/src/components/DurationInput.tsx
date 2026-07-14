@@ -1,5 +1,7 @@
+import { useId, useMemo } from 'react';
 import { DURATION_MINUTE_PRESETS } from '../utils/timeUtils';
 import type { DurationMinutePreset } from '../utils/timeUtils';
+import { getBusinessInputAutofillProps } from '../utils/inputAutofill';
 
 const HOUR_PRESETS = [2, 4, 6, 8] as const;
 
@@ -24,6 +26,12 @@ export function DurationInput({
   onHourPreset,
   onMinutePreset,
 }: DurationInputProps) {
+  const autofillTrapId = useId();
+  const businessAutofill = useMemo(
+    () => getBusinessInputAutofillProps(autofillTrapId),
+    [autofillTrapId],
+  );
+
   return (
     <div className="hours-entry">
       <div className="hours-entry-control">
@@ -45,6 +53,7 @@ export function DurationInput({
             placeholder="0h"
             value={hoursInput}
             onChange={(event) => onHoursInputChange(event.target.value)}
+            {...businessAutofill}
           />
         </label>
 

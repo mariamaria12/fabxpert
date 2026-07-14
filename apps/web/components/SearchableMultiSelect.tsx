@@ -19,6 +19,7 @@ import {
 } from './formFieldStyles';
 import { matchesSearchText } from '@/utils/searchText';
 import type { SearchableSelectOption } from './SearchableSelect';
+import { getBusinessInputAutofillProps } from './inputAutofill';
 
 export interface SearchableMultiSelectProps {
   id: string;
@@ -46,6 +47,7 @@ export function SearchableMultiSelect({
   error,
 }: SearchableMultiSelectProps) {
   const listboxId = useId();
+  const autofillTrapId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLUListElement>(null);
@@ -299,11 +301,12 @@ export function SearchableMultiSelect({
           value={query}
           disabled={disabled}
           placeholder={placeholder}
-          autoComplete="off"
           role="combobox"
           aria-expanded={isOpen}
           aria-controls={listboxId}
+          aria-haspopup="listbox"
           aria-autocomplete="list"
+          {...getBusinessInputAutofillProps(autofillTrapId)}
           onFocus={openDropdown}
           onBlur={handleInputBlur}
           onChange={(event) => {

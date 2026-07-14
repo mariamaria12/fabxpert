@@ -3,6 +3,7 @@
 import { ApiError, getMe, login, logout } from '@fabxpert/shared';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { getCredentialInputAutofillProps } from '@/components/inputAutofill';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -107,8 +108,8 @@ export default function LoginPage() {
             </label>
             <input
               id="username"
-              type="text"
-              autoComplete="username"
+              type="email"
+              {...getCredentialInputAutofillProps('username')}
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               placeholder="nume@fabxpert.ro"
@@ -127,7 +128,7 @@ export default function LoginPage() {
               <input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
-                autoComplete="current-password"
+                {...getCredentialInputAutofillProps('current-password')}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="••••••••"

@@ -1,6 +1,8 @@
 'use client';
 
+import { useId } from 'react';
 import { FORM_LABEL_CLASS, FORM_SELECT_CLASS } from './formFieldStyles';
+import { businessAutofillFieldName } from './inputAutofill';
 
 export interface SelectFieldOption {
   id: string;
@@ -32,6 +34,8 @@ export function SelectField({
   disabled = false,
   error,
 }: SelectFieldProps) {
+  const autofillTrapId = useId();
+
   return (
     <div>
       <label htmlFor={id} className={FORM_LABEL_CLASS}>
@@ -42,8 +46,10 @@ export function SelectField({
       <div className="relative">
         <select
           id={id}
+          name={businessAutofillFieldName(autofillTrapId)}
           value={value}
           disabled={disabled}
+          autoComplete="off"
           onChange={(event) => onChange(event.target.value)}
           className={FORM_SELECT_CLASS}
         >
