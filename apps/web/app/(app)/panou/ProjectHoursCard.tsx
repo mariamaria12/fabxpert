@@ -34,7 +34,9 @@ export function ProjectHoursCardHeader({
         />
       )}
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-text-primary">{project.name}</p>
+        <p className="truncate font-medium text-text-primary" title={project.name}>
+          {project.name}
+        </p>
         <p className="mt-0.5 truncate font-mono text-xs text-text-muted">
           {project.code} · {project.company.name}
         </p>

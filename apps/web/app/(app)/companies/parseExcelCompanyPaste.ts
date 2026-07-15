@@ -1,3 +1,9 @@
+import {
+  normalizePastedCell,
+  parseTabSeparatedRows,
+  pickDataRow,
+} from '@/utils/parseExcelPaste';
+
 const FIELD_KEYS = [
   'name',
   'taxCode',
@@ -33,12 +39,6 @@ function normalizeHeaderCell(value: string): string {
   return value.trim().toLowerCase().replace(/_/g, ' ').replace(/\s+/g, ' ');
 }
 
-export function normalizePastedCell(value: string): string {
-  const trimmed = value.trim();
-  const missingMarkers = new Set(['', '.', '-', '–', '—', 'N/A', 'n/a']);
-  return missingMarkers.has(trimmed) ? '' : trimmed;
-}
-
 function looksLikeHeaderRow(cells: string[]): boolean {
   if (cells.length === 0) {
     return false;
@@ -58,32 +58,19 @@ function looksLikeHeaderRow(cells: string[]): boolean {
   return matches >= 2;
 }
 
-function parseRows(text: string): string[][] {
-  return text
-    .split(/\r?\n/)
-    .map((line) => line.split('\t').map((cell) => cell.trim()))
-    .filter((row) => row.some((cell) => cell.length > 0));
-}
-
 export type ParseExcelCompanyPasteResult =
   | { ok: true; values: ExcelCompanyFormValues; extraColumnsIgnored: boolean }
   | { ok: false; error: string };
 
 export function parseExcelCompanyPaste(text: string): ParseExcelCompanyPasteResult {
-  const rows = parseRows(text);
+  const rows = parseTabSeparatedRows(text);
+  const picked = pickDataRow(rows, looksLikeHeaderRow);
 
-  if (rows.length === 0) {
+  if (!picked) {
     return { ok: false, error: 'Nu am putut interpreta rândul copiat din Excel.' };
   }
 
-  let dataRow = rows[0];
-  if (looksLikeHeaderRow(rows[0])) {
-    if (rows.length < 2) {
-      return { ok: false, error: 'Nu am putut interpreta rândul copiat din Excel.' };
-    }
-    dataRow = rows[1];
-  }
-
+  const { dataRow } = picked;
   const normalizedCells = dataRow.slice(0, 10).map((cell) => normalizePastedCell(cell ?? ''));
   const usefulColumns = normalizedCells.filter((cell) => cell.length > 0).length;
   if (usefulColumns < 2) {
@@ -101,3 +88,5 @@ export function parseExcelCompanyPaste(text: string): ParseExcelCompanyPasteResu
     extraColumnsIgnored: dataRow.length > 10,
   };
 }
+
+export { normalizePastedCell } from '@/utils/parseExcelPaste';

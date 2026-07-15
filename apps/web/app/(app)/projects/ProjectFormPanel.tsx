@@ -2,6 +2,8 @@
 
 import {
   ApiError,
+  createCompany,
+  createCompanySchema,
   createProject,
   createProjectSchema,
   deleteProject,
@@ -15,17 +17,23 @@ import {
   type ProjectDto,
   type ProjectStatus,
 } from '@fabxpert/shared';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type ClipboardEvent, type FormEvent } from 'react';
+import { parseExcelProjectPaste } from './parseExcelProjectPaste';
 import { ColorField } from '@/components/ColorField';
+import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { SearchableMultiSelect } from '@/components/SearchableMultiSelect';
 import { SearchableSelect, type SearchableSelectOption } from '@/components/SearchableSelect';
 import { TextField } from '@/components/TextField';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { equalsSearchText } from '@/utils/searchText';
 import {
+  companyOptionFromProjectCompany,
   getProjectFormCompanies,
   getProjectFormEmployeeRoles,
+  mergeProjectFormCompany,
+  withProjectCompanyOption,
 } from '@/utils/projectFormLookups';
 import { buildStableIndexMap, getRolePaletteColor } from '@/components/roleColors';
 
@@ -171,8 +179,13 @@ export interface ProjectFormPanelProps {
   onSaved: (updated?: ProjectDto) => void;
 }
 
+function findCompanyByName(companies: CompanyDto[], name: string): CompanyDto | undefined {
+  return companies.find((company) => equalsSearchText(company.name, name));
+}
+
 export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: ProjectFormPanelProps) {
   const { showToast } = useToast();
+  const businessAutofill = useBusinessAutofillProps();
   const [values, setValues] = useState<ProjectFormValues>(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof ProjectFormValues | 'color', string>>
@@ -188,6 +201,13 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
   const [employeeRolesLoading, setEmployeeRolesLoading] = useState(false);
   const [editProject, setEditProject] = useState<ProjectDto | null>(null);
   const [editProjectLoading, setEditProjectLoading] = useState(false);
+  const [excelPasteText, setExcelPasteText] = useState('');
+  const [excelPasteError, setExcelPasteError] = useState<string | null>(null);
+  const [excelPasteSuccess, setExcelPasteSuccess] = useState<string | null>(null);
+  const [excelUsedFirstRowOnly, setExcelUsedFirstRowOnly] = useState(false);
+  const [excelExtraColumnsIgnored, setExcelExtraColumnsIgnored] = useState(false);
+  const [unmatchedClientName, setUnmatchedClientName] = useState<string | null>(null);
+  const [creatingClient, setCreatingClient] = useState(false);
 
   const isBusy = isSubmitting || isDeleting;
   const title = mode === 'create' ? 'Proiect nou' : 'Editează proiectul';
@@ -206,7 +226,12 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
         if (controller.signal.aborted) {
           return;
         }
-        setCompanies(companyRows);
+        const linkedCompany = project?.company;
+        const companiesWithLinked = withProjectCompanyOption(companyRows, linkedCompany);
+        if (linkedCompany && !companyRows.some((entry) => entry.id === linkedCompany.id)) {
+          mergeProjectFormCompany(companyOptionFromProjectCompany(linkedCompany));
+        }
+        setCompanies(companiesWithLinked);
         setEmployeeRoles(roleRows);
       })
       .catch(() => {
@@ -227,7 +252,7 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
     return () => {
       controller.abort();
     };
-  }, [open]);
+  }, [open, project?.company?.id, project?.company?.name]);
 
   useEffect(() => {
     if (!open) {
@@ -244,6 +269,13 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
     if (mode === 'create') {
       setValues(EMPTY_FORM);
       setEditProjectLoading(false);
+      setExcelPasteText('');
+      setExcelPasteError(null);
+      setExcelPasteSuccess(null);
+      setExcelUsedFirstRowOnly(false);
+      setExcelExtraColumnsIgnored(false);
+      setUnmatchedClientName(null);
+      setCreatingClient(false);
       return;
     }
 
@@ -350,6 +382,9 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
 
   function updateField<K extends keyof ProjectFormValues>(field: K, value: ProjectFormValues[K]) {
     setValues((current) => ({ ...current, [field]: value }));
+    if (field === 'companyId') {
+      setUnmatchedClientName(null);
+    }
     setFieldErrors((current) => {
       if (!current[field as keyof ProjectFormValues]) {
         return current;
@@ -359,6 +394,94 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
       return next;
     });
     setFormError(null);
+  }
+
+  function applyExcelProjectPaste(text: string) {
+    const result = parseExcelProjectPaste(text);
+
+    if (!result.ok) {
+      setExcelPasteError(result.error);
+      setExcelPasteSuccess(null);
+      setExcelUsedFirstRowOnly(false);
+      setExcelExtraColumnsIgnored(false);
+      return;
+    }
+
+    const matchedCompany = result.values.clientName
+      ? findCompanyByName(companies, result.values.clientName)
+      : undefined;
+
+    setValues((current) => ({
+      ...current,
+      name: result.values.name,
+      code: result.values.code,
+      status: result.values.status,
+      startDate: result.values.startDate,
+      dueDate: result.values.dueDate,
+      companyId: matchedCompany?.id ?? '',
+    }));
+    setFieldErrors({});
+    setFormError(null);
+    setExcelPasteText('');
+    setExcelPasteError(null);
+    setExcelPasteSuccess('Câmpurile au fost precompletate din Excel.');
+    setExcelUsedFirstRowOnly(result.usedFirstRowOnly);
+    setExcelExtraColumnsIgnored(result.extraColumnsIgnored);
+    setUnmatchedClientName(
+      result.values.clientName && !matchedCompany ? result.values.clientName : null,
+    );
+  }
+
+  function handleExcelPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    if (isBusy) {
+      return;
+    }
+
+    event.preventDefault();
+    applyExcelProjectPaste(event.clipboardData.getData('text/plain'));
+  }
+
+  async function handleCreateClient(name: string) {
+    const trimmedName = name.trim();
+    if (!trimmedName || creatingClient || isBusy) {
+      return;
+    }
+
+    const existing = findCompanyByName(companies, trimmedName);
+    if (existing) {
+      updateField('companyId', existing.id);
+      setUnmatchedClientName(null);
+      return;
+    }
+
+    setCreatingClient(true);
+    try {
+      const parsed = createCompanySchema.safeParse({ name: trimmedName });
+      if (!parsed.success) {
+        showToast('Numele clientului nu este valid.', 'error');
+        return;
+      }
+
+      const created = await createCompany(parsed.data);
+      mergeProjectFormCompany(created);
+      setCompanies((current) =>
+        [...current, created].sort((left, right) => left.name.localeCompare(right.name, 'ro')),
+      );
+      updateField('companyId', created.id);
+      setUnmatchedClientName(null);
+      showToast('Client adăugat', 'success');
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 409) {
+        setFieldErrors((current) => ({
+          ...current,
+          companyId: 'Există deja o companie cu această denumire.',
+        }));
+      } else {
+        showToast(apiErrorToastMessage(caught), 'error');
+      }
+    } finally {
+      setCreatingClient(false);
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -533,6 +656,41 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
           onDraftInvalidChange={setColorDraftInvalid}
         />
 
+        {mode === 'create' && (
+          <div>
+            <label htmlFor="project-excel-paste" className="mb-1.5 block text-xs text-text-secondary">
+              Prepopulează din Excel
+            </label>
+            <textarea
+              id="project-excel-paste"
+              rows={2}
+              value={excelPasteText}
+              disabled={isBusy}
+              placeholder="Lipește aici un rând copiat din Excel"
+              onChange={(event) => setExcelPasteText(event.target.value)}
+              onPaste={handleExcelPaste}
+              className={`${inputClassName} resize-none`}
+              {...businessAutofill}
+            />
+            {excelPasteError && (
+              <p role="alert" className="mt-1 text-xs text-danger">
+                {excelPasteError}
+              </p>
+            )}
+            {excelPasteSuccess && (
+              <p className="mt-1 text-xs text-text-muted">{excelPasteSuccess}</p>
+            )}
+            {excelUsedFirstRowOnly && (
+              <p className="mt-1 text-xs text-text-muted">Am folosit doar primul rând.</p>
+            )}
+            {excelExtraColumnsIgnored && (
+              <p className="mt-1 text-xs text-text-muted">
+                Coloanele suplimentare au fost ignorate.
+              </p>
+            )}
+          </div>
+        )}
+
         <SearchableMultiSelect
           id="visibleForRoleIds"
           label="Vizibil pentru"
@@ -599,7 +757,27 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
               updateField('companyId', companyId);
             }
           }}
+          onCreateFromQuery={
+            mode === 'create' ? (query) => void handleCreateClient(query) : undefined
+          }
+          createFromQueryLabel={(query) => `+ Adaugă client „${query}"`}
+          creatingFromQuery={creatingClient}
         />
+        {unmatchedClientName && (
+          <div className="-mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-muted">
+            <span>{`Client „${unmatchedClientName}" nu a fost găsit.`}</span>
+            <button
+              type="button"
+              disabled={isBusy || creatingClient}
+              onClick={() => void handleCreateClient(unmatchedClientName)}
+              className="inline-flex items-center rounded-md border border-border-subtle px-2 py-1 text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {creatingClient
+                ? 'Se adaugă…'
+                : `+ Adaugă client „${unmatchedClientName}"`}
+            </button>
+          </div>
+        )}
 
         <SearchableSelect
           id="status"

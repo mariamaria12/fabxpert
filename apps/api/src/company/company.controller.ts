@@ -24,7 +24,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CompanyService } from './company.service';
 
 const idParamSchema = z.string().trim().min(1);
-const sortBySchema = z.enum(['name']);
+const sortBySchema = z.enum(['name', 'createdAt']);
 const sortOrderSchema = z.enum(['asc', 'desc']);
 
 @Controller('companies')

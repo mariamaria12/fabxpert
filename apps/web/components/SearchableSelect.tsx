@@ -45,6 +45,10 @@ export interface SearchableSelectProps {
   selectedLabel?: string;
   /** When false, selection cannot be cleared (always shows chevron, no ×). */
   clearable?: boolean;
+  /** When the filter query matches nothing, show a create action (e.g. quick-add client). */
+  onCreateFromQuery?: (query: string) => void;
+  createFromQueryLabel?: (query: string) => string;
+  creatingFromQuery?: boolean;
 }
 
 export function SearchableSelect({
@@ -60,6 +64,9 @@ export function SearchableSelect({
   error,
   selectedLabel,
   clearable = true,
+  onCreateFromQuery,
+  createFromQueryLabel,
+  creatingFromQuery = false,
 }: SearchableSelectProps) {
   const listboxId = useId();
   const autofillTrapId = useId();
@@ -250,6 +257,9 @@ export function SearchableSelect({
   }
 
   const highlightedOptionId = highlightedId;
+  const trimmedQuery = query.trim();
+  const showCreateFromQuery =
+    Boolean(onCreateFromQuery) && trimmedQuery.length > 0 && filteredOptions.length === 0;
 
   const dropdown =
     isOpen && dropdownStyle
@@ -268,7 +278,30 @@ export function SearchableSelect({
             }}
           >
             {filteredOptions.length === 0 ? (
-              <li className={FORM_DROPDOWN_EMPTY_CLASS}>{emptyMessage}</li>
+              showCreateFromQuery ? (
+                <li role="presentation" className="px-1 py-1">
+                  <button
+                    type="button"
+                    disabled={creatingFromQuery}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      onCreateFromQuery?.(trimmedQuery);
+                      closeDropdown();
+                    }}
+                    className="flex min-h-[40px] w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-accent transition-colors hover:bg-[var(--color-surface-popover-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <i className="ti ti-plus text-base" aria-hidden="true" />
+                    <span>
+                      {creatingFromQuery
+                        ? 'Se adaugă…'
+                        : (createFromQueryLabel?.(trimmedQuery) ??
+                          `+ Adaugă „${trimmedQuery}"`)}
+                    </span>
+                  </button>
+                </li>
+              ) : (
+                <li className={FORM_DROPDOWN_EMPTY_CLASS}>{emptyMessage}</li>
+              )
             ) : (
               filteredOptions.map((option) => {
                 const isHighlighted = option.id === highlightedOptionId;

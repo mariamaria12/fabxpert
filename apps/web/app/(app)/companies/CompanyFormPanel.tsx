@@ -371,37 +371,35 @@ export function CompanyFormPanel({ open, mode, company, onClose, onSaved }: Comp
           onDraftInvalidChange={setColorDraftInvalid}
         />
 
-        {mode === 'create' && (
-          <div>
-            <label htmlFor="excel-paste" className="mb-1.5 block text-xs text-text-secondary">
-              Prepopulează din Excel
-            </label>
-            <textarea
-              id="excel-paste"
-              rows={2}
-              value={excelPasteText}
-              disabled={isBusy}
-              placeholder="Lipește aici un rând copiat din Excel"
-              onChange={(event) => setExcelPasteText(event.target.value)}
-              onPaste={handleExcelPaste}
-              className={`${inputClassName} resize-none`}
-              {...businessAutofill}
-            />
-            {excelPasteError && (
-              <p role="alert" className="mt-1 text-xs text-danger">
-                {excelPasteError}
-              </p>
-            )}
-            {excelPasteSuccess && (
-              <p className="mt-1 text-xs text-text-muted">{excelPasteSuccess}</p>
-            )}
-            {excelExtraColumnsIgnored && (
-              <p className="mt-1 text-xs text-text-muted">
-                Am folosit primele 10 coloane. Coloanele suplimentare au fost ignorate.
-              </p>
-            )}
-          </div>
-        )}
+        <div>
+          <label htmlFor="excel-paste" className="mb-1.5 block text-xs text-text-secondary">
+            Prepopulează din Excel
+          </label>
+          <textarea
+            id="excel-paste"
+            rows={2}
+            value={excelPasteText}
+            disabled={isBusy}
+            placeholder="Lipește aici un rând copiat din Excel"
+            onChange={(event) => setExcelPasteText(event.target.value)}
+            onPaste={handleExcelPaste}
+            className={`${inputClassName} resize-none`}
+            {...businessAutofill}
+          />
+          {excelPasteError && (
+            <p role="alert" className="mt-1 text-xs text-danger">
+              {excelPasteError}
+            </p>
+          )}
+          {excelPasteSuccess && (
+            <p className="mt-1 text-xs text-text-muted">{excelPasteSuccess}</p>
+          )}
+          {excelExtraColumnsIgnored && (
+            <p className="mt-1 text-xs text-text-muted">
+              Am folosit primele 10 coloane. Coloanele suplimentare au fost ignorate.
+            </p>
+          )}
+        </div>
 
         <TextField
           id="name"

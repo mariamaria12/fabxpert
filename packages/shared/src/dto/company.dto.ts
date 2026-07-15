@@ -56,6 +56,6 @@ export type CompanyDto = {
   updatedAt: string;
 };
 
-export const COMPANY_LIST_SORT_BY_VALUES = ['name'] as const;
+export const COMPANY_LIST_SORT_BY_VALUES = ['name', 'createdAt'] as const;
 
 export type CompanyListSortBy = (typeof COMPANY_LIST_SORT_BY_VALUES)[number];

@@ -14,3 +14,8 @@ export function matchesSearchText(haystack: string, query: string): boolean {
   }
   return normalizeSearchText(haystack).includes(normalizedQuery);
 }
+
+/** Exact match for resolving pasted client names against the company list. */
+export function equalsSearchText(left: string, right: string): boolean {
+  return normalizeSearchText(left) === normalizeSearchText(right);
+}

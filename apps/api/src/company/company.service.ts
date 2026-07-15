@@ -37,6 +37,8 @@ function buildCompanyOrderBy(
   sortOrder: SortOrder = 'asc',
 ): Prisma.CompanyOrderByWithRelationInput[] {
   switch (sortBy) {
+    case 'createdAt':
+      return [{ createdAt: sortOrder }, { id: 'asc' }];
     case 'name':
     default:
       return [{ name: sortOrder }, { id: 'asc' }];

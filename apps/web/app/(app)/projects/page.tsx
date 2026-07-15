@@ -13,6 +13,13 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ProjectFormPanel } from './ProjectFormPanel';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
+import {
+  ProjectNameCell,
+  projectClientTableColumnLayout,
+  projectCodeTableColumnLayout,
+  projectNameTableColumnLayout,
+  TruncatedTableCell,
+} from '@/components/ProjectNameCell';
 import { Pagination } from '@/components/Pagination';
 import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
@@ -91,22 +98,25 @@ export default function ProjectsPage() {
         key: 'code',
         header: 'Cod',
         sortKey: 'code',
-        width: '120px',
-        className: 'font-mono text-xs text-text-secondary',
-        render: (row) => row.code,
+        width: projectCodeTableColumnLayout.width,
+        className: projectCodeTableColumnLayout.className,
+        render: (row) => <TruncatedTableCell text={row.code} />,
       },
       {
         key: 'name',
         header: 'Proiect',
         sortKey: 'name',
-        render: (row) => <span className="font-medium">{row.name}</span>,
+        width: projectNameTableColumnLayout.width,
+        className: projectNameTableColumnLayout.className,
+        render: (row) => <ProjectNameCell name={row.name} />,
       },
       {
         key: 'company',
         header: 'Client',
         sortKey: 'company',
-        className: 'text-text-secondary',
-        render: (row) => row.company.name,
+        width: projectClientTableColumnLayout.width,
+        className: projectClientTableColumnLayout.className,
+        render: (row) => <TruncatedTableCell text={row.company.name} />,
       },
       {
         key: 'status',

@@ -16,8 +16,8 @@ import { replaceById } from '@/utils/replaceById';
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
-const DEFAULT_SORT_BY: CompanyListSortBy = 'name';
-const DEFAULT_SORT_ORDER: SortOrder = 'asc';
+const DEFAULT_SORT_BY: CompanyListSortBy = 'createdAt';
+const DEFAULT_SORT_ORDER: SortOrder = 'desc';
 
 const searchInputClassName =
   'w-full max-w-md rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
