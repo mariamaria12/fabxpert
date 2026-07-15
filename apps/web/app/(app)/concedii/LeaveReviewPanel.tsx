@@ -133,10 +133,10 @@ export function LeaveReviewPanel({
         </button>
       ) : null}
       {request.status === 'IN_ASTEPTARE' ? (
-        <div className="flex gap-2">
+        <div className="flex min-w-0 gap-2">
           <button
             type="button"
-            className="flex-1 rounded-md bg-status-livrat-bg px-4 py-2.5 text-sm font-medium text-status-livrat-text transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="min-w-0 flex-1 rounded-md bg-status-livrat-bg px-3 py-2.5 text-sm font-medium text-status-livrat-text transition-opacity hover:opacity-90 disabled:opacity-50"
             disabled={isSubmitting}
             onClick={() => void handleReview('APROBAT')}
           >
@@ -144,7 +144,7 @@ export function LeaveReviewPanel({
           </button>
           <button
             type="button"
-            className="flex-1 rounded-md bg-status-anulat-bg px-4 py-2.5 text-sm font-medium text-status-anulat-text transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="min-w-0 flex-1 rounded-md bg-status-anulat-bg px-3 py-2.5 text-sm font-medium text-status-anulat-text transition-opacity hover:opacity-90 disabled:opacity-50"
             disabled={isSubmitting}
             onClick={() => void handleReview('RESPINS')}
           >

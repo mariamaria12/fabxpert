@@ -27,6 +27,7 @@ export function PanouProjectCard({
   onToggle,
   leadingSlot,
   expandedContent,
+  durationTopActions,
 }: {
   accentColor: string | null;
   title: string;
@@ -38,6 +39,7 @@ export function PanouProjectCard({
   onToggle: () => void;
   leadingSlot?: ReactNode;
   expandedContent?: ReactNode;
+  durationTopActions?: ReactNode;
 }) {
   const color = accentColor ?? '#8c8a80';
 
@@ -67,7 +69,7 @@ export function PanouProjectCard({
             type="button"
             onClick={onToggle}
             aria-expanded={expanded}
-            className="flex min-w-0 flex-1 items-start gap-2.5 text-left transition-colors hover:opacity-90"
+            className="min-w-0 flex-1 text-left transition-colors hover:opacity-90"
           >
             <span className="min-w-0 flex-1">
               <span className="flex min-w-0 items-center gap-1.5">
@@ -95,20 +97,36 @@ export function PanouProjectCard({
               </span>
             )}
           </span>
-
-          <span className="flex shrink-0 items-center gap-1.5 self-start">
-            <span className="text-right">
-              <span className="block font-mono text-xs font-medium tabular-nums text-text-primary">
-                {formatDurationMinutes(totalMinutes)}
-              </span>
-              <span className="block text-[10px] text-text-muted">total logat</span>
-            </span>
-            <i
-              className={`ti ${expanded ? 'ti-chevron-up' : 'ti-chevron-down'} text-sm text-text-muted`}
-              aria-hidden="true"
-            />
-          </span>
           </button>
+
+          <div className="flex shrink-0 flex-col items-end gap-0.5 self-start">
+            {durationTopActions}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={onToggle}
+                aria-expanded={expanded}
+                className="text-right transition-colors hover:opacity-90"
+              >
+                <span className="block font-mono text-xs font-medium tabular-nums text-text-primary">
+                  {formatDurationMinutes(totalMinutes)}
+                </span>
+                <span className="block text-[10px] text-text-muted">total logat</span>
+              </button>
+              <button
+                type="button"
+                onClick={onToggle}
+                aria-expanded={expanded}
+                aria-label={expanded ? 'Restrânge detaliile' : 'Extinde detaliile'}
+                className="flex size-6 shrink-0 items-center justify-center text-text-muted transition-colors hover:text-text-secondary"
+              >
+                <i
+                  className={`ti ${expanded ? 'ti-chevron-up' : 'ti-chevron-down'} text-sm`}
+                  aria-hidden="true"
+                />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

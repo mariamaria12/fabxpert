@@ -110,9 +110,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           </header>
 
-          <main className="flex-1 p-6">
-            <TimesheetNotificationSlot />
+          <main className="relative flex-1 p-6">
             {children}
+            <TimesheetNotificationSlot />
           </main>
         </div>
       </div>

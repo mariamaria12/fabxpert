@@ -8,8 +8,10 @@ export function personMatchesSearch(person: PersonDto, query: string): boolean {
   }
 
   const fullName = `${person.firstName} ${person.lastName}`.toLowerCase();
+  const reversedName = `${person.lastName} ${person.firstName}`.toLowerCase();
   const fields = [
     fullName,
+    reversedName,
     person.firstName.toLowerCase(),
     person.lastName.toLowerCase(),
     person.email?.toLowerCase() ?? '',

@@ -307,11 +307,16 @@ export function PanouProjectsView() {
     inProgressTableRef.current?.applyProjectUpdate(updated);
   }, []);
 
+  const handlePinnedProjectUpdated = useCallback((updated: ProjectDto) => {
+    inProgressTableRef.current?.applyProjectUpdate(updated);
+  }, []);
+
   return (
     <section className="mt-6 space-y-8">
       <PanouPinnedProjectsSection
         ref={pinnedSectionRef}
         onProjectUnpinned={handleProjectUnpinned}
+        onProjectUpdated={handlePinnedProjectUpdated}
       />
       <ProjectTableSection
         ref={inProgressTableRef}

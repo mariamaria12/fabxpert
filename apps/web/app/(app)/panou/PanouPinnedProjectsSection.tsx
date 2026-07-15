@@ -22,10 +22,16 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { ProjectFormPanel } from '../projects/ProjectFormPanel';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 import { SortablePinnedProjectCard } from './SortablePinnedProjectCard';
+import { pinnedSummaryToProjectStub } from './pinnedSummaryToProjectStub';
+
+type EditPanelState =
+  | { open: false }
+  | { open: true; project: ProjectDto };
 
 export type PanouPinnedProjectsSectionHandle = {
   refetch: () => Promise<void>;
@@ -36,13 +42,15 @@ export const PanouPinnedProjectsSection = forwardRef<
   PanouPinnedProjectsSectionHandle,
   {
     onProjectUnpinned: (updated: ProjectDto) => void;
+    onProjectUpdated?: (updated: ProjectDto) => void;
   }
->(function PanouPinnedProjectsSection({ onProjectUnpinned }, ref) {
+>(function PanouPinnedProjectsSection({ onProjectUnpinned, onProjectUpdated }, ref) {
   const { showToast } = useToast();
   const [projects, setProjects] = useState<PinnedProjectSummaryRow[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editPanel, setEditPanel] = useState<EditPanelState>({ open: false });
   const fetchSeqRef = useRef(0);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -110,6 +118,25 @@ export const PanouPinnedProjectsSection = forwardRef<
   function handleUnpinned(updated: ProjectDto) {
     setProjects((current) => current.filter((project) => project.id !== updated.id));
     onProjectUnpinned(updated);
+  }
+
+  function openEdit(project: PinnedProjectSummaryRow) {
+    setEditPanel({ open: true, project: pinnedSummaryToProjectStub(project) });
+  }
+
+  function closeEditPanel() {
+    setEditPanel({ open: false });
+  }
+
+  function handleProjectSaved(updated?: ProjectDto) {
+    if (updated) {
+      onProjectUpdated?.(updated);
+      if (!updated.isPinned) {
+        setProjects((current) => current.filter((project) => project.id !== updated.id));
+      }
+    }
+
+    void refetchSummary();
   }
 
   async function handleDragEnd(event: DragEndEvent) {
@@ -192,12 +219,23 @@ export const PanouPinnedProjectsSection = forwardRef<
                   expanded={expandedIds.has(project.id)}
                   onToggle={() => toggleExpanded(project.id)}
                   onUnpinned={handleUnpinned}
+                  onEdit={() => openEdit(project)}
                 />
               ))}
             </div>
           </SortableContext>
         </DndContext>
       )}
+
+      {editPanel.open ? (
+        <ProjectFormPanel
+          open
+          mode="edit"
+          project={editPanel.project}
+          onClose={closeEditPanel}
+          onSaved={handleProjectSaved}
+        />
+      ) : null}
     </section>
   );
 });

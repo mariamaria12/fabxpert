@@ -191,14 +191,14 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
   function renderRowActions(row: LeaveRequestDto) {
     const isBusy = reviewingId === row.id;
     const showApprove = row.status !== 'APROBAT';
-    const showReject = row.status !== 'RESPINS';
+    const showReject = row.status === 'IN_ASTEPTARE';
 
     const iconButtonClass =
       'flex size-8 shrink-0 items-center justify-center rounded-md border border-border-subtle transition-colors hover:bg-surface-raised disabled:opacity-50';
 
     return (
       <div
-        className="inline-flex items-center justify-end gap-1.5"
+        className="flex items-center justify-end gap-1.5"
         onClick={(event) => event.stopPropagation()}
       >
         <LeaveRequestExportButton
@@ -216,9 +216,7 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
           >
             <i className="ti ti-check text-base" aria-hidden="true" />
           </button>
-        ) : (
-          <span className="size-8 shrink-0" aria-hidden="true" />
-        )}
+        ) : null}
         {showReject ? (
           <button
             type="button"
@@ -230,9 +228,7 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
           >
             <i className="ti ti-x text-base" aria-hidden="true" />
           </button>
-        ) : (
-          <span className="size-8 shrink-0" aria-hidden="true" />
-        )}
+        ) : null}
       </div>
     );
   }
@@ -265,9 +261,12 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
     {
       key: 'reason',
       header: 'Motiv',
+      className: 'max-w-[10rem]',
       render: (row) =>
         row.reason?.trim() ? (
-          <span title={row.reason}>{truncateReason(row.reason)}</span>
+          <span className="block truncate" title={row.reason}>
+            {truncateReason(row.reason)}
+          </span>
         ) : (
           <span className="text-text-muted">—</span>
         ),
@@ -287,9 +286,10 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
     {
       key: 'reviewed',
       header: 'Revizuit',
+      className: 'max-w-[12rem] truncate',
       render: (row) =>
         row.reviewedBy ? (
-          <span className="text-text-secondary">
+          <span className="block truncate text-text-secondary" title={`${row.reviewedBy.email}${row.reviewedAt ? ` · ${formatReviewedAt(row.reviewedAt)}` : ''}`}>
             {row.reviewedBy.email}
             {row.reviewedAt ? ` · ${formatReviewedAt(row.reviewedAt)}` : ''}
           </span>
@@ -300,7 +300,7 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
     {
       key: 'actions',
       header: '',
-      width: '130px',
+      width: '140px',
       className: 'overflow-visible text-right',
       render: (row) => renderRowActions(row),
     },

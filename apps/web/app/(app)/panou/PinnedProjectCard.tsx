@@ -69,17 +69,32 @@ function PinnedProjectPinButton({
   );
 }
 
+function PinnedProjectEditButton({ onEdit }: { onEdit: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onEdit}
+      aria-label="Editează proiectul"
+      className="flex size-6 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-raised hover:text-text-secondary"
+    >
+      <i className="ti ti-pencil text-sm" aria-hidden="true" />
+    </button>
+  );
+}
+
 export function PinnedProjectCard({
   project,
   expanded,
   onToggle,
   onUnpinned,
+  onEdit,
   dragHandleProps,
 }: {
   project: PinnedProjectSummaryRow;
   expanded: boolean;
   onToggle: () => void;
   onUnpinned: (updated: ProjectDto) => void;
+  onEdit: () => void;
   dragHandleProps?: DragHandleProps;
 }) {
   const timelineDates = getProjectTimelineDates(project.startDate, project.dueDate);
@@ -100,9 +115,9 @@ export function PinnedProjectCard({
   return (
     <PanouProjectCard
       accentColor={project.color}
-      title={project.name}
+      title={project.code}
       status={project.status}
-      subtitle={`${project.code} · ${project.company.name}`}
+      subtitle={project.company.name}
       timeline={timeline}
       totalMinutes={project.totalMinutes}
       expanded={expanded}
@@ -130,6 +145,7 @@ export function PinnedProjectCard({
           />
         </div>
       }
+      durationTopActions={<PinnedProjectEditButton onEdit={onEdit} />}
       expandedContent={
         project.activities.length > 0 ? (
           <ActivityBreakdownRows activities={project.activities} />

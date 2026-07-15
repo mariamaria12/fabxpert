@@ -2,6 +2,7 @@
 
 import {
   formatProjectDueDate,
+  getProject,
   getProjectStatusBadgeClassName,
   getProjectStatusLabel,
   isProjectDueDateOverdue,
@@ -10,6 +11,7 @@ import {
   type ProjectListSortBy,
   type SortOrder,
 } from '@fabxpert/shared';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ProjectFormPanel } from './ProjectFormPanel';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
@@ -23,6 +25,7 @@ import {
 import { Pagination } from '@/components/Pagination';
 import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { panouPathFromProjectEditReturn } from '@/utils/projectEditNavigation';
 import { replaceById } from '@/utils/replaceById';
 
 const PAGE_SIZE = 20;
@@ -69,6 +72,8 @@ type PanelState =
   | { open: true; mode: 'edit'; project: ProjectDto };
 
 export default function ProjectsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const businessAutofill = useBusinessAutofillProps();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
@@ -80,6 +85,32 @@ export default function ProjectsPage() {
   const [panel, setPanel] = useState<PanelState>({ open: false });
   const [sortBy, setSortBy] = useState<ProjectListSortBy>(DEFAULT_SORT_BY);
   const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
+  const deepLinkEditId = searchParams.get('edit');
+  const returnTarget = searchParams.get('return');
+
+  useEffect(() => {
+    if (!deepLinkEditId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    getProject(deepLinkEditId)
+      .then((project) => {
+        if (!cancelled) {
+          setPanel({ open: true, mode: 'edit', project });
+        }
+      })
+      .catch((caught) => {
+        if (!cancelled) {
+          setError(apiErrorToastMessage(caught));
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [deepLinkEditId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -208,16 +239,41 @@ export default function ProjectsPage() {
     setPage(1);
   }
 
+  function clearDeepLinkParams() {
+    if (!deepLinkEditId && !returnTarget) {
+      return;
+    }
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('edit');
+    params.delete('return');
+    const query = params.toString();
+    router.replace(query ? `/projects?${query}` : '/projects');
+  }
+
+  function navigateAfterPanelClose() {
+    const panouPath = panouPathFromProjectEditReturn(returnTarget);
+    if (panouPath) {
+      router.push(panouPath);
+      return;
+    }
+
+    clearDeepLinkParams();
+  }
+
   function openCreate() {
+    clearDeepLinkParams();
     setPanel({ open: true, mode: 'create', project: null });
   }
 
   function openEdit(project: ProjectDto) {
+    clearDeepLinkParams();
     setPanel({ open: true, mode: 'edit', project });
   }
 
   function closePanel() {
     setPanel({ open: false });
+    navigateAfterPanelClose();
   }
 
   function handleSaved(updated?: ProjectDto) {

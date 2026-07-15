@@ -10,11 +10,13 @@ export function SortablePinnedProjectCard({
   expanded,
   onToggle,
   onUnpinned,
+  onEdit,
 }: {
   project: PinnedProjectSummaryRow;
   expanded: boolean;
   onToggle: () => void;
   onUnpinned: (updated: ProjectDto) => void;
+  onEdit: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: project.id,
@@ -34,6 +36,7 @@ export function SortablePinnedProjectCard({
         expanded={expanded}
         onToggle={onToggle}
         onUnpinned={onUnpinned}
+        onEdit={onEdit}
         dragHandleProps={{ attributes, listeners }}
       />
     </div>

@@ -15,7 +15,7 @@ import {
 } from './personSearch';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { Pagination } from '@/components/Pagination';
-import { PersonName } from '@/components/PersonAvatar';
+import { PersonAvatar } from '@/components/PersonAvatar';
 import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { replaceById } from '@/utils/replaceById';
@@ -40,7 +40,14 @@ const personColumns: DataTableColumn<PersonDto>[] = [
     key: 'name',
     header: 'Nume',
     sortKey: 'name',
-    render: (row) => <PersonName person={row} nameClassName="font-medium" />,
+    render: (row) => (
+      <div className="flex min-w-0 items-center gap-3">
+        <PersonAvatar person={row} />
+        <span className="truncate font-medium">
+          {row.firstName} {row.lastName}
+        </span>
+      </div>
+    ),
   },
   {
     key: 'employeeRole',

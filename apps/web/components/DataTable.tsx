@@ -189,15 +189,20 @@ export function DataTable<T>({
                       )}
                     </td>
                   )}
-                  {columns.map((column) => (
+                  {columns.map((column) => {
+                    const cellOverflowVisible = column.className?.includes('overflow-visible');
+                    return (
                     <td
                       key={column.key}
                       style={column.width ? { width: column.width } : undefined}
-                      className={`px-3 py-2 text-text-primary ${column.className ?? ''}`}
+                      className={`px-3 py-2 text-text-primary ${column.className ?? ''} ${
+                        cellOverflowVisible ? 'overflow-visible' : 'overflow-hidden'
+                      }`}
                     >
                       {column.render ? column.render(row) : getCellValue(row, column.key)}
                     </td>
-                  ))}
+                    );
+                  })}
                 </tr>
               );
             })

@@ -6,7 +6,12 @@ import type { Config } from 'tailwindcss';
  * Never hardcode hex values in components — use these utilities.
  */
 const config: Config = {
-  content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
+  content: [
+    './app/**/*.{ts,tsx}',
+    './components/**/*.{ts,tsx}',
+    // Status badge utilities are defined as strings in shared — must be scanned or Tailwind drops them.
+    '../packages/shared/src/projectStatus.ts',
+  ],
   theme: {
     extend: {
       colors: {

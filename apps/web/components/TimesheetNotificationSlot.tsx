@@ -7,9 +7,6 @@ import { timesheetEventMessage } from '@/utils/timesheetEvents';
 
 const AUTO_DISMISS_MS = 10_000;
 
-/** Fixed height reserved above page content — prevents layout shift. */
-export const TIMESHEET_NOTIFICATION_SLOT_CLASS = 'mb-4 h-10 shrink-0';
-
 export function TimesheetNotificationSlot() {
   const { subscribe } = useTimesheetEvents();
   const [notification, setNotification] = useState<TimesheetEvent | null>(null);
@@ -45,18 +42,23 @@ export function TimesheetNotificationSlot() {
     setNotification(null);
   }
 
+  if (!notification) {
+    return null;
+  }
+
   return (
-    <div className={TIMESHEET_NOTIFICATION_SLOT_CLASS} aria-live="polite">
-      {notification && (
-        <button
-          type="button"
-          onClick={dismissEarly}
-          className="flex h-full w-full items-center gap-2 rounded-md border border-accent/30 bg-surface px-3 text-left text-sm text-text-primary transition-opacity hover:opacity-90"
-        >
-          <i className="ti ti-bell shrink-0 text-base text-accent" aria-hidden="true" />
-          <span className="min-w-0 truncate">{timesheetEventMessage(notification)}</span>
-        </button>
-      )}
+    <div
+      className="pointer-events-none absolute inset-x-0 top-0 z-50 px-6 pt-6"
+      aria-live="polite"
+    >
+      <button
+        type="button"
+        onClick={dismissEarly}
+        className="pointer-events-auto flex w-full items-center gap-2 rounded-md border border-accent/30 bg-surface px-3 py-2.5 text-left text-sm text-text-primary shadow-popover transition-opacity hover:opacity-90"
+      >
+        <i className="ti ti-bell shrink-0 text-base text-accent" aria-hidden="true" />
+        <span className="min-w-0 truncate">{timesheetEventMessage(notification)}</span>
+      </button>
     </div>
   );
 }
