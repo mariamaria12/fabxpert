@@ -2,6 +2,7 @@
 
 import { getPersonSummary, type PersonSummaryPersonRow } from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
+import { TimesheetExportPanel } from '@/app/(app)/timesheets/TimesheetExportPanel';
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
 import { PersonName } from '@/components/PersonAvatar';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
@@ -60,6 +61,7 @@ export function PanouPeopleView() {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const loadSummary = useCallback(
     async (background = false) => {
@@ -113,6 +115,17 @@ export function PanouPeopleView() {
 
   return (
     <section className="mt-4">
+      <div className="mb-3 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setExportOpen(true)}
+          className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary"
+        >
+          <i className="ti ti-file-spreadsheet text-base" aria-hidden="true" />
+          Export Excel
+        </button>
+      </div>
+
       {error && (
         <div className="flex items-center justify-between gap-4 rounded-md border border-border-subtle bg-[var(--color-toast-error-bg)] px-4 py-3">
           <p className="text-sm text-danger">{error}</p>
@@ -149,6 +162,14 @@ export function PanouPeopleView() {
             />
           ))}
         </div>
+      )}
+
+      {exportOpen && (
+        <TimesheetExportPanel
+          open
+          initialPeriod={period}
+          onClose={() => setExportOpen(false)}
+        />
       )}
     </section>
   );
