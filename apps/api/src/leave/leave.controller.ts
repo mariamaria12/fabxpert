@@ -117,6 +117,7 @@ export class LeaveController {
     return this.leaveService.create(req.user, input);
   }
 
+  @Get(':id/export')
   @Get(':id/export.docx')
   @Roles('ADMIN', 'EMPLOYEE')
   async exportDocx(

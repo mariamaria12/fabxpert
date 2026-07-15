@@ -387,7 +387,7 @@ describe('Leave requests (e2e)', () => {
     expect(typeof employee1Row.balance.remainingDays).toBe('number');
   });
 
-  it('GET /leave-requests/:id/export.docx returns filled docx for approved ODIHNA', async () => {
+  it('GET /leave-requests/:id/export returns filled docx for approved ODIHNA', async () => {
     const create = await request(app.getHttpServer())
       .post('/leave-requests')
       .set(authHeader(employee1Cookie))
@@ -401,7 +401,7 @@ describe('Leave requests (e2e)', () => {
     const id = create.body.leaveRequest.id as string;
 
     await request(app.getHttpServer())
-      .get(`/leave-requests/${id}/export.docx`)
+      .get(`/leave-requests/${id}/export`)
       .set(authHeader(employee1Cookie))
       .expect(400);
 
@@ -412,7 +412,7 @@ describe('Leave requests (e2e)', () => {
       .expect(200);
 
     const exportResponse = await request(app.getHttpServer())
-      .get(`/leave-requests/${id}/export.docx`)
+      .get(`/leave-requests/${id}/export`)
       .set(authHeader(adminCookie))
       .buffer(true)
       .parse((response, callback) => {

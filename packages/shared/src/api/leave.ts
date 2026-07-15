@@ -130,5 +130,5 @@ export function listLeaveBalances(year?: number) {
 }
 
 export function exportLeaveRequestDocx(id: string) {
-  return requestBlob(`/leave-requests/${id}/export.docx`);
+  return requestBlob(`/leave-requests/${id}/export`);
 }
