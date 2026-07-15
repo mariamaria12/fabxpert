@@ -10,7 +10,9 @@ import type {
   CreateUserInput,
   UpdateUserInput,
   UserDto,
+  UserListSortBy,
 } from '@fabxpert/shared/dto/user.dto';
+import type { SortOrder } from '@fabxpert/shared/dto/project.dto';
 import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
 import { PaginationParams } from '../common/pagination/parse-pagination.util';
 import { notDeleted } from '../common/prisma/soft-delete.util';
@@ -58,11 +60,31 @@ function toUserDto(user: UserWithPerson): UserDto {
   };
 }
 
+function buildUserOrderBy(
+  sortBy?: UserListSortBy,
+  sortOrder: SortOrder = 'asc',
+): Prisma.UserOrderByWithRelationInput[] {
+  switch (sortBy) {
+    case 'name':
+      return [
+        { person: { lastName: sortOrder } },
+        { person: { firstName: sortOrder } },
+        { id: 'asc' },
+      ];
+    default:
+      return [{ email: 'asc' }, { id: 'asc' }];
+  }
+}
+
 @Injectable()
 export class UserService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(pagination: PaginationParams): Promise<PaginatedResponse<UserDto>> {
+  async findAll(
+    pagination: PaginationParams,
+    sortBy?: UserListSortBy,
+    sortOrder: SortOrder = 'asc',
+  ): Promise<PaginatedResponse<UserDto>> {
     const { page, pageSize } = pagination;
     const where = { ...notDeleted() };
 
@@ -71,7 +93,7 @@ export class UserService {
       this.prisma.user.findMany({
         where,
         select: userSelect,
-        orderBy: { email: 'asc' },
+        orderBy: buildUserOrderBy(sortBy, sortOrder),
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

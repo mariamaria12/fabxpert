@@ -7,14 +7,18 @@ import {
   isProjectDueDateOverdue,
   listProjects,
   type ProjectDto,
+  type ProjectListSortBy,
+  type SortOrder,
 } from '@fabxpert/shared';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { Pagination } from '@/components/Pagination';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 
 const PAGE_SIZE = 20;
+const DEFAULT_SORT_BY: ProjectListSortBy = 'name';
+const DEFAULT_SORT_ORDER: SortOrder = 'asc';
 
 function nullableCell(value: string | null | undefined) {
   if (!value) {
@@ -52,11 +56,13 @@ function useProjectTableColumns(): DataTableColumn<ProjectDto>[] {
       {
         key: 'name',
         header: 'Proiect',
+        sortKey: 'name',
         render: (row) => <span className="font-medium">{row.name}</span>,
       },
       {
         key: 'code',
         header: 'Cod',
+        sortKey: 'code',
         width: '120px',
         className: 'font-mono text-xs text-text-secondary',
         render: (row) => row.code,
@@ -64,12 +70,14 @@ function useProjectTableColumns(): DataTableColumn<ProjectDto>[] {
       {
         key: 'company',
         header: 'Client',
+        sortKey: 'company',
         className: 'text-text-secondary',
         render: (row) => row.company.name,
       },
       {
         key: 'startDate',
         header: 'Dată începere',
+        sortKey: 'startDate',
         width: '110px',
         render: (row) =>
           row.startDate ? (
@@ -81,6 +89,7 @@ function useProjectTableColumns(): DataTableColumn<ProjectDto>[] {
       {
         key: 'dueDate',
         header: 'Termen',
+        sortKey: 'dueDate',
         width: '90px',
         render: (row) => <DueDateCell project={row} />,
       },
@@ -98,21 +107,22 @@ function useProjectTableColumns(): DataTableColumn<ProjectDto>[] {
 function ProjectTableSection({
   title,
   statusGroup,
-  page,
-  onPageChange,
 }: {
   title: string;
   statusGroup: 'in_progress' | 'completed';
-  page: number;
-  onPageChange: (page: number) => void;
 }) {
   const columns = useProjectTableColumns();
+  const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<ProjectListSortBy>(DEFAULT_SORT_BY);
+  const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
   const [projects, setProjects] = useState<ProjectDto[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const fetchSeqRef = useRef(0);
 
   const loadProjects = useCallback(async () => {
+    const fetchSeq = ++fetchSeqRef.current;
     setLoading(true);
     setError(null);
 
@@ -121,21 +131,37 @@ function ProjectTableSection({
         page,
         pageSize: PAGE_SIZE,
         statusGroup,
+        sortBy,
+        sortOrder,
       });
+      if (fetchSeq !== fetchSeqRef.current) {
+        return;
+      }
       setProjects(response.data);
       setTotal(response.meta.total);
     } catch (caught) {
+      if (fetchSeq !== fetchSeqRef.current) {
+        return;
+      }
       setError(apiErrorToastMessage(caught));
     } finally {
-      setLoading(false);
+      if (fetchSeq === fetchSeqRef.current) {
+        setLoading(false);
+      }
     }
-  }, [page, statusGroup]);
+  }, [page, statusGroup, sortBy, sortOrder]);
 
   useEffect(() => {
     void loadProjects();
   }, [loadProjects]);
 
   useRegisterPanouRefetch(`panou-projects-${statusGroup}`, loadProjects);
+
+  function handleSortChange(nextSortBy: string, nextSortOrder: SortOrder) {
+    setPage(1);
+    setSortBy(nextSortBy as ProjectListSortBy);
+    setSortOrder(nextSortOrder);
+  }
 
   const emptyMessage =
     statusGroup === 'in_progress'
@@ -171,13 +197,16 @@ function ProjectTableSection({
             rowKey={(row) => row.id}
             rowAccentColor={(row) => row.color ?? 'var(--color-border-subtle)'}
             loading={loading}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSortChange={handleSortChange}
           />
           {!loading && total > 0 && (
             <Pagination
               page={page}
               pageSize={PAGE_SIZE}
               total={total}
-              onPageChange={onPageChange}
+              onPageChange={setPage}
             />
           )}
         </div>
@@ -187,23 +216,10 @@ function ProjectTableSection({
 }
 
 export function PanouProjectsView() {
-  const [inProgressPage, setInProgressPage] = useState(1);
-  const [completedPage, setCompletedPage] = useState(1);
-
   return (
     <section className="mt-6 space-y-8">
-      <ProjectTableSection
-        title="Proiecte în curs"
-        statusGroup="in_progress"
-        page={inProgressPage}
-        onPageChange={setInProgressPage}
-      />
-      <ProjectTableSection
-        title="Proiecte finalizate"
-        statusGroup="completed"
-        page={completedPage}
-        onPageChange={setCompletedPage}
-      />
+      <ProjectTableSection title="Proiecte în curs" statusGroup="in_progress" />
+      <ProjectTableSection title="Proiecte finalizate" statusGroup="completed" />
     </section>
   );
 }

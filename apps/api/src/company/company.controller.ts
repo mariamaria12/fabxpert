@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Query,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   createCompanySchema,
@@ -23,6 +24,8 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CompanyService } from './company.service';
 
 const idParamSchema = z.string().trim().min(1);
+const sortBySchema = z.enum(['name']);
+const sortOrderSchema = z.enum(['asc', 'desc']);
 
 @Controller('companies')
 @Roles('ADMIN')
@@ -32,7 +35,26 @@ export class CompanyController {
   @Get()
   findAll(@Query() query: Record<string, string>) {
     const search = query.search?.trim() || undefined;
-    return this.companyService.findAll(parsePagination(query), search);
+
+    let sortBy: z.infer<typeof sortBySchema> | undefined;
+    if (query.sortBy !== undefined && query.sortBy !== '') {
+      const parsed = sortBySchema.safeParse(query.sortBy);
+      if (!parsed.success) {
+        throw new BadRequestException('Invalid sortBy');
+      }
+      sortBy = parsed.data;
+    }
+
+    let sortOrder: z.infer<typeof sortOrderSchema> = 'asc';
+    if (query.sortOrder !== undefined && query.sortOrder !== '') {
+      const parsed = sortOrderSchema.safeParse(query.sortOrder);
+      if (!parsed.success) {
+        throw new BadRequestException('Invalid sortOrder');
+      }
+      sortOrder = parsed.data;
+    }
+
+    return this.companyService.findAll(parsePagination(query), search, sortBy, sortOrder);
   }
 
   @Get(':id')

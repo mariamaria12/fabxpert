@@ -2,16 +2,21 @@
 
 import {
   listUsers,
+  type SortOrder,
   type UserDto,
+  type UserListSortBy,
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { UserFormPanel } from './UserFormPanel';
 import { PersonAvatar } from '@/components/PersonAvatar';
+import { DataTableSortIcon } from '@/components/DataTable';
 import { Pagination } from '@/components/Pagination';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { replaceById } from '@/utils/replaceById';
 
 const PAGE_SIZE = 20;
+const DEFAULT_SORT_BY: UserListSortBy = 'name';
+const DEFAULT_SORT_ORDER: SortOrder = 'asc';
 
 interface UsersTabProps {
   active: boolean;
@@ -28,25 +33,31 @@ function rolePillClass(role: UserDto['role']): string {
     : 'bg-status-ciorna-bg text-status-ciorna-text';
 }
 
-function personSubtitle(user: UserDto): string {
-  const roleName = user.person.employeeRole?.name ?? '—';
-  return `${user.person.firstName} ${user.person.lastName} · ${roleName}`;
+function personName(user: UserDto): string {
+  return `${user.person.firstName} ${user.person.lastName}`;
 }
 
 export function UsersTab({ active }: UsersTabProps) {
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<UserListSortBy>(DEFAULT_SORT_BY);
+  const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
   const [users, setUsers] = useState<UserDto[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [panel, setPanel] = useState<PanelState>({ open: false });
 
-  const loadUsers = useCallback(async (targetPage: number) => {
+  const loadUsers = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const usersResponse = await listUsers(targetPage, PAGE_SIZE);
+      const usersResponse = await listUsers({
+        page,
+        pageSize: PAGE_SIZE,
+        sortBy,
+        sortOrder,
+      });
       setUsers(usersResponse.data);
       setTotal(usersResponse.meta.total);
     } catch (caught) {
@@ -54,13 +65,23 @@ export function UsersTab({ active }: UsersTabProps) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, sortBy, sortOrder]);
 
   useEffect(() => {
     if (active) {
-      void loadUsers(page);
+      void loadUsers();
     }
-  }, [active, page, loadUsers]);
+  }, [active, loadUsers]);
+
+  function handleNameSort() {
+    if (sortBy !== 'name') {
+      setSortBy('name');
+      setSortOrder('asc');
+    } else {
+      setSortOrder((current) => (current === 'asc' ? 'desc' : 'asc'));
+    }
+    setPage(1);
+  }
 
   function openCreate() {
     setPanel({ open: true, mode: 'create', user: null });
@@ -80,7 +101,7 @@ export function UsersTab({ active }: UsersTabProps) {
       return;
     }
 
-    void loadUsers(page);
+    void loadUsers();
   }
 
   if (!active) {
@@ -88,6 +109,7 @@ export function UsersTab({ active }: UsersTabProps) {
   }
 
   const showEmptyState = !loading && !error && total === 0;
+  const nameSortActive = sortBy === 'name';
 
   return (
     <div>
@@ -111,7 +133,7 @@ export function UsersTab({ active }: UsersTabProps) {
           <p className="text-sm text-danger">{error}</p>
           <button
             type="button"
-            onClick={() => void loadUsers(page)}
+            onClick={() => void loadUsers()}
             className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary"
           >
             Reîncearcă
@@ -134,6 +156,28 @@ export function UsersTab({ active }: UsersTabProps) {
 
       {(loading || total > 0) && (
         <div className="mt-4 overflow-hidden rounded-md border border-border-subtle bg-surface">
+          <div
+            className="flex items-center gap-3 border-b border-border-subtle bg-surface px-4 py-2 text-[11px] font-medium uppercase tracking-wider text-text-muted"
+            aria-sort={
+              nameSortActive ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'
+            }
+          >
+            <button
+              type="button"
+              onClick={handleNameSort}
+              className={`inline-flex min-w-0 flex-1 items-center gap-1 rounded text-left transition-colors hover:text-text-secondary${
+                nameSortActive ? ' text-accent' : ''
+              }`}
+            >
+              <span className="truncate">Nume</span>
+              <DataTableSortIcon active={nameSortActive} order={sortOrder} />
+            </button>
+            <span className="hidden min-w-0 flex-[1.2] truncate sm:inline">E-mail</span>
+            <span className="hidden w-20 shrink-0 sm:inline">Rol</span>
+            <span className="hidden w-16 shrink-0 md:inline">Status</span>
+            <span className="w-8 shrink-0" aria-hidden="true" />
+          </div>
+
           {loading && users.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-text-muted">Se încarcă…</div>
           ) : (
@@ -147,17 +191,23 @@ export function UsersTab({ active }: UsersTabProps) {
                       className="flex min-w-0 flex-1 items-center gap-3 text-left"
                     >
                       <PersonAvatar person={user.person} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium text-text-primary">{user.email}</p>
-                        <p className="truncate text-sm text-text-muted">{personSubtitle(user)}</p>
+                      <div className="min-w-0 flex-1 sm:hidden">
+                        <p className="truncate font-medium text-text-primary">{personName(user)}</p>
+                        <p className="truncate text-sm text-text-muted">{user.email}</p>
                       </div>
+                      <p className="hidden min-w-0 flex-1 truncate font-medium text-text-primary sm:block">
+                        {personName(user)}
+                      </p>
+                      <p className="hidden min-w-0 flex-[1.2] truncate text-sm text-text-muted sm:block">
+                        {user.email}
+                      </p>
                       <span
-                        className={`hidden shrink-0 rounded px-2 py-0.5 text-xs font-medium sm:inline-block ${rolePillClass(user.role)}`}
+                        className={`hidden w-20 shrink-0 rounded px-2 py-0.5 text-center text-xs font-medium sm:inline-block ${rolePillClass(user.role)}`}
                       >
                         {user.role}
                       </span>
                       <span
-                        className={`hidden shrink-0 rounded px-2 py-0.5 text-xs font-medium md:inline-block ${
+                        className={`hidden w-16 shrink-0 rounded px-2 py-0.5 text-center text-xs font-medium md:inline-block ${
                           user.isActive
                             ? 'bg-status-livrat-bg text-status-livrat-text'
                             : 'bg-status-anulat-bg text-status-anulat-text'

@@ -30,6 +30,8 @@ import { ProjectService } from './project.service';
 
 const idParamSchema = z.string().trim().min(1);
 const statusGroupSchema = z.enum(['in_progress', 'completed']);
+const sortBySchema = z.enum(['name', 'code', 'company', 'startDate', 'dueDate']);
+const sortOrderSchema = z.enum(['asc', 'desc']);
 
 @Controller('projects')
 @Roles('ADMIN')
@@ -64,7 +66,31 @@ export class ProjectController {
       statusGroup = parsed.data;
     }
 
-    return this.projectService.findAll(parsePagination(query), search, statusGroup);
+    let sortBy: z.infer<typeof sortBySchema> | undefined;
+    if (query.sortBy !== undefined && query.sortBy !== '') {
+      const parsed = sortBySchema.safeParse(query.sortBy);
+      if (!parsed.success) {
+        throw new BadRequestException('Invalid sortBy');
+      }
+      sortBy = parsed.data;
+    }
+
+    let sortOrder: z.infer<typeof sortOrderSchema> = 'asc';
+    if (query.sortOrder !== undefined && query.sortOrder !== '') {
+      const parsed = sortOrderSchema.safeParse(query.sortOrder);
+      if (!parsed.success) {
+        throw new BadRequestException('Invalid sortOrder');
+      }
+      sortOrder = parsed.data;
+    }
+
+    return this.projectService.findAll(
+      parsePagination(query),
+      search,
+      statusGroup,
+      sortBy,
+      sortOrder,
+    );
   }
 
   @Get(':id')

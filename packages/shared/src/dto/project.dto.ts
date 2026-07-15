@@ -17,6 +17,20 @@ export type ProjectStatus = (typeof PROJECT_STATUS_VALUES)[number];
 
 export type ProjectStatusGroup = 'in_progress' | 'completed';
 
+export const PROJECT_LIST_SORT_BY_VALUES = [
+  'name',
+  'code',
+  'company',
+  'startDate',
+  'dueDate',
+] as const;
+
+export type ProjectListSortBy = (typeof PROJECT_LIST_SORT_BY_VALUES)[number];
+
+export const SORT_ORDER_VALUES = ['asc', 'desc'] as const;
+
+export type SortOrder = (typeof SORT_ORDER_VALUES)[number];
+
 const projectStatusSchema = z.enum(PROJECT_STATUS_VALUES);
 
 const companyIdSchema = z

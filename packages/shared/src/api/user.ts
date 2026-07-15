@@ -3,16 +3,31 @@ import type {
   CreateUserInput,
   UpdateUserInput,
   UserDto,
+  UserListSortBy,
 } from '../dto/user.dto';
+import type { SortOrder } from '../dto/project.dto';
 import type { PaginatedResponse } from '../dto/pagination.dto';
 
-export function listUsers(page?: number, pageSize?: number) {
+export interface ListUsersParams {
+  page?: number;
+  pageSize?: number;
+  sortBy?: UserListSortBy;
+  sortOrder?: SortOrder;
+}
+
+export function listUsers(params: ListUsersParams = {}) {
   const searchParams = new URLSearchParams();
-  if (page !== undefined) {
-    searchParams.set('page', String(page));
+  if (params.page !== undefined) {
+    searchParams.set('page', String(params.page));
   }
-  if (pageSize !== undefined) {
-    searchParams.set('pageSize', String(pageSize));
+  if (params.pageSize !== undefined) {
+    searchParams.set('pageSize', String(params.pageSize));
+  }
+  if (params.sortBy) {
+    searchParams.set('sortBy', params.sortBy);
+  }
+  if (params.sortOrder) {
+    searchParams.set('sortOrder', params.sortOrder);
   }
   const query = searchParams.toString();
   return request<PaginatedResponse<UserDto>>(`/users${query ? `?${query}` : ''}`);

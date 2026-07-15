@@ -1,15 +1,19 @@
 import { request } from './client';
 import type {
   CompanyDto,
+  CompanyListSortBy,
   CreateCompanyInput,
   UpdateCompanyInput,
 } from '../dto/company.dto';
+import type { SortOrder } from '../dto/project.dto';
 import type { PaginatedResponse } from '../dto/pagination.dto';
 
 export interface ListCompaniesParams {
   page?: number;
   pageSize?: number;
   search?: string;
+  sortBy?: CompanyListSortBy;
+  sortOrder?: SortOrder;
 }
 
 export function listCompanies(params: ListCompaniesParams = {}) {
@@ -23,6 +27,12 @@ export function listCompanies(params: ListCompaniesParams = {}) {
   const trimmedSearch = params.search?.trim();
   if (trimmedSearch) {
     searchParams.set('search', trimmedSearch);
+  }
+  if (params.sortBy) {
+    searchParams.set('sortBy', params.sortBy);
+  }
+  if (params.sortOrder) {
+    searchParams.set('sortOrder', params.sortOrder);
   }
   const query = searchParams.toString();
   return request<PaginatedResponse<CompanyDto>>(`/companies${query ? `?${query}` : ''}`);

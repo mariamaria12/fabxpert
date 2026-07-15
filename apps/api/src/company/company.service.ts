@@ -3,9 +3,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Company } from '@prisma/client';
 import type {
   CompanyDto,
+  CompanyListSortBy,
   CreateCompanyInput,
   UpdateCompanyInput,
 } from '@fabxpert/shared/dto/company.dto';
+import type { SortOrder } from '@fabxpert/shared/dto/project.dto';
 import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
 import { PaginationParams } from '../common/pagination/parse-pagination.util';
 import { notDeleted } from '../common/prisma/soft-delete.util';
@@ -30,6 +32,17 @@ function toCompanyDto(company: Company): CompanyDto {
   };
 }
 
+function buildCompanyOrderBy(
+  sortBy?: CompanyListSortBy,
+  sortOrder: SortOrder = 'asc',
+): Prisma.CompanyOrderByWithRelationInput[] {
+  switch (sortBy) {
+    case 'name':
+    default:
+      return [{ name: sortOrder }, { id: 'asc' }];
+  }
+}
+
 @Injectable()
 export class CompanyService {
   constructor(private readonly prisma: PrismaService) {}
@@ -37,6 +50,8 @@ export class CompanyService {
   async findAll(
     pagination: PaginationParams,
     search?: string,
+    sortBy?: CompanyListSortBy,
+    sortOrder: SortOrder = 'asc',
   ): Promise<PaginatedResponse<CompanyDto>> {
     const { page, pageSize } = pagination;
     const where: Prisma.CompanyWhereInput = { ...notDeleted() };
@@ -52,7 +67,7 @@ export class CompanyService {
       this.prisma.company.count({ where }),
       this.prisma.company.findMany({
         where,
-        orderBy: { name: 'asc' },
+        orderBy: buildCompanyOrderBy(sortBy, sortOrder),
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

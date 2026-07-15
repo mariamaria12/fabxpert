@@ -3,6 +3,8 @@
 import {
   listCompanies,
   type CompanyDto,
+  type CompanyListSortBy,
+  type SortOrder,
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { CompanyFormPanel } from './CompanyFormPanel';
@@ -14,6 +16,8 @@ import { replaceById } from '@/utils/replaceById';
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
+const DEFAULT_SORT_BY: CompanyListSortBy = 'name';
+const DEFAULT_SORT_ORDER: SortOrder = 'asc';
 
 const searchInputClassName =
   'w-full max-w-md rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
@@ -29,6 +33,7 @@ const companyColumns: DataTableColumn<CompanyDto>[] = [
   {
     key: 'name',
     header: 'Denumire',
+    sortKey: 'name',
     render: (row) => (
       <span className="inline-flex items-center gap-2">
         <span
@@ -82,6 +87,8 @@ export default function CompaniesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [panel, setPanel] = useState<PanelState>({ open: false });
+  const [sortBy, setSortBy] = useState<CompanyListSortBy>(DEFAULT_SORT_BY);
+  const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -94,15 +101,17 @@ export default function CompaniesPage() {
     setPage(1);
   }, [debouncedSearch]);
 
-  const loadCompanies = useCallback(async (targetPage: number, search?: string) => {
+  const loadCompanies = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
       const response = await listCompanies({
-        page: targetPage,
+        page,
         pageSize: PAGE_SIZE,
-        search,
+        search: debouncedSearch || undefined,
+        sortBy,
+        sortOrder,
       });
       setCompanies(response.data);
       setTotal(response.meta.total);
@@ -111,11 +120,17 @@ export default function CompaniesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, debouncedSearch, sortBy, sortOrder]);
 
   useEffect(() => {
-    void loadCompanies(page, debouncedSearch || undefined);
-  }, [page, debouncedSearch, loadCompanies]);
+    void loadCompanies();
+  }, [loadCompanies]);
+
+  function handleSortChange(nextSortBy: string, nextSortOrder: SortOrder) {
+    setSortBy(nextSortBy as CompanyListSortBy);
+    setSortOrder(nextSortOrder);
+    setPage(1);
+  }
 
   function openCreate() {
     setPanel({ open: true, mode: 'create', company: null });
@@ -135,7 +150,7 @@ export default function CompaniesPage() {
       return;
     }
 
-    void loadCompanies(page, debouncedSearch || undefined);
+    void loadCompanies();
   }
 
   const hasActiveSearch = debouncedSearch.length > 0;
@@ -163,7 +178,7 @@ export default function CompaniesPage() {
           <p className="text-sm text-danger">{error}</p>
           <button
             type="button"
-            onClick={() => void loadCompanies(page, debouncedSearch || undefined)}
+            onClick={() => void loadCompanies()}
             className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary"
           >
             Reîncearcă
@@ -212,6 +227,9 @@ export default function CompaniesPage() {
             rowKey={(row) => row.id}
             loading={loading}
             onRowClick={loading ? undefined : openEdit}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSortChange={handleSortChange}
           />
           {!loading && total > 0 && (
             <Pagination

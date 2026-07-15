@@ -513,7 +513,7 @@ The MVP uses **API-level end-to-end tests** only (no unit-test coverage target f
 
 Acknowledged gaps — address when the relevant work is prioritized:
 
-- **Table sorting** — deferred by explicit decision; list endpoints return default ordering only (no `sortBy` query param yet).
+- **Table sorting** — `GET /projects` supports `sortBy` + `sortOrder` (whitelist: name, code, company, startDate, dueDate; null dates last; id tiebreaker). Panou project tables use server-side sort via sortable `DataTable` headers. Other list pages (Proiecte, Companii, Pontaje) still use default ordering until wired up.
 - **Non-list response/error envelope** — single-resource endpoints return the DTO directly; no unified `{ data, error }` wrapper.
 - **CI/CD pipeline** — deployment targets are decided (see Deployment); deploys are manual for MVP.
 - **PWA assets** — manifest/icons are placeholders; production-quality icons deferred.

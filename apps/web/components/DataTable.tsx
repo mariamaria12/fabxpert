@@ -8,7 +8,11 @@ export interface DataTableColumn<T> {
   /** Optional width hint, e.g. "120px" or "20%". */
   width?: string;
   className?: string;
+  /** API sortBy value — when set, header is clickable if onSortChange is provided. */
+  sortKey?: string;
 }
+
+export type DataTableSortOrder = 'asc' | 'desc';
 
 export interface DataTableProps<T> {
   columns: DataTableColumn<T>[];
@@ -25,6 +29,11 @@ export interface DataTableProps<T> {
   loadingRowCount?: number;
   /** Message shown in the table body when not loading and data is empty. */
   emptyMessage?: string;
+  /** Active server-side sort column (API sortBy). */
+  sortBy?: string | null;
+  sortOrder?: DataTableSortOrder;
+  /** Called when a sortable header is clicked — parent refetches with new sort. */
+  onSortChange?: (sortBy: string, sortOrder: DataTableSortOrder) => void;
 }
 
 function getCellValue<T>(row: T, key: string): ReactNode {
@@ -42,6 +51,31 @@ function SkeletonCell() {
   );
 }
 
+export function DataTableSortIcon({
+  active,
+  order,
+}: {
+  active: boolean;
+  order: DataTableSortOrder;
+}) {
+  return (
+    <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center">
+      {active ? (
+        <i
+          className={`ti ${order === 'asc' ? 'ti-chevron-up' : 'ti-chevron-down'} text-sm text-accent`}
+          aria-hidden="true"
+        />
+      ) : (
+        <i className="ti ti-arrows-sort text-sm text-text-muted/60" aria-hidden="true" />
+      )}
+    </span>
+  );
+}
+
+function SortIcon({ active, order }: { active: boolean; order: DataTableSortOrder }) {
+  return <DataTableSortIcon active={active} order={order} />;
+}
+
 export function DataTable<T>({
   columns,
   data,
@@ -51,27 +85,69 @@ export function DataTable<T>({
   loading = false,
   loadingRowCount = 5,
   emptyMessage = 'Niciun rezultat.',
+  sortBy = null,
+  sortOrder = 'asc',
+  onSortChange,
 }: DataTableProps<T>) {
   const showAccent = rowAccentColor !== undefined;
   const colSpan = columns.length + (showAccent ? 1 : 0);
   const interactive = onRowClick !== undefined;
 
+  function handleSortClick(columnSortKey: string) {
+    if (!onSortChange) {
+      return;
+    }
+
+    if (sortBy !== columnSortKey) {
+      onSortChange(columnSortKey, 'asc');
+      return;
+    }
+
+    onSortChange(columnSortKey, sortOrder === 'asc' ? 'desc' : 'asc');
+  }
+
   return (
     <div className="w-full overflow-x-auto border border-border-subtle">
-      <table className="w-full min-w-full border-collapse text-sm">
+      <table className="w-full table-fixed border-collapse text-sm">
         <thead>
           <tr className="border-b border-border bg-surface">
             {showAccent && <th className="w-1.5 p-0" aria-hidden="true" />}
-            {columns.map((column) => (
-              <th
-                key={column.key}
-                scope="col"
-                style={column.width ? { width: column.width } : undefined}
-                className={`px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-text-muted ${column.className ?? ''}`}
-              >
-                {column.header}
-              </th>
-            ))}
+            {columns.map((column) => {
+              const isSortable = Boolean(column.sortKey && onSortChange);
+              const isActive = isSortable && sortBy === column.sortKey;
+              const ariaSort = isActive
+                ? sortOrder === 'asc'
+                  ? 'ascending'
+                  : 'descending'
+                : isSortable
+                  ? 'none'
+                  : undefined;
+
+              return (
+                <th
+                  key={column.key}
+                  scope="col"
+                  aria-sort={ariaSort}
+                  style={column.width ? { width: column.width } : undefined}
+                  className={`px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-text-muted ${column.className ?? ''}`}
+                >
+                  {isSortable ? (
+                    <button
+                      type="button"
+                      onClick={() => handleSortClick(column.sortKey!)}
+                      className={`flex w-full min-w-0 items-center gap-1 rounded text-left transition-colors hover:text-text-secondary${
+                        isActive ? ' text-accent' : ''
+                      }`}
+                    >
+                      <span className="min-w-0 truncate">{column.header}</span>
+                      <SortIcon active={isActive} order={sortOrder} />
+                    </button>
+                  ) : (
+                    column.header
+                  )}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>

@@ -57,3 +57,7 @@ export type UserDto = {
   createdAt: string;
   updatedAt: string;
 };
+
+export const USER_LIST_SORT_BY_VALUES = ['name'] as const;
+
+export type UserListSortBy = (typeof USER_LIST_SORT_BY_VALUES)[number];

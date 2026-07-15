@@ -7,6 +7,8 @@ import {
   isProjectDueDateOverdue,
   listProjects,
   type ProjectDto,
+  type ProjectListSortBy,
+  type SortOrder,
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ProjectFormPanel } from './ProjectFormPanel';
@@ -18,6 +20,8 @@ import { replaceById } from '@/utils/replaceById';
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
+const DEFAULT_SORT_BY: ProjectListSortBy = 'name';
+const DEFAULT_SORT_ORDER: SortOrder = 'asc';
 
 const searchInputClassName =
   'w-full max-w-md rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
@@ -67,6 +71,8 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [panel, setPanel] = useState<PanelState>({ open: false });
+  const [sortBy, setSortBy] = useState<ProjectListSortBy>(DEFAULT_SORT_BY);
+  const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -84,6 +90,7 @@ export default function ProjectsPage() {
       {
         key: 'code',
         header: 'Cod',
+        sortKey: 'code',
         width: '120px',
         className: 'font-mono text-xs text-text-secondary',
         render: (row) => row.code,
@@ -91,11 +98,13 @@ export default function ProjectsPage() {
       {
         key: 'name',
         header: 'Proiect',
+        sortKey: 'name',
         render: (row) => <span className="font-medium">{row.name}</span>,
       },
       {
         key: 'company',
         header: 'Client',
+        sortKey: 'company',
         className: 'text-text-secondary',
         render: (row) => row.company.name,
       },
@@ -108,6 +117,7 @@ export default function ProjectsPage() {
       {
         key: 'startDate',
         header: 'Început',
+        sortKey: 'startDate',
         width: '90px',
         render: (row) =>
           row.startDate ? (
@@ -119,6 +129,7 @@ export default function ProjectsPage() {
       {
         key: 'dueDate',
         header: 'Termen',
+        sortKey: 'dueDate',
         width: '90px',
         render: (row) => <DueDateCell project={row} />,
       },
@@ -156,15 +167,17 @@ export default function ProjectsPage() {
     ];
   }, []);
 
-  const loadProjects = useCallback(async (targetPage: number, search?: string) => {
+  const loadProjects = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
       const response = await listProjects({
-        page: targetPage,
+        page,
         pageSize: PAGE_SIZE,
-        search,
+        search: debouncedSearch || undefined,
+        sortBy,
+        sortOrder,
       });
       setProjects(response.data);
       setTotal(response.meta.total);
@@ -173,11 +186,17 @@ export default function ProjectsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, debouncedSearch, sortBy, sortOrder]);
 
   useEffect(() => {
-    void loadProjects(page, debouncedSearch || undefined);
-  }, [page, debouncedSearch, loadProjects]);
+    void loadProjects();
+  }, [loadProjects]);
+
+  function handleSortChange(nextSortBy: string, nextSortOrder: SortOrder) {
+    setSortBy(nextSortBy as ProjectListSortBy);
+    setSortOrder(nextSortOrder);
+    setPage(1);
+  }
 
   function openCreate() {
     setPanel({ open: true, mode: 'create', project: null });
@@ -197,7 +216,7 @@ export default function ProjectsPage() {
       return;
     }
 
-    void loadProjects(page, debouncedSearch || undefined);
+    void loadProjects();
   }
 
   const hasActiveSearch = debouncedSearch.length > 0;
@@ -225,7 +244,7 @@ export default function ProjectsPage() {
           <p className="text-sm text-danger">{error}</p>
           <button
             type="button"
-            onClick={() => void loadProjects(page, debouncedSearch || undefined)}
+            onClick={() => void loadProjects()}
             className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary"
           >
             Reîncearcă
@@ -275,6 +294,9 @@ export default function ProjectsPage() {
             rowAccentColor={(row) => row.color ?? 'var(--color-border-subtle)'}
             loading={loading}
             onRowClick={loading ? undefined : openEdit}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSortChange={handleSortChange}
           />
           {!loading && total > 0 && (
             <Pagination

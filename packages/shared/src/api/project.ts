@@ -3,7 +3,9 @@ import type {
   CreateProjectInput,
   ProjectDto,
   ProjectOptionDto,
+  ProjectListSortBy,
   ProjectStatusGroup,
+  SortOrder,
   UpdateProjectInput,
 } from '../dto/project.dto';
 import type { PaginatedResponse } from '../dto/pagination.dto';
@@ -23,6 +25,8 @@ export interface ListProjectsParams {
   pageSize?: number;
   search?: string;
   statusGroup?: ProjectStatusGroup;
+  sortBy?: ProjectListSortBy;
+  sortOrder?: SortOrder;
 }
 
 export function listProjects(params: ListProjectsParams = {}) {
@@ -39,6 +43,12 @@ export function listProjects(params: ListProjectsParams = {}) {
   }
   if (params.statusGroup) {
     searchParams.set('statusGroup', params.statusGroup);
+  }
+  if (params.sortBy) {
+    searchParams.set('sortBy', params.sortBy);
+  }
+  if (params.sortOrder) {
+    searchParams.set('sortOrder', params.sortOrder);
   }
   const query = searchParams.toString();
   return request<PaginatedResponse<ProjectDto>>(`/projects${query ? `?${query}` : ''}`);

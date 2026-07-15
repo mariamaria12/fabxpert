@@ -38,8 +38,9 @@ describe('Project list statusGroup filter (e2e)', () => {
       .set(authHeader(adminCookie))
       .expect(200);
 
-    expect(inProgress.body.meta.total).toBe(0);
-    expect(inProgress.body.data).toHaveLength(0);
+    expect(inProgress.body.meta.total).toBe(1);
+    expect(inProgress.body.data).toHaveLength(1);
+    expect(inProgress.body.data[0].id).toBe(FIXTURES.projects.roleRestricted.id);
 
     const completed = await request(app.getHttpServer())
       .get('/projects')
@@ -57,13 +58,92 @@ describe('Project list statusGroup filter (e2e)', () => {
       .set(authHeader(adminCookie))
       .expect(200);
 
-    expect(all.body.meta.total).toBe(2);
+    expect(all.body.meta.total).toBe(3);
   });
 
   it('rejects invalid statusGroup', async () => {
     const response = await request(app.getHttpServer())
       .get('/projects')
       .query({ statusGroup: 'invalid' })
+      .set(authHeader(adminCookie));
+
+    expect(response.status).toBe(400);
+  });
+
+  it('sorts by name ascending by default and accepts sortBy/sortOrder', async () => {
+    await request(app.getHttpServer())
+      .patch(`/projects/${FIXTURES.projects.ready.id}`)
+      .set(authHeader(adminCookie))
+      .send({ status: 'IN_PRODUCTIE' })
+      .expect(200);
+
+    const defaultList = await request(app.getHttpServer())
+      .get('/projects')
+      .query({ pageSize: '20' })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    const names = defaultList.body.data.map((row: { name: string }) => row.name);
+    expect([...names].sort((a, b) => a.localeCompare(b))).toEqual(names);
+
+    const byCodeDesc = await request(app.getHttpServer())
+      .get('/projects')
+      .query({ sortBy: 'code', sortOrder: 'desc', pageSize: '20' })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    const codes = byCodeDesc.body.data.map((row: { code: string }) => row.code);
+    expect([...codes].sort((a, b) => b.localeCompare(a))).toEqual(codes);
+  });
+
+  it('sorts in_progress projects when statusGroup and sortBy are combined', async () => {
+    await request(app.getHttpServer())
+      .patch(`/projects/${FIXTURES.projects.ready.id}`)
+      .set(authHeader(adminCookie))
+      .send({ status: 'IN_PRODUCTIE' })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .patch(`/projects/${FIXTURES.projects.notReady.id}`)
+      .set(authHeader(adminCookie))
+      .send({ status: 'IN_PRODUCTIE' })
+      .expect(200);
+
+    const byNameAsc = await request(app.getHttpServer())
+      .get('/projects')
+      .query({
+        statusGroup: 'in_progress',
+        sortBy: 'name',
+        sortOrder: 'asc',
+        pageSize: '20',
+      })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    const namesAsc = byNameAsc.body.data.map((row: { name: string }) => row.name);
+    expect(namesAsc.length).toBeGreaterThan(1);
+    expect([...namesAsc].sort((a, b) => a.localeCompare(b))).toEqual(namesAsc);
+
+    const byNameDesc = await request(app.getHttpServer())
+      .get('/projects')
+      .query({
+        statusGroup: 'in_progress',
+        sortBy: 'name',
+        sortOrder: 'desc',
+        pageSize: '20',
+      })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    const namesDesc = byNameDesc.body.data.map((row: { name: string }) => row.name);
+    expect([...namesDesc].sort((a, b) => b.localeCompare(a))).toEqual(namesDesc);
+    expect(namesDesc[0]).not.toBe(namesAsc[0]);
+  });
+
+  it('rejects invalid sortBy', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/projects')
+      .query({ sortBy: 'passwordHash' })
       .set(authHeader(adminCookie));
 
     expect(response.status).toBe(400);

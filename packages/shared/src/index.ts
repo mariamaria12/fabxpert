@@ -20,6 +20,7 @@ export {
 } from './dto/company.dto';
 export type {
   CompanyDto,
+  CompanyListSortBy,
   CreateCompanyInput,
   UpdateCompanyInput,
 } from './dto/company.dto';
@@ -96,6 +97,10 @@ export type {
   ProjectVisibleRoleDto,
   ProjectStatus,
   ProjectStatusGroup,
+  ProjectListSortBy,
+  SortOrder,
+  PROJECT_LIST_SORT_BY_VALUES,
+  SORT_ORDER_VALUES,
   CreateProjectInput,
   UpdateProjectInput,
 } from './dto/project.dto';
@@ -129,6 +134,7 @@ export {
   updateUser,
   deleteUser,
 } from './api/user';
+export type { ListUsersParams } from './api/user';
 export {
   createUserSchema,
   updateUserSchema,
@@ -138,6 +144,7 @@ export type {
   UserDto,
   UserRole,
   UserPersonDto,
+  UserListSortBy,
   CreateUserInput,
   UpdateUserInput,
 } from './dto/user.dto';

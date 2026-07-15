@@ -10,6 +10,7 @@ import {
   Post,
   Query,
   Req,
+  BadRequestException,
 } from '@nestjs/common';
 import { Request } from 'express';
 import {
@@ -26,6 +27,8 @@ import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { UserService } from './user.service';
 
 const idParamSchema = z.string().trim().min(1);
+const sortBySchema = z.enum(['name']);
+const sortOrderSchema = z.enum(['asc', 'desc']);
 
 @Controller('users')
 @Roles('ADMIN')
@@ -34,7 +37,25 @@ export class UserController {
 
   @Get()
   findAll(@Query() query: Record<string, string>) {
-    return this.userService.findAll(parsePagination(query));
+    let sortBy: z.infer<typeof sortBySchema> | undefined;
+    if (query.sortBy !== undefined && query.sortBy !== '') {
+      const parsed = sortBySchema.safeParse(query.sortBy);
+      if (!parsed.success) {
+        throw new BadRequestException('Invalid sortBy');
+      }
+      sortBy = parsed.data;
+    }
+
+    let sortOrder: z.infer<typeof sortOrderSchema> = 'asc';
+    if (query.sortOrder !== undefined && query.sortOrder !== '') {
+      const parsed = sortOrderSchema.safeParse(query.sortOrder);
+      if (!parsed.success) {
+        throw new BadRequestException('Invalid sortOrder');
+      }
+      sortOrder = parsed.data;
+    }
+
+    return this.userService.findAll(parsePagination(query), sortBy, sortOrder);
   }
 
   @Get(':id')

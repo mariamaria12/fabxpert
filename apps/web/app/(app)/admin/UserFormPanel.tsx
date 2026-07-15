@@ -146,7 +146,7 @@ async function loadAllPersons(): Promise<PersonDto[]> {
 
 async function loadAllAssignedPersonIds(): Promise<Set<string>> {
   const users = await loadAllPages(
-    (page, pageSize) => listUsers(page, pageSize),
+    (page, pageSize) => listUsers({ page, pageSize }),
     LOOKUP_PAGE_SIZE,
   );
   return new Set(users.map((entry) => entry.personId));

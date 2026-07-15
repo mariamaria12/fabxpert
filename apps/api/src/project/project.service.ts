@@ -9,10 +9,12 @@ import type {
   CreateProjectInput,
   ProjectDto,
   ProjectOptionDto,
+  ProjectListSortBy,
+  ProjectStatusGroup,
+  SortOrder,
   UpdateProjectInput,
 } from '@fabxpert/shared/dto/project.dto';
 import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
-import type { ProjectStatusGroup } from '@fabxpert/shared/dto/project.dto';
 import { PaginationParams } from '../common/pagination/parse-pagination.util';
 import { notDeleted } from '../common/prisma/soft-delete.util';
 import { PrismaService } from '../prisma/prisma.service';
@@ -104,6 +106,27 @@ function toProjectDto(project: ProjectWithRelations): ProjectDto {
   };
 }
 
+function buildProjectOrderBy(
+  sortBy?: ProjectListSortBy,
+  sortOrder: SortOrder = 'asc',
+): Prisma.ProjectOrderByWithRelationInput[] {
+  const tiebreaker: Prisma.ProjectOrderByWithRelationInput = { id: 'asc' };
+
+  switch (sortBy) {
+    case 'code':
+      return [{ code: sortOrder }, tiebreaker];
+    case 'company':
+      return [{ company: { name: sortOrder } }, tiebreaker];
+    case 'startDate':
+      return [{ startDate: { sort: sortOrder, nulls: 'last' } }, tiebreaker];
+    case 'dueDate':
+      return [{ dueDate: { sort: sortOrder, nulls: 'last' } }, tiebreaker];
+    case 'name':
+    default:
+      return [{ name: sortOrder }, tiebreaker];
+  }
+}
+
 @Injectable()
 export class ProjectService {
   constructor(
@@ -115,6 +138,8 @@ export class ProjectService {
     pagination: PaginationParams,
     search?: string,
     statusGroup?: ProjectStatusGroup,
+    sortBy?: ProjectListSortBy,
+    sortOrder: SortOrder = 'asc',
   ): Promise<PaginatedResponse<ProjectDto>> {
     const { page, pageSize } = pagination;
     const where: Prisma.ProjectWhereInput = { ...notDeleted() };
@@ -134,7 +159,7 @@ export class ProjectService {
       this.prisma.project.findMany({
         where,
         include: projectInclude,
-        orderBy: { createdAt: 'desc' },
+        orderBy: buildProjectOrderBy(sortBy, sortOrder),
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
