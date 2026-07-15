@@ -479,7 +479,7 @@ export class TimesheetService {
 
   private async getTimesheetOrThrow(id: string): Promise<TimesheetWithRelations> {
     const timesheet = await this.prisma.timesheet.findFirst({
-      where: { id, ...notDeleted() },
+      where: { id, ...visibleTimesheetWhere() },
       include: timesheetInclude,
     });
 

@@ -109,7 +109,15 @@ export function buildProjectSummaryQuery(
         COALESCE(SUM(t."durationMinutes"), 0)::int AS minutes
       FROM projects p
       INNER JOIN companies c ON c.id = p."companyId"
-      LEFT JOIN timesheets t ON t."projectId" = p.id AND t."deletedAt" IS NULL ${periodOnJoin}
+      LEFT JOIN timesheets t ON t."projectId" = p.id
+        AND t."deletedAt" IS NULL
+        AND EXISTS (
+          SELECT 1
+          FROM persons pe
+          WHERE pe.id = t."personId"
+            AND pe."deletedAt" IS NULL
+        )
+        ${periodOnJoin}
       LEFT JOIN activities a ON a.id = t."activityId"
       WHERE p."deletedAt" IS NULL
         ${pinnedFilter}
@@ -145,11 +153,11 @@ export function buildProjectSummaryQuery(
       a.color AS "activityColor",
       SUM(t."durationMinutes")::int AS minutes
     FROM timesheets t
-    INNER JOIN projects p ON p.id = t."projectId"
+    INNER JOIN persons pe ON pe.id = t."personId" AND pe."deletedAt" IS NULL
+    INNER JOIN projects p ON p.id = t."projectId" AND p."deletedAt" IS NULL
     INNER JOIN companies c ON c.id = p."companyId"
     LEFT JOIN activities a ON a.id = t."activityId"
     WHERE t."deletedAt" IS NULL
-      AND p."deletedAt" IS NULL
       ${periodFilter}
       ${pinnedFilter}
     GROUP BY
