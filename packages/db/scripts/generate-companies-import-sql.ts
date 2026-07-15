@@ -152,8 +152,7 @@ function main(): void {
 -- FabXpert PROD — one-off companies import (Supabase SQL Editor → paste → Run)
 --
 -- Prerequisites:
---   1. Migration 20260715140000_remove_company_taxcode_unique deployed to prod
---   2. companies table is EMPTY (truncated before import)
+--   1. companies table is EMPTY (truncated before import)
 --
 -- Generated rows: ${rows.length}
 -- id: gen_random_uuid() per row (@default(uuid()) is Prisma client-side only)

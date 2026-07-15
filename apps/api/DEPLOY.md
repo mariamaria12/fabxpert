@@ -91,29 +91,48 @@ DIRECT_URL=postgresql://postgres.icniqqtjchvfcixqkgku:PASSWORD@aws-0-eu-west-1.p
 
 If Railway logs show `P3009` and a failed migration name (e.g. `20260715130000_add_company_tax_code_unique`), Prisma will refuse further deploys until the failure is cleared.
 
-**One-time fix from your machine** (use production `DATABASE_URL` / pooler — same as Railway):
+That migration was **removed from the repo** (it tried to add a unique index on `companies.taxCode`, which is invalid — duplicate CUIs are allowed).
+
+##### Fix via Supabase SQL Editor (no local terminal)
+
+1. Open **Supabase** → your prod project → **SQL Editor** → New query.
+2. Paste and **Run**:
+
+```sql
+-- Remove partial unique index (safe if it never existed)
+DROP INDEX IF EXISTS "companies_taxCode_key";
+
+-- Clear failed / pending taxCode migrations so deploy can continue
+DELETE FROM "_prisma_migrations"
+WHERE migration_name IN (
+  '20260715130000_add_company_tax_code_unique',
+  '20260715140000_remove_company_taxcode_unique'
+);
+```
+
+3. **Redeploy** the API on Railway (push to `master` or Redeploy). `start:prod` runs `migrate deploy`; with those rows gone and the migration folders removed from git, nothing taxCode-related runs again.
+
+##### Alternative: local `prisma migrate resolve` (if you have prod `DATABASE_URL`)
 
 ```bash
 cd packages/db
 
-# Mark the failed attempt as rolled back (safe when CREATE INDEX never succeeded)
 DATABASE_URL="postgresql://..." \
-  pnpm exec prisma migrate resolve --rolled-back 20260715130000_add_company_tax_code_unique
+  pnpm exec prisma migrate resolve --applied 20260715130000_add_company_tax_code_unique
 
-# Optional: confirm pending migrations apply cleanly
+DATABASE_URL="postgresql://..." \
+  pnpm exec prisma migrate resolve --applied 20260715140000_remove_company_taxcode_unique
+
+DATABASE_URL="postgresql://..." \
+  pnpm exec prisma db execute --stdin <<'SQL'
+DROP INDEX IF EXISTS "companies_taxCode_key";
+SQL
+
 DATABASE_URL="postgresql://..." \
   pnpm exec prisma migrate deploy
 ```
 
-Then **redeploy** the API on Railway (push to `master` or Redeploy). The fixed migration only normalizes empty `taxCode` values — it does **not** add a unique index (duplicate CUIs are valid in this app).
-
-If an old partial index exists (rare):
-
-```sql
-DROP INDEX IF EXISTS "companies_taxCode_key";
-```
-
-Then run `migrate resolve --rolled-back` and redeploy.
+**Local / e2e databases** that still list the removed migrations in `_prisma_migrations` may warn about drift. Either reset dev (`pnpm --filter @fabxpert/db db:reset`) or run the same `DELETE FROM "_prisma_migrations" ...` in that database.
 
 ### 2. Railway project
 
