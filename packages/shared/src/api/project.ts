@@ -81,6 +81,13 @@ export function deleteProject(id: string) {
   return request<void>(`/projects/${id}`, { method: 'DELETE' });
 }
 
+export function reorderPinnedProjects(orderedIds: string[]) {
+  return request<void>('/projects/pinned-order', {
+    method: 'PATCH',
+    body: JSON.stringify({ orderedIds }),
+  });
+}
+
 function isProjectAvailabilityEvent(value: unknown): value is ProjectAvailabilityEvent {
   return (
     value !== null &&

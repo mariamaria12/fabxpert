@@ -153,9 +153,8 @@ describe('Pinned projects summary (e2e)', () => {
     expect(pinnedNotReady).toBeDefined();
     expect(pinnedNotReady.totalMinutes).toBe(0);
     expect(pinnedNotReady.activities).toHaveLength(0);
-
-    const names = summary.body.projects.map((project: { name: string }) => project.name);
-    expect([...names].sort((a, b) => a.localeCompare(b))).toEqual(names);
+    expect(pinnedReady.indexPanou).not.toBeNull();
+    expect(pinnedNotReady.indexPanou).not.toBeNull();
   });
 
   it('does not emit availability SSE when toggling isPinned only', async () => {

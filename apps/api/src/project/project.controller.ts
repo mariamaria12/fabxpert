@@ -20,6 +20,10 @@ import {
   type CreateProjectInput,
   type UpdateProjectInput,
 } from '@fabxpert/shared/dto/project.dto';
+import {
+  reorderPinnedProjectsSchema,
+  type ReorderPinnedProjectsInput,
+} from '@fabxpert/shared/dto/project-reorder.dto';
 import { z } from 'zod';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { parsePagination } from '../common/pagination/parse-pagination.util';
@@ -107,6 +111,15 @@ export class ProjectController {
     @Body(new ZodValidationPipe(createProjectSchema)) input: CreateProjectInput,
   ) {
     return this.projectService.create(input);
+  }
+
+  @Patch('pinned-order')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async reorderPinned(
+    @Body(new ZodValidationPipe(reorderPinnedProjectsSchema))
+    input: ReorderPinnedProjectsInput,
+  ) {
+    await this.projectService.reorderPinnedProjects(input.orderedIds);
   }
 
   @Patch(':id')

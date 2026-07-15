@@ -106,6 +106,7 @@ function toProjectDto(project: ProjectWithRelations | ProjectListRow, compact = 
     dueDate: project.dueDate?.toISOString() ?? null,
     readyForExecution: project.readyForExecution,
     isPinned: project.isPinned,
+    indexPanou: project.indexPanou,
     color: project.color,
     companyId: project.companyId,
     company: project.company,
@@ -216,7 +217,7 @@ export class ProjectService {
   async create(input: CreateProjectInput): Promise<ProjectDto> {
     await this.assertCompanyExists(input.companyId);
 
-    const { visibleForRoleIds, color, ...scalarInput } = input;
+    const { visibleForRoleIds, color, isPinned, ...scalarInput } = input;
     if (visibleForRoleIds !== undefined) {
       await this.assertVisibleForRoleIds(visibleForRoleIds);
     }
@@ -225,7 +226,9 @@ export class ProjectService {
       const project = await this.prisma.project.create({
         data: {
           ...scalarInput,
+          ...(isPinned !== undefined ? { isPinned } : {}),
           color: color ?? pickRandomProjectColor(),
+          ...(isPinned ? { indexPanou: await this.getNextIndexPanou() } : {}),
           ...(visibleForRoleIds !== undefined
             ? {
                 visibleForRoles: {
@@ -252,7 +255,7 @@ export class ProjectService {
       await this.assertCompanyExists(input.companyId);
     }
 
-    const { visibleForRoleIds, ...scalarInput } = input;
+    const { visibleForRoleIds, isPinned, ...scalarInput } = input;
     if (visibleForRoleIds !== undefined) {
       await this.assertVisibleForRoleIds(visibleForRoleIds);
     }
@@ -262,11 +265,20 @@ export class ProjectService {
       visibleForRoleIds !== undefined &&
       !roleIdsEqual(existingRoleIds, visibleForRoleIds);
 
+    let indexPanou: number | null | undefined;
+    if (isPinned === true && !existing.isPinned) {
+      indexPanou = await this.getNextIndexPanou();
+    } else if (isPinned === false && existing.isPinned) {
+      indexPanou = null;
+    }
+
     try {
       const project = await this.prisma.project.update({
         where: { id },
         data: {
           ...scalarInput,
+          ...(isPinned !== undefined ? { isPinned } : {}),
+          ...(indexPanou !== undefined ? { indexPanou } : {}),
           ...(visibleForRoleIds !== undefined
             ? {
                 visibleForRoles: {
@@ -293,6 +305,36 @@ export class ProjectService {
     }
   }
 
+  async reorderPinnedProjects(orderedIds: string[]): Promise<void> {
+    if (new Set(orderedIds).size !== orderedIds.length) {
+      throw new BadRequestException('orderedIds must not contain duplicates');
+    }
+
+    const pinned = await this.prisma.project.findMany({
+      where: {
+        id: { in: orderedIds },
+        isPinned: true,
+        ...notDeleted(),
+      },
+      select: { id: true },
+    });
+
+    if (pinned.length !== orderedIds.length) {
+      throw new BadRequestException(
+        'orderedIds must reference only existing pinned projects',
+      );
+    }
+
+    await this.prisma.$transaction(
+      orderedIds.map((projectId, index) =>
+        this.prisma.project.update({
+          where: { id: projectId },
+          data: { indexPanou: index },
+        }),
+      ),
+    );
+  }
+
   async softDelete(id: string): Promise<void> {
     const existing = await this.findOne(id);
     await this.prisma.project.update({
@@ -302,6 +344,18 @@ export class ProjectService {
     if (existing.readyForExecution) {
       this.availabilityEvents.emitChanged();
     }
+  }
+
+  private async getNextIndexPanou(): Promise<number> {
+    const result = await this.prisma.project.aggregate({
+      where: {
+        isPinned: true,
+        ...notDeleted(),
+      },
+      _max: { indexPanou: true },
+    });
+
+    return (result._max.indexPanou ?? -1) + 1;
   }
 
   private async resolveEmployeeRoleId(userId: string): Promise<string | null> {

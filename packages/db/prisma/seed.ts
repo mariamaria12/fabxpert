@@ -140,6 +140,7 @@ const projectsSeed = [
     dueDate: new Date('2026-07-15'),
     readyForExecution: true,
     isPinned: true,
+    indexPanou: 0,
     color: '#C9A227',
   },
   {
@@ -161,6 +162,7 @@ const projectsSeed = [
     dueDate: new Date('2026-07-10'),
     readyForExecution: true,
     isPinned: true,
+    indexPanou: 1,
     color: '#B5533C',
   },
   {
@@ -275,6 +277,7 @@ async function seedProjects() {
         dueDate: project.dueDate,
         readyForExecution: project.readyForExecution,
         isPinned: 'isPinned' in project ? project.isPinned : undefined,
+        indexPanou: 'indexPanou' in project ? project.indexPanou : undefined,
         color: project.color,
       },
       create: { ...project },

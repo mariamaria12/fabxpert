@@ -113,6 +113,7 @@ export type PinnedProjectSummaryRow = {
   status: ProjectStatus;
   startDate: string | null;
   dueDate: string | null;
+  indexPanou: number | null;
   company: { id: string; name: string };
   totalMinutes: number;
   activities: ProjectSummaryActivityRow[];

@@ -9,12 +9,19 @@ import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { ActivityBreakdownRows } from './ActivityBreakdownRows';
 import { panouAccentTint } from './panouColors';
 import { PanouProjectCard } from './PanouProjectCard';
+import type { DraggableAttributes } from '@dnd-kit/core';
+import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities';
 import {
   formatProjectTimelineRange,
   getProjectDaysRemainingLabel,
   getProjectTimelineDates,
   isProjectTimelineOverdue,
 } from './panouProjectTimeline';
+
+export type DragHandleProps = {
+  attributes: DraggableAttributes;
+  listeners: SyntheticListenerMap | undefined;
+};
 
 function PinnedProjectPinButton({
   project,
@@ -67,11 +74,13 @@ export function PinnedProjectCard({
   expanded,
   onToggle,
   onUnpinned,
+  dragHandleProps,
 }: {
   project: PinnedProjectSummaryRow;
   expanded: boolean;
   onToggle: () => void;
   onUnpinned: (updated: ProjectDto) => void;
+  dragHandleProps?: DragHandleProps;
 }) {
   const timelineDates = getProjectTimelineDates(project.startDate, project.dueDate);
   const timeline = timelineDates
@@ -99,14 +108,27 @@ export function PinnedProjectCard({
       expanded={expanded}
       onToggle={onToggle}
       leadingSlot={
-        <PinnedProjectPinButton
-          project={project}
-          onUnpinned={(updated) => {
-            if (!updated.isPinned) {
-              onUnpinned(updated);
-            }
-          }}
-        />
+        <div className="mt-0.5 flex shrink-0 items-center gap-0.5">
+          {dragHandleProps && (
+            <button
+              type="button"
+              className="flex size-8 cursor-grab items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-raised hover:text-text-secondary active:cursor-grabbing"
+              aria-label="Reordonează proiectul"
+              {...dragHandleProps.attributes}
+              {...dragHandleProps.listeners}
+            >
+              <i className="ti ti-grip-vertical text-base" aria-hidden="true" />
+            </button>
+          )}
+          <PinnedProjectPinButton
+            project={project}
+            onUnpinned={(updated) => {
+              if (!updated.isPinned) {
+                onUnpinned(updated);
+              }
+            }}
+          />
+        </div>
       }
       expandedContent={
         project.activities.length > 0 ? (

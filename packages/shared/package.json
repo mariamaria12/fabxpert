@@ -17,6 +17,10 @@
       "types": "./dist/dto/project.dto.d.ts",
       "default": "./dist/dto/project.dto.js"
     },
+    "./dto/project-reorder.dto": {
+      "types": "./dist/dto/project-reorder.dto.d.ts",
+      "default": "./dist/dto/project-reorder.dto.js"
+    },
     "./dto/user.dto": {
       "types": "./dist/dto/user.dto.d.ts",
       "default": "./dist/dto/user.dto.js"

@@ -98,9 +98,14 @@ export {
   createProject,
   updateProject,
   deleteProject,
+  reorderPinnedProjects,
   subscribeToAvailableProjects,
 } from './api/project';
 export type { ProjectAvailabilityEvent } from './api/project';
+export {
+  reorderPinnedProjectsSchema,
+} from './dto/project-reorder.dto';
+export type { ReorderPinnedProjectsInput } from './dto/project-reorder.dto';
 export {
   createProjectSchema,
   updateProjectSchema,

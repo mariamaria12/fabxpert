@@ -103,6 +103,7 @@ export type ProjectDto = {
   dueDate: string | null;
   readyForExecution: boolean;
   isPinned: boolean;
+  indexPanou: number | null;
   color: string | null;
   companyId: string;
   company: ProjectCompanyDto;
