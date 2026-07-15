@@ -95,20 +95,20 @@ function useProjectTableColumns(options?: {
 
     columns.push(
       {
-        key: 'name',
-        header: 'Proiect',
-        sortKey: 'name',
-        width: projectNameTableColumnLayout.width,
-        className: projectNameTableColumnLayout.className,
-        render: (row) => <ProjectNameCell name={row.name} />,
-      },
-      {
         key: 'code',
         header: 'Cod',
         sortKey: 'code',
         width: projectCodeTableColumnLayout.width,
         className: projectCodeTableColumnLayout.className,
         render: (row) => <TruncatedTableCell text={row.code} />,
+      },
+      {
+        key: 'name',
+        header: 'Proiect',
+        sortKey: 'name',
+        width: projectNameTableColumnLayout.width,
+        className: projectNameTableColumnLayout.className,
+        render: (row) => <ProjectNameCell name={row.name} />,
       },
       {
         key: 'company',
