@@ -16,6 +16,7 @@ import {
 } from '@fabxpert/shared';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { SearchableSelect, type SearchableSelectOption } from '@/components/SearchableSelect';
+import { PasswordField } from '@/components/PasswordField';
 import { SelectField } from '@/components/SelectField';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { TextField } from '@/components/TextField';
@@ -425,10 +426,9 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
           onChange={(value) => updateField('email', value)}
         />
 
-        <TextField
+        <PasswordField
           id="password"
           label={mode === 'create' ? 'Parolă' : 'Parolă nouă (lasă gol pentru a păstra)'}
-          type="password"
           autoComplete="new-password"
           value={values.password}
           error={fieldErrors.password}

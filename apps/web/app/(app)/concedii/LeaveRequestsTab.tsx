@@ -196,7 +196,7 @@ export function LeaveRequestsTab({ onBalancesRefresh }: LeaveRequestsTabProps) {
 
     return (
       <div
-        className="flex w-[4.5rem] items-center justify-end gap-1.5"
+        className="inline-flex items-center justify-end gap-1.5"
         onClick={(event) => event.stopPropagation()}
       >
         {showApprove ? (
@@ -294,8 +294,8 @@ export function LeaveRequestsTab({ onBalancesRefresh }: LeaveRequestsTabProps) {
     {
       key: 'actions',
       header: '',
-      width: '88px',
-      className: 'text-right',
+      width: '100px',
+      className: 'overflow-visible text-right',
       render: (row) => renderRowActions(row),
     },
   ];
