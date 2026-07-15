@@ -3,8 +3,20 @@ import type { ProjectStatus } from '@fabxpert/shared/dto/project.dto';
 import type {
   PinnedProjectSummaryRow,
   PinnedProjectsSummaryResponse,
+  ProjectSummaryProjectRow,
+  ProjectSummaryResponse,
   TimesheetSummaryPeriod,
 } from '@fabxpert/shared/dto/timesheet.dto';
+
+export type { ProjectSummaryProjectRow, ProjectSummaryResponse };
+
+export type BuildProjectSummaryQueryOptions = {
+  from?: Date | null;
+  to?: Date | null;
+  pinnedOnly?: boolean;
+  /** When true, starts from projects and LEFT JOINs timesheets so projects with zero entries appear. */
+  includeZeroEntryProjects?: boolean;
+};
 
 export type ProjectSummarySqlRow = {
   projectId: string;
@@ -20,36 +32,6 @@ export type ProjectSummarySqlRow = {
   projectStatus?: string;
   projectStartDate?: Date | null;
   projectDueDate?: Date | null;
-};
-
-export type ProjectSummaryActivityRow = {
-  activityId: string | null;
-  activityName: string;
-  activityColor: string | null;
-  minutes: number;
-};
-
-export type ProjectSummaryProjectRow = {
-  id: string;
-  name: string;
-  code: string;
-  color: string | null;
-  company: { id: string; name: string };
-  totalMinutes: number;
-  activities: ProjectSummaryActivityRow[];
-};
-
-export type ProjectSummaryResponse = {
-  period: TimesheetSummaryPeriod;
-  projects: ProjectSummaryProjectRow[];
-};
-
-export type BuildProjectSummaryQueryOptions = {
-  from?: Date | null;
-  to?: Date | null;
-  pinnedOnly?: boolean;
-  /** When true, starts from projects and LEFT JOINs timesheets so projects with zero entries appear. */
-  includeZeroEntryProjects?: boolean;
 };
 
 const NO_ACTIVITY_LABEL = 'Fără activitate';

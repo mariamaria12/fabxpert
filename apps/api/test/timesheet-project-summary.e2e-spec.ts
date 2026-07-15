@@ -91,7 +91,9 @@ describe('Timesheet project summary (e2e)', () => {
     );
 
     expect(readyProject.totalMinutes).toBe(210);
+    expect(readyProject.status).toBe('CIORNA');
     expect(finalizedProject.totalMinutes).toBe(60);
+    expect(finalizedProject.status).toBe('FINALIZAT');
 
     const activities = readyProject.activities as Array<{
       activityId: string | null;
@@ -103,6 +105,68 @@ describe('Timesheet project summary (e2e)', () => {
     expect(activities[0].activityId).toBe(FIXTURES.activities.active.id);
     expect(activities[1].minutes).toBe(90);
     expect(activities[1].activityId).toBe(FIXTURES.activities.second.id);
+  });
+
+  it('includes timesheets on terminal-status projects when the project is not deleted', async () => {
+    await request(app.getHttpServer())
+      .patch(`/projects/${FIXTURES.projects.roleRestricted.id}`)
+      .set(authHeader(adminCookie))
+      .send({ status: 'LIVRAT' })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .patch(`/projects/${FIXTURES.projects.notReady.id}`)
+      .set(authHeader(adminCookie))
+      .send({ status: 'ANULAT' })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post('/timesheets')
+      .set(authHeader(adminCookie))
+      .send({
+        personId: FIXTURES.persons.employee1.id,
+        projectId: FIXTURES.projects.roleRestricted.id,
+        activityId: FIXTURES.activities.active.id,
+        workDate: '2026-07-03',
+        durationMinutes: 45,
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/timesheets')
+      .set(authHeader(adminCookie))
+      .send({
+        personId: FIXTURES.persons.employee1.id,
+        projectId: FIXTURES.projects.notReady.id,
+        activityId: FIXTURES.activities.active.id,
+        workDate: '2026-07-03',
+        durationMinutes: 30,
+      })
+      .expect(201);
+
+    const summary = await request(app.getHttpServer())
+      .get('/timesheets/project-summary')
+      .query({ period: 'all' })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    const deliveredProject = summary.body.projects.find(
+      (project: { id: string }) => project.id === FIXTURES.projects.roleRestricted.id,
+    );
+    const cancelledProject = summary.body.projects.find(
+      (project: { id: string }) => project.id === FIXTURES.projects.notReady.id,
+    );
+
+    expect(deliveredProject).toMatchObject({
+      id: FIXTURES.projects.roleRestricted.id,
+      status: 'LIVRAT',
+      totalMinutes: 45,
+    });
+    expect(cancelledProject).toMatchObject({
+      id: FIXTURES.projects.notReady.id,
+      status: 'ANULAT',
+      totalMinutes: 90,
+    });
   });
 
   it('rejects invalid period', async () => {

@@ -88,11 +88,13 @@ export function PinnedProjectCard({
                 name: project.name,
                 code: project.code,
                 color: project.color,
+                status: project.status,
                 company: project.company,
                 totalMinutes: project.totalMinutes,
               }}
               expanded={expanded}
               showAccentBar={false}
+              statusBadge="all"
             />
           </div>
           {showTimelineInHeader && <ProjectTimelineMeta project={project} />}

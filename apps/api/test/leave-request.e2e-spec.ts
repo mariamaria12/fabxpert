@@ -429,6 +429,19 @@ describe('Leave requests (e2e)', () => {
     expect(exportResponse.body.subarray(0, 2).toString()).toBe('PK');
     expect(exportResponse.body.length).toBeGreaterThan(1000);
 
+    const legacyExportResponse = await request(app.getHttpServer())
+      .get(`/leave-requests/${id}/export.docx`)
+      .set(authHeader(adminCookie))
+      .buffer(true)
+      .parse((response, callback) => {
+        const chunks: Buffer[] = [];
+        response.on('data', (chunk: Buffer) => chunks.push(chunk));
+        response.on('end', () => callback(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+
+    expect(legacyExportResponse.body.subarray(0, 2).toString()).toBe('PK');
+
     const documentXml = new PizZip(exportResponse.body)
       .file('word/document.xml')
       ?.asText();

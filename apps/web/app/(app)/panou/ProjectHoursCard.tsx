@@ -25,13 +25,18 @@ export function ProjectHoursCardHeader({
   project,
   expanded,
   showAccentBar = true,
+  statusBadge = 'terminal',
 }: {
   project: Pick<ProjectHoursCardProject, 'name' | 'code' | 'color' | 'company' | 'totalMinutes'> & {
     status?: ProjectStatus;
   };
   expanded: boolean;
   showAccentBar?: boolean;
+  statusBadge?: 'all' | 'terminal';
 }) {
+  const status = project.status;
+  const showStatusBadge =
+    status && (statusBadge === 'all' || PROJECT_TERMINAL_STATUSES.includes(status));
   return (
     <>
       {showAccentBar && (
@@ -46,11 +51,11 @@ export function ProjectHoursCardHeader({
           <p className="truncate font-medium text-text-primary" title={project.name}>
             {project.name}
           </p>
-          {project.status && PROJECT_TERMINAL_STATUSES.includes(project.status) && (
+          {showStatusBadge && (
             <span
-              className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${getProjectStatusBadgeClassName(project.status)}`}
+              className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${getProjectStatusBadgeClassName(status)}`}
             >
-              {getProjectStatusLabel(project.status)}
+              {getProjectStatusLabel(status)}
             </span>
           )}
         </div>
