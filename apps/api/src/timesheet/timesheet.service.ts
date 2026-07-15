@@ -11,8 +11,10 @@ import type {
   PersonSummaryResponse,
   DashboardMetricsResponse,
   TimesheetDto,
+  TimesheetListSortBy,
   UpdateTimesheetInput,
 } from '@fabxpert/shared/dto/timesheet.dto';
+import type { SortOrder } from '@fabxpert/shared/dto/project.dto';
 import { parseWorkDateString, todayWorkDate } from '@fabxpert/shared/workDate';
 import type { ResolvedSummaryPeriod } from './timesheet-summary-period.util';
 import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
@@ -119,6 +121,35 @@ function toTimesheetDto(timesheet: TimesheetWithRelations): TimesheetDto {
   };
 }
 
+function buildTimesheetOrderBy(
+  sortBy?: TimesheetListSortBy,
+  sortOrder: SortOrder = 'asc',
+  orderByCreatedAt = false,
+): Prisma.TimesheetOrderByWithRelationInput[] {
+  const tiebreaker: Prisma.TimesheetOrderByWithRelationInput = { id: 'asc' };
+
+  if (orderByCreatedAt && !sortBy) {
+    return [{ createdAt: 'desc' }];
+  }
+
+  switch (sortBy) {
+    case 'person':
+      return [
+        { person: { firstName: sortOrder } },
+        { person: { lastName: sortOrder } },
+        tiebreaker,
+      ];
+    case 'project':
+      return [{ project: { name: sortOrder } }, tiebreaker];
+    case 'activity':
+      return [{ activity: { name: sortOrder } }, tiebreaker];
+    case 'date':
+      return [{ workDate: sortOrder }, { createdAt: 'desc' }, tiebreaker];
+    default:
+      return [{ workDate: 'desc' }, { createdAt: 'desc' }, tiebreaker];
+  }
+}
+
 @Injectable()
 export class TimesheetService {
   constructor(
@@ -163,6 +194,8 @@ export class TimesheetService {
   async findAll(
     pagination: PaginationParams,
     filters: TimesheetListFilters,
+    sortBy?: TimesheetListSortBy,
+    sortOrder: SortOrder = 'asc',
   ): Promise<PaginatedResponse<TimesheetDto>> {
     const { page, pageSize } = pagination;
     const where = this.buildListWhere(filters);
@@ -175,9 +208,7 @@ export class TimesheetService {
       this.prisma.timesheet.findMany({
         where,
         include: timesheetInclude,
-        orderBy: orderByCreatedAt
-          ? { createdAt: 'desc' }
-          : [{ workDate: 'desc' }, { createdAt: 'desc' }],
+        orderBy: buildTimesheetOrderBy(sortBy, sortOrder, orderByCreatedAt),
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

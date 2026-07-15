@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -23,6 +24,8 @@ import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { PersonService } from './person.service';
 
 const idParamSchema = z.string().trim().min(1);
+const sortBySchema = z.enum(['name']);
+const sortOrderSchema = z.enum(['asc', 'desc']);
 
 @Controller('persons')
 @Roles('ADMIN')
@@ -31,7 +34,25 @@ export class PersonController {
 
   @Get()
   findAll(@Query() query: Record<string, string>) {
-    return this.personService.findAll(parsePagination(query));
+    let sortBy: z.infer<typeof sortBySchema> | undefined;
+    if (query.sortBy !== undefined && query.sortBy !== '') {
+      const parsed = sortBySchema.safeParse(query.sortBy);
+      if (!parsed.success) {
+        throw new BadRequestException('Invalid sortBy');
+      }
+      sortBy = parsed.data;
+    }
+
+    let sortOrder: z.infer<typeof sortOrderSchema> = 'asc';
+    if (query.sortOrder !== undefined && query.sortOrder !== '') {
+      const parsed = sortOrderSchema.safeParse(query.sortOrder);
+      if (!parsed.success) {
+        throw new BadRequestException('Invalid sortOrder');
+      }
+      sortOrder = parsed.data;
+    }
+
+    return this.personService.findAll(parsePagination(query), sortBy, sortOrder);
   }
 
   @Get(':id')

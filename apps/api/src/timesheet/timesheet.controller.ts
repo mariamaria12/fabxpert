@@ -1,5 +1,6 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Delete,
   Get,
@@ -30,6 +31,8 @@ import { TimesheetService, type TimesheetListFilters } from './timesheet.service
 import { parseSummaryPeriodQuery } from './timesheet-summary-period.util';
 
 const idParamSchema = z.string().trim().min(1);
+const sortBySchema = z.enum(['person', 'project', 'activity', 'date']);
+const sortOrderSchema = z.enum(['asc', 'desc']);
 
 const uuidQuerySchema = z
   .string()
@@ -69,6 +72,28 @@ function parseListFilters(query: Record<string, string>) {
   }
 
   return filters;
+}
+
+function parseSortParams(query: Record<string, string>) {
+  let sortBy: z.infer<typeof sortBySchema> | undefined;
+  if (query.sortBy !== undefined && query.sortBy !== '') {
+    const parsed = sortBySchema.safeParse(query.sortBy);
+    if (!parsed.success) {
+      throw new BadRequestException('Invalid sortBy');
+    }
+    sortBy = parsed.data;
+  }
+
+  let sortOrder: z.infer<typeof sortOrderSchema> = 'asc';
+  if (query.sortOrder !== undefined && query.sortOrder !== '') {
+    const parsed = sortOrderSchema.safeParse(query.sortOrder);
+    if (!parsed.success) {
+      throw new BadRequestException('Invalid sortOrder');
+    }
+    sortOrder = parsed.data;
+  }
+
+  return { sortBy, sortOrder };
 }
 
 @Controller('timesheets')
@@ -134,7 +159,13 @@ export class TimesheetController {
   @Get()
   @Roles('ADMIN')
   findAll(@Query() query: Record<string, string>) {
-    return this.timesheetService.findAll(parsePagination(query), parseListFilters(query));
+    const { sortBy, sortOrder } = parseSortParams(query);
+    return this.timesheetService.findAll(
+      parsePagination(query),
+      parseListFilters(query),
+      sortBy,
+      sortOrder,
+    );
   }
 
   @Post()

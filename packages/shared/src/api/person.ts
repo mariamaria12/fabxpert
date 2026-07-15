@@ -2,17 +2,32 @@ import { request } from './client';
 import type {
   CreatePersonInput,
   PersonDto,
+  PersonListSortBy,
   UpdatePersonInput,
 } from '../dto/person.dto';
+import type { SortOrder } from '../dto/project.dto';
 import type { PaginatedResponse } from '../dto/pagination.dto';
 
-export function listPersons(page?: number, pageSize?: number) {
+export interface ListPersonsParams {
+  page?: number;
+  pageSize?: number;
+  sortBy?: PersonListSortBy;
+  sortOrder?: SortOrder;
+}
+
+export function listPersons(params: ListPersonsParams = {}) {
   const searchParams = new URLSearchParams();
-  if (page !== undefined) {
-    searchParams.set('page', String(page));
+  if (params.page !== undefined) {
+    searchParams.set('page', String(params.page));
   }
-  if (pageSize !== undefined) {
-    searchParams.set('pageSize', String(pageSize));
+  if (params.pageSize !== undefined) {
+    searchParams.set('pageSize', String(params.pageSize));
+  }
+  if (params.sortBy) {
+    searchParams.set('sortBy', params.sortBy);
+  }
+  if (params.sortOrder) {
+    searchParams.set('sortOrder', params.sortOrder);
   }
   const query = searchParams.toString();
   return request<PaginatedResponse<PersonDto>>(`/persons${query ? `?${query}` : ''}`);

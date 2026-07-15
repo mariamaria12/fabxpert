@@ -74,7 +74,7 @@ export function LeaveRequestsTab({ onBalancesRefresh }: LeaveRequestsTabProps) {
   const [reviewingId, setReviewingId] = useState<string | null>(null);
 
   useEffect(() => {
-    void loadAllPages((targetPage, pageSize) => listPersons(targetPage, pageSize))
+    void loadAllPages((targetPage, pageSize) => listPersons({ page: targetPage, pageSize }))
       .then((persons) => {
         setPersonOptions(
           persons.map((person) => ({

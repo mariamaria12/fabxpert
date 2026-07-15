@@ -140,3 +140,12 @@ export type TimesheetSummaryParams = {
   from?: string;
   to?: string;
 };
+
+export const TIMESHEET_LIST_SORT_BY_VALUES = [
+  'person',
+  'project',
+  'activity',
+  'date',
+] as const;
+
+export type TimesheetListSortBy = (typeof TIMESHEET_LIST_SORT_BY_VALUES)[number];

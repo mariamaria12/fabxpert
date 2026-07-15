@@ -3,6 +3,8 @@
 import {
   listPersons,
   type PersonDto,
+  type PersonListSortBy,
+  type SortOrder,
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { PersonFormPanel } from './PersonFormPanel';
@@ -20,6 +22,8 @@ import { replaceById } from '@/utils/replaceById';
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
+const DEFAULT_SORT_BY: PersonListSortBy = 'name';
+const DEFAULT_SORT_ORDER: SortOrder = 'asc';
 
 const searchInputClassName =
   'w-full max-w-md rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
@@ -35,6 +39,7 @@ const personColumns: DataTableColumn<PersonDto>[] = [
   {
     key: 'name',
     header: 'Nume',
+    sortKey: 'name',
     render: (row) => <PersonName person={row} nameClassName="font-medium" />,
   },
   {
@@ -72,6 +77,8 @@ export default function PeoplePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [panel, setPanel] = useState<PanelState>({ open: false });
+  const [sortBy, setSortBy] = useState<PersonListSortBy>(DEFAULT_SORT_BY);
+  const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -84,19 +91,28 @@ export default function PeoplePage() {
     setPage(1);
   }, [debouncedSearch]);
 
-  const loadPersons = useCallback(async (targetPage: number, search?: string) => {
+  const loadPersons = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      if (search) {
+      const listParams = {
+        page: debouncedSearch ? 1 : page,
+        pageSize: debouncedSearch ? CLIENT_SEARCH_FETCH_SIZE : PAGE_SIZE,
+        sortBy,
+        sortOrder,
+      };
+
+      if (debouncedSearch) {
         // TODO: switch to server-side ?search= when Person list API supports it.
-        const response = await listPersons(1, CLIENT_SEARCH_FETCH_SIZE);
-        const filtered = response.data.filter((person) => personMatchesSearch(person, search));
-        setPersons(paginateSlice(filtered, targetPage, PAGE_SIZE));
+        const response = await listPersons(listParams);
+        const filtered = response.data.filter((person) =>
+          personMatchesSearch(person, debouncedSearch),
+        );
+        setPersons(paginateSlice(filtered, page, PAGE_SIZE));
         setTotal(filtered.length);
       } else {
-        const response = await listPersons(targetPage, PAGE_SIZE);
+        const response = await listPersons(listParams);
         setPersons(response.data);
         setTotal(response.meta.total);
       }
@@ -105,11 +121,17 @@ export default function PeoplePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, debouncedSearch, sortBy, sortOrder]);
 
   useEffect(() => {
-    void loadPersons(page, debouncedSearch || undefined);
-  }, [page, debouncedSearch, loadPersons]);
+    void loadPersons();
+  }, [loadPersons]);
+
+  function handleSortChange(nextSortBy: string, nextSortOrder: SortOrder) {
+    setSortBy(nextSortBy as PersonListSortBy);
+    setSortOrder(nextSortOrder);
+    setPage(1);
+  }
 
   function openCreate() {
     setPanel({ open: true, mode: 'create', person: null });
@@ -129,7 +151,7 @@ export default function PeoplePage() {
       return;
     }
 
-    void loadPersons(page, debouncedSearch || undefined);
+    void loadPersons();
   }
 
   const hasActiveSearch = debouncedSearch.length > 0;
@@ -157,7 +179,7 @@ export default function PeoplePage() {
           <p className="text-sm text-danger">{error}</p>
           <button
             type="button"
-            onClick={() => void loadPersons(page, debouncedSearch || undefined)}
+            onClick={() => void loadPersons()}
             className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary"
           >
             Reîncearcă
@@ -205,6 +227,9 @@ export default function PeoplePage() {
             data={persons}
             rowKey={(row) => row.id}
             loading={loading}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSortChange={handleSortChange}
             onRowClick={loading ? undefined : openEdit}
           />
           {!loading && total > 0 && (

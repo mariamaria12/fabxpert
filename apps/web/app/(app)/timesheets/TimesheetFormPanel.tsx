@@ -140,7 +140,7 @@ export function TimesheetFormPanel({
     let cancelled = false;
 
     Promise.all([
-      listPersons(1, LOOKUP_PAGE_SIZE),
+      listPersons({ page: 1, pageSize: LOOKUP_PAGE_SIZE }),
       listProjects({ page: 1, pageSize: LOOKUP_PAGE_SIZE }),
       listActivities(),
     ])

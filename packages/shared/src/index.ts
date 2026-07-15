@@ -64,6 +64,7 @@ export {
   updatePerson,
   deletePerson,
 } from './api/person';
+export type { ListPersonsParams } from './api/person';
 export {
   createPersonSchema,
   updatePersonSchema,
@@ -71,6 +72,7 @@ export {
 export type {
   PersonDto,
   PersonEmployeeRoleDto,
+  PersonListSortBy,
   CreatePersonInput,
   UpdatePersonInput,
 } from './dto/person.dto';
@@ -176,6 +178,7 @@ export type {
   TimesheetPersonDto,
   TimesheetProjectDto,
   TimesheetActivityDto,
+  TimesheetListSortBy,
   TimesheetSummaryPeriod,
   TimesheetSummaryParams,
   ProjectSummaryPeriod,

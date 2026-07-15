@@ -141,7 +141,7 @@ const LOOKUP_PAGE_SIZE = 200;
 
 /** TODO: move to server-side person search when the list grows into the thousands. */
 async function loadAllPersons(): Promise<PersonDto[]> {
-  return loadAllPages((page, pageSize) => listPersons(page, pageSize), LOOKUP_PAGE_SIZE);
+  return loadAllPages((page, pageSize) => listPersons({ page, pageSize }), LOOKUP_PAGE_SIZE);
 }
 
 async function loadAllAssignedPersonIds(): Promise<Set<string>> {

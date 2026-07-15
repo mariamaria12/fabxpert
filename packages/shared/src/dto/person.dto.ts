@@ -53,3 +53,7 @@ export type PersonDto = {
   createdAt: string;
   updatedAt: string;
 };
+
+export const PERSON_LIST_SORT_BY_VALUES = ['name'] as const;
+
+export type PersonListSortBy = (typeof PERSON_LIST_SORT_BY_VALUES)[number];

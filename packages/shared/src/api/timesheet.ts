@@ -5,8 +5,10 @@ import type {
   PersonSummaryResponse,
   ProjectSummaryResponse,
   TimesheetDto,
+  TimesheetListSortBy,
   UpdateTimesheetInput,
 } from '../dto/timesheet.dto';
+import type { SortOrder } from '../dto/project.dto';
 import type { PaginatedResponse } from '../dto/pagination.dto';
 import { isPeriodQueryReady, periodToQuery, type Period } from '../period';
 
@@ -25,6 +27,8 @@ export interface ListTimesheetsParams {
   projectId?: string;
   search?: string;
   period?: Period;
+  sortBy?: TimesheetListSortBy;
+  sortOrder?: SortOrder;
   /** @deprecated Prefer `period`. Kept for createdAt-based filtering. */
   createdAtFrom?: string;
   /** @deprecated Prefer `period`. Kept for createdAt-based filtering. */
@@ -90,6 +94,12 @@ export function listTimesheets(params: ListTimesheetsParams = {}) {
   }
   if (params.createdAtTo !== undefined) {
     searchParams.set('createdAtTo', params.createdAtTo);
+  }
+  if (params.sortBy) {
+    searchParams.set('sortBy', params.sortBy);
+  }
+  if (params.sortOrder) {
+    searchParams.set('sortOrder', params.sortOrder);
   }
   const query = searchParams.toString();
   return request<PaginatedResponse<TimesheetDto>>(`/timesheets${query ? `?${query}` : ''}`);

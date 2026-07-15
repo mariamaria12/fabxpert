@@ -4,6 +4,8 @@ import {
   listTimesheets,
   type Period,
   type TimesheetDto,
+  type TimesheetListSortBy,
+  type SortOrder,
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { PeriodFilter } from '@/components/PeriodFilter';
@@ -23,6 +25,8 @@ import { replaceById } from '@/utils/replaceById';
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
+const DEFAULT_SORT_BY: TimesheetListSortBy = 'date';
+const DEFAULT_SORT_ORDER: SortOrder = 'desc';
 
 const searchInputClassName =
   'w-full min-w-[14rem] max-w-md rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
@@ -51,6 +55,8 @@ export default function TimesheetsPage() {
   const [error, setError] = useState<string | null>(null);
   const [panel, setPanel] = useState<PanelState>({ open: false });
   const [exportOpen, setExportOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<TimesheetListSortBy>(DEFAULT_SORT_BY);
+  const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -65,32 +71,37 @@ export default function TimesheetsPage() {
 
   const hasActiveFilters = debouncedSearch.length > 0 || period.kind !== 'month';
 
-  const loadTimesheets = useCallback(
-    async (targetPage: number, search: string, activePeriod: Period) => {
-      setLoading(true);
-      setError(null);
+  const loadTimesheets = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
-      try {
-        const response = await listTimesheets({
-          page: targetPage,
-          pageSize: PAGE_SIZE,
-          period: activePeriod,
-          ...(search ? { search } : {}),
-        });
-        setTimesheets(response.data);
-        setTotal(response.meta.total);
-      } catch (caught) {
-        setError(apiErrorToastMessage(caught));
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
+    try {
+      const response = await listTimesheets({
+        page,
+        pageSize: PAGE_SIZE,
+        period,
+        sortBy,
+        sortOrder,
+        ...(debouncedSearch ? { search: debouncedSearch } : {}),
+      });
+      setTimesheets(response.data);
+      setTotal(response.meta.total);
+    } catch (caught) {
+      setError(apiErrorToastMessage(caught));
+    } finally {
+      setLoading(false);
+    }
+  }, [page, debouncedSearch, period, sortBy, sortOrder]);
 
   useEffect(() => {
-    void loadTimesheets(page, debouncedSearch, period);
-  }, [page, debouncedSearch, period, loadTimesheets]);
+    void loadTimesheets();
+  }, [loadTimesheets]);
+
+  function handleSortChange(nextSortBy: string, nextSortOrder: SortOrder) {
+    setSortBy(nextSortBy as TimesheetListSortBy);
+    setSortOrder(nextSortOrder);
+    setPage(1);
+  }
 
   function openCreate() {
     setPanel({ open: true, mode: 'create', timesheet: null });
@@ -110,7 +121,7 @@ export default function TimesheetsPage() {
       return;
     }
 
-    void loadTimesheets(page, debouncedSearch, period);
+    void loadTimesheets();
   }
 
   const tableEmptyMessage = hasActiveFilters
@@ -121,21 +132,25 @@ export default function TimesheetsPage() {
     {
       key: 'person',
       header: 'Persoană',
+      sortKey: 'person',
       render: (row) => <PersonName person={row.person} nameClassName="font-medium" />,
     },
     {
       key: 'project',
       header: 'Proiect',
+      sortKey: 'project',
       render: (row) => nullableCell(formatProjectLabel(row)),
     },
     {
       key: 'activity',
       header: 'Activitate',
+      sortKey: 'activity',
       render: (row) => nullableCell(row.activity?.name),
     },
     {
       key: 'date',
       header: 'Data',
+      sortKey: 'date',
       width: '110px',
       className: 'text-text-secondary',
       render: (row) => formatRomanianDate(row.workDate),
@@ -177,7 +192,7 @@ export default function TimesheetsPage() {
           <p className="text-sm text-danger">{error}</p>
           <button
             type="button"
-            onClick={() => void loadTimesheets(page, debouncedSearch, period)}
+            onClick={() => void loadTimesheets()}
             className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary"
           >
             Reîncearcă
@@ -208,6 +223,9 @@ export default function TimesheetsPage() {
           rowKey={(row) => row.id}
           loading={loading}
           emptyMessage={tableEmptyMessage}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onSortChange={handleSortChange}
           onRowClick={loading ? undefined : openEdit}
         />
         {!loading && total > 0 && (

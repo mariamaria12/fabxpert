@@ -3,8 +3,10 @@ import { Prisma } from '@prisma/client';
 import type {
   CreatePersonInput,
   PersonDto,
+  PersonListSortBy,
   UpdatePersonInput,
 } from '@fabxpert/shared/dto/person.dto';
+import type { SortOrder } from '@fabxpert/shared/dto/project.dto';
 import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
 import { PaginationParams } from '../common/pagination/parse-pagination.util';
 import { notDeleted } from '../common/prisma/soft-delete.util';
@@ -20,6 +22,20 @@ const personInclude = {
 } satisfies Prisma.PersonInclude;
 
 type PersonWithRole = Prisma.PersonGetPayload<{ include: typeof personInclude }>;
+
+function buildPersonOrderBy(
+  sortBy?: PersonListSortBy,
+  sortOrder: SortOrder = 'asc',
+): Prisma.PersonOrderByWithRelationInput[] {
+  const tiebreaker: Prisma.PersonOrderByWithRelationInput = { id: 'asc' };
+
+  switch (sortBy) {
+    case 'name':
+      return [{ lastName: sortOrder }, { firstName: sortOrder }, tiebreaker];
+    default:
+      return [{ lastName: 'asc' }, { firstName: 'asc' }, tiebreaker];
+  }
+}
 
 function toPersonDto(person: PersonWithRole): PersonDto {
   return {
@@ -40,7 +56,11 @@ function toPersonDto(person: PersonWithRole): PersonDto {
 export class PersonService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(pagination: PaginationParams): Promise<PaginatedResponse<PersonDto>> {
+  async findAll(
+    pagination: PaginationParams,
+    sortBy?: PersonListSortBy,
+    sortOrder: SortOrder = 'asc',
+  ): Promise<PaginatedResponse<PersonDto>> {
     const { page, pageSize } = pagination;
     const where = { ...notDeleted() };
 
@@ -49,7 +69,7 @@ export class PersonService {
       this.prisma.person.findMany({
         where,
         include: personInclude,
-        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+        orderBy: buildPersonOrderBy(sortBy, sortOrder),
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
