@@ -124,4 +124,49 @@ describe('Timesheet list period filter (e2e)', () => {
     expect(noMatch.body.meta.total).toBe(0);
     expect(noMatch.body.data).toHaveLength(0);
   });
+
+  it('excludes timesheets on soft-deleted projects from GET /timesheets', async () => {
+    const workDate = localWorkDateOnly(0);
+
+    const create = await request(app.getHttpServer())
+      .post('/timesheets')
+      .set(authHeader(adminCookie))
+      .send({
+        personId: FIXTURES.persons.employee1.id,
+        projectId: FIXTURES.projects.notReady.id,
+        activityId: FIXTURES.activities.active.id,
+        workDate,
+        durationMinutes: 45,
+      })
+      .expect(201);
+
+    const beforeDelete = await request(app.getHttpServer())
+      .get('/timesheets')
+      .query({ period: 'today', pageSize: 50 })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    expect(
+      beforeDelete.body.data.some(
+        (row: { id: string }) => row.id === create.body.id,
+      ),
+    ).toBe(true);
+
+    await request(app.getHttpServer())
+      .delete(`/projects/${FIXTURES.projects.notReady.id}`)
+      .set(authHeader(adminCookie))
+      .expect(204);
+
+    const afterDelete = await request(app.getHttpServer())
+      .get('/timesheets')
+      .query({ period: 'today', pageSize: 50 })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    expect(
+      afterDelete.body.data.some(
+        (row: { id: string }) => row.id === create.body.id,
+      ),
+    ).toBe(false);
+  });
 });

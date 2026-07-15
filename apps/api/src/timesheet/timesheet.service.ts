@@ -21,7 +21,7 @@ import type { ResolvedSummaryPeriod } from './timesheet-summary-period.util';
 import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { PaginationParams } from '../common/pagination/parse-pagination.util';
-import { notDeleted } from '../common/prisma/soft-delete.util';
+import { notDeleted, visibleTimesheetWhere } from '../common/prisma/soft-delete.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { TimesheetEventsService } from './timesheet-events.service';
 import {
@@ -291,7 +291,7 @@ export class TimesheetService {
     const personId = await this.resolveEmployeePersonId(actor.id);
 
     const { page, pageSize } = pagination;
-    const where = { personId, ...notDeleted() };
+    const where = { personId, ...visibleTimesheetWhere() };
 
     const [total, rows] = await Promise.all([
       this.prisma.timesheet.count({ where }),
@@ -401,10 +401,17 @@ export class TimesheetService {
 
   private buildListWhere(filters: TimesheetListFilters): Prisma.TimesheetWhereInput {
     return {
-      ...notDeleted(),
+      ...visibleTimesheetWhere(),
       ...(filters.personId ? { personId: filters.personId } : {}),
       ...(filters.projectId ? { projectId: filters.projectId } : {}),
-      ...(filters.search ? { person: buildPersonSearchWhere(filters.search) } : {}),
+      ...(filters.search
+        ? {
+            person: {
+              ...notDeleted(),
+              ...buildPersonSearchWhere(filters.search),
+            },
+          }
+        : {}),
       ...(filters.workDateFrom !== undefined || filters.workDateTo !== undefined
         ? {
             workDate: {

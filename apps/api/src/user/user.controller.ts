@@ -37,6 +37,8 @@ export class UserController {
 
   @Get()
   findAll(@Query() query: Record<string, string>) {
+    const search = query.search?.trim() || undefined;
+
     let sortBy: z.infer<typeof sortBySchema> | undefined;
     if (query.sortBy !== undefined && query.sortBy !== '') {
       const parsed = sortBySchema.safeParse(query.sortBy);
@@ -55,7 +57,7 @@ export class UserController {
       sortOrder = parsed.data;
     }
 
-    return this.userService.findAll(parsePagination(query), sortBy, sortOrder);
+    return this.userService.findAll(parsePagination(query), sortBy, sortOrder, search);
   }
 
   @Get(':id')

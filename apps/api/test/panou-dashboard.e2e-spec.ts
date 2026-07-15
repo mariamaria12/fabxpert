@@ -12,6 +12,10 @@ function localTodayWorkDate(): string {
   return `${year}-${month}-${day}`;
 }
 
+function sumProjectSummaryMinutes(projects: Array<{ totalMinutes: number }>): number {
+  return projects.reduce((sum, project) => sum + project.totalMinutes, 0);
+}
+
 describe('Panou dashboard metrics and summaries (e2e)', () => {
   let app: INestApplication;
   let adminCookie: string;
@@ -130,6 +134,10 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
       .query({ period: 'today' })
       .set(authHeader(adminCookie))
       .expect(200);
+
+    expect(metrics.body.todayTotalMinutes).toBe(
+      sumProjectSummaryMinutes(projectSummary.body.projects),
+    );
 
     expect(projectSummary.body.period).toBe('today');
     expect(projectSummary.body.projects).toHaveLength(2);
@@ -258,9 +266,17 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
       .query({ period: 'today' })
       .set(authHeader(adminCookie))
       .expect(200);
+    const beforeProjectSummary = await request(app.getHttpServer())
+      .get('/timesheets/project-summary')
+      .query({ period: 'today' })
+      .set(authHeader(adminCookie))
+      .expect(200);
 
     expect(beforeMetrics.body.todayDistinctPersonCount).toBe(
       beforeSummary.body.persons.length,
+    );
+    expect(beforeMetrics.body.todayTotalMinutes).toBe(
+      sumProjectSummaryMinutes(beforeProjectSummary.body.projects),
     );
 
     await request(app.getHttpServer())
@@ -277,9 +293,20 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
       .query({ period: 'today' })
       .set(authHeader(adminCookie))
       .expect(200);
+    const projectSummary = await request(app.getHttpServer())
+      .get('/timesheets/project-summary')
+      .query({ period: 'today' })
+      .set(authHeader(adminCookie))
+      .expect(200);
 
     expect(metrics.body.todayDistinctPersonCount).toBe(
       personSummary.body.persons.length,
+    );
+    expect(metrics.body.todayTotalMinutes).toBe(
+      sumProjectSummaryMinutes(projectSummary.body.projects),
+    );
+    expect(metrics.body.todayTotalMinutes).toBeLessThan(
+      beforeMetrics.body.todayTotalMinutes,
     );
   });
 

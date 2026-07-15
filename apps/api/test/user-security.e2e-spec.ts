@@ -57,6 +57,35 @@ describe('User security (e2e)', () => {
     assertNoPasswordHash(updated.body);
   });
 
+  it('GET /users supports search by email and person name', async () => {
+    const byEmail = await request(app.getHttpServer())
+      .get('/users')
+      .query({ search: 'employee1@e2e.test', pageSize: 50 })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    expect(byEmail.body.meta.total).toBe(1);
+    expect(byEmail.body.data[0].id).toBe(FIXTURES.users.employee1.id);
+
+    const byName = await request(app.getHttpServer())
+      .get('/users')
+      .query({ search: 'EmployeeOne', pageSize: 50 })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    expect(byName.body.meta.total).toBe(1);
+    expect(byName.body.data[0].id).toBe(FIXTURES.users.employee1.id);
+
+    const noMatch = await request(app.getHttpServer())
+      .get('/users')
+      .query({ search: 'zzznomatchuser', pageSize: 50 })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    expect(noMatch.body.meta.total).toBe(0);
+    expect(noMatch.body.data).toHaveLength(0);
+  });
+
   it('ADMIN self-protection: cannot deactivate, demote, or delete own account', async () => {
     const deactivate = await request(app.getHttpServer())
       .patch(`/users/${FIXTURES.users.admin.id}`)

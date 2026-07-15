@@ -15,8 +15,12 @@ import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { replaceById } from '@/utils/replaceById';
 
 const PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 300;
 const DEFAULT_SORT_BY: UserListSortBy = 'name';
 const DEFAULT_SORT_ORDER: SortOrder = 'asc';
+
+const searchInputClassName =
+  'w-full min-w-[14rem] max-w-md rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
 
 interface UsersTabProps {
   active: boolean;
@@ -41,11 +45,25 @@ export function UsersTab({ active }: UsersTabProps) {
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<UserListSortBy>(DEFAULT_SORT_BY);
   const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [users, setUsers] = useState<UserDto[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [panel, setPanel] = useState<PanelState>({ open: false });
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedSearch(searchInput.trim());
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -57,6 +75,7 @@ export function UsersTab({ active }: UsersTabProps) {
         pageSize: PAGE_SIZE,
         sortBy,
         sortOrder,
+        ...(debouncedSearch ? { search: debouncedSearch } : {}),
       });
       setUsers(usersResponse.data);
       setTotal(usersResponse.meta.total);
@@ -65,7 +84,7 @@ export function UsersTab({ active }: UsersTabProps) {
     } finally {
       setLoading(false);
     }
-  }, [page, sortBy, sortOrder]);
+  }, [page, sortBy, sortOrder, debouncedSearch]);
 
   useEffect(() => {
     if (active) {
@@ -108,7 +127,9 @@ export function UsersTab({ active }: UsersTabProps) {
     return null;
   }
 
-  const showEmptyState = !loading && !error && total === 0;
+  const hasSearch = debouncedSearch.length > 0;
+  const showEmptyState = !loading && !error && total === 0 && !hasSearch;
+  const showNoSearchResults = !loading && !error && total === 0 && hasSearch;
   const nameSortActive = sortBy === 'name';
 
   return (
@@ -126,6 +147,17 @@ export function UsersTab({ active }: UsersTabProps) {
             Utilizator nou
           </button>
         )}
+      </div>
+
+      <div className="mt-4 min-w-[14rem] max-w-md">
+        <input
+          type="search"
+          value={searchInput}
+          onChange={(event) => setSearchInput(event.target.value)}
+          placeholder="Caută după nume sau e-mail..."
+          aria-label="Caută utilizatori"
+          className={searchInputClassName}
+        />
       </div>
 
       {error && (
@@ -152,6 +184,12 @@ export function UsersTab({ active }: UsersTabProps) {
             Utilizator nou
           </button>
         </div>
+      )}
+
+      {showNoSearchResults && (
+        <p className="mt-8 text-center text-sm text-text-muted">
+          Niciun utilizator găsit pentru căutarea curentă.
+        </p>
       )}
 
       {(loading || total > 0) && (

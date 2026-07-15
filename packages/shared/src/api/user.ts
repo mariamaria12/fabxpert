@@ -13,6 +13,7 @@ export interface ListUsersParams {
   pageSize?: number;
   sortBy?: UserListSortBy;
   sortOrder?: SortOrder;
+  search?: string;
 }
 
 export function listUsers(params: ListUsersParams = {}) {
@@ -28,6 +29,9 @@ export function listUsers(params: ListUsersParams = {}) {
   }
   if (params.sortOrder) {
     searchParams.set('sortOrder', params.sortOrder);
+  }
+  if (params.search?.trim()) {
+    searchParams.set('search', params.search.trim());
   }
   const query = searchParams.toString();
   return request<PaginatedResponse<UserDto>>(`/users${query ? `?${query}` : ''}`);

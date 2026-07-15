@@ -76,6 +76,31 @@ function buildUserOrderBy(
   }
 }
 
+function buildUserSearchWhere(search: string): Prisma.UserWhereInput {
+  const trimmed = search.trim();
+  if (!trimmed) {
+    return {};
+  }
+
+  const tokens = trimmed.split(/\s+/).filter((token) => token.length > 0);
+
+  return {
+    OR: [
+      { email: { contains: trimmed, mode: 'insensitive' } },
+      {
+        person: {
+          AND: tokens.map((token) => ({
+            OR: [
+              { firstName: { contains: token, mode: 'insensitive' } },
+              { lastName: { contains: token, mode: 'insensitive' } },
+            ],
+          })),
+        },
+      },
+    ],
+  };
+}
+
 @Injectable()
 export class UserService {
   constructor(private readonly prisma: PrismaService) {}
@@ -84,9 +109,13 @@ export class UserService {
     pagination: PaginationParams,
     sortBy?: UserListSortBy,
     sortOrder: SortOrder = 'asc',
+    search?: string,
   ): Promise<PaginatedResponse<UserDto>> {
     const { page, pageSize } = pagination;
-    const where = { ...notDeleted() };
+    const where: Prisma.UserWhereInput = {
+      ...notDeleted(),
+      ...buildUserSearchWhere(search ?? ''),
+    };
 
     const [total, rows] = await Promise.all([
       this.prisma.user.count({ where }),
