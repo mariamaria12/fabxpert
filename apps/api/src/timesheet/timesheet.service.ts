@@ -60,6 +60,11 @@ const timesheetInclude = {
       name: true,
       code: true,
       color: true,
+      company: {
+        select: {
+          name: true,
+        },
+      },
     },
   },
   activity: {

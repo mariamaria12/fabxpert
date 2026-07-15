@@ -197,8 +197,8 @@ export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectPro
                   aria-hidden="true"
                 />
                 <span className="option-row-body">
-                  <span className="option-row-title">{project.name}</span>
-                  <span className="option-row-code">{project.code}</span>
+                  <span className="option-row-title">{project.code}</span>
+                  <span className="option-row-code">{project.company.name}</span>
                 </span>
               </button>
             </li>

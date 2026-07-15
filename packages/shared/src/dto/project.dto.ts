@@ -119,4 +119,7 @@ export type ProjectOptionDto = {
   name: string;
   code: string;
   color: string | null;
+  company: {
+    name: string;
+  };
 };

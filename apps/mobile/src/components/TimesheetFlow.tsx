@@ -147,7 +147,8 @@ export function TimesheetFlow({ user, onLogout }: TimesheetFlowProps) {
 
       {showFlowSubHeader && step === 'editTimesheet' && editProject ? (
         <ContextSubHeader
-          projectName={editProject.name}
+          projectCode={editProject.code}
+          companyName={editProject.company.name}
           projectColor={editProject.color}
           activityName={editingTimesheet?.activity?.name}
           showBack
@@ -157,7 +158,8 @@ export function TimesheetFlow({ user, onLogout }: TimesheetFlowProps) {
 
       {showFlowSubHeader && step !== 'editTimesheet' && selectedProject ? (
         <ContextSubHeader
-          projectName={selectedProject.name}
+          projectCode={selectedProject.code}
+          companyName={selectedProject.company.name}
           projectColor={selectedProject.color}
           activityName={step === 'timeEntry' ? selectedActivity?.name : undefined}
           showBack

@@ -27,6 +27,11 @@ const projectOptionSelect = {
   name: true,
   code: true,
   color: true,
+  company: {
+    select: {
+      name: true,
+    },
+  },
 } satisfies Prisma.ProjectSelect;
 
 const projectCompanyInclude = {

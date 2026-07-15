@@ -1,5 +1,6 @@
 interface ContextSubHeaderProps {
-  projectName: string;
+  projectCode: string;
+  companyName?: string | null;
   projectColor: string | null;
   activityName?: string | null;
   showBack?: boolean;
@@ -7,7 +8,8 @@ interface ContextSubHeaderProps {
 }
 
 export function ContextSubHeader({
-  projectName,
+  projectCode,
+  companyName,
   projectColor,
   activityName,
   showBack = true,
@@ -43,7 +45,12 @@ export function ContextSubHeader({
             style={{ background: projectColor ?? 'var(--color-border)' }}
             aria-hidden="true"
           />
-          <span className="context-subheader-project-name">{projectName}</span>
+          <div className="context-subheader-project-text">
+            <span className="context-subheader-project-code">{projectCode}</span>
+            {companyName ? (
+              <span className="context-subheader-company">{companyName}</span>
+            ) : null}
+          </div>
         </div>
         {activityName ? (
           <p className="context-subheader-activity">{activityName}</p>

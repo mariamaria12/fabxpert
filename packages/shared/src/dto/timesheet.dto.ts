@@ -53,6 +53,9 @@ export type TimesheetProjectDto = {
   name: string;
   code: string;
   color: string | null;
+  company: {
+    name: string;
+  };
 };
 
 export type TimesheetActivityDto = {
