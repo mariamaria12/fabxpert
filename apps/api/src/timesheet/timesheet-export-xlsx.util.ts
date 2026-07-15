@@ -63,7 +63,7 @@ export async function buildTimesheetExportXlsx(rows: TimesheetExportRow[]): Prom
       date: workDate,
       hours: row.durationMinutes / 60,
       activity: row.activity?.name ?? '',
-      worker: `${row.person.firstName} ${row.person.lastName}`.trim().toUpperCase(),
+      worker: `${row.person.lastName} ${row.person.firstName}`.trim().toUpperCase(),
     });
 
     dataRow.getCell(2).numFmt = '0';

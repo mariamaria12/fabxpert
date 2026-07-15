@@ -8,7 +8,6 @@ import {
   type TimesheetDto,
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
-import { PersonName } from '@/components/PersonAvatar';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { PeriodFilter } from '@/components/PeriodFilter';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
@@ -20,6 +19,7 @@ import {
 } from './timesheetFilters';
 import {
   formatExportHours,
+  formatExportWorkerName,
   formatRomanianDate,
   workDateMonthNumber,
 } from './timesheetFormat';
@@ -65,7 +65,7 @@ const previewColumns: DataTableColumn<TimesheetDto>[] = [
   {
     key: 'worker',
     header: 'Lucrător',
-    render: (row) => <PersonName person={row.person} uppercase />,
+    render: (row) => formatExportWorkerName(row.person),
   },
 ];
 

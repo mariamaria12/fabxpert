@@ -1,6 +1,14 @@
 import type { TimesheetDto } from '@fabxpert/shared';
 import { workDateToDayKey } from '@fabxpert/shared';
 
+/** Payroll export format: NUME PRENUME (uppercase). */
+export function formatExportWorkerName(person: {
+  firstName: string;
+  lastName: string;
+}): string {
+  return `${person.lastName} ${person.firstName}`.trim().toUpperCase();
+}
+
 export function personFullName(timesheet: TimesheetDto): string {
   return `${timesheet.person.firstName} ${timesheet.person.lastName}`;
 }
