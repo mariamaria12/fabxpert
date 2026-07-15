@@ -61,6 +61,7 @@ export const createProjectSchema = z.object({
   startDate: z.coerce.date().optional(),
   dueDate: z.coerce.date().optional(),
   readyForExecution: z.boolean().optional(),
+  isPinned: z.boolean().optional(),
   color: hexColorSchema.optional(),
   /** Omitted or [] = visible to all employees. */
   visibleForRoleIds: visibleForRoleIdsSchema.optional(),
@@ -101,6 +102,7 @@ export type ProjectDto = {
   startDate: string | null;
   dueDate: string | null;
   readyForExecution: boolean;
+  isPinned: boolean;
   color: string | null;
   companyId: string;
   company: ProjectCompanyDto;

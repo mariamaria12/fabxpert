@@ -7,6 +7,7 @@ import {
 import { Prisma } from '@prisma/client';
 import type {
   CreateTimesheetInput,
+  PinnedProjectsSummaryResponse,
   ProjectSummaryResponse,
   PersonSummaryResponse,
   DashboardMetricsResponse,
@@ -30,6 +31,7 @@ import {
 } from './timesheet-events.util';
 import {
   buildProjectSummaryQuery,
+  shapePinnedProjectsSummary,
   shapeProjectSummary,
   type ProjectSummarySqlRow,
 } from './timesheet-project-summary.util';
@@ -227,6 +229,16 @@ export class TimesheetService {
       buildProjectSummaryQuery(resolved.from, resolved.to),
     );
     return shapeProjectSummary(rows, resolved.period);
+  }
+
+  async getPinnedProjectsSummary(): Promise<PinnedProjectsSummaryResponse> {
+    const rows = await this.prisma.$queryRaw<ProjectSummarySqlRow[]>(
+      buildProjectSummaryQuery({
+        pinnedOnly: true,
+        includeZeroEntryProjects: true,
+      }),
+    );
+    return shapePinnedProjectsSummary(rows);
   }
 
   async getPersonSummary(resolved: ResolvedSummaryPeriod): Promise<PersonSummaryResponse> {

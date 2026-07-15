@@ -115,6 +115,12 @@ export class TimesheetController {
     return this.timesheetService.getDashboardMetrics();
   }
 
+  @Get('pinned-summary')
+  @Roles('ADMIN')
+  pinnedSummary() {
+    return this.timesheetService.getPinnedProjectsSummary();
+  }
+
   @Get('project-summary')
   @Roles('ADMIN')
   projectSummary(@Query() query: Record<string, string>) {

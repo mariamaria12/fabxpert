@@ -97,6 +97,7 @@ function toProjectDto(project: ProjectWithRelations): ProjectDto {
     startDate: project.startDate?.toISOString() ?? null,
     dueDate: project.dueDate?.toISOString() ?? null,
     readyForExecution: project.readyForExecution,
+    isPinned: project.isPinned,
     color: project.color,
     companyId: project.companyId,
     company: project.company,

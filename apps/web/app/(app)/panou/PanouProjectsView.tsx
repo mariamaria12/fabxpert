@@ -10,11 +10,25 @@ import {
   type ProjectListSortBy,
   type SortOrder,
 } from '@fabxpert/shared';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { Pagination } from '@/components/Pagination';
+import { replaceById } from '@/utils/replaceById';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
+import {
+  PanouPinnedProjectsSection,
+  type PanouPinnedProjectsSectionHandle,
+} from './PanouPinnedProjectsSection';
+import { ProjectPinButton } from './ProjectPinButton';
 
 const PAGE_SIZE = 20;
 const DEFAULT_SORT_BY: ProjectListSortBy = 'name';
@@ -50,9 +64,28 @@ function DueDateCell({ project }: { project: ProjectDto }) {
   );
 }
 
-function useProjectTableColumns(): DataTableColumn<ProjectDto>[] {
-  return useMemo(
-    (): DataTableColumn<ProjectDto>[] => [
+function useProjectTableColumns(options?: {
+  showPinColumn?: boolean;
+  onPinToggled?: (updated: ProjectDto) => void;
+}): DataTableColumn<ProjectDto>[] {
+  return useMemo((): DataTableColumn<ProjectDto>[] => {
+    const columns: DataTableColumn<ProjectDto>[] = [];
+
+    if (options?.showPinColumn) {
+      columns.push({
+        key: 'pin',
+        header: '',
+        width: '44px',
+        render: (row) => (
+          <ProjectPinButton
+            project={row}
+            onToggled={(updated) => options.onPinToggled?.(updated)}
+          />
+        ),
+      });
+    }
+
+    columns.push(
       {
         key: 'name',
         header: 'Proiect',
@@ -99,19 +132,28 @@ function useProjectTableColumns(): DataTableColumn<ProjectDto>[] {
         width: '150px',
         render: (row) => <ProjectStatusBadge status={row.status} />,
       },
-    ],
-    [],
-  );
+    );
+
+    return columns;
+  }, [options?.onPinToggled, options?.showPinColumn]);
 }
 
-function ProjectTableSection({
-  title,
-  statusGroup,
-}: {
-  title: string;
-  statusGroup: 'in_progress' | 'completed';
-}) {
-  const columns = useProjectTableColumns();
+export type ProjectTableSectionHandle = {
+  applyProjectUpdate: (updated: ProjectDto) => void;
+};
+
+const ProjectTableSection = forwardRef<
+  ProjectTableSectionHandle,
+  {
+    title: string;
+    statusGroup: 'in_progress' | 'completed';
+    showPinColumn?: boolean;
+    onPinToggled?: (updated: ProjectDto) => void;
+  }
+>(function ProjectTableSection(
+  { title, statusGroup, showPinColumn = false, onPinToggled },
+  ref,
+) {
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<ProjectListSortBy>(DEFAULT_SORT_BY);
   const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
@@ -157,11 +199,31 @@ function ProjectTableSection({
 
   useRegisterPanouRefetch(`panou-projects-${statusGroup}`, loadProjects);
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      applyProjectUpdate: (updated: ProjectDto) => {
+        setProjects((current) => replaceById(current, updated));
+      },
+    }),
+    [],
+  );
+
   function handleSortChange(nextSortBy: string, nextSortOrder: SortOrder) {
     setPage(1);
     setSortBy(nextSortBy as ProjectListSortBy);
     setSortOrder(nextSortOrder);
   }
+
+  function handlePinToggled(updated: ProjectDto) {
+    setProjects((current) => replaceById(current, updated));
+    onPinToggled?.(updated);
+  }
+
+  const columnsWithPin = useProjectTableColumns({
+    showPinColumn,
+    onPinToggled: handlePinToggled,
+  });
 
   const emptyMessage =
     statusGroup === 'in_progress'
@@ -192,7 +254,7 @@ function ProjectTableSection({
       {(loading || total > 0) && (
         <div className="mt-3">
           <DataTable
-            columns={columns}
+            columns={columnsWithPin}
             data={projects}
             rowKey={(row) => row.id}
             rowAccentColor={(row) => row.color ?? 'var(--color-border-subtle)'}
@@ -213,12 +275,38 @@ function ProjectTableSection({
       )}
     </div>
   );
-}
+});
 
 export function PanouProjectsView() {
+  const pinnedSectionRef = useRef<PanouPinnedProjectsSectionHandle>(null);
+  const inProgressTableRef = useRef<ProjectTableSectionHandle>(null);
+
+  const handlePinToggled = useCallback((updated: ProjectDto) => {
+    if (updated.isPinned) {
+      void pinnedSectionRef.current?.refetch();
+      return;
+    }
+
+    pinnedSectionRef.current?.removeProject(updated.id);
+  }, []);
+
+  const handleProjectUnpinned = useCallback((updated: ProjectDto) => {
+    inProgressTableRef.current?.applyProjectUpdate(updated);
+  }, []);
+
   return (
     <section className="mt-6 space-y-8">
-      <ProjectTableSection title="Proiecte în curs" statusGroup="in_progress" />
+      <PanouPinnedProjectsSection
+        ref={pinnedSectionRef}
+        onProjectUnpinned={handleProjectUnpinned}
+      />
+      <ProjectTableSection
+        ref={inProgressTableRef}
+        title="Proiecte în curs"
+        statusGroup="in_progress"
+        showPinColumn
+        onPinToggled={handlePinToggled}
+      />
       <ProjectTableSection title="Proiecte finalizate" statusGroup="completed" />
     </section>
   );

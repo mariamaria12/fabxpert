@@ -6,6 +6,7 @@ import type {
   ProjectSummaryResponse,
   TimesheetDto,
   TimesheetListSortBy,
+  PinnedProjectsSummaryResponse,
   UpdateTimesheetInput,
 } from '../dto/timesheet.dto';
 import type { SortOrder } from '../dto/project.dto';
@@ -140,6 +141,10 @@ export function getProjectSummary(period: Period = { kind: 'today' }) {
   return request<ProjectSummaryResponse>(
     `/timesheets/project-summary?${searchParams.toString()}`,
   );
+}
+
+export function getPinnedProjectsSummary() {
+  return request<PinnedProjectsSummaryResponse>('/timesheets/pinned-summary');
 }
 
 export function getPersonSummary(period: Period = { kind: 'today' }) {
