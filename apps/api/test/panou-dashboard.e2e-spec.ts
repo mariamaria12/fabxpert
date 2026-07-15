@@ -163,6 +163,9 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
 
     expect(personSummary.body.period).toBe('today');
     expect(personSummary.body.persons).toHaveLength(2);
+    expect(metrics.body.todayDistinctPersonCount).toBe(
+      personSummary.body.persons.length,
+    );
 
     const employee1Row = personSummary.body.persons.find(
       (person: { id: string }) => person.id === FIXTURES.persons.employee1.id,
@@ -229,6 +232,55 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
       endDate: today,
       dayCount: 1,
     });
+  });
+
+  it('dashboard todayDistinctPersonCount matches person-summary after soft-deleting a project', async () => {
+    const today = localTodayWorkDate();
+
+    await request(app.getHttpServer())
+      .post('/timesheets')
+      .set(authHeader(adminCookie))
+      .send({
+        personId: FIXTURES.persons.employee2.id,
+        projectId: FIXTURES.projects.notReady.id,
+        activityId: FIXTURES.activities.active.id,
+        workDate: today,
+        durationMinutes: 30,
+      })
+      .expect(201);
+
+    const beforeMetrics = await request(app.getHttpServer())
+      .get('/timesheets/dashboard-metrics')
+      .set(authHeader(adminCookie))
+      .expect(200);
+    const beforeSummary = await request(app.getHttpServer())
+      .get('/timesheets/person-summary')
+      .query({ period: 'today' })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    expect(beforeMetrics.body.todayDistinctPersonCount).toBe(
+      beforeSummary.body.persons.length,
+    );
+
+    await request(app.getHttpServer())
+      .delete(`/projects/${FIXTURES.projects.notReady.id}`)
+      .set(authHeader(adminCookie))
+      .expect(204);
+
+    const metrics = await request(app.getHttpServer())
+      .get('/timesheets/dashboard-metrics')
+      .set(authHeader(adminCookie))
+      .expect(200);
+    const personSummary = await request(app.getHttpServer())
+      .get('/timesheets/person-summary')
+      .query({ period: 'today' })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    expect(metrics.body.todayDistinctPersonCount).toBe(
+      personSummary.body.persons.length,
+    );
   });
 
   it('rejects invalid period on person-summary', async () => {

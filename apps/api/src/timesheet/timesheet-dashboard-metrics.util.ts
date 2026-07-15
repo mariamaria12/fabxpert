@@ -26,18 +26,27 @@ export async function queryDashboardMetrics(
         AND p.status NOT IN ('FINALIZAT', 'ANULAT')
     `,
     prisma.$queryRaw<MinutesRow[]>`
-      SELECT SUM(t."durationMinutes")::int AS minutes
+      SELECT COALESCE(SUM(t."durationMinutes"), 0)::int AS minutes
       FROM timesheets t
+      INNER JOIN persons pe ON pe.id = t."personId" AND pe."deletedAt" IS NULL
+      INNER JOIN projects p ON p.id = t."projectId" AND p."deletedAt" IS NULL
       WHERE t."deletedAt" IS NULL
         AND t."workDate" >= ${from}
         AND t."workDate" < ${to}
     `,
     prisma.$queryRaw<CountRow[]>`
-      SELECT COUNT(DISTINCT t."personId")::int AS count
-      FROM timesheets t
-      WHERE t."deletedAt" IS NULL
-        AND t."workDate" >= ${from}
-        AND t."workDate" < ${to}
+      SELECT COUNT(*)::int AS count
+      FROM (
+        SELECT t."personId"
+        FROM timesheets t
+        INNER JOIN persons pe ON pe.id = t."personId" AND pe."deletedAt" IS NULL
+        INNER JOIN projects p ON p.id = t."projectId" AND p."deletedAt" IS NULL
+        WHERE t."deletedAt" IS NULL
+          AND t."workDate" >= ${from}
+          AND t."workDate" < ${to}
+        GROUP BY t."personId"
+        HAVING SUM(t."durationMinutes") > 0
+      ) counted
     `,
     prisma.$queryRaw<CountRow[]>`
       SELECT COUNT(DISTINCT lr."personId")::int AS count
