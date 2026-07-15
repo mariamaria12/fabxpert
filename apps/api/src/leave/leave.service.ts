@@ -27,6 +27,11 @@ import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { PaginationParams } from '../common/pagination/parse-pagination.util';
 import { notDeleted } from '../common/prisma/soft-delete.util';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  buildLeaveRequestExportData,
+  buildLeaveRequestExportDocx,
+  buildLeaveRequestExportFilename,
+} from './leave-request-export-docx.util';
 
 const leaveRequestInclude = {
   person: {
@@ -242,6 +247,74 @@ export class LeaveService {
   async findOneAdmin(id: string): Promise<LeaveRequestDto> {
     const leaveRequest = await this.getLeaveRequestOrThrow(id);
     return toLeaveRequestDto(leaveRequest);
+  }
+
+  async exportDocx(
+    actor: AuthenticatedUser,
+    id: string,
+  ): Promise<{ buffer: Buffer; filename: string }> {
+    const leaveRequest = await this.getLeaveRequestOrThrow(id);
+
+    if (actor.role === 'EMPLOYEE') {
+      const personId = await this.resolveActorPersonId(actor.id);
+      if (leaveRequest.personId !== personId) {
+        throw new ForbiddenException('You do not have access to this leave request');
+      }
+    }
+
+    if (leaveRequest.status !== 'APROBAT') {
+      throw new BadRequestException(
+        'Exportul este disponibil doar pentru cereri aprobate',
+      );
+    }
+
+    if (leaveRequest.type !== 'ODIHNA') {
+      throw new BadRequestException(
+        'Exportul este disponibil doar pentru concediu de odihnă',
+      );
+    }
+
+    const person = await this.prisma.person.findFirst({
+      where: { id: leaveRequest.personId, ...notDeleted() },
+      select: {
+        firstName: true,
+        lastName: true,
+        employeeRole: {
+          select: { name: true },
+        },
+      },
+    });
+
+    if (!person) {
+      throw new NotFoundException(`Person with id ${leaveRequest.personId} not found`);
+    }
+
+    const balance = await this.computeBalance(
+      leaveRequest.personId,
+      leaveRequest.startDate.getFullYear(),
+    );
+    const dayCount = countInclusiveLeaveDays(
+      leaveRequest.startDate,
+      leaveRequest.endDate,
+    );
+    const exportData = buildLeaveRequestExportData({
+      person,
+      startDate: toLeaveDateString(leaveRequest.startDate),
+      endDate: toLeaveDateString(leaveRequest.endDate),
+      dayCount,
+      createdAt: leaveRequest.createdAt.toISOString(),
+      annualLeaveDays: balance.annualLeaveDays,
+      usedDays: balance.usedDays,
+    });
+
+    return {
+      buffer: buildLeaveRequestExportDocx(exportData),
+      filename: buildLeaveRequestExportFilename(
+        person.lastName,
+        person.firstName,
+        toLeaveDateString(leaveRequest.startDate),
+      ),
+    };
   }
 
   async updateOwn(

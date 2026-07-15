@@ -11,8 +11,9 @@ import {
   Post,
   Query,
   Req,
+  Res,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { z } from 'zod';
 import {
   createLeaveRequestSchema,
@@ -114,6 +115,23 @@ export class LeaveController {
     @Body(new ZodValidationPipe(createLeaveRequestSchema)) input: CreateLeaveRequestInput,
   ) {
     return this.leaveService.create(req.user, input);
+  }
+
+  @Get(':id/export.docx')
+  @Roles('ADMIN', 'EMPLOYEE')
+  async exportDocx(
+    @Req() req: Request & { user: AuthenticatedUser },
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
+    @Res() res: Response,
+  ) {
+    const { buffer, filename } = await this.leaveService.exportDocx(req.user, id);
+
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+    res.send(buffer);
   }
 
   @Get(':id')

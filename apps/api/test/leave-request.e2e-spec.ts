@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import PizZip from 'pizzip';
 import { countInclusiveLeaveDays } from '@fabxpert/shared/leaveDays';
 import { parseWorkDateString } from '@fabxpert/shared/workDate';
 import { createTestApp } from './helpers/app';
@@ -384,5 +385,61 @@ describe('Leave requests (e2e)', () => {
     expect(employee1Row.balance.personId).toBe(FIXTURES.persons.employee1.id);
     expect(typeof employee1Row.balance.usedDays).toBe('number');
     expect(typeof employee1Row.balance.remainingDays).toBe('number');
+  });
+
+  it('GET /leave-requests/:id/export.docx returns filled docx for approved ODIHNA', async () => {
+    const create = await request(app.getHttpServer())
+      .post('/leave-requests')
+      .set(authHeader(employee1Cookie))
+      .send({
+        type: 'ODIHNA',
+        startDate: leaveDateIso(11, 3),
+        endDate: leaveDateIso(11, 7),
+      })
+      .expect(201);
+
+    const id = create.body.leaveRequest.id as string;
+
+    await request(app.getHttpServer())
+      .get(`/leave-requests/${id}/export.docx`)
+      .set(authHeader(employee1Cookie))
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .post(`/leave-requests/${id}/review`)
+      .set(authHeader(adminCookie))
+      .send({ status: 'APROBAT' })
+      .expect(200);
+
+    const exportResponse = await request(app.getHttpServer())
+      .get(`/leave-requests/${id}/export.docx`)
+      .set(authHeader(adminCookie))
+      .buffer(true)
+      .parse((response, callback) => {
+        const chunks: Buffer[] = [];
+        response.on('data', (chunk: Buffer) => chunks.push(chunk));
+        response.on('end', () => callback(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+
+    expect(exportResponse.headers['content-type']).toBe(
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    );
+    expect(String(exportResponse.headers['content-disposition'])).toContain('.docx');
+    expect(exportResponse.body.subarray(0, 2).toString()).toBe('PK');
+    expect(exportResponse.body.length).toBeGreaterThan(1000);
+
+    const documentXml = new PizZip(exportResponse.body)
+      .file('word/document.xml')
+      ?.asText();
+    expect(documentXml).toBeDefined();
+    expect(documentXml).not.toContain('{{balanceBefore}}');
+    expect(documentXml).not.toContain('{{balanceAfter}}');
+    expect(documentXml).toMatch(
+      /anterior aprobării:<\/w:t>[\s\S]*?w14:paraId="3D36FB96"[\s\S]*?<w:t>\d+<\/w:t>/,
+    );
+    expect(documentXml).toMatch(
+      /după aprobare:<\/w:t>[\s\S]*?w14:paraId="4B6B82DE"[\s\S]*?<w:t>\d+<\/w:t>/,
+    );
   });
 });

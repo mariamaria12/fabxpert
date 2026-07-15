@@ -1445,6 +1445,22 @@ body {
   cursor: pointer;
 }
 
+.leave-request-export-button {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.leave-request-export-button:disabled {
+  opacity: 0.6;
+}
+
 .leave-request-body {
   flex: 1;
   min-width: 0;

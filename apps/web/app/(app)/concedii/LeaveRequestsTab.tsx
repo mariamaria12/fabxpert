@@ -26,6 +26,7 @@ import {
   getLeaveTypeLabel,
   truncateReason,
 } from '@/utils/leaveFormat';
+import { LeaveRequestExportButton } from './LeaveRequestExportButton';
 
 const PAGE_SIZE = 20;
 
@@ -200,6 +201,10 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
         className="inline-flex items-center justify-end gap-1.5"
         onClick={(event) => event.stopPropagation()}
       >
+        <LeaveRequestExportButton
+          request={row}
+          className={`${iconButtonClass} text-text-secondary hover:text-text-primary`}
+        />
         {showApprove ? (
           <button
             type="button"
@@ -295,7 +300,7 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
     {
       key: 'actions',
       header: '',
-      width: '100px',
+      width: '130px',
       className: 'overflow-visible text-right',
       render: (row) => renderRowActions(row),
     },

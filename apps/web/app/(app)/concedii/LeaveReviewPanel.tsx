@@ -19,6 +19,10 @@ import {
   getLeaveTypeLabel,
   formatReviewedAt,
 } from '@/utils/leaveFormat';
+import {
+  canExportLeaveRequestDocx,
+  useLeaveRequestDocxExport,
+} from './LeaveRequestExportButton';
 
 interface LeaveReviewPanelProps {
   open: boolean;
@@ -37,6 +41,8 @@ export function LeaveReviewPanel({
   const [balance, setBalance] = useState<LeaveBalanceDto | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { exportingId, exportDocx } = useLeaveRequestDocxExport();
+  const isExporting = exportingId === request.id;
 
   useEffect(() => {
     if (!open) {
@@ -115,6 +121,17 @@ export function LeaveReviewPanel({
 
   const footer = (
     <div className="flex flex-col gap-2">
+      {canExportLeaveRequestDocx(request) ? (
+        <button
+          type="button"
+          className="flex w-full items-center justify-center gap-2 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-surface-raised disabled:opacity-50"
+          disabled={isSubmitting || isExporting}
+          onClick={() => void exportDocx(request)}
+        >
+          <i className="ti ti-file-download text-base" aria-hidden="true" />
+          {isExporting ? 'Se generează…' : 'Export document'}
+        </button>
+      ) : null}
       {request.status === 'IN_ASTEPTARE' ? (
         <div className="flex gap-2">
           <button
@@ -169,7 +186,7 @@ export function LeaveReviewPanel({
       open={open}
       title="Revizuire cerere"
       onClose={onClose}
-      disableClose={isSubmitting}
+      disableClose={isSubmitting || isExporting}
       footer={footer}
     >
       <div className="flex flex-col gap-5">

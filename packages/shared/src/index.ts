@@ -241,6 +241,7 @@ export {
   reviewLeaveRequest,
   getLeaveBalance,
   listLeaveBalances,
+  exportLeaveRequestDocx,
 } from './api/leave';
 export type { ListLeaveRequestsParams } from './api/leave';
 export {

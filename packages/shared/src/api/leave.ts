@@ -1,4 +1,4 @@
-import { request } from './client';
+import { request, requestBlob } from './client';
 import type { PaginatedResponse } from '../dto/pagination.dto';
 import { periodToQuery, type Period } from '../period';
 import type {
@@ -127,4 +127,8 @@ export function listLeaveBalances(year?: number) {
   return request<LeaveBalancesResponse>(
     `/leave-requests/balances${query ? `?${query}` : ''}`,
   );
+}
+
+export function exportLeaveRequestDocx(id: string) {
+  return requestBlob(`/leave-requests/${id}/export.docx`);
 }
