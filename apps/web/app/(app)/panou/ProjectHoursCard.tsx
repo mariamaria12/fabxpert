@@ -1,14 +1,9 @@
 'use client';
 
 import type { ProjectSummaryActivityRow, ProjectStatus } from '@fabxpert/shared';
-import {
-  getProjectStatusBadgeClassName,
-  getProjectStatusLabel,
-  PROJECT_TERMINAL_STATUSES,
-} from '@fabxpert/shared';
-import type { ReactNode } from 'react';
-import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
+import { PROJECT_TERMINAL_STATUSES } from '@fabxpert/shared';
 import { ActivityBreakdownRows } from './ActivityBreakdownRows';
+import { PanouProjectCard } from './PanouProjectCard';
 
 export type ProjectHoursCardProject = {
   id: string;
@@ -21,98 +16,27 @@ export type ProjectHoursCardProject = {
   activities: ProjectSummaryActivityRow[];
 };
 
-export function ProjectHoursCardHeader({
-  project,
-  expanded,
-  showAccentBar = true,
-  statusBadge = 'terminal',
-}: {
-  project: Pick<ProjectHoursCardProject, 'name' | 'code' | 'color' | 'company' | 'totalMinutes'> & {
-    status?: ProjectStatus;
-  };
-  expanded: boolean;
-  showAccentBar?: boolean;
-  statusBadge?: 'all' | 'terminal';
-}) {
-  const status = project.status;
-  const showStatusBadge =
-    status && (statusBadge === 'all' || PROJECT_TERMINAL_STATUSES.includes(status));
-  return (
-    <>
-      {showAccentBar && (
-        <span
-          className="w-1 shrink-0 self-stretch rounded-full"
-          style={{ background: project.color ?? 'var(--color-border-subtle)' }}
-          aria-hidden="true"
-        />
-      )}
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-2">
-          <p className="truncate font-medium text-text-primary" title={project.name}>
-            {project.name}
-          </p>
-          {showStatusBadge && (
-            <span
-              className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${getProjectStatusBadgeClassName(status)}`}
-            >
-              {getProjectStatusLabel(status)}
-            </span>
-          )}
-        </div>
-        <p className="mt-0.5 truncate font-mono text-xs text-text-muted">
-          {project.code} · {project.company.name}
-        </p>
-      </div>
-      <div className="flex shrink-0 items-center gap-3">
-        <div className="text-right">
-          <p className="font-mono text-base font-medium text-text-primary">
-            {formatDurationMinutes(project.totalMinutes)}
-          </p>
-          <p className="text-xs text-text-muted">total logat</p>
-        </div>
-        <i
-          className={`ti ${expanded ? 'ti-chevron-up' : 'ti-chevron-down'} text-base text-text-muted`}
-          aria-hidden="true"
-        />
-      </div>
-    </>
-  );
-}
-
 export function ProjectHoursCard({
   project,
   expanded,
   onToggle,
-  headerExtra,
-  trailingAction,
 }: {
   project: ProjectHoursCardProject;
   expanded: boolean;
   onToggle: () => void;
-  headerExtra?: ReactNode;
-  trailingAction?: ReactNode;
 }) {
+  const showStatusBadge = PROJECT_TERMINAL_STATUSES.includes(project.status);
+
   return (
-    <div className="overflow-hidden rounded-md border border-border-subtle bg-surface">
-      <div className="flex items-stretch">
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={expanded}
-          className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-raised"
-        >
-          <ProjectHoursCardHeader project={project} expanded={expanded} />
-        </button>
-        {trailingAction}
-      </div>
-
-      {headerExtra && <div className="border-t border-border-subtle px-4 pb-3 pt-2">{headerExtra}</div>}
-
-      {expanded && (
-        <div className="border-t border-border-subtle px-4 py-3">
-          <ActivityBreakdownRows activities={project.activities} />
-        </div>
-      )}
-    </div>
+    <PanouProjectCard
+      accentColor={project.color}
+      title={project.name}
+      status={showStatusBadge ? project.status : undefined}
+      subtitle={`${project.code} · ${project.company.name}`}
+      totalMinutes={project.totalMinutes}
+      expanded={expanded}
+      onToggle={onToggle}
+      expandedContent={<ActivityBreakdownRows activities={project.activities} />}
+    />
   );
 }

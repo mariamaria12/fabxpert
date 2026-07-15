@@ -130,6 +130,12 @@ export {
 } from './projectStatus';
 export type { ProjectStatusMeta } from './projectStatus';
 export {
+  PROJECT_COLOR_PRESETS,
+  isProjectColorPreset,
+  pickRandomProjectColor,
+} from './projectColor';
+export type { ProjectColorPreset } from './projectColor';
+export {
   type Period,
   type PeriodQueryParams,
   periodToQuery,

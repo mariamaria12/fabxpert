@@ -65,7 +65,7 @@ export function PanouHoursView() {
   const waitingForCustomRange = !periodReady;
 
   return (
-    <section className="mt-6">
+    <section className="mt-4">
       {error && (
         <div className="flex items-center justify-between gap-4 rounded-md border border-border-subtle bg-[var(--color-toast-error-bg)] px-4 py-3">
           <p className="text-sm text-danger">{error}</p>
@@ -92,7 +92,7 @@ export function PanouHoursView() {
       )}
 
       {projects.length > 0 && (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {projects.map((project) => (
             <ProjectHoursCard
               key={project.id}

@@ -1,5 +1,9 @@
 'use client';
 
+import {
+  PROJECT_COLOR_PRESETS,
+  type ProjectColorPreset,
+} from '@fabxpert/shared';
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useBusinessAutofillProps } from './inputAutofill';
 
@@ -8,21 +12,10 @@ const PICKER_FALLBACK = '#6B6B6B';
 const CHECK_ON_LIGHT = '#2B2107';
 const CHECK_ON_DARK = 'var(--color-text-primary)';
 
-/** Preset palette — exported for future features (e.g. "used colors" hints). */
-export const COLOR_PRESETS = [
-  '#B5533C',
-  '#C9A227',
-  '#7A8450',
-  '#2F6F4E',
-  '#3B7EA1',
-  '#5B6BA8',
-  '#8E5FA8',
-  '#A85B7E',
-  '#8A8A8A',
-  '#9C6B4A',
-] as const;
+/** Preset palette — re-exported for existing web imports. */
+export const COLOR_PRESETS = PROJECT_COLOR_PRESETS;
 
-export type ColorPreset = (typeof COLOR_PRESETS)[number];
+export type ColorPreset = ProjectColorPreset;
 
 export interface ColorFieldProps {
   id: string;

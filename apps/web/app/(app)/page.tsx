@@ -20,8 +20,10 @@ function DashboardPageContent() {
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-xs text-text-muted">Tablou de bord</p>
-          <h1 className="text-[22px] font-medium text-text-primary">Panou</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-text-primary">Panou</h1>
+          <p className="mt-0.5 text-xs text-text-muted">
+            Urmărește proiectele și logurile de timp
+          </p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
           {lastUpdated && (

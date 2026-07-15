@@ -19,24 +19,24 @@ function PersonHoursCard({
   onToggle: () => void;
 }) {
   return (
-    <div className="overflow-hidden rounded-md border border-border-subtle bg-surface">
+    <div className="overflow-hidden rounded-lg border border-border-subtle bg-surface shadow-sm shadow-black/10">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-raised"
+        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-surface-raised/60"
       >
         <PersonName
           person={person}
           className="min-w-0 flex-1"
-          nameClassName="font-medium text-text-primary"
+          nameClassName="text-sm font-medium text-text-primary"
         />
         <div className="flex shrink-0 items-center gap-3">
           <div className="text-right">
-            <p className="font-mono text-base font-medium text-text-primary">
+            <p className="font-mono text-xs font-medium tabular-nums text-text-primary">
               {formatDurationMinutes(person.totalMinutes)}
             </p>
-            <p className="text-xs text-text-muted">total logat</p>
+            <p className="text-[10px] text-text-muted">total logat</p>
           </div>
           <i
             className={`ti ${expanded ? 'ti-chevron-up' : 'ti-chevron-down'} text-base text-text-muted`}
@@ -112,7 +112,7 @@ export function PanouPeopleView() {
   const waitingForCustomRange = !periodReady;
 
   return (
-    <section className="mt-6">
+    <section className="mt-4">
       {error && (
         <div className="flex items-center justify-between gap-4 rounded-md border border-border-subtle bg-[var(--color-toast-error-bg)] px-4 py-3">
           <p className="text-sm text-danger">{error}</p>
@@ -139,7 +139,7 @@ export function PanouPeopleView() {
       )}
 
       {persons.length > 0 && (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {persons.map((person) => (
             <PersonHoursCard
               key={person.id}

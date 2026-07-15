@@ -14,6 +14,7 @@ import type {
   SortOrder,
   UpdateProjectInput,
 } from '@fabxpert/shared/dto/project.dto';
+import { pickRandomProjectColor } from '@fabxpert/shared/projectColor';
 import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
 import { PaginationParams } from '../common/pagination/parse-pagination.util';
 import { notDeleted } from '../common/prisma/soft-delete.util';
@@ -215,7 +216,7 @@ export class ProjectService {
   async create(input: CreateProjectInput): Promise<ProjectDto> {
     await this.assertCompanyExists(input.companyId);
 
-    const { visibleForRoleIds, ...scalarInput } = input;
+    const { visibleForRoleIds, color, ...scalarInput } = input;
     if (visibleForRoleIds !== undefined) {
       await this.assertVisibleForRoleIds(visibleForRoleIds);
     }
@@ -224,6 +225,7 @@ export class ProjectService {
       const project = await this.prisma.project.create({
         data: {
           ...scalarInput,
+          color: color ?? pickRandomProjectColor(),
           ...(visibleForRoleIds !== undefined
             ? {
                 visibleForRoles: {

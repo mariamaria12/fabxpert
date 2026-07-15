@@ -41,11 +41,11 @@ export function getProjectDaysRemainingLabel(
   }
 
   if (diffDays === 0) {
-    return { text: 'termen azi', className: 'text-accent' };
+    return { text: 'Termen azi', className: 'text-accent' };
   }
 
   return {
-    text: `întârziat cu ${Math.abs(diffDays)} zile`,
+    text: `Întârziat cu ${Math.abs(diffDays)} zile`,
     className: 'text-danger',
   };
 }

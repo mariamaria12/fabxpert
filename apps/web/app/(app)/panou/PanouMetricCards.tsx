@@ -5,43 +5,48 @@ import { useCallback, useEffect, useState } from 'react';
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 import { usePanouDashboard, type PanouView } from './PanouDashboardContext';
+import { PANOU_METRIC_THEMES, panouAccentTint } from './panouColors';
 
 type MetricKey = keyof DashboardMetricsResponse;
 
 const METRIC_CARDS: {
   id: PanouView;
-  icon: string;
   label: string;
   metricKey: MetricKey;
+  themeKey: keyof typeof PANOU_METRIC_THEMES;
 }[] = [
   {
     id: 'projects',
-    icon: 'ti-clipboard-list',
     label: 'Proiecte în curs',
     metricKey: 'inProgressProjectCount',
+    themeKey: 'projects',
   },
   {
     id: 'hours',
-    icon: 'ti-clock',
     label: 'Ore logate azi',
     metricKey: 'todayTotalMinutes',
+    themeKey: 'hours',
   },
   {
     id: 'people',
-    icon: 'ti-users',
     label: 'Au pontat azi',
     metricKey: 'todayDistinctPersonCount',
+    themeKey: 'people',
   },
 ];
 
 function MetricCardSkeleton() {
   return (
     <div
-      className="flex flex-col items-start rounded-md border border-border-subtle bg-surface px-3 py-2.5"
+      className="flex items-center gap-2.5 rounded-lg border border-border-subtle bg-surface px-3 py-2.5"
       aria-hidden="true"
     >
-      <div className="h-3 w-28 max-w-full animate-pulse rounded bg-surface-raised" />
-      <div className="mt-2 h-6 w-12 animate-pulse rounded bg-surface-raised" />
+      <div className="size-8 animate-pulse rounded-md bg-surface-raised" />
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <div className="h-2.5 w-24 animate-pulse rounded bg-surface-raised" />
+        <div className="h-5 w-10 animate-pulse rounded bg-surface-raised" />
+        <div className="h-2 w-16 animate-pulse rounded bg-surface-raised" />
+      </div>
     </div>
   );
 }
@@ -56,6 +61,25 @@ function formatMetricValue(key: MetricKey, metrics: DashboardMetricsResponse | n
   }
 
   return String(metrics[key]);
+}
+
+function metricSubtext(
+  themeKey: keyof typeof PANOU_METRIC_THEMES,
+  metrics: DashboardMetricsResponse | null,
+): string {
+  if (!metrics) {
+    return PANOU_METRIC_THEMES[themeKey].label;
+  }
+
+  if (themeKey === 'people') {
+    return metrics.todayDistinctPersonCount === 1 ? 'Utilizator' : 'Utilizatori';
+  }
+
+  if (themeKey === 'onLeave') {
+    return metrics.todayOnLeaveCount === 1 ? 'Utilizator' : 'Utilizatori';
+  }
+
+  return PANOU_METRIC_THEMES[themeKey].label;
 }
 
 export function PanouMetricCards() {
@@ -87,13 +111,11 @@ export function PanouMetricCards() {
   useRegisterPanouRefetch('dashboard-metrics', loadMetrics);
 
   const onLeaveCount = metrics?.todayOnLeaveCount ?? 0;
-  const cardClassName =
-    'flex flex-col items-start rounded-md border border-border-subtle bg-surface px-3 py-2.5 text-left';
 
   if (metricsLoading) {
     return (
       <div
-        className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+        className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4"
         aria-busy="true"
         aria-label="Se încarcă metricile panoului"
       >
@@ -104,58 +126,71 @@ export function PanouMetricCards() {
     );
   }
 
-  return (
-    <div
-      className={`mt-4 grid gap-2 sm:grid-cols-2 ${
-        onLeaveCount > 0 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'
-      }`}
-    >
-      {METRIC_CARDS.map((card) => {
-        const isSelected = activeView === card.id;
-        return (
-          <button
-            key={card.id}
-            type="button"
-            aria-pressed={isSelected}
-            onClick={() => selectView(card.id)}
-            className={`${cardClassName} transition-colors ${
-              isSelected
-                ? 'border-accent/30 bg-accent/10 text-accent'
-                : 'text-text-secondary hover:bg-surface-raised hover:text-text-primary'
-            }`}
-          >
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium">
-              <i className={`ti ${card.icon} text-sm`} aria-hidden="true" />
-              {card.label}
-            </span>
-            <span className="mt-1 text-lg font-medium tabular-nums text-text-primary">
-              {formatMetricValue(card.metricKey, metrics)}
-            </span>
-          </button>
-        );
-      })}
-      {onLeaveCount > 0 && (
-        <button
-          type="button"
-          aria-pressed={activeView === 'onLeave'}
-          onClick={() => {
-            setActiveView('onLeave');
-            setPeriod({ kind: 'today' });
+  function renderMetricCard(
+    id: PanouView,
+    label: string,
+    metricKey: MetricKey,
+    themeKey: keyof typeof PANOU_METRIC_THEMES,
+    valueOverride?: string,
+  ) {
+    const theme = PANOU_METRIC_THEMES[themeKey];
+    const isSelected = activeView === id;
+    const value = valueOverride ?? formatMetricValue(metricKey, metrics);
+
+    return (
+      <button
+        key={id}
+        type="button"
+        aria-pressed={isSelected}
+        onClick={() => selectView(id)}
+        className={`flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-all ${
+          isSelected
+            ? 'border-transparent shadow-sm shadow-black/10'
+            : 'border-border-subtle bg-surface hover:border-border hover:bg-surface-raised/40'
+        }`}
+        style={
+          isSelected
+            ? {
+                backgroundColor: panouAccentTint(theme.accent, '12%'),
+                boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${theme.accent} 35%, transparent)`,
+              }
+            : undefined
+        }
+      >
+        <span
+          className="flex size-8 shrink-0 items-center justify-center rounded-md"
+          style={{
+            backgroundColor: panouAccentTint(theme.accent, '22%'),
+            color: theme.accent,
           }}
-          className={`${cardClassName} transition-colors ${
-            activeView === 'onLeave'
-              ? 'border-accent/30 bg-accent/10 text-accent'
-              : 'text-text-secondary hover:bg-surface-raised hover:text-text-primary'
-          }`}
+          aria-hidden="true"
         >
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium">
-            <i className="ti ti-calendar-off text-sm" aria-hidden="true" />
-            În concediu azi
+          <i className={`ti ${theme.icon} text-base`} />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-xs text-text-secondary">{label}</span>
+          <span className="mt-0.5 block text-lg font-semibold tabular-nums leading-tight text-text-primary">
+            {value}
           </span>
-          <span className="mt-1 text-lg font-medium tabular-nums text-text-primary">
-            {onLeaveCount}
+          <span className="mt-0.5 block text-[11px] font-medium" style={{ color: theme.accent }}>
+            {metricSubtext(themeKey, metrics)}
           </span>
-        </button>
+        </span>
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+      {METRIC_CARDS.map((card) =>
+        renderMetricCard(card.id, card.label, card.metricKey, card.themeKey),
+      )}
+      {renderMetricCard(
+        'onLeave',
+        'În concediu azi',
+        'todayOnLeaveCount',
+        'onLeave',
+        String(onLeaveCount),
       )}
     </div>
   );

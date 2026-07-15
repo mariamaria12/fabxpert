@@ -7,6 +7,7 @@ import {
   PROJECT_TERMINAL_STATUSES,
 } from '@fabxpert/shared';
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
+import { PanouActivityProgressBar } from './PanouActivityProgressBar';
 
 export function PersonBreakdownRows({
   activities,
@@ -16,9 +17,12 @@ export function PersonBreakdownRows({
   const maxMinutes = Math.max(...activities.map((entry) => entry.minutes), 1);
 
   return (
-    <div className="space-y-3">
-      {activities.map((entry) => (
-        <div key={`${entry.projectId}-${entry.activityId ?? 'none'}`} className="space-y-2">
+    <div className="space-y-2.5">
+      {activities.map((entry) => {
+        const percent = Math.round((entry.minutes / maxMinutes) * 100);
+
+        return (
+        <div key={`${entry.projectId}-${entry.activityId ?? 'none'}`} className="space-y-1.5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex min-w-0 items-center gap-2">
@@ -54,20 +58,18 @@ export function PersonBreakdownRows({
                 <span className="truncate text-sm text-text-secondary">{entry.activityName}</span>
               </div>
             </div>
-            <span className="shrink-0 font-mono text-sm tabular-nums text-text-primary">
+            <span className="shrink-0 font-mono text-[11px] tabular-nums text-text-muted">
               {formatDurationMinutes(entry.minutes)}
             </span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-surface-raised">
-            <div
-              className="h-full rounded-full bg-accent/70"
-              style={{
-                width: `${Math.round((entry.minutes / maxMinutes) * 100)}%`,
-              }}
-            />
-          </div>
+          <PanouActivityProgressBar
+            className="ml-[18px] w-full"
+            color={entry.activityColor}
+            percent={percent}
+          />
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

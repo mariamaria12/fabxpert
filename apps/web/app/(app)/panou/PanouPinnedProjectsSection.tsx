@@ -89,8 +89,8 @@ export const PanouPinnedProjectsSection = forwardRef<
   const showEmptyHint = !loading && !error && projects.length === 0;
 
   return (
-    <section>
-      <h3 className="text-sm font-medium text-text-secondary">Panou proiecte</h3>
+    <section className="mt-4">
+      <h2 className="text-sm font-semibold text-text-primary">Proiecte</h2>
 
       {error && (
         <div className="mt-3 flex items-center justify-between gap-4 rounded-md border border-border-subtle bg-[var(--color-toast-error-bg)] px-4 py-3">
@@ -116,7 +116,7 @@ export const PanouPinnedProjectsSection = forwardRef<
       )}
 
       {projects.length > 0 && (
-        <div className="mt-3 space-y-3">
+        <div className="mt-3 space-y-2">
           {projects.map((project) => (
             <PinnedProjectCard
               key={project.id}

@@ -10,6 +10,7 @@ import {
   getProject,
   PROJECT_STATUS_META,
   PROJECT_STATUS_VALUES,
+  pickRandomProjectColor,
   updateProject,
   updateProjectSchema,
   type CompanyDto,
@@ -267,7 +268,7 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
     setEditProject(null);
 
     if (mode === 'create') {
-      setValues(EMPTY_FORM);
+      setValues({ ...EMPTY_FORM, color: pickRandomProjectColor() });
       setEditProjectLoading(false);
       setExcelPasteText('');
       setExcelPasteError(null);

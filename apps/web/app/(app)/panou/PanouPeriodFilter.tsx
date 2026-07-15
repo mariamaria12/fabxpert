@@ -10,5 +10,5 @@ export function PanouPeriodFilter() {
     return null;
   }
 
-  return <PeriodFilter value={period} onChange={setPeriod} className="mt-6" />;
+  return <PeriodFilter value={period} onChange={setPeriod} className="mt-4" />;
 }

@@ -1,45 +1,64 @@
 'use client';
 
 import type { PinnedProjectSummaryRow, ProjectDto } from '@fabxpert/shared';
+import { updateProject } from '@fabxpert/shared';
+import { useState } from 'react';
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
+import { useToast } from '@/context/ToastContext';
+import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { ActivityBreakdownRows } from './ActivityBreakdownRows';
+import { panouAccentTint } from './panouColors';
+import { PanouProjectCard } from './PanouProjectCard';
 import {
   formatProjectTimelineRange,
   getProjectDaysRemainingLabel,
   getProjectTimelineDates,
-  getProjectTimelineProgress,
   isProjectTimelineOverdue,
 } from './panouProjectTimeline';
-import { ProjectHoursCardHeader } from './ProjectHoursCard';
-import { ProjectPinButton } from './ProjectPinButton';
 
-function ProjectTimelineMeta({ project }: { project: PinnedProjectSummaryRow }) {
-  const timeline = getProjectTimelineDates(project.startDate, project.dueDate);
-  if (!timeline) {
-    return null;
+function PinnedProjectPinButton({
+  project,
+  onUnpinned,
+}: {
+  project: Pick<PinnedProjectSummaryRow, 'id' | 'color'>;
+  onUnpinned: (updated: ProjectDto) => void;
+}) {
+  const { showToast } = useToast();
+  const [pending, setPending] = useState(false);
+  const color = project.color ?? '#8c8a80';
+
+  async function handleClick() {
+    if (pending) {
+      return;
+    }
+
+    setPending(true);
+    try {
+      const updated = await updateProject(project.id, { isPinned: false });
+      onUnpinned(updated);
+      showToast('Fixare anulată', 'success');
+    } catch (caught) {
+      showToast(apiErrorToastMessage(caught), 'error');
+    } finally {
+      setPending(false);
+    }
   }
 
-  const { startDate, dueDate } = timeline;
-  const daysLabel = getProjectDaysRemainingLabel(dueDate);
-  const overdue = isProjectTimelineOverdue(dueDate);
-  const progress = overdue ? 100 : getProjectTimelineProgress(startDate, dueDate);
-  const fillColor = overdue ? 'var(--color-danger)' : (project.color ?? 'var(--color-accent)');
-
   return (
-    <div className="mt-3 space-y-2">
-      <p className={`text-xs ${daysLabel.className}`}>{daysLabel.text}</p>
-      <div className="space-y-1">
-        <div className="h-1.5 overflow-hidden rounded-full bg-surface-raised">
-          <div
-            className="h-full rounded-full transition-[width]"
-            style={{ width: `${progress}%`, backgroundColor: fillColor }}
-          />
-        </div>
-        <p className="text-[11px] text-text-muted">
-          {formatProjectTimelineRange(startDate, dueDate)}
-        </p>
-      </div>
-    </div>
+    <button
+      type="button"
+      onClick={() => void handleClick()}
+      disabled={pending}
+      aria-label="Anulează fixarea"
+      aria-pressed={true}
+      className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md transition-opacity hover:opacity-80 disabled:opacity-50"
+      style={{
+        backgroundColor: panouAccentTint(project.color, '24%'),
+        color,
+      }}
+    >
+      <i className="ti ti-pinned text-base" aria-hidden="true" />
+    </button>
   );
 }
 
@@ -54,64 +73,50 @@ export function PinnedProjectCard({
   onToggle: () => void;
   onUnpinned: (updated: ProjectDto) => void;
 }) {
-  const showTimelineInHeader = getProjectTimelineDates(project.startDate, project.dueDate) !== null;
-
-  function handlePinToggled(updated: ProjectDto) {
-    if (!updated.isPinned) {
-      onUnpinned(updated);
-    }
-  }
+  const timelineDates = getProjectTimelineDates(project.startDate, project.dueDate);
+  const timeline = timelineDates
+    ? (() => {
+        const { startDate, dueDate } = timelineDates;
+        const daysLabel = getProjectDaysRemainingLabel(dueDate);
+        const overdue = isProjectTimelineOverdue(dueDate);
+        return {
+          daysText: daysLabel.text,
+          daysClassName: daysLabel.className,
+          dateRange: formatProjectTimelineRange(startDate, dueDate),
+          overdue,
+        };
+      })()
+    : null;
 
   return (
-    <div className="overflow-hidden rounded-md border border-border-subtle bg-surface">
-      <div className="flex items-stretch">
-        <span
-          className="w-1.5 shrink-0 self-stretch"
-          style={{ background: project.color ?? 'var(--color-border-subtle)' }}
-          aria-hidden="true"
+    <PanouProjectCard
+      accentColor={project.color}
+      title={project.name}
+      status={project.status}
+      subtitle={`${project.code} · ${project.company.name}`}
+      timeline={timeline}
+      totalMinutes={project.totalMinutes}
+      expanded={expanded}
+      onToggle={onToggle}
+      leadingSlot={
+        <PinnedProjectPinButton
+          project={project}
+          onUnpinned={(updated) => {
+            if (!updated.isPinned) {
+              onUnpinned(updated);
+            }
+          }}
         />
-        <div className="flex w-11 shrink-0 items-center justify-center">
-          <ProjectPinButton
-            project={{ id: project.id, isPinned: true }}
-            onToggled={handlePinToggled}
-          />
-        </div>
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={expanded}
-          className="flex min-w-0 flex-1 flex-col px-4 py-3 text-left transition-colors hover:bg-surface-raised"
-        >
-          <div className="flex w-full items-center gap-3">
-            <ProjectHoursCardHeader
-              project={{
-                name: project.name,
-                code: project.code,
-                color: project.color,
-                status: project.status,
-                company: project.company,
-                totalMinutes: project.totalMinutes,
-              }}
-              expanded={expanded}
-              showAccentBar={false}
-              statusBadge="all"
-            />
-          </div>
-          {showTimelineInHeader && <ProjectTimelineMeta project={project} />}
-        </button>
-      </div>
-
-      {expanded && (
-        <div className="border-t border-border-subtle px-4 py-3">
-          {project.activities.length > 0 ? (
-            <ActivityBreakdownRows activities={project.activities} />
-          ) : (
-            <p className="text-sm text-text-muted">
-              {formatDurationMinutes(project.totalMinutes)} total logat
-            </p>
-          )}
-        </div>
-      )}
-    </div>
+      }
+      expandedContent={
+        project.activities.length > 0 ? (
+          <ActivityBreakdownRows activities={project.activities} />
+        ) : (
+          <p className="text-sm text-text-muted">
+            {formatDurationMinutes(project.totalMinutes)} total logat
+          </p>
+        )
+      }
+    />
   );
 }

@@ -61,6 +61,10 @@
       "types": "./dist/workDate.d.ts",
       "default": "./dist/workDate.js"
     },
+    "./projectColor": {
+      "types": "./dist/projectColor.d.ts",
+      "default": "./dist/projectColor.js"
+    },
     "./styles/tokens.css": "./styles/tokens.css"
   },
   "scripts": {
