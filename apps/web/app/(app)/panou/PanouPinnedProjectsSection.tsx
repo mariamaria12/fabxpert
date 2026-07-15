@@ -18,6 +18,7 @@ import {
 import {
   SortableContext,
   arrayMove,
+  rectSortingStrategy,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
@@ -32,6 +33,61 @@ import { pinnedSummaryToProjectStub } from './pinnedSummaryToProjectStub';
 type EditPanelState =
   | { open: false }
   | { open: true; project: ProjectDto };
+
+type PanouPinnedViewMode = 'one-column' | 'two-columns';
+
+const PANOU_PINNED_VIEW_MODE_KEY = 'panou-pinned-projects-view-mode';
+
+function readStoredViewMode(): PanouPinnedViewMode {
+  if (typeof window === 'undefined') {
+    return 'one-column';
+  }
+
+  const stored = window.localStorage.getItem(PANOU_PINNED_VIEW_MODE_KEY);
+  return stored === 'two-columns' ? 'two-columns' : 'one-column';
+}
+
+function PanouPinnedViewModeToggle({
+  viewMode,
+  onChange,
+}: {
+  viewMode: PanouPinnedViewMode;
+  onChange: (mode: PanouPinnedViewMode) => void;
+}) {
+  const buttonClass = (active: boolean) =>
+    `flex size-7 items-center justify-center rounded transition-colors ${
+      active
+        ? 'bg-accent/15 text-accent'
+        : 'text-text-muted hover:bg-surface-raised hover:text-text-secondary'
+    }`;
+
+  return (
+    <div
+      className="flex items-center gap-0.5 rounded-md border border-border-subtle p-0.5"
+      role="group"
+      aria-label="Mod afișare proiecte"
+    >
+      <button
+        type="button"
+        className={buttonClass(viewMode === 'one-column')}
+        aria-label="O coloană"
+        aria-pressed={viewMode === 'one-column'}
+        onClick={() => onChange('one-column')}
+      >
+        <i className="ti ti-layout-list text-base" aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        className={buttonClass(viewMode === 'two-columns')}
+        aria-label="Două coloane"
+        aria-pressed={viewMode === 'two-columns'}
+        onClick={() => onChange('two-columns')}
+      >
+        <i className="ti ti-layout-grid text-base" aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
 
 export type PanouPinnedProjectsSectionHandle = {
   refetch: () => Promise<void>;
@@ -51,6 +107,7 @@ export const PanouPinnedProjectsSection = forwardRef<
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editPanel, setEditPanel] = useState<EditPanelState>({ open: false });
+  const [viewMode, setViewMode] = useState<PanouPinnedViewMode>(() => readStoredViewMode());
   const fetchSeqRef = useRef(0);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -85,6 +142,11 @@ export const PanouPinnedProjectsSection = forwardRef<
   useEffect(() => {
     void loadPinnedSummary();
   }, [loadPinnedSummary]);
+
+  function handleViewModeChange(mode: PanouPinnedViewMode) {
+    setViewMode(mode);
+    window.localStorage.setItem(PANOU_PINNED_VIEW_MODE_KEY, mode);
+  }
 
   const refetchSummary = useCallback(async () => {
     await loadPinnedSummary(true);
@@ -168,14 +230,16 @@ export const PanouPinnedProjectsSection = forwardRef<
   }
 
   const showEmptyHint = !loading && !error && projects.length === 0;
+  const listClassName =
+    viewMode === 'two-columns' ? 'mt-3 grid grid-cols-2 gap-2' : 'mt-3 space-y-2';
+  const sortingStrategy =
+    viewMode === 'two-columns' ? rectSortingStrategy : verticalListSortingStrategy;
 
   return (
     <section className="mt-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <h2 className="text-sm font-semibold text-text-primary">Proiecte</h2>
-        {projects.length > 1 && (
-          <p className="text-xs text-text-muted">Trage pentru a reordona</p>
-        )}
+        <PanouPinnedViewModeToggle viewMode={viewMode} onChange={handleViewModeChange} />
       </div>
 
       {error && (
@@ -209,9 +273,9 @@ export const PanouPinnedProjectsSection = forwardRef<
         >
           <SortableContext
             items={projects.map((project) => project.id)}
-            strategy={verticalListSortingStrategy}
+            strategy={sortingStrategy}
           >
-            <div className="mt-3 space-y-2">
+            <div className={listClassName}>
               {projects.map((project) => (
                 <SortablePinnedProjectCard
                   key={project.id}

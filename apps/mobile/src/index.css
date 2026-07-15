@@ -354,7 +354,9 @@ body {
   top: calc(100% + 8px);
   right: 0;
   z-index: 20;
-  min-width: 200px;
+  display: flex;
+  min-width: 220px;
+  flex-direction: column;
   padding: 12px;
   border: 1px solid var(--color-border);
   border-radius: 10px;
@@ -372,20 +374,6 @@ body {
   margin-top: 4px;
   font-size: 12px;
   color: var(--color-text-muted);
-}
-
-.app-header-dropdown-logout {
-  width: 100%;
-  min-height: 44px;
-  margin-top: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-surface-raised);
-  color: var(--color-text-secondary);
-  font-size: 14px;
-  cursor: pointer;
-  text-align: left;
 }
 
 .app-header-dropdown-action {
@@ -408,6 +396,29 @@ body {
 .app-header-dropdown-action svg {
   flex-shrink: 0;
   color: var(--color-accent);
+}
+
+.app-header-dropdown-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.app-header-dropdown-logout {
+  padding: 4px 8px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 6px;
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
+  font-size: 10px;
+  line-height: 1.2;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-header-dropdown-logout:active {
+  color: var(--color-text-secondary);
+  opacity: 0.95;
 }
 
 .context-subheader {

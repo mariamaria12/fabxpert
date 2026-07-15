@@ -44,6 +44,7 @@ export function AppHeader({
   }, [menuOpen]);
 
   async function handleLogout() {
+    setMenuOpen(false);
     await logout();
     onLogout();
   }
@@ -114,17 +115,16 @@ export function AppHeader({
                 <span>Concediu</span>
               </button>
             ) : null}
-            <button
-              type="button"
-              className="app-header-dropdown-logout"
-              role="menuitem"
-              onClick={() => {
-                setMenuOpen(false);
-                void handleLogout();
-              }}
-            >
-              Deconectare
-            </button>
+            <div className="app-header-dropdown-footer">
+              <button
+                type="button"
+                className="app-header-dropdown-logout"
+                role="menuitem"
+                onClick={() => void handleLogout()}
+              >
+                Deconectare
+              </button>
+            </div>
           </div>
         )}
       </div>
