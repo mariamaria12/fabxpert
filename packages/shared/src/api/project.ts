@@ -27,6 +27,8 @@ export interface ListProjectsParams {
   statusGroup?: ProjectStatusGroup;
   sortBy?: ProjectListSortBy;
   sortOrder?: SortOrder;
+  /** Omit role visibility join — faster for read-only lists (Panou, lookups). */
+  compact?: boolean;
 }
 
 export function listProjects(params: ListProjectsParams = {}) {
@@ -49,6 +51,9 @@ export function listProjects(params: ListProjectsParams = {}) {
   }
   if (params.sortOrder) {
     searchParams.set('sortOrder', params.sortOrder);
+  }
+  if (params.compact) {
+    searchParams.set('compact', 'true');
   }
   const query = searchParams.toString();
   return request<PaginatedResponse<ProjectDto>>(`/projects${query ? `?${query}` : ''}`);

@@ -84,12 +84,15 @@ export class ProjectController {
       sortOrder = parsed.data;
     }
 
+    const compact = query.compact === 'true' || query.compact === '1';
+
     return this.projectService.findAll(
       parsePagination(query),
       search,
       statusGroup,
       sortBy,
       sortOrder,
+      compact,
     );
   }
 

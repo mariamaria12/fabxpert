@@ -23,6 +23,7 @@ import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { Pagination } from '@/components/Pagination';
 import { replaceById } from '@/utils/replaceById';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { useLazyVisible } from '@/hooks/useLazyVisible';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 import {
   PanouPinnedProjectsSection,
@@ -175,6 +176,7 @@ const ProjectTableSection = forwardRef<
         statusGroup,
         sortBy,
         sortOrder,
+        compact: true,
       });
       if (fetchSeq !== fetchSeqRef.current) {
         return;
@@ -280,6 +282,7 @@ const ProjectTableSection = forwardRef<
 export function PanouProjectsView() {
   const pinnedSectionRef = useRef<PanouPinnedProjectsSectionHandle>(null);
   const inProgressTableRef = useRef<ProjectTableSectionHandle>(null);
+  const completedSection = useLazyVisible({ rootMargin: '400px' });
 
   const handlePinToggled = useCallback((updated: ProjectDto) => {
     if (updated.isPinned) {
@@ -307,7 +310,13 @@ export function PanouProjectsView() {
         showPinColumn
         onPinToggled={handlePinToggled}
       />
-      <ProjectTableSection title="Proiecte finalizate" statusGroup="completed" />
+      <div ref={completedSection.ref}>
+        {completedSection.visible ? (
+          <ProjectTableSection title="Proiecte finalizate" statusGroup="completed" />
+        ) : (
+          <h3 className="text-sm font-medium text-text-secondary">Proiecte finalizate</h3>
+        )}
+      </div>
     </section>
   );
 }

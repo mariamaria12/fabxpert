@@ -28,13 +28,17 @@ const projectOptionSelect = {
   color: true,
 } satisfies Prisma.ProjectSelect;
 
-const projectInclude = {
+const projectCompanyInclude = {
   company: {
     select: {
       id: true,
       name: true,
     },
   },
+} satisfies Prisma.ProjectInclude;
+
+const projectInclude = {
+  ...projectCompanyInclude,
   visibleForRoles: {
     select: {
       id: true,
@@ -47,6 +51,7 @@ const projectInclude = {
 } satisfies Prisma.ProjectInclude;
 
 type ProjectWithRelations = Prisma.ProjectGetPayload<{ include: typeof projectInclude }>;
+type ProjectListRow = Prisma.ProjectGetPayload<{ include: typeof projectCompanyInclude }>;
 
 const IN_PROGRESS_EXCLUDED_STATUSES: ProjectStatus[] = ['FINALIZAT', 'ANULAT'];
 
@@ -88,7 +93,9 @@ function roleIdsEqual(left: string[], right: string[]): boolean {
   return sortedLeft.every((id, index) => id === sortedRight[index]);
 }
 
-function toProjectDto(project: ProjectWithRelations): ProjectDto {
+function toProjectDto(project: ProjectWithRelations): ProjectDto;
+function toProjectDto(project: ProjectListRow, compact: true): ProjectDto;
+function toProjectDto(project: ProjectWithRelations | ProjectListRow, compact = false): ProjectDto {
   return {
     id: project.id,
     name: project.name,
@@ -101,7 +108,7 @@ function toProjectDto(project: ProjectWithRelations): ProjectDto {
     color: project.color,
     companyId: project.companyId,
     company: project.company,
-    visibleForRoles: project.visibleForRoles,
+    visibleForRoles: compact ? [] : (project as ProjectWithRelations).visibleForRoles,
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString(),
   };
@@ -141,6 +148,7 @@ export class ProjectService {
     statusGroup?: ProjectStatusGroup,
     sortBy?: ProjectListSortBy,
     sortOrder: SortOrder = 'asc',
+    compact = false,
   ): Promise<PaginatedResponse<ProjectDto>> {
     const { page, pageSize } = pagination;
     const where: Prisma.ProjectWhereInput = { ...notDeleted() };
@@ -155,12 +163,15 @@ export class ProjectService {
       ];
     }
 
+    const include = compact ? projectCompanyInclude : projectInclude;
+    const orderBy = buildProjectOrderBy(sortBy, sortOrder);
+
     const [total, rows] = await Promise.all([
       this.prisma.project.count({ where }),
       this.prisma.project.findMany({
         where,
-        include: projectInclude,
-        orderBy: buildProjectOrderBy(sortBy, sortOrder),
+        include,
+        orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
@@ -169,7 +180,9 @@ export class ProjectService {
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
     return {
-      data: rows.map(toProjectDto),
+      data: compact
+        ? (rows as ProjectListRow[]).map((row) => toProjectDto(row, true))
+        : (rows as ProjectWithRelations[]).map(toProjectDto),
       meta: { page, pageSize, total, totalPages },
     };
   }
