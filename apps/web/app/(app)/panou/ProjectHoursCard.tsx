@@ -1,6 +1,11 @@
 'use client';
 
-import type { ProjectSummaryActivityRow } from '@fabxpert/shared';
+import type { ProjectSummaryActivityRow, ProjectStatus } from '@fabxpert/shared';
+import {
+  getProjectStatusBadgeClassName,
+  getProjectStatusLabel,
+  PROJECT_TERMINAL_STATUSES,
+} from '@fabxpert/shared';
 import type { ReactNode } from 'react';
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
 import { ActivityBreakdownRows } from './ActivityBreakdownRows';
@@ -10,6 +15,7 @@ export type ProjectHoursCardProject = {
   name: string;
   code: string;
   color: string | null;
+  status: ProjectStatus;
   company: { name: string };
   totalMinutes: number;
   activities: ProjectSummaryActivityRow[];
@@ -20,7 +26,9 @@ export function ProjectHoursCardHeader({
   expanded,
   showAccentBar = true,
 }: {
-  project: Pick<ProjectHoursCardProject, 'name' | 'code' | 'color' | 'company' | 'totalMinutes'>;
+  project: Pick<ProjectHoursCardProject, 'name' | 'code' | 'color' | 'company' | 'totalMinutes'> & {
+    status?: ProjectStatus;
+  };
   expanded: boolean;
   showAccentBar?: boolean;
 }) {
@@ -34,9 +42,18 @@ export function ProjectHoursCardHeader({
         />
       )}
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-text-primary" title={project.name}>
-          {project.name}
-        </p>
+        <div className="flex min-w-0 items-center gap-2">
+          <p className="truncate font-medium text-text-primary" title={project.name}>
+            {project.name}
+          </p>
+          {project.status && PROJECT_TERMINAL_STATUSES.includes(project.status) && (
+            <span
+              className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${getProjectStatusBadgeClassName(project.status)}`}
+            >
+              {getProjectStatusLabel(project.status)}
+            </span>
+          )}
+        </div>
         <p className="mt-0.5 truncate font-mono text-xs text-text-muted">
           {project.code} · {project.company.name}
         </p>

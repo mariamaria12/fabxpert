@@ -310,6 +310,61 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
     );
   });
 
+  it('includes timesheets on terminal-status projects in today project and person summaries', async () => {
+    const today = localTodayWorkDate();
+
+    await request(app.getHttpServer())
+      .patch(`/projects/${FIXTURES.projects.roleRestricted.id}`)
+      .set(authHeader(adminCookie))
+      .send({ status: 'LIVRAT' })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post('/timesheets')
+      .set(authHeader(adminCookie))
+      .send({
+        personId: FIXTURES.persons.employee1.id,
+        projectId: FIXTURES.projects.roleRestricted.id,
+        activityId: FIXTURES.activities.active.id,
+        workDate: today,
+        durationMinutes: 45,
+      })
+      .expect(201);
+
+    const projectSummary = await request(app.getHttpServer())
+      .get('/timesheets/project-summary')
+      .query({ period: 'today' })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    const deliveredProject = projectSummary.body.projects.find(
+      (project: { id: string }) => project.id === FIXTURES.projects.roleRestricted.id,
+    );
+    expect(deliveredProject).toMatchObject({
+      id: FIXTURES.projects.roleRestricted.id,
+      status: 'LIVRAT',
+      totalMinutes: 45,
+    });
+
+    const personSummary = await request(app.getHttpServer())
+      .get('/timesheets/person-summary')
+      .query({ period: 'today' })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    const employee1Row = personSummary.body.persons.find(
+      (person: { id: string }) => person.id === FIXTURES.persons.employee1.id,
+    );
+    expect(
+      employee1Row.activities.some(
+        (activity: { projectId: string; projectStatus: string; minutes: number }) =>
+          activity.projectId === FIXTURES.projects.roleRestricted.id &&
+          activity.projectStatus === 'LIVRAT' &&
+          activity.minutes === 45,
+      ),
+    ).toBe(true);
+  });
+
   it('rejects invalid period on person-summary', async () => {
     const response = await request(app.getHttpServer())
       .get('/timesheets/person-summary')

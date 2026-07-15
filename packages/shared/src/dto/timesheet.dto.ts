@@ -94,6 +94,7 @@ export type ProjectSummaryProjectRow = {
   name: string;
   code: string;
   color: string | null;
+  status: ProjectStatus;
   company: { id: string; name: string };
   totalMinutes: number;
   activities: ProjectSummaryActivityRow[];
@@ -126,6 +127,7 @@ export type PersonSummaryActivityRow = {
   projectName: string;
   projectCode: string;
   projectColor: string | null;
+  projectStatus: ProjectStatus;
   activityId: string | null;
   activityName: string;
   activityColor: string | null;

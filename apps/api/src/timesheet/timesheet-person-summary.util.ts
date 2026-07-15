@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import type { ProjectStatus } from '@fabxpert/shared/dto/project.dto';
 import type { PersonSummaryResponse, TimesheetSummaryPeriod } from '@fabxpert/shared/dto/timesheet.dto';
 
 export type PersonSummarySqlRow = {
@@ -9,6 +10,7 @@ export type PersonSummarySqlRow = {
   projectName: string;
   projectCode: string;
   projectColor: string | null;
+  projectStatus: string;
   activityId: string | null;
   activityName: string | null;
   activityColor: string | null;
@@ -32,17 +34,16 @@ export function buildPersonSummaryQuery(from: Date | null, to: Date | null) {
       p.name AS "projectName",
       p.code AS "projectCode",
       p.color AS "projectColor",
+      p.status AS "projectStatus",
       t."activityId" AS "activityId",
       a.name AS "activityName",
       a.color AS "activityColor",
       SUM(t."durationMinutes")::int AS minutes
     FROM timesheets t
-    INNER JOIN persons pe ON pe.id = t."personId"
-    INNER JOIN projects p ON p.id = t."projectId"
+    INNER JOIN persons pe ON pe.id = t."personId" AND pe."deletedAt" IS NULL
+    INNER JOIN projects p ON p.id = t."projectId" AND p."deletedAt" IS NULL
     LEFT JOIN activities a ON a.id = t."activityId"
     WHERE t."deletedAt" IS NULL
-      AND pe."deletedAt" IS NULL
-      AND p."deletedAt" IS NULL
       ${periodFilter}
     GROUP BY
       pe.id,
@@ -52,6 +53,7 @@ export function buildPersonSummaryQuery(from: Date | null, to: Date | null) {
       p.name,
       p.code,
       p.color,
+      p.status,
       t."activityId",
       a.name,
       a.color
@@ -96,6 +98,7 @@ export function shapePersonSummary(
       projectName: row.projectName,
       projectCode: row.projectCode,
       projectColor: row.projectColor,
+      projectStatus: row.projectStatus as ProjectStatus,
       activityId: row.activityId,
       activityName: row.activityId ? (row.activityName ?? 'Activitate') : NO_ACTIVITY_LABEL,
       activityColor: row.activityColor,

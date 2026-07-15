@@ -1,6 +1,11 @@
 'use client';
 
 import type { PersonSummaryActivityRow } from '@fabxpert/shared';
+import {
+  getProjectStatusBadgeClassName,
+  getProjectStatusLabel,
+  PROJECT_TERMINAL_STATUSES,
+} from '@fabxpert/shared';
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
 
 export function PersonBreakdownRows({
@@ -27,6 +32,13 @@ export function PersonBreakdownRows({
                 <span className="truncate text-sm font-medium text-text-primary">
                   {entry.projectName}
                 </span>
+                {PROJECT_TERMINAL_STATUSES.includes(entry.projectStatus) && (
+                  <span
+                    className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${getProjectStatusBadgeClassName(entry.projectStatus)}`}
+                  >
+                    {getProjectStatusLabel(entry.projectStatus)}
+                  </span>
+                )}
                 <span className="shrink-0 font-mono text-xs text-text-muted">
                   {entry.projectCode}
                 </span>

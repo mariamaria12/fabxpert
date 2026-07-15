@@ -140,12 +140,14 @@ export function buildProjectSummaryQuery(
 
   const periodFilter = buildPeriodFilter(from, toDate);
 
+  // All non-deleted project statuses are included (incl. LIVRAT, FINALIZAT, ANULAT).
   return Prisma.sql`
     SELECT
       p.id AS "projectId",
       p.name AS "projectName",
       p.code AS "projectCode",
       p.color AS "projectColor",
+      p.status AS "projectStatus",
       c.id AS "companyId",
       c.name AS "companyName",
       t."activityId" AS "activityId",
@@ -165,6 +167,7 @@ export function buildProjectSummaryQuery(
       p.name,
       p.code,
       p.color,
+      p.status,
       c.id,
       c.name,
       t."activityId",
@@ -189,6 +192,7 @@ function upsertProjectRow(
       name: row.projectName,
       code: row.projectCode,
       color: row.projectColor,
+      status: row.projectStatus as ProjectStatus,
       company: { id: row.companyId, name: row.companyName },
       totalMinutes: 0,
       activities: [],
