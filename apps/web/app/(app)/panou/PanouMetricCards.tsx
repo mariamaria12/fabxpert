@@ -1,7 +1,7 @@
 'use client';
 
 import { getDashboardMetrics, type DashboardMetricsResponse } from '@fabxpert/shared';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 import { usePanouDashboard, type PanouView } from './PanouDashboardContext';
@@ -34,6 +34,18 @@ const METRIC_CARDS: {
   },
 ];
 
+function MetricCardSkeleton() {
+  return (
+    <div
+      className="flex flex-col items-start rounded-md border border-border-subtle bg-surface px-3 py-2.5"
+      aria-hidden="true"
+    >
+      <div className="h-3 w-28 max-w-full animate-pulse rounded bg-surface-raised" />
+      <div className="mt-2 h-6 w-12 animate-pulse rounded bg-surface-raised" />
+    </div>
+  );
+}
+
 function formatMetricValue(key: MetricKey, metrics: DashboardMetricsResponse | null): string {
   if (!metrics) {
     return '—';
@@ -48,6 +60,7 @@ function formatMetricValue(key: MetricKey, metrics: DashboardMetricsResponse | n
 
 export function PanouMetricCards() {
   const { activeView, setActiveView, setPeriod, metrics, setMetrics } = usePanouDashboard();
+  const [metricsLoading, setMetricsLoading] = useState(true);
 
   function selectView(view: PanouView) {
     setActiveView(view);
@@ -57,21 +70,39 @@ export function PanouMetricCards() {
   }
 
   const loadMetrics = useCallback(async () => {
-    const response = await getDashboardMetrics();
-    setMetrics(response);
+    try {
+      const response = await getDashboardMetrics();
+      setMetrics(response);
+    } catch {
+      setMetrics(null);
+    } finally {
+      setMetricsLoading(false);
+    }
   }, [setMetrics]);
 
   useEffect(() => {
-    void loadMetrics().catch(() => {
-      setMetrics(null);
-    });
-  }, [loadMetrics, setMetrics]);
+    void loadMetrics();
+  }, [loadMetrics]);
 
   useRegisterPanouRefetch('dashboard-metrics', loadMetrics);
 
   const onLeaveCount = metrics?.todayOnLeaveCount ?? 0;
   const cardClassName =
     'flex flex-col items-start rounded-md border border-border-subtle bg-surface px-3 py-2.5 text-left';
+
+  if (metricsLoading) {
+    return (
+      <div
+        className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+        aria-busy="true"
+        aria-label="Se încarcă metricile panoului"
+      >
+        {Array.from({ length: 4 }, (_, index) => (
+          <MetricCardSkeleton key={index} />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div
