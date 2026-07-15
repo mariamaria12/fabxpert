@@ -30,7 +30,7 @@ export function getLeaveStatusPillClassName(status: LeaveStatus): string {
   }
 }
 
-/** Inclusive calendar days from ISO date strings — must match backend leaveDays.ts. */
+/** Working days from ISO date strings — must match backend leaveDays.ts. */
 export function countLeaveDaysFromIso(startDate: string, endDate: string): number | null {
   if (!startDate || !endDate || endDate < startDate) {
     return null;

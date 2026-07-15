@@ -345,7 +345,7 @@ Fixed compile-time enums — not admin-managed lookups:
 
 **MVP simplifications (revisit post-MVP):**
 
-1. **Day counting** — inclusive **calendar** days (`endDate − startDate + 1`); weekends and Romanian public holidays are **not** excluded. Logic lives in `packages/shared/src/leaveDays.ts` (`countInclusiveLeaveDays`).
+1. **Day counting** — inclusive range between `startDate` and `endDate`, **excluding weekends** (Saturday/Sunday). Romanian public holidays are not excluded yet. Logic lives in `packages/shared/src/leaveDays.ts` (`countInclusiveLeaveDays`).
 2. **Year attribution** — requests count toward the calendar year of `startDate` only; spans across year boundaries are not split.
 3. **Over-balance approval** — allowed with a warning flag; not hard-blocked.
 4. **No balance check at request time** — employees may submit when low/negative remaining; UI uses `GET /leave-requests/my-balance` (and balance on create/update responses) to warn.

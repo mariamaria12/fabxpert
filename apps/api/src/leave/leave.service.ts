@@ -89,6 +89,7 @@ export class LeaveService {
     const endDate = parseWorkDateString(input.endDate);
 
     await this.assertNoOverlappingLeave(personId, startDate, endDate);
+    this.assertHasWorkingLeaveDays(startDate, endDate);
 
     const leaveRequest = await this.prisma.leaveRequest.create({
       data: {
@@ -271,6 +272,7 @@ export class LeaveService {
     }
 
     await this.assertNoOverlappingLeave(personId, nextStartDate, nextEndDate, id);
+    this.assertHasWorkingLeaveDays(nextStartDate, nextEndDate);
 
     const leaveRequest = await this.prisma.leaveRequest.update({
       where: { id },
@@ -426,6 +428,14 @@ export class LeaveService {
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.personId ? { personId: filters.personId } : {}),
     };
+  }
+
+  private assertHasWorkingLeaveDays(startDate: Date, endDate: Date): void {
+    if (countInclusiveLeaveDays(startDate, endDate) <= 0) {
+      throw new BadRequestException(
+        'Leave period must include at least one working day (weekends are excluded)',
+      );
+    }
   }
 
   private async assertNoOverlappingLeave(

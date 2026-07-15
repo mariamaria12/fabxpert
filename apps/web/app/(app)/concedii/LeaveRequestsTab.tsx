@@ -57,9 +57,10 @@ type PanelState =
 
 interface LeaveRequestsTabProps {
   onBalancesRefresh?: () => void;
+  refreshToken?: number;
 }
 
-export function LeaveRequestsTab({ onBalancesRefresh }: LeaveRequestsTabProps) {
+export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveRequestsTabProps) {
   const { showToast } = useToast();
   const { refreshPendingCount } = useLeavePendingCount();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('IN_ASTEPTARE');
@@ -125,7 +126,7 @@ export function LeaveRequestsTab({ onBalancesRefresh }: LeaveRequestsTabProps) {
 
   useEffect(() => {
     void loadRequests(page, statusFilter, personId);
-  }, [page, statusFilter, personId, loadRequests]);
+  }, [page, statusFilter, personId, loadRequests, refreshToken]);
 
   function openReview(request: LeaveRequestDto) {
     setPanel({ open: true, request });

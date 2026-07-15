@@ -28,6 +28,13 @@ const SEARCH_DEBOUNCE_MS = 300;
 const DEFAULT_SORT_BY: TimesheetListSortBy = 'date';
 const DEFAULT_SORT_ORDER: SortOrder = 'desc';
 
+function formatUpdatedAt(date: Date): string {
+  return date.toLocaleTimeString('ro-RO', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 const searchInputClassName =
   'w-full min-w-[14rem] max-w-md rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
 
@@ -57,6 +64,8 @@ export default function TimesheetsPage() {
   const [exportOpen, setExportOpen] = useState(false);
   const [sortBy, setSortBy] = useState<TimesheetListSortBy>(DEFAULT_SORT_BY);
   const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -96,6 +105,16 @@ export default function TimesheetsPage() {
   useEffect(() => {
     void loadTimesheets();
   }, [loadTimesheets]);
+
+  async function refreshAll() {
+    setRefreshing(true);
+    try {
+      await loadTimesheets();
+      setLastUpdated(new Date());
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   function handleSortChange(nextSortBy: string, nextSortOrder: SortOrder) {
     setSortBy(nextSortBy as TimesheetListSortBy);
@@ -169,6 +188,23 @@ export default function TimesheetsPage() {
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-[22px] font-medium text-text-primary">Pontaje</h1>
         <div className="flex shrink-0 items-center gap-2">
+          {lastUpdated ? (
+            <span className="hidden text-xs text-text-muted sm:inline">
+              actualizat {formatUpdatedAt(lastUpdated)}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            disabled={refreshing || loading}
+            onClick={() => void refreshAll()}
+            className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary disabled:opacity-50"
+          >
+            <i
+              className={`ti ti-refresh text-base ${refreshing ? 'animate-spin' : ''}`}
+              aria-hidden="true"
+            />
+            Împrospătare date
+          </button>
           <button
             type="button"
             onClick={() => setExportOpen(true)}

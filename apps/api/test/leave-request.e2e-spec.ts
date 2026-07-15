@@ -1,5 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { countInclusiveLeaveDays } from '@fabxpert/shared/leaveDays';
+import { parseWorkDateString } from '@fabxpert/shared/workDate';
 import { createTestApp } from './helpers/app';
 import { authHeader, login } from './helpers/auth';
 import { FIXTURES, E2E_PASSWORD } from './helpers/fixtures';
@@ -7,6 +9,30 @@ import { FIXTURES, E2E_PASSWORD } from './helpers/fixtures';
 function leaveDateIso(month: number, day: number): string {
   const year = new Date().getFullYear();
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function expectedLeaveDays(startDate: string, endDate: string): number {
+  return countInclusiveLeaveDays(
+    parseWorkDateString(startDate),
+    parseWorkDateString(endDate),
+  );
+}
+
+function firstWeekendRangeInYear(): { startDate: string; endDate: string } {
+  const year = new Date().getFullYear();
+  for (let month = 0; month < 12; month += 1) {
+    for (let day = 1; day <= 27; day += 1) {
+      const saturday = new Date(year, month, day);
+      if (saturday.getDay() === 6) {
+        return {
+          startDate: leaveDateIso(month + 1, day),
+          endDate: leaveDateIso(month + 1, day + 1),
+        };
+      }
+    }
+  }
+
+  throw new Error('No Saturday found in current year');
 }
 
 describe('Leave requests (e2e)', () => {
@@ -42,7 +68,9 @@ describe('Leave requests (e2e)', () => {
     expect(create.status).toBe(201);
     expect(create.body.leaveRequest.person.id).toBe(FIXTURES.persons.employee1.id);
     expect(create.body.leaveRequest.status).toBe('IN_ASTEPTARE');
-    expect(create.body.leaveRequest.dayCount).toBe(5);
+    expect(create.body.leaveRequest.dayCount).toBe(
+      expectedLeaveDays(leaveDateIso(7, 10), leaveDateIso(7, 14)),
+    );
     expect(create.body.balance.personId).toBe(FIXTURES.persons.employee1.id);
     expect(create.body.balance.annualLeaveDays).toBe(21);
 
@@ -63,6 +91,20 @@ describe('Leave requests (e2e)', () => {
     expect(
       adminList.body.data.some((row: { id: string }) => row.id === create.body.leaveRequest.id),
     ).toBe(true);
+  });
+
+  it('weekend-only period → 400', async () => {
+    const weekend = firstWeekendRangeInYear();
+    const res = await request(app.getHttpServer())
+      .post('/leave-requests')
+      .set(authHeader(employee1Cookie))
+      .send({
+        type: 'ODIHNA',
+        startDate: weekend.startDate,
+        endDate: weekend.endDate,
+      });
+
+    expect(res.status).toBe(400);
   });
 
   it('endDate before startDate → 400', async () => {
@@ -118,8 +160,8 @@ describe('Leave requests (e2e)', () => {
       .set(authHeader(employee1Cookie))
       .send({
         type: 'NEPLATIT',
-        startDate: leaveDateIso(9, 5),
-        endDate: leaveDateIso(9, 6),
+        startDate: leaveDateIso(9, 7),
+        endDate: leaveDateIso(9, 8),
       });
 
     expect(createPending.status).toBe(201);
@@ -171,7 +213,9 @@ describe('Leave requests (e2e)', () => {
       .get('/leave-requests/my-balance')
       .set(authHeader(employee1Cookie));
 
-    expect(balanceAfterOdihna.body.usedDays).toBe(usedBefore + 3);
+    expect(balanceAfterOdihna.body.usedDays).toBe(
+      usedBefore + expectedLeaveDays(leaveDateIso(10, 1), leaveDateIso(10, 3)),
+    );
     expect(balanceAfterOdihna.body.remainingDays).toBe(
       balanceAfterOdihna.body.annualLeaveDays - balanceAfterOdihna.body.usedDays,
     );
