@@ -1,7 +1,4 @@
--- Normalize empty tax codes before adding uniqueness.
+-- Normalize empty tax codes (no unique index — multiple companies may share the same CUI).
 UPDATE "companies"
 SET "taxCode" = NULL
 WHERE "taxCode" = '';
-
--- CreateIndex
-CREATE UNIQUE INDEX "companies_taxCode_key" ON "companies"("taxCode");

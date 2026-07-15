@@ -87,6 +87,34 @@ DIRECT_URL=postgresql://postgres.icniqqtjchvfcixqkgku:PASSWORD@aws-0-eu-west-1.p
 
 **Also check:** project not **Paused** in Supabase; real DB password (not `[YOUR-PASSWORD]`); URL-encode special characters in password; no quotes around values in Railway Variables.
 
+#### P3009 — failed migration blocks deploy
+
+If Railway logs show `P3009` and a failed migration name (e.g. `20260715130000_add_company_tax_code_unique`), Prisma will refuse further deploys until the failure is cleared.
+
+**One-time fix from your machine** (use production `DATABASE_URL` / pooler — same as Railway):
+
+```bash
+cd packages/db
+
+# Mark the failed attempt as rolled back (safe when CREATE INDEX never succeeded)
+DATABASE_URL="postgresql://..." \
+  pnpm exec prisma migrate resolve --rolled-back 20260715130000_add_company_tax_code_unique
+
+# Optional: confirm pending migrations apply cleanly
+DATABASE_URL="postgresql://..." \
+  pnpm exec prisma migrate deploy
+```
+
+Then **redeploy** the API on Railway (push to `master` or Redeploy). The fixed migration only normalizes empty `taxCode` values — it does **not** add a unique index (duplicate CUIs are valid in this app).
+
+If an old partial index exists (rare):
+
+```sql
+DROP INDEX IF EXISTS "companies_taxCode_key";
+```
+
+Then run `migrate resolve --rolled-back` and redeploy.
+
 ### 2. Railway project
 
 1. New Railway project → **Deploy from GitHub repo**.
