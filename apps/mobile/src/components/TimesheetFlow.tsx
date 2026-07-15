@@ -176,6 +176,7 @@ export function TimesheetFlow({ user, onLogout }: TimesheetFlowProps) {
       <main className="timesheet-main">
         {step === 'selectProject' ? (
           <ProjectSelect
+            user={user}
             onChoose={handleProjectChosen}
             onOpenMyTimesheets={handleOpenMyTimesheets}
           />

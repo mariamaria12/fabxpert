@@ -325,6 +325,17 @@ export function formatDayGroupHeader(
   };
 }
 
+export function formatMobileTodayDate(reference = new Date()): string {
+  const formatted = reference.toLocaleDateString('ro-RO', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+}
+
 export function groupEntriesByLocalDay<T extends TimesheetDurationEntry>(
   entries: T[],
   reference = new Date(),

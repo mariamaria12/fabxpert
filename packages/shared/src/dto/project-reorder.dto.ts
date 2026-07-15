@@ -8,7 +8,10 @@ const projectIdSchema = z
   );
 
 export const reorderPinnedProjectsSchema = z.object({
-  orderedIds: z.array(projectIdSchema).min(1, 'At least one project id is required'),
+  columns: z.tuple([
+    z.array(projectIdSchema),
+    z.array(projectIdSchema),
+  ]),
 });
 
 export type ReorderPinnedProjectsInput = z.infer<typeof reorderPinnedProjectsSchema>;

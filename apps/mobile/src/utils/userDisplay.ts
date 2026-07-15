@@ -24,3 +24,13 @@ export function getUserDisplayName(user: MeResponse): string {
 
   return user.email;
 }
+
+export function getUserFirstName(user: MeResponse): string {
+  const firstName = user.person?.firstName?.trim();
+  if (firstName) {
+    return firstName;
+  }
+
+  const local = user.email.split('@')[0]?.trim();
+  return local || user.email;
+}

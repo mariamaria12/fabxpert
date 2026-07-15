@@ -112,6 +112,7 @@ function toProjectDto(project: ProjectWithRelations | ProjectListRow, compact = 
     readyForExecution: project.readyForExecution,
     isPinned: project.isPinned,
     indexPanou: project.indexPanou,
+    panouColumn: project.panouColumn,
     color: project.color,
     companyId: project.companyId,
     company: project.company,
@@ -228,12 +229,15 @@ export class ProjectService {
     }
 
     try {
+      const panouSlot = isPinned ? await this.getNextPanouSlot() : null;
       const project = await this.prisma.project.create({
         data: {
           ...scalarInput,
           ...(isPinned !== undefined ? { isPinned } : {}),
           color: color ?? pickRandomProjectColor(),
-          ...(isPinned ? { indexPanou: await this.getNextIndexPanou() } : {}),
+          ...(panouSlot
+            ? { indexPanou: panouSlot.indexPanou, panouColumn: panouSlot.panouColumn }
+            : {}),
           ...(visibleForRoleIds !== undefined
             ? {
                 visibleForRoles: {
@@ -271,10 +275,14 @@ export class ProjectService {
       !roleIdsEqual(existingRoleIds, visibleForRoleIds);
 
     let indexPanou: number | null | undefined;
+    let panouColumn: number | null | undefined;
     if (isPinned === true && !existing.isPinned) {
-      indexPanou = await this.getNextIndexPanou();
+      const slot = await this.getNextPanouSlot();
+      indexPanou = slot.indexPanou;
+      panouColumn = slot.panouColumn;
     } else if (isPinned === false && existing.isPinned) {
       indexPanou = null;
+      panouColumn = null;
     }
 
     try {
@@ -284,6 +292,7 @@ export class ProjectService {
           ...scalarInput,
           ...(isPinned !== undefined ? { isPinned } : {}),
           ...(indexPanou !== undefined ? { indexPanou } : {}),
+          ...(panouColumn !== undefined ? { panouColumn } : {}),
           ...(visibleForRoleIds !== undefined
             ? {
                 visibleForRoles: {
@@ -310,9 +319,14 @@ export class ProjectService {
     }
   }
 
-  async reorderPinnedProjects(orderedIds: string[]): Promise<void> {
+  async reorderPinnedProjects(columns: [string[], string[]]): Promise<void> {
+    const orderedIds = [...columns[0], ...columns[1]];
+    if (orderedIds.length === 0) {
+      return;
+    }
+
     if (new Set(orderedIds).size !== orderedIds.length) {
-      throw new BadRequestException('orderedIds must not contain duplicates');
+      throw new BadRequestException('columns must not contain duplicate project ids');
     }
 
     const pinned = await this.prisma.project.findMany({
@@ -326,15 +340,22 @@ export class ProjectService {
 
     if (pinned.length !== orderedIds.length) {
       throw new BadRequestException(
-        'orderedIds must reference only existing pinned projects',
+        'columns must reference only existing pinned projects',
       );
     }
 
+    const updates: { id: string; panouColumn: number; indexPanou: number }[] = [];
+    columns.forEach((columnIds, panouColumn) => {
+      columnIds.forEach((projectId, indexPanou) => {
+        updates.push({ id: projectId, panouColumn, indexPanou });
+      });
+    });
+
     await this.prisma.$transaction(
-      orderedIds.map((projectId, index) =>
+      updates.map(({ id, panouColumn, indexPanou }) =>
         this.prisma.project.update({
-          where: { id: projectId },
-          data: { indexPanou: index },
+          where: { id },
+          data: { panouColumn, indexPanou },
         }),
       ),
     );
@@ -351,16 +372,25 @@ export class ProjectService {
     }
   }
 
-  private async getNextIndexPanou(): Promise<number> {
-    const result = await this.prisma.project.aggregate({
+  private async getNextPanouSlot(): Promise<{ panouColumn: number; indexPanou: number }> {
+    const pinned = await this.prisma.project.findMany({
       where: {
         isPinned: true,
         ...notDeleted(),
       },
-      _max: { indexPanou: true },
+      select: { panouColumn: true },
     });
 
-    return (result._max.indexPanou ?? -1) + 1;
+    const columnCounts = [0, 0];
+    for (const project of pinned) {
+      const column = project.panouColumn ?? 0;
+      if (column === 0 || column === 1) {
+        columnCounts[column] += 1;
+      }
+    }
+
+    const panouColumn = columnCounts[0] <= columnCounts[1] ? 0 : 1;
+    return { panouColumn, indexPanou: columnCounts[panouColumn] };
   }
 
   private async resolveEmployeeRoleId(userId: string): Promise<string | null> {

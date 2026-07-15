@@ -540,6 +540,23 @@ body {
   text-align: left;
 }
 
+.flow-home-greeting {
+  margin-bottom: 16px;
+}
+
+.flow-home-greeting-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.flow-home-greeting-date {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
 .today-total-banner-tappable {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;

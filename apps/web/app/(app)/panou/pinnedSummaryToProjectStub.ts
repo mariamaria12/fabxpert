@@ -12,6 +12,7 @@ export function pinnedSummaryToProjectStub(row: PinnedProjectSummaryRow): Projec
     readyForExecution: false,
     isPinned: true,
     indexPanou: row.indexPanou,
+    panouColumn: row.panouColumn,
     color: row.color,
     companyId: row.company.id,
     company: row.company,

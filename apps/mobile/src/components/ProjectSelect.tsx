@@ -1,13 +1,15 @@
-import type { ProjectOptionDto } from '@fabxpert/shared';
+import type { MeResponse, ProjectOptionDto } from '@fabxpert/shared';
 import { useMobileLookupCache } from '../context/MobileLookupCacheContext';
 import {
   ProjectListSkeleton,
   TodayTotalBannerSkeleton,
 } from './skeletons/OptionListSkeleton';
-import { formatTodayWorkedTotal } from '../utils/timeUtils';
+import { formatTodayWorkedTotal, formatMobileTodayDate } from '../utils/timeUtils';
+import { getUserFirstName } from '../utils/userDisplay';
 import { projectOptionTintStyle } from '../utils/colorUtils';
 
 interface ProjectSelectProps {
+  user: MeResponse;
   onChoose: (project: ProjectOptionDto) => void;
   onOpenMyTimesheets: () => void;
 }
@@ -91,7 +93,7 @@ function RefreshIcon({ spinning }: { spinning: boolean }) {
   );
 }
 
-export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectProps) {
+export function ProjectSelect({ user, onChoose, onOpenMyTimesheets }: ProjectSelectProps) {
   const {
     projects,
     projectsError,
@@ -118,6 +120,11 @@ export function ProjectSelect({ onChoose, onOpenMyTimesheets }: ProjectSelectPro
 
   return (
     <div className="flow-content">
+      <div className="flow-home-greeting">
+        <p className="flow-home-greeting-title">Bună, {getUserFirstName(user)}</p>
+        <p className="flow-home-greeting-date">{formatMobileTodayDate()}</p>
+      </div>
+
       {showBannerSkeleton ? (
         <TodayTotalBannerSkeleton />
       ) : (

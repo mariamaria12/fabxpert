@@ -119,7 +119,7 @@ export class ProjectController {
     @Body(new ZodValidationPipe(reorderPinnedProjectsSchema))
     input: ReorderPinnedProjectsInput,
   ) {
-    await this.projectService.reorderPinnedProjects(input.orderedIds);
+    await this.projectService.reorderPinnedProjects(input.columns);
   }
 
   @Patch(':id')

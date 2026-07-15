@@ -104,6 +104,7 @@ export type ProjectDto = {
   readyForExecution: boolean;
   isPinned: boolean;
   indexPanou: number | null;
+  panouColumn: number | null;
   color: string | null;
   companyId: string;
   company: ProjectCompanyDto;

@@ -81,10 +81,10 @@ export function deleteProject(id: string) {
   return request<void>(`/projects/${id}`, { method: 'DELETE' });
 }
 
-export function reorderPinnedProjects(orderedIds: string[]) {
+export function reorderPinnedProjects(columns: [string[], string[]]) {
   return request<void>('/projects/pinned-order', {
     method: 'PATCH',
-    body: JSON.stringify({ orderedIds }),
+    body: JSON.stringify({ columns }),
   });
 }
 

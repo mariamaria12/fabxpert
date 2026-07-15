@@ -19,7 +19,7 @@ describe('Pinned projects reorder (e2e)', () => {
     await app.close();
   });
 
-  it('assigns indexPanou when pinning and persists custom order', async () => {
+  it('assigns indexPanou and panouColumn when pinning and persists custom order', async () => {
     await request(app.getHttpServer())
       .patch(`/projects/${FIXTURES.projects.ready.id}`)
       .set(authHeader(adminCookie))
@@ -43,13 +43,15 @@ describe('Pinned projects reorder (e2e)', () => {
       .expect(200);
 
     expect(pinnedReady.body.indexPanou).not.toBeNull();
+    expect(pinnedReady.body.panouColumn).not.toBeNull();
     expect(pinnedNotReady.body.indexPanou).not.toBeNull();
+    expect(pinnedNotReady.body.panouColumn).not.toBeNull();
 
     await request(app.getHttpServer())
       .patch('/projects/pinned-order')
       .set(authHeader(adminCookie))
       .send({
-        orderedIds: [FIXTURES.projects.notReady.id, FIXTURES.projects.ready.id],
+        columns: [[FIXTURES.projects.notReady.id], [FIXTURES.projects.ready.id]],
       })
       .expect(204);
 
@@ -58,16 +60,20 @@ describe('Pinned projects reorder (e2e)', () => {
       .set(authHeader(adminCookie))
       .expect(200);
 
-    const orderedIds = summary.body.projects.map((project: { id: string }) => project.id);
-    const readyIndex = orderedIds.indexOf(FIXTURES.projects.ready.id);
-    const notReadyIndex = orderedIds.indexOf(FIXTURES.projects.notReady.id);
+    const ready = summary.body.projects.find(
+      (project: { id: string }) => project.id === FIXTURES.projects.ready.id,
+    );
+    const notReady = summary.body.projects.find(
+      (project: { id: string }) => project.id === FIXTURES.projects.notReady.id,
+    );
 
-    expect(readyIndex).toBeGreaterThanOrEqual(0);
-    expect(notReadyIndex).toBeGreaterThanOrEqual(0);
-    expect(notReadyIndex).toBeLessThan(readyIndex);
+    expect(notReady.panouColumn).toBe(0);
+    expect(notReady.indexPanou).toBe(0);
+    expect(ready.panouColumn).toBe(1);
+    expect(ready.indexPanou).toBe(0);
   });
 
-  it('clears indexPanou when unpinning', async () => {
+  it('clears indexPanou and panouColumn when unpinning', async () => {
     const response = await request(app.getHttpServer())
       .patch(`/projects/${FIXTURES.projects.ready.id}`)
       .set(authHeader(adminCookie))
@@ -76,13 +82,14 @@ describe('Pinned projects reorder (e2e)', () => {
 
     expect(response.body.isPinned).toBe(false);
     expect(response.body.indexPanou).toBeNull();
+    expect(response.body.panouColumn).toBeNull();
   });
 
   it('rejects reorder with unknown or unpinned project ids', async () => {
     await request(app.getHttpServer())
       .patch('/projects/pinned-order')
       .set(authHeader(adminCookie))
-      .send({ orderedIds: ['00000000-0000-0000-0000-000000000099'] })
+      .send({ columns: [['00000000-0000-0000-0000-000000000099'], []] })
       .expect(400);
   });
 });

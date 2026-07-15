@@ -18,16 +18,24 @@ import {
 import {
   SortableContext,
   arrayMove,
-  rectSortingStrategy,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { ProjectFormPanel } from '../projects/ProjectFormPanel';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
+import {
+  flattenPinnedProjectsForOneColumn,
+  getPinnedProjectColumn,
+  isPinnedLayoutCollapsedToOneColumn,
+  mergePinnedProjectColumns,
+  splitPinnedProjectsByColumn,
+  unflattenOneColumnOrderToColumns,
+} from './panouPinnedLayout';
 import { SortablePinnedProjectCard } from './SortablePinnedProjectCard';
+import { PanouPinnedProjectsSkeleton } from './PanouPinnedProjectsSkeleton';
 import { pinnedSummaryToProjectStub } from './pinnedSummaryToProjectStub';
 
 type EditPanelState =
@@ -89,6 +97,27 @@ function PanouPinnedViewModeToggle({
   );
 }
 
+function renderPinnedProjectCards(
+  columnProjects: PinnedProjectSummaryRow[],
+  options: {
+    expandedIds: Set<string>;
+    toggleExpanded: (projectId: string) => void;
+    handleUnpinned: (updated: ProjectDto) => void;
+    openEdit: (project: PinnedProjectSummaryRow) => void;
+  },
+) {
+  return columnProjects.map((project) => (
+    <SortablePinnedProjectCard
+      key={project.id}
+      project={project}
+      expanded={options.expandedIds.has(project.id)}
+      onToggle={() => options.toggleExpanded(project.id)}
+      onUnpinned={options.handleUnpinned}
+      onEdit={() => options.openEdit(project)}
+    />
+  ));
+}
+
 export type PanouPinnedProjectsSectionHandle = {
   refetch: () => Promise<void>;
   removeProject: (projectId: string) => void;
@@ -114,6 +143,12 @@ export const PanouPinnedProjectsSection = forwardRef<
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
+  const [column0, column1] = useMemo(() => splitPinnedProjectsByColumn(projects), [projects]);
+  const oneColumnProjects = useMemo(
+    () => flattenPinnedProjectsForOneColumn(projects),
+    [projects],
+  );
+
   const loadPinnedSummary = useCallback(async (background = false) => {
     const fetchSeq = ++fetchSeqRef.current;
     if (!background) {
@@ -126,7 +161,26 @@ export const PanouPinnedProjectsSection = forwardRef<
       if (fetchSeq !== fetchSeqRef.current) {
         return;
       }
-      setProjects(response.projects);
+
+      let nextProjects = response.projects;
+      const [rawColumn0, rawColumn1] = splitPinnedProjectsByColumn(nextProjects);
+      if (
+        readStoredViewMode() === 'two-columns' &&
+        isPinnedLayoutCollapsedToOneColumn(rawColumn0, rawColumn1)
+      ) {
+        const [nextColumn0, nextColumn1] = unflattenOneColumnOrderToColumns(rawColumn0);
+        try {
+          await reorderPinnedProjects([
+            nextColumn0.map((project) => project.id),
+            nextColumn1.map((project) => project.id),
+          ]);
+          nextProjects = mergePinnedProjectColumns(nextColumn0, nextColumn1);
+        } catch (repairError) {
+          showToast(apiErrorToastMessage(repairError), 'error');
+        }
+      }
+
+      setProjects(nextProjects);
     } catch (caught) {
       if (fetchSeq !== fetchSeqRef.current) {
         return;
@@ -137,7 +191,7 @@ export const PanouPinnedProjectsSection = forwardRef<
         setLoading(false);
       }
     }
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
     void loadPinnedSummary();
@@ -146,6 +200,14 @@ export const PanouPinnedProjectsSection = forwardRef<
   function handleViewModeChange(mode: PanouPinnedViewMode) {
     setViewMode(mode);
     window.localStorage.setItem(PANOU_PINNED_VIEW_MODE_KEY, mode);
+
+    if (mode === 'two-columns') {
+      const [rawColumn0, rawColumn1] = splitPinnedProjectsByColumn(projects);
+      if (isPinnedLayoutCollapsedToOneColumn(rawColumn0, rawColumn1)) {
+        const [nextColumn0, nextColumn1] = unflattenOneColumnOrderToColumns(rawColumn0);
+        void persistColumnOrder(nextColumn0, nextColumn1);
+      }
+    }
   }
 
   const refetchSummary = useCallback(async () => {
@@ -201,39 +263,76 @@ export const PanouPinnedProjectsSection = forwardRef<
     void refetchSummary();
   }
 
-  async function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) {
-      return;
-    }
-
-    const oldIndex = projects.findIndex((project) => project.id === active.id);
-    const newIndex = projects.findIndex((project) => project.id === over.id);
-    if (oldIndex < 0 || newIndex < 0) {
-      return;
-    }
-
+  async function persistColumnOrder(
+    nextColumn0: PinnedProjectSummaryRow[],
+    nextColumn1: PinnedProjectSummaryRow[],
+  ) {
     const previous = projects;
-    const reordered = arrayMove(projects, oldIndex, newIndex).map((project, index) => ({
-      ...project,
-      indexPanou: index,
-    }));
-
-    setProjects(reordered);
+    setProjects(mergePinnedProjectColumns(nextColumn0, nextColumn1));
 
     try {
-      await reorderPinnedProjects(reordered.map((project) => project.id));
+      await reorderPinnedProjects([
+        nextColumn0.map((project) => project.id),
+        nextColumn1.map((project) => project.id),
+      ]);
     } catch (caught) {
       setProjects(previous);
       showToast(apiErrorToastMessage(caught), 'error');
     }
   }
 
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    if (viewMode === 'one-column') {
+      const oldIndex = oneColumnProjects.findIndex((project) => project.id === active.id);
+      const newIndex = oneColumnProjects.findIndex((project) => project.id === over.id);
+      if (oldIndex < 0 || newIndex < 0) {
+        return;
+      }
+
+      const reordered = arrayMove(oneColumnProjects, oldIndex, newIndex);
+      const [nextColumn0, nextColumn1] = unflattenOneColumnOrderToColumns(reordered);
+      await persistColumnOrder(nextColumn0, nextColumn1);
+      return;
+    }
+
+    const activeColumn = getPinnedProjectColumn(projects, String(active.id));
+    const overColumn = getPinnedProjectColumn(projects, String(over.id));
+    if (activeColumn === null || overColumn === null || activeColumn !== overColumn) {
+      return;
+    }
+
+    if (activeColumn === 0) {
+      const oldIndex = column0.findIndex((project) => project.id === active.id);
+      const newIndex = column0.findIndex((project) => project.id === over.id);
+      if (oldIndex < 0 || newIndex < 0) {
+        return;
+      }
+
+      await persistColumnOrder(arrayMove(column0, oldIndex, newIndex), column1);
+      return;
+    }
+
+    const oldIndex = column1.findIndex((project) => project.id === active.id);
+    const newIndex = column1.findIndex((project) => project.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) {
+      return;
+    }
+
+    await persistColumnOrder(column0, arrayMove(column1, oldIndex, newIndex));
+  }
+
   const showEmptyHint = !loading && !error && projects.length === 0;
-  const listClassName =
-    viewMode === 'two-columns' ? 'mt-3 grid grid-cols-2 gap-2' : 'mt-3 space-y-2';
-  const sortingStrategy =
-    viewMode === 'two-columns' ? rectSortingStrategy : verticalListSortingStrategy;
+  const cardOptions = {
+    expandedIds,
+    toggleExpanded,
+    handleUnpinned,
+    openEdit,
+  };
 
   return (
     <section className="mt-4">
@@ -256,7 +355,7 @@ export const PanouPinnedProjectsSection = forwardRef<
       )}
 
       {loading && projects.length === 0 && !error && (
-        <p className="mt-3 text-sm text-text-muted">Se încarcă…</p>
+        <PanouPinnedProjectsSkeleton viewMode={viewMode} />
       )}
 
       {showEmptyHint && (
@@ -271,23 +370,35 @@ export const PanouPinnedProjectsSection = forwardRef<
           collisionDetection={closestCenter}
           onDragEnd={(event) => void handleDragEnd(event)}
         >
-          <SortableContext
-            items={projects.map((project) => project.id)}
-            strategy={sortingStrategy}
-          >
-            <div className={listClassName}>
-              {projects.map((project) => (
-                <SortablePinnedProjectCard
-                  key={project.id}
-                  project={project}
-                  expanded={expandedIds.has(project.id)}
-                  onToggle={() => toggleExpanded(project.id)}
-                  onUnpinned={handleUnpinned}
-                  onEdit={() => openEdit(project)}
-                />
-              ))}
+          {viewMode === 'one-column' ? (
+            <SortableContext
+              items={oneColumnProjects.map((project) => project.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="mt-3 space-y-2">
+                {renderPinnedProjectCards(oneColumnProjects, cardOptions)}
+              </div>
+            </SortableContext>
+          ) : (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <SortableContext
+                items={column0.map((project) => project.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="min-w-0 space-y-2">
+                  {renderPinnedProjectCards(column0, cardOptions)}
+                </div>
+              </SortableContext>
+              <SortableContext
+                items={column1.map((project) => project.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="min-w-0 space-y-2">
+                  {renderPinnedProjectCards(column1, cardOptions)}
+                </div>
+              </SortableContext>
             </div>
-          </SortableContext>
+          )}
         </DndContext>
       )}
 

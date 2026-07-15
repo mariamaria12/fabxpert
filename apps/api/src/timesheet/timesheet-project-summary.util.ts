@@ -24,6 +24,7 @@ export type ProjectSummarySqlRow = {
   projectCode: string;
   projectColor: string | null;
   projectIndexPanou?: number | null;
+  projectPanouColumn?: number | null;
   companyId: string;
   companyName: string;
   activityId: string | null;
@@ -82,6 +83,7 @@ export function buildProjectSummaryQuery(
         p.code AS "projectCode",
         p.color AS "projectColor",
         p."indexPanou" AS "projectIndexPanou",
+        p."panouColumn" AS "projectPanouColumn",
         p.status AS "projectStatus",
         p."startDate" AS "projectStartDate",
         p."dueDate" AS "projectDueDate",
@@ -111,6 +113,7 @@ export function buildProjectSummaryQuery(
         p.code,
         p.color,
         p."indexPanou",
+        p."panouColumn",
         p.status,
         p."startDate",
         p."dueDate",
@@ -119,7 +122,7 @@ export function buildProjectSummaryQuery(
         t."activityId",
         a.name,
         a.color
-      ORDER BY p."indexPanou" ASC NULLS LAST, p.name ASC, minutes DESC
+      ORDER BY p."panouColumn" ASC NULLS LAST, p."indexPanou" ASC NULLS LAST, p.name ASC, minutes DESC
     `;
   }
 
@@ -239,6 +242,7 @@ export function shapePinnedProjectsSummary(
         startDate: row.projectStartDate?.toISOString() ?? null,
         dueDate: row.projectDueDate?.toISOString() ?? null,
         indexPanou: row.projectIndexPanou ?? null,
+        panouColumn: row.projectPanouColumn ?? null,
         company: { id: row.companyId, name: row.companyName },
         totalMinutes: 0,
         activities: [],
@@ -258,6 +262,12 @@ export function shapePinnedProjectsSummary(
   }
 
   const projects = Array.from(byProject.values()).sort((left, right) => {
+    const leftColumn = left.panouColumn ?? 0;
+    const rightColumn = right.panouColumn ?? 0;
+    if (leftColumn !== rightColumn) {
+      return leftColumn - rightColumn;
+    }
+
     const leftIndex = left.indexPanou ?? Number.MAX_SAFE_INTEGER;
     const rightIndex = right.indexPanou ?? Number.MAX_SAFE_INTEGER;
     if (leftIndex !== rightIndex) {
