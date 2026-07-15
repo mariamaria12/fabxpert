@@ -45,6 +45,10 @@
       "types": "./dist/dto/leave.dto.d.ts",
       "default": "./dist/dto/leave.dto.js"
     },
+    "./companyImport": {
+      "types": "./dist/companyImport.d.ts",
+      "default": "./dist/companyImport.js"
+    },
     "./leaveDays": {
       "types": "./dist/leaveDays.d.ts",
       "default": "./dist/leaveDays.js"

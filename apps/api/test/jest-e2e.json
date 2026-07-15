@@ -14,6 +14,7 @@
   },
   "moduleNameMapper": {
     "^@fabxpert/shared/dto/(.+)$": "<rootDir>/../../../packages/shared/dist/dto/$1",
+    "^@fabxpert/shared/companyImport$": "<rootDir>/../../../packages/shared/dist/companyImport.js",
     "^@fabxpert/shared$": "<rootDir>/../../../packages/shared/dist/index.js"
   },
   "globalSetup": "<rootDir>/global-setup.ts",

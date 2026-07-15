@@ -25,7 +25,8 @@
     "db:seed:prod": "tsx prisma/seed.prod.ts",
     "db:seed:perf": "tsx prisma/seed-perf.ts",
     "db:seed:perf:clear": "tsx prisma/seed-perf-clear.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:import-sql": "tsx scripts/generate-companies-import-sql.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

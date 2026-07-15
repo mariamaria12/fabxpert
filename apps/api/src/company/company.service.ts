@@ -1,12 +1,16 @@
-import type { Prisma } from '@prisma/client';
-import { Injectable, NotFoundException } from '@nestjs/common';
-import type { Company } from '@prisma/client';
-import type {
-  CompanyDto,
-  CompanyListSortBy,
-  CreateCompanyInput,
-  UpdateCompanyInput,
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import type { Company, Prisma } from '@prisma/client';
+import {
+  importCompanyRowSchema,
+  type CompanyDto,
+  type CompanyImportRejectedRow,
+  type CompanyImportResult,
+  type CompanyListSortBy,
+  type CreateCompanyInput,
+  type ImportCompanyRow,
+  type UpdateCompanyInput,
 } from '@fabxpert/shared/dto/company.dto';
+import { parseCompanyImportRows } from '@fabxpert/shared/companyImport';
 import type { SortOrder } from '@fabxpert/shared/dto/project.dto';
 import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
 import { PaginationParams } from '../common/pagination/parse-pagination.util';
@@ -43,6 +47,21 @@ function buildCompanyOrderBy(
     default:
       return [{ name: sortOrder }, { id: 'asc' }];
   }
+}
+
+function rowToCompanyData(row: ImportCompanyRow): CreateCompanyInput {
+  return {
+    name: row.name,
+    taxCode: row.taxCode,
+    tradeRegistryNumber: row.tradeRegistryNumber,
+    registeredAddress: row.registeredAddress,
+    phone: row.phone,
+    deliveryAddress: row.deliveryAddress,
+    legalRepresentative: row.legalRepresentative,
+    email: row.email,
+    contactPerson: row.contactPerson,
+    contactPersonPhone: row.contactPersonPhone,
+  };
 }
 
 @Injectable()
@@ -113,5 +132,72 @@ export class CompanyService {
       where: { id },
       data: { deletedAt: new Date() },
     });
+  }
+
+  async importCompaniesFromTsv(tsv: string): Promise<CompanyImportResult> {
+    const parsedRows = parseCompanyImportRows(tsv);
+    const validation = importCompanyRowSchema.array().min(1).safeParse(parsedRows);
+    if (!validation.success) {
+      throw new BadRequestException('No valid company rows found');
+    }
+
+    return this.importCompanies(validation.data);
+  }
+
+  /**
+   * Bulk import with upsert keyed by exact trimmed company name (case- and diacritic-sensitive).
+   * Multiple rows may share the same taxCode — each distinct name is a separate company.
+   */
+  async importCompanies(rows: ImportCompanyRow[]): Promise<CompanyImportResult> {
+    let created = 0;
+    let updated = 0;
+    const rejected: CompanyImportRejectedRow[] = [];
+
+    for (let index = 0; index < rows.length; index += 1) {
+      const rowNumber = index + 1;
+      const row = rows[index];
+      const name = row.name.trim();
+
+      const matches = await this.prisma.company.findMany({
+        where: { name },
+        orderBy: { id: 'asc' },
+      });
+      const activeMatches = matches.filter((company) => company.deletedAt === null);
+      const deletedMatches = matches.filter((company) => company.deletedAt !== null);
+
+      if (deletedMatches.length > 0 && activeMatches.length === 0) {
+        rejected.push({
+          row: rowNumber,
+          name,
+          reason: 'A company with this name was previously deleted',
+        });
+        continue;
+      }
+
+      if (activeMatches.length > 1) {
+        rejected.push({
+          row: rowNumber,
+          name,
+          reason: 'Multiple active companies share this name',
+        });
+        continue;
+      }
+
+      const data = rowToCompanyData(row);
+
+      if (activeMatches.length === 1) {
+        await this.prisma.company.update({
+          where: { id: activeMatches[0].id },
+          data,
+        });
+        updated += 1;
+        continue;
+      }
+
+      await this.prisma.company.create({ data });
+      created += 1;
+    }
+
+    return { created, updated, rejected };
   }
 }

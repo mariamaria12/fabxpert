@@ -13,8 +13,10 @@ import {
 } from '@nestjs/common';
 import {
   createCompanySchema,
+  importCompaniesSchema,
   updateCompanySchema,
   type CreateCompanyInput,
+  type ImportCompaniesInput,
   type UpdateCompanyInput,
 } from '@fabxpert/shared/dto/company.dto';
 import { z } from 'zod';
@@ -55,6 +57,14 @@ export class CompanyController {
     }
 
     return this.companyService.findAll(parsePagination(query), search, sortBy, sortOrder);
+  }
+
+  @Post('import')
+  @HttpCode(HttpStatus.OK)
+  importCompanies(
+    @Body(new ZodValidationPipe(importCompaniesSchema)) input: ImportCompaniesInput,
+  ) {
+    return this.companyService.importCompaniesFromTsv(input.tsv);
   }
 
   @Get(':id')

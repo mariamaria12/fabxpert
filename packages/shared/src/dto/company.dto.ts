@@ -2,6 +2,12 @@ import { z } from 'zod';
 
 const optionalString = z.string().optional();
 
+const optionalTrimmedString = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) => (value === '' ? undefined : value));
+
 const optionalEmail = z
   .union([z.string().email(), z.literal('')])
   .optional()
@@ -13,7 +19,7 @@ const hexColorSchema = z
 
 export const createCompanySchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
-  taxCode: optionalString,
+  taxCode: optionalTrimmedString,
   tradeRegistryNumber: optionalString,
   registeredAddress: optionalString,
   phone: optionalString,
@@ -59,3 +65,40 @@ export type CompanyDto = {
 export const COMPANY_LIST_SORT_BY_VALUES = ['name', 'createdAt'] as const;
 
 export type CompanyListSortBy = (typeof COMPANY_LIST_SORT_BY_VALUES)[number];
+
+const importEmail = z
+  .union([z.string().email(), z.literal('')])
+  .optional()
+  .transform((value) => (value === '' ? undefined : value));
+
+export const importCompanyRowSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required'),
+  taxCode: optionalTrimmedString,
+  tradeRegistryNumber: optionalTrimmedString,
+  registeredAddress: optionalTrimmedString,
+  phone: optionalTrimmedString,
+  deliveryAddress: optionalTrimmedString,
+  legalRepresentative: optionalTrimmedString,
+  email: importEmail,
+  contactPerson: optionalTrimmedString,
+  contactPersonPhone: optionalTrimmedString,
+});
+
+export const importCompaniesSchema = z.object({
+  tsv: z.string().trim().min(1, 'Import text is required'),
+});
+
+export type ImportCompanyRow = z.infer<typeof importCompanyRowSchema>;
+export type ImportCompaniesInput = z.infer<typeof importCompaniesSchema>;
+
+export type CompanyImportRejectedRow = {
+  row: number;
+  name: string | null;
+  reason: string;
+};
+
+export type CompanyImportResult = {
+  created: number;
+  updated: number;
+  rejected: CompanyImportRejectedRow[];
+};

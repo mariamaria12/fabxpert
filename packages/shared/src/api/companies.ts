@@ -1,8 +1,10 @@
 import { request } from './client';
 import type {
   CompanyDto,
+  CompanyImportResult,
   CompanyListSortBy,
   CreateCompanyInput,
+  ImportCompaniesInput,
   UpdateCompanyInput,
 } from '../dto/company.dto';
 import type { SortOrder } from '../dto/project.dto';
@@ -58,4 +60,11 @@ export function updateCompany(id: string, input: UpdateCompanyInput) {
 
 export function deleteCompany(id: string) {
   return request<void>(`/companies/${id}`, { method: 'DELETE' });
+}
+
+export function importCompanies(input: ImportCompaniesInput) {
+  return request<CompanyImportResult>('/companies/import', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
 }

@@ -298,6 +298,10 @@ Login account: `email` (unique), `passwordHash`, `role` (`ADMIN` | `EMPLOYEE`), 
 
 Client (beneficiary of projects, not a platform tenant). `name` required; optional: `taxCode`, `tradeRegistryNumber`, `registeredAddress`, `phone`, `deliveryAddress`, `legalRepresentative`, `email`, `contactPerson`, `contactPersonPhone`.
 
+`taxCode` is **not unique** — the client's real data treats each client+work-site combination as a separate company row, and multiple rows may share the same fiscal code (e.g. ORIZONT ELECTRIC S.R.L. / (Z) / (AR) all use the same CUI). `name` is also not unique in the schema.
+
+**Bulk import** (`POST /companies/import`, admin-only): accepts tab-separated text (10 columns matching the Companii Excel paste layout). Upsert key is **exact trimmed `name`** (case- and diacritic-sensitive). Existing non-deleted company with that name → update; no match → create; soft-deleted company with that name → row rejected (no silent revive); multiple active companies with the same name → row rejected.
+
 ---
 
 ### Project

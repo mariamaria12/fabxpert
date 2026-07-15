@@ -12,18 +12,32 @@ export {
   createCompany,
   updateCompany,
   deleteCompany,
+  importCompanies,
 } from './api/companies';
 export type { ListCompaniesParams } from './api/companies';
 export {
   createCompanySchema,
   updateCompanySchema,
+  importCompaniesSchema,
+  importCompanyRowSchema,
 } from './dto/company.dto';
 export type {
   CompanyDto,
   CompanyListSortBy,
+  CompanyImportRejectedRow,
+  CompanyImportResult,
   CreateCompanyInput,
+  ImportCompanyRow,
+  ImportCompaniesInput,
   UpdateCompanyInput,
 } from './dto/company.dto';
+export {
+  COMPANY_IMPORT_FIELD_KEYS,
+  normalizeCompanyImportCell,
+  parseCompanyImportRows,
+  parseCompanyImportTsv,
+} from './companyImport';
+export type { CompanyImportFieldKey } from './companyImport';
 export type { PaginatedResponse, PaginationMeta } from './dto/pagination.dto';
 export {
   listActivities,
