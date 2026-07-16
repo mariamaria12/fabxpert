@@ -8,8 +8,8 @@
  *
  *   ALLOW_PERF_SEED=true PERF_SEED_PASSWORD='...' pnpm --filter @fabxpert/db db:seed:perf
  */
-import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import { createSeedPrismaClient } from './create-seed-prisma';
 import {
   PERF_COUNTS,
   PERF_COLORS,
@@ -34,7 +34,7 @@ import {
   resolvePerfPassword,
 } from './seed-perf.shared';
 
-const prisma = new PrismaClient();
+const prisma = createSeedPrismaClient();
 
 async function seedCompanies() {
   const rows = Array.from({ length: PERF_COUNTS.companies }, (_, index) => ({

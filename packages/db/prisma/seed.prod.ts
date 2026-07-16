@@ -5,14 +5,14 @@
  *   DATABASE_URL=... DIRECT_URL=... ADMIN_SEED_EMAIL=... ADMIN_SEED_PASSWORD=... \
  *     pnpm --filter @fabxpert/db db:seed:prod
  */
-import { PrismaClient } from '@prisma/client';
+import { createSeedPrismaClient } from './create-seed-prisma';
 import {
   seedActivities,
   seedAdminUser,
   seedEmployeeRoles,
 } from './seed.shared';
 
-const prisma = new PrismaClient();
+const prisma = createSeedPrismaClient();
 
 async function main() {
   await seedEmployeeRoles(prisma);

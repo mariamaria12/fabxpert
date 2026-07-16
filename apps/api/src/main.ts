@@ -1,6 +1,7 @@
 import cookieParser from 'cookie-parser';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { disconnectPrismaClient } from './prisma/prisma-client.singleton';
 
 /** Normalize env origin values (trim, strip wrapping quotes, no trailing slash). */
 function normalizeOrigin(value: string): string {
@@ -43,6 +44,8 @@ function parseAllowedOrigins(): string[] {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  // Required so SIGTERM/SIGINT run Nest OnModuleDestroy (Prisma $disconnect).
+  app.enableShutdownHooks();
   app.use(cookieParser());
 
   // Credentialed CORS requires explicit origins — wildcard is not allowed.
@@ -66,4 +69,8 @@ async function bootstrap() {
   console.log(`API running on http://localhost:${port}`);
 }
 
-bootstrap();
+bootstrap().catch(async (error) => {
+  console.error(error);
+  await disconnectPrismaClient();
+  process.exit(1);
+});

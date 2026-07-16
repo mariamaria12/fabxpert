@@ -1,12 +1,12 @@
-import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import { createSeedPrismaClient } from './create-seed-prisma';
 import {
   seedActivities,
   seedAdminUser,
   seedEmployeeRoles,
 } from './seed.shared';
 
-const prisma = new PrismaClient();
+const prisma = createSeedPrismaClient();
 
 const EMPLOYEE_PERSON_ID = '00000000-0000-0000-0000-000000000002';
 

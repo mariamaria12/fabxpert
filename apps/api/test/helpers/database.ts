@@ -6,9 +6,30 @@ import { E2E_PASSWORD, FIXTURES } from './fixtures';
 
 let prisma: PrismaClient | null = null;
 
+function getTestDatabaseUrl(): string | undefined {
+  const raw = process.env.DATABASE_URL;
+  if (!raw) {
+    return undefined;
+  }
+
+  try {
+    const url = new URL(raw);
+    if (!url.searchParams.has('connection_limit')) {
+      // Nest also opens a capped client during e2e — keep the helper small.
+      url.searchParams.set('connection_limit', '1');
+    }
+    return url.toString();
+  } catch {
+    return raw;
+  }
+}
+
 export function getTestPrisma(): PrismaClient {
   if (!prisma) {
-    prisma = new PrismaClient();
+    const url = getTestDatabaseUrl();
+    prisma = url
+      ? new PrismaClient({ datasources: { db: { url } } })
+      : new PrismaClient();
   }
   return prisma;
 }

@@ -69,6 +69,26 @@ pnpm --filter @fabxpert/db db:seed:dev
 2. Copy **Session pooler** connection string (port **5432**, user `postgres.PROJECT_REF`) → `DATABASE_URL`.
 3. Copy the **same Session pooler** string → `DIRECT_URL` (see IPv4 note below).
 4. Do not run `migrate dev` against prod — Railway `start:prod` runs `migrate deploy`.
+5. Do **not** use Supabase **Transaction** pooler (port **6543** / `pgbouncer=true`) for Prisma — use session mode only.
+
+### Connection pool sizing (Supabase session mode)
+
+Supabase free tier session pooler typically allows **~15** concurrent clients (`EMAXCONNSESSION` when exceeded).
+
+The API injects `connection_limit` when missing from `DATABASE_URL`:
+- **production:** `5` per Railway replica
+- **development:** `2` (protects against Nest watch restarts)
+
+Rule of thumb:
+
+```text
+connection_limit_per_instance × max_replicas ≤ Supabase session pool size
+```
+
+Examples for pool size 15:
+- 1 Railway replica → `connection_limit=5` (default) leaves headroom for migrate/seed/CLI
+- 2 replicas → set `?connection_limit=5` or lower to `4` so `2 × 4 = 8 ≤ 15`
+- Never leave Prisma uncapped (default is roughly `num_cpus * 2 + 1` per process)
 
 #### Railway + Supabase: P1001 / "Can't reach database server"
 

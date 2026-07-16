@@ -3,7 +3,7 @@
  *
  *   ALLOW_PERF_SEED=true pnpm --filter @fabxpert/db db:seed:perf:clear
  */
-import { PrismaClient } from '@prisma/client';
+import { createSeedPrismaClient } from './create-seed-prisma';
 import {
   PERF_COMPANY_NAME_PREFIX,
   PERF_EMAIL_DOMAIN,
@@ -12,7 +12,7 @@ import {
   formatElapsedMs,
 } from './seed-perf.shared';
 
-const prisma = new PrismaClient();
+const prisma = createSeedPrismaClient();
 
 async function main() {
   const startedAt = Date.now();
