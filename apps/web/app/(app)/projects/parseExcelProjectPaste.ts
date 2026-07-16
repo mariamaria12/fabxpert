@@ -4,6 +4,7 @@ import {
   parseTabSeparatedRows,
   pickDataRow,
 } from '@/utils/parseExcelPaste';
+import { parseDateDisplay } from '@fabxpert/shared';
 import { normalizeSearchText } from '@/utils/searchText';
 
 /** 1-based column indices from the offer-tracking spreadsheet. */
@@ -44,36 +45,14 @@ function cellAt(cells: string[], oneBasedIndex: number): string {
   return cells[oneBasedIndex - 1] ?? '';
 }
 
-/** dd/MM/yyyy → yyyy-MM-dd for date inputs; invalid/empty → '' */
+/** dd/MM/yyyy → yyyy-MM-dd for form state; invalid/empty → '' */
 export function parseRomanianExcelDate(value: string): string {
   const normalized = normalizePastedCell(value);
   if (!normalized) {
     return '';
   }
 
-  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(normalized);
-  if (!match) {
-    return '';
-  }
-
-  const day = Number(match[1]);
-  const month = Number(match[2]);
-  const year = Number(match[3]);
-
-  if (month < 1 || month > 12 || day < 1 || day > 31) {
-    return '';
-  }
-
-  const date = new Date(year, month - 1, day);
-  if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day
-  ) {
-    return '';
-  }
-
-  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  return parseDateDisplay(normalized) ?? '';
 }
 
 export function parseExcelProjectPaste(text: string): ParseExcelProjectPasteResult {

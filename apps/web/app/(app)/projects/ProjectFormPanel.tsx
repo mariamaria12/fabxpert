@@ -17,10 +17,12 @@ import {
   type EmployeeRoleDto,
   type ProjectDto,
   type ProjectStatus,
+  workDateToDayKey,
 } from '@fabxpert/shared';
 import { useEffect, useMemo, useState, type ClipboardEvent, type FormEvent } from 'react';
 import { parseExcelProjectPaste } from './parseExcelProjectPaste';
 import { ColorField } from '@/components/ColorField';
+import { DateField } from '@/components/DateField';
 import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { SearchableMultiSelect } from '@/components/SearchableMultiSelect';
 import { SearchableSelect, type SearchableSelectOption } from '@/components/SearchableSelect';
@@ -62,21 +64,14 @@ const EMPTY_FORM: ProjectFormValues = {
   visibleForRoleIds: [],
 };
 
-function isoToDateInput(iso: string | null): string {
-  if (!iso) {
-    return '';
-  }
-  return iso.slice(0, 10);
-}
-
 function projectToFormValues(project: ProjectDto): ProjectFormValues {
   return {
     name: project.name,
     code: project.code,
     companyId: project.companyId,
     status: project.status,
-    startDate: isoToDateInput(project.startDate),
-    dueDate: isoToDateInput(project.dueDate),
+    startDate: project.startDate ? workDateToDayKey(project.startDate) : '',
+    dueDate: project.dueDate ? workDateToDayKey(project.dueDate) : '',
     color: project.color,
     readyForExecution: project.readyForExecution,
     visibleForRoleIds: (project.visibleForRoles ?? []).map((role) => role.id),
@@ -796,23 +791,19 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
           }}
         />
 
-        <TextField
+        <DateField
           id="startDate"
           label="Dată începere"
-          type="date"
           value={values.startDate}
           disabled={isBusy}
-          className={`${inputClassName} [color-scheme:dark]`}
           onChange={(value) => updateField('startDate', value)}
         />
 
-        <TextField
+        <DateField
           id="dueDate"
           label="Termen"
-          type="date"
           value={values.dueDate}
           disabled={isBusy}
-          className={`${inputClassName} [color-scheme:dark]`}
           onChange={(value) => updateField('dueDate', value)}
         />
 

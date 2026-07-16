@@ -229,6 +229,14 @@ export {
   isSameWorkDate,
 } from './workDate';
 export {
+  formatDateDisplay,
+  formatDateDisplayDraft,
+  isoToDateDisplay,
+  isCompleteDateDisplay,
+  parseDateDisplay,
+  todayDateDisplayValue,
+} from './dateFormat';
+export {
   countInclusiveLeaveDays,
   leaveRequestYear,
 } from './leaveDays';

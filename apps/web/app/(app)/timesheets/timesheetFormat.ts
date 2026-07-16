@@ -1,5 +1,5 @@
 import type { TimesheetDto } from '@fabxpert/shared';
-import { workDateToDayKey } from '@fabxpert/shared';
+import { formatDateDisplay, workDateToDayKey } from '@fabxpert/shared';
 
 /** Payroll export format: NUME PRENUME (uppercase). */
 export function formatExportWorkerName(person: {
@@ -25,11 +25,7 @@ export function formatProjectLabel(timesheet: TimesheetDto): string | null {
 }
 
 export function formatRomanianDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('ro-RO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
+  return formatDateDisplay(iso);
 }
 
 export function formatDurationMinutes(totalMinutes: number): string {

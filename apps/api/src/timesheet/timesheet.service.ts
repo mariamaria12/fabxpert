@@ -243,7 +243,37 @@ export class TimesheetService {
         includeZeroEntryProjects: true,
       }),
     );
-    return shapePinnedProjectsSummary(rows);
+    const summary = shapePinnedProjectsSummary(rows);
+
+    if (summary.projects.length === 0) {
+      return summary;
+    }
+
+    const projectIds = summary.projects.map((project) => project.id);
+    const projectsWithRoles = await this.prisma.project.findMany({
+      where: {
+        id: { in: projectIds },
+        ...notDeleted(),
+      },
+      select: {
+        id: true,
+        visibleForRoles: {
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' },
+        },
+      },
+    });
+
+    const rolesByProjectId = new Map(
+      projectsWithRoles.map((project) => [project.id, project.visibleForRoles]),
+    );
+
+    return {
+      projects: summary.projects.map((project) => ({
+        ...project,
+        visibleForRoles: rolesByProjectId.get(project.id) ?? [],
+      })),
+    };
   }
 
   async getPersonSummary(resolved: ResolvedSummaryPeriod): Promise<PersonSummaryResponse> {

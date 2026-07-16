@@ -155,6 +155,29 @@ describe('Pinned projects summary (e2e)', () => {
     expect(pinnedNotReady.activities).toHaveLength(0);
     expect(pinnedReady.indexPanou).not.toBeNull();
     expect(pinnedNotReady.indexPanou).not.toBeNull();
+    expect(pinnedReady.visibleForRoles).toEqual([]);
+  });
+
+  it('includes visibleForRoles on pinned-summary projects', async () => {
+    await request(app.getHttpServer())
+      .patch(`/projects/${FIXTURES.projects.roleRestricted.id}`)
+      .set(authHeader(adminCookie))
+      .send({ isPinned: true })
+      .expect(200);
+
+    const summary = await request(app.getHttpServer())
+      .get('/timesheets/pinned-summary')
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    const restricted = summary.body.projects.find(
+      (project: { id: string }) => project.id === FIXTURES.projects.roleRestricted.id,
+    );
+
+    expect(restricted).toBeDefined();
+    expect(restricted.visibleForRoles).toEqual([
+      { id: FIXTURES.employeeRole.id, name: FIXTURES.employeeRole.name },
+    ]);
   });
 
   it('does not emit availability SSE when toggling isPinned only', async () => {

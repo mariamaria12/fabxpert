@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { ProjectStatus } from './project.dto';
+import type { ProjectStatus, ProjectVisibleRoleDto } from './project.dto';
 
 /** UUID-like id (accepts seed person ids with `p` prefix). */
 const uuidSchema = z
@@ -119,6 +119,7 @@ export type PinnedProjectSummaryRow = {
   indexPanou: number | null;
   panouColumn: number | null;
   company: { id: string; name: string };
+  visibleForRoles: ProjectVisibleRoleDto[];
   totalMinutes: number;
   activities: ProjectSummaryActivityRow[];
 };

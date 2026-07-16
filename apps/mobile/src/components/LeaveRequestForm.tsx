@@ -7,6 +7,7 @@ import {
 } from '@fabxpert/shared';
 import type { LeaveBalanceDto, LeaveRequestDto, LeaveType } from '@fabxpert/shared';
 import { useEffect, useMemo, useState, useId } from 'react';
+import { DateField } from './DateField';
 import { useToast } from '../context/ToastContext';
 import { apiErrorToastMessage } from '../utils/apiToastMessage';
 import { getBusinessInputAutofillProps } from '../utils/inputAutofill';
@@ -158,28 +159,23 @@ export function LeaveRequestForm({
         </fieldset>
 
         <div className="leave-date-range">
-          <label className="time-field">
-            <span className="time-field-label">De la</span>
-            <input
-              type="date"
-              className="time-input leave-date-input"
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-              {...businessAutofill}
-            />
-          </label>
+          <DateField
+            id="leave-start-date"
+            label="De la"
+            value={startDate}
+            required
+            className="time-input leave-date-input"
+            onChange={setStartDate}
+          />
 
-          <label className="time-field">
-            <span className="time-field-label">Până la</span>
-            <input
-              type="date"
-              className="time-input leave-date-input"
-              value={endDate}
-              min={startDate || undefined}
-              onChange={(event) => setEndDate(event.target.value)}
-              {...businessAutofill}
-            />
-          </label>
+          <DateField
+            id="leave-end-date"
+            label="Până la"
+            value={endDate}
+            required
+            className="time-input leave-date-input"
+            onChange={setEndDate}
+          />
         </div>
 
         {datesInvalid ? (

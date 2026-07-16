@@ -221,6 +221,22 @@ describe('Project role visibility (e2e)', () => {
     ]);
   });
 
+  it('includes visibleForRoles on admin GET /projects list', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/projects?page=1&pageSize=50')
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    const restricted = response.body.data.find(
+      (project: { id: string }) => project.id === FIXTURES.projects.roleRestricted.id,
+    );
+
+    expect(restricted).toBeDefined();
+    expect(restricted.visibleForRoles).toEqual([
+      { id: FIXTURES.employeeRole.id, name: FIXTURES.employeeRole.name },
+    ]);
+  });
+
   it('rejects invalid visibleForRoleIds on create/update', async () => {
     await request(app.getHttpServer())
       .patch(`/projects/${FIXTURES.projects.ready.id}`)

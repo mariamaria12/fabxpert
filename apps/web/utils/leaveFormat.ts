@@ -1,5 +1,6 @@
 import type { LeaveStatus } from '@fabxpert/shared';
 import {
+  formatDateDisplay,
   formatLeaveDateRange,
   formatLeaveDayCount,
   getLeaveStatusLabel,
@@ -27,11 +28,7 @@ export function getLeaveStatusBadgeClassName(status: LeaveStatus): string {
 }
 
 export function formatReviewedAt(iso: string): string {
-  return new Date(iso).toLocaleDateString('ro-RO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
+  return formatDateDisplay(iso);
 }
 
 export function truncateReason(reason: string, maxLength = 48): string {

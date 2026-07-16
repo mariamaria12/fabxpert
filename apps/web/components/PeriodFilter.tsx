@@ -6,7 +6,7 @@ import {
   type Period,
 } from '@fabxpert/shared';
 import { useEffect, useState } from 'react';
-import { useBusinessAutofillProps } from '@/components/inputAutofill';
+import { DateField } from '@/components/DateField';
 
 type PeriodKind = Period['kind'];
 
@@ -19,7 +19,7 @@ const PERIOD_CARDS: { kind: PeriodKind; label: string }[] = [
 ];
 
 const dateInputClassName =
-  'rounded-md border border-border bg-surface-raised px-3 py-1.5 font-mono text-sm text-text-primary [color-scheme:dark] focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
+  'rounded-md border border-border bg-surface-raised px-3 py-1.5 font-mono text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
 
 function isCardSelected(value: Period, kind: PeriodKind, customMode: boolean): boolean {
   if (kind === 'custom') {
@@ -65,7 +65,6 @@ export type PeriodFilterProps = {
 };
 
 export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) {
-  const businessAutofill = useBusinessAutofillProps();
   const [now, setNow] = useState(() => new Date());
   const [customMode, setCustomMode] = useState(false);
   const [draftFrom, setDraftFrom] = useState('');
@@ -170,38 +169,26 @@ export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) 
 
         {customMode && (
           <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end lg:w-auto">
-            <div>
-              <label htmlFor="period-filter-from" className="mb-1.5 block text-xs text-text-secondary">
-                De la
-              </label>
-              <input
-                id="period-filter-from"
-                type="date"
-                value={draftFrom}
-                onChange={(event) => {
-                  setDraftFrom(event.target.value);
-                  setCustomError(null);
-                }}
-                className={dateInputClassName}
-                {...businessAutofill}
-              />
-            </div>
-            <div>
-              <label htmlFor="period-filter-to" className="mb-1.5 block text-xs text-text-secondary">
-                Până la
-              </label>
-              <input
-                id="period-filter-to"
-                type="date"
-                value={draftTo}
-                onChange={(event) => {
-                  setDraftTo(event.target.value);
-                  setCustomError(null);
-                }}
-                className={dateInputClassName}
-                {...businessAutofill}
-              />
-            </div>
+            <DateField
+              id="period-filter-from"
+              label="De la"
+              value={draftFrom}
+              className={dateInputClassName}
+              onChange={(value) => {
+                setDraftFrom(value);
+                setCustomError(null);
+              }}
+            />
+            <DateField
+              id="period-filter-to"
+              label="Până la"
+              value={draftTo}
+              className={dateInputClassName}
+              onChange={(value) => {
+                setDraftTo(value);
+                setCustomError(null);
+              }}
+            />
             <button
               type="button"
               onClick={applyCustomRange}

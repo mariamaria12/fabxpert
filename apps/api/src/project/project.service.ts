@@ -190,7 +190,7 @@ export class ProjectService {
     return {
       data: compact
         ? (rows as ProjectListRow[]).map((row) => toProjectDto(row, true))
-        : (rows as ProjectWithRelations[]).map(toProjectDto),
+        : (rows as ProjectWithRelations[]).map((row) => toProjectDto(row)),
       meta: { page, pageSize, total, totalPages },
     };
   }

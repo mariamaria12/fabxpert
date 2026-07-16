@@ -244,6 +244,7 @@ export function shapePinnedProjectsSummary(
         indexPanou: row.projectIndexPanou ?? null,
         panouColumn: row.projectPanouColumn ?? null,
         company: { id: row.companyId, name: row.companyName },
+        visibleForRoles: [],
         totalMinutes: 0,
         activities: [],
       };

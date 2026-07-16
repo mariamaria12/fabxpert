@@ -16,7 +16,7 @@ export function pinnedSummaryToProjectStub(row: PinnedProjectSummaryRow): Projec
     color: row.color,
     companyId: row.company.id,
     company: row.company,
-    visibleForRoles: [],
+    visibleForRoles: row.visibleForRoles ?? [],
     createdAt: '',
     updatedAt: '',
   };

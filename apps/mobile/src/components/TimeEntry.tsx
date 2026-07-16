@@ -1,6 +1,7 @@
 import { createTimesheet, todayDateInputValue } from '@fabxpert/shared';
 import type { ActivityDto, ProjectOptionDto } from '@fabxpert/shared';
-import { useState, useId, useMemo } from 'react';
+import { useMemo, useState, useId } from 'react';
+import { DateField } from './DateField';
 import { DurationInput } from './DurationInput';
 import { useDurationInput } from '../hooks/useDurationInput';
 import { useMobileLookupCache } from '../context/MobileLookupCacheContext';
@@ -76,16 +77,13 @@ export function TimeEntry({ project, activity, onSaved }: TimeEntryProps) {
       <div className="flow-content">
         <h2 className="flow-heading">Adaugă timp</h2>
 
-        <label className="time-field">
-          <span className="time-field-label">Data</span>
-          <input
-            type="date"
-            className="time-input"
-            value={workDate}
-            onChange={(event) => setWorkDate(event.target.value)}
-            {...businessAutofill}
-          />
-        </label>
+        <DateField
+          id="work-date"
+          label="Data"
+          value={workDate}
+          required
+          onChange={setWorkDate}
+        />
 
         <DurationInput
           hoursInput={hoursInput}

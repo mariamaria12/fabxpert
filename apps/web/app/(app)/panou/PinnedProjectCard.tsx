@@ -17,6 +17,7 @@ import {
   getProjectTimelineDates,
   isProjectTimelineOverdue,
 } from './panouProjectTimeline';
+import { ProjectVisibleForCardMeta } from './panouProjectVisibility';
 
 export type DragHandleProps = {
   attributes: DraggableAttributes;
@@ -118,6 +119,7 @@ export function PinnedProjectCard({
       title={project.code}
       status={project.status}
       subtitle={project.company.name}
+      metaContent={<ProjectVisibleForCardMeta roles={project.visibleForRoles} />}
       timeline={timeline}
       totalMinutes={project.totalMinutes}
       expanded={expanded}

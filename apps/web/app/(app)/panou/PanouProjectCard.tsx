@@ -21,6 +21,8 @@ export function PanouProjectCard({
   title,
   status,
   subtitle,
+  metaLine,
+  metaContent,
   timeline,
   totalMinutes,
   expanded,
@@ -33,6 +35,8 @@ export function PanouProjectCard({
   title: string;
   status?: ProjectStatus;
   subtitle: string;
+  metaLine?: string;
+  metaContent?: ReactNode;
   timeline?: PanouProjectCardTimeline | null;
   totalMinutes: number;
   expanded: boolean;
@@ -85,6 +89,10 @@ export function PanouProjectCard({
               )}
             </span>
             <span className="mt-0.5 block truncate text-[11px] text-text-muted">{subtitle}</span>
+            {metaContent ??
+              (metaLine ? (
+                <span className="mt-0.5 block truncate text-[11px] text-text-muted">{metaLine}</span>
+              ) : null)}
             {timeline && (
               <span className="mt-1.5 block space-y-0.5">
                 <span

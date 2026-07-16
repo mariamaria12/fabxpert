@@ -11,6 +11,7 @@ import {
   updateTimesheet,
   updateTimesheetSchema,
   todayDateInputValue,
+  parseDateDisplay,
   type ActivityDto,
   type PersonDto,
   type ProjectDto,
@@ -23,6 +24,7 @@ import {
   parseDurationMinutesInput,
 } from './timesheetFormat';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
+import { DateField } from '@/components/DateField';
 import { SelectField } from '@/components/SelectField';
 import { TextField } from '@/components/TextField';
 import { useBusinessAutofillProps } from '@/components/inputAutofill';
@@ -199,10 +201,10 @@ export function TimesheetFormPanel({
     setFormError(null);
     setFieldErrors({});
 
-    if (!values.workDate || !values.duration) {
+    if (!values.workDate || !parseDateDisplay(values.workDate) || !values.duration) {
       const nextErrors: Partial<Record<keyof TimesheetFormValues, string>> = {};
-      if (!values.workDate) {
-        nextErrors.workDate = 'Data este obligatorie.';
+      if (!values.workDate || !parseDateDisplay(values.workDate)) {
+        nextErrors.workDate = 'Introdu data în format dd/mm/yyyy.';
       }
       if (!values.duration) {
         nextErrors.duration = 'Durata este obligatorie.';
@@ -400,10 +402,9 @@ export function TimesheetFormPanel({
           onChange={(value) => updateField('activityId', value)}
         />
 
-        <TextField
+        <DateField
           id="workDate"
           label="Data lucrată"
-          type="date"
           value={values.workDate}
           error={fieldErrors.workDate}
           disabled={isBusy}

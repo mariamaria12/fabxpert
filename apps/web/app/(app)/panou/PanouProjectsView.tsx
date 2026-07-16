@@ -37,6 +37,7 @@ import {
   type PanouPinnedProjectsSectionHandle,
 } from './PanouPinnedProjectsSection';
 import { ProjectPinButton } from './ProjectPinButton';
+import { ProjectVisibleForCell } from './panouProjectVisibility';
 
 const PAGE_SIZE = 20;
 const DEFAULT_SORT_BY: ProjectListSortBy = 'name';
@@ -143,6 +144,13 @@ function useProjectTableColumns(options?: {
         width: '150px',
         render: (row) => <ProjectStatusBadge status={row.status} />,
       },
+      {
+        key: 'visibleForRoles',
+        header: 'Vizibil pentru',
+        width: '200px',
+        className: 'text-text-secondary overflow-visible',
+        render: (row) => <ProjectVisibleForCell roles={row.visibleForRoles} />,
+      },
     );
 
     return columns;
@@ -186,7 +194,6 @@ const ProjectTableSection = forwardRef<
         statusGroup,
         sortBy,
         sortOrder,
-        compact: true,
       });
       if (fetchSeq !== fetchSeqRef.current) {
         return;

@@ -89,7 +89,7 @@ export function SearchableSelect({
   );
 
   const closedLabel = selectedOption?.label ?? selectedLabel ?? '';
-  const displayValue = isOpen ? query : closedLabel;
+  const displayValue = isOpen ? (query.length > 0 ? query : closedLabel) : closedLabel;
 
   const filteredOptions = useMemo(() => {
     return options.filter((option) => {
@@ -162,10 +162,10 @@ export function SearchableSelect({
       updateDropdownPosition();
       return;
     }
-    setQuery(closedLabel);
+    setQuery('');
     setIsOpen(true);
     updateDropdownPosition();
-    setHighlightedId(firstSelectableId);
+    setHighlightedId(value ?? firstSelectableId);
   }
 
   function closeDropdown() {
