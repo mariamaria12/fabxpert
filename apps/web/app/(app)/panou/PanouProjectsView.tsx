@@ -77,10 +77,13 @@ function useProjectTableColumns(options?: {
   showPinColumn?: boolean;
   onPinToggled?: (updated: ProjectDto) => void;
 }): DataTableColumn<ProjectDto>[] {
+  const showPinColumn = options?.showPinColumn;
+  const onPinToggled = options?.onPinToggled;
+
   return useMemo((): DataTableColumn<ProjectDto>[] => {
     const columns: DataTableColumn<ProjectDto>[] = [];
 
-    if (options?.showPinColumn) {
+    if (showPinColumn) {
       columns.push({
         key: 'pin',
         header: '',
@@ -88,7 +91,7 @@ function useProjectTableColumns(options?: {
         render: (row) => (
           <ProjectPinButton
             project={row}
-            onToggled={(updated) => options.onPinToggled?.(updated)}
+            onToggled={(updated) => onPinToggled?.(updated)}
           />
         ),
       });
@@ -154,7 +157,7 @@ function useProjectTableColumns(options?: {
     );
 
     return columns;
-  }, [options?.onPinToggled, options?.showPinColumn]);
+  }, [onPinToggled, showPinColumn]);
 }
 
 export type ProjectTableSectionHandle = {

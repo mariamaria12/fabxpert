@@ -113,13 +113,6 @@ export function UsersTab({ active }: UsersTabProps) {
     void loadUsers();
   }
 
-  if (!active) {
-    return null;
-  }
-
-  const hasSearch = debouncedSearch.length > 0;
-  const showEmptyState = !loading && !error && total === 0 && !hasSearch;
-  const showNoSearchResults = !loading && !error && total === 0 && hasSearch;
   const userColumns = useMemo((): DataTableColumn<UserDto>[] => {
     return [
       {
@@ -191,6 +184,14 @@ export function UsersTab({ active }: UsersTabProps) {
       },
     ];
   }, []);
+
+  if (!active) {
+    return null;
+  }
+
+  const hasSearch = debouncedSearch.length > 0;
+  const showEmptyState = !loading && !error && total === 0 && !hasSearch;
+  const showNoSearchResults = !loading && !error && total === 0 && hasSearch;
 
   return (
     <div>

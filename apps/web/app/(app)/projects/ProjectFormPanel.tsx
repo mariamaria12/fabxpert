@@ -248,7 +248,7 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
     return () => {
       controller.abort();
     };
-  }, [open, project?.company?.id, project?.company?.name]);
+  }, [open, project?.company]);
 
   useEffect(() => {
     if (!open) {
