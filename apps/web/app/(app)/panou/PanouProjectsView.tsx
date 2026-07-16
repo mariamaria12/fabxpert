@@ -159,6 +159,7 @@ function useProjectTableColumns(options?: {
 
 export type ProjectTableSectionHandle = {
   applyProjectUpdate: (updated: ProjectDto) => void;
+  refetch: () => void;
 };
 
 const ProjectTableSection = forwardRef<
@@ -222,10 +223,30 @@ const ProjectTableSection = forwardRef<
     ref,
     () => ({
       applyProjectUpdate: (updated: ProjectDto) => {
-        setProjects((current) => replaceById(current, updated));
+        const belongsToSection =
+          statusGroup === 'completed'
+            ? updated.status === 'FINALIZAT'
+            : updated.status !== 'FINALIZAT';
+
+        setProjects((current) => {
+          const exists = current.some((project) => project.id === updated.id);
+
+          if (!belongsToSection) {
+            return current.filter((project) => project.id !== updated.id);
+          }
+
+          if (exists) {
+            return replaceById(current, updated);
+          }
+
+          return current;
+        });
+      },
+      refetch: () => {
+        void loadProjects();
       },
     }),
-    [],
+    [loadProjects, statusGroup],
   );
 
   function handleSortChange(nextSortBy: string, nextSortOrder: SortOrder) {
@@ -273,6 +294,7 @@ const ProjectTableSection = forwardRef<
       {(loading || total > 0) && (
         <div className="mt-3">
           <DataTable
+            storageKey="panou-projects"
             columns={columnsWithPin}
             data={projects}
             rowKey={(row) => row.id}
@@ -299,6 +321,7 @@ const ProjectTableSection = forwardRef<
 export function PanouProjectsView() {
   const pinnedSectionRef = useRef<PanouPinnedProjectsSectionHandle>(null);
   const inProgressTableRef = useRef<ProjectTableSectionHandle>(null);
+  const completedTableRef = useRef<ProjectTableSectionHandle>(null);
   const completedSection = useLazyVisible({ rootMargin: '400px' });
 
   const handlePinToggled = useCallback((updated: ProjectDto) => {
@@ -312,10 +335,20 @@ export function PanouProjectsView() {
 
   const handleProjectUnpinned = useCallback((updated: ProjectDto) => {
     inProgressTableRef.current?.applyProjectUpdate(updated);
+    completedTableRef.current?.applyProjectUpdate(updated);
+
+    if (updated.status === 'FINALIZAT') {
+      completedTableRef.current?.refetch();
+    }
   }, []);
 
   const handlePinnedProjectUpdated = useCallback((updated: ProjectDto) => {
     inProgressTableRef.current?.applyProjectUpdate(updated);
+    completedTableRef.current?.applyProjectUpdate(updated);
+
+    if (updated.status === 'FINALIZAT') {
+      completedTableRef.current?.refetch();
+    }
   }, []);
 
   return (
@@ -334,7 +367,11 @@ export function PanouProjectsView() {
       />
       <div ref={completedSection.ref}>
         {completedSection.visible ? (
-          <ProjectTableSection title="Proiecte finalizate" statusGroup="completed" />
+          <ProjectTableSection
+            ref={completedTableRef}
+            title="Proiecte finalizate"
+            statusGroup="completed"
+          />
         ) : (
           <h3 className="text-sm font-medium text-text-secondary">Proiecte finalizate</h3>
         )}

@@ -354,6 +354,7 @@ export default function ProjectsPage() {
       {showDataTable && (
         <div className="mt-6">
           <DataTable
+            storageKey="projects-list"
             columns={projectColumns}
             data={projects}
             rowKey={(row) => row.id}

@@ -222,6 +222,7 @@ export default function CompaniesPage() {
       {showDataTable && (
         <div className="mt-6">
           <DataTable
+          storageKey="companies-list"
             columns={companyColumns}
             data={companies}
             rowKey={(row) => row.id}

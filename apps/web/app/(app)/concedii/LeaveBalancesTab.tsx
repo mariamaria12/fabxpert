@@ -168,6 +168,7 @@ export function LeaveBalancesTab({ refreshToken }: LeaveBalancesTabProps) {
 
       <div className={error ? 'mt-4' : ''}>
         <DataTable
+          storageKey="leave-balances-list"
           columns={columns}
           data={rows}
           rowKey={(row) => row.person.id}

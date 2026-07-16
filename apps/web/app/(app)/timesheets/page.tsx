@@ -254,6 +254,7 @@ export default function TimesheetsPage() {
 
       <div className="mt-6">
         <DataTable
+          storageKey="timesheets-list"
           columns={timesheetColumns}
           data={timesheets}
           rowKey={(row) => row.id}

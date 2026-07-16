@@ -4,6 +4,7 @@ import { getMe, logout } from '@fabxpert/shared';
 import type { MeResponse } from '@fabxpert/shared';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { AuthUserProvider } from '@/context/AuthUserContext';
 import { Sidebar } from './Sidebar';
 import { TimesheetNotificationSlot } from './TimesheetNotificationSlot';
 import { TimesheetEventsProvider } from '@/context/TimesheetEventsContext';
@@ -70,52 +71,54 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <TimesheetEventsProvider enabled={authReady}>
-      <div className="flex min-h-dvh bg-bg">
-        {/* Static sidebar — sm and up */}
-        <Sidebar
-          className="sticky top-0 hidden h-dvh sm:flex"
-          collapsed={collapsed}
-          user={user}
-          onToggleCollapse={toggleCollapsed}
-        />
+    <AuthUserProvider user={user}>
+      <TimesheetEventsProvider enabled={authReady}>
+        <div className="flex min-h-dvh bg-bg">
+          {/* Static sidebar — sm and up */}
+          <Sidebar
+            className="sticky top-0 hidden h-dvh sm:flex"
+            collapsed={collapsed}
+            user={user}
+            onToggleCollapse={toggleCollapsed}
+          />
 
-        {/* Overlay drawer — below sm */}
-        {drawerOpen && (
-          <div className="fixed inset-0 z-40 sm:hidden">
-            <div
-              className="absolute inset-0 bg-bg/70"
-              onClick={() => setDrawerOpen(false)}
-              aria-hidden="true"
-            />
-            <Sidebar
-              className="absolute inset-y-0 left-0 flex"
-              collapsed={false}
-              user={user}
-              onNavigate={() => setDrawerOpen(false)}
-            />
+          {/* Overlay drawer — below sm */}
+          {drawerOpen && (
+            <div className="fixed inset-0 z-40 sm:hidden">
+              <div
+                className="absolute inset-0 bg-bg/70"
+                onClick={() => setDrawerOpen(false)}
+                aria-hidden="true"
+              />
+              <Sidebar
+                className="absolute inset-y-0 left-0 flex"
+                collapsed={false}
+                user={user}
+                onNavigate={() => setDrawerOpen(false)}
+              />
+            </div>
+          )}
+
+          <div className="flex min-w-0 flex-1 flex-col">
+            {/* Top bar with hamburger — below sm only */}
+            <header className="flex items-center border-b border-border-subtle px-3 py-2 sm:hidden">
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(true)}
+                title="Meniu"
+                className="text-text-secondary hover:text-text-primary"
+              >
+                <i className="ti ti-menu-2 text-xl" aria-hidden="true" />
+              </button>
+            </header>
+
+            <main className="relative flex-1 p-6">
+              {children}
+              <TimesheetNotificationSlot />
+            </main>
           </div>
-        )}
-
-        <div className="flex min-w-0 flex-1 flex-col">
-          {/* Top bar with hamburger — below sm only */}
-          <header className="flex items-center border-b border-border-subtle px-3 py-2 sm:hidden">
-            <button
-              type="button"
-              onClick={() => setDrawerOpen(true)}
-              title="Meniu"
-              className="text-text-secondary hover:text-text-primary"
-            >
-              <i className="ti ti-menu-2 text-xl" aria-hidden="true" />
-            </button>
-          </header>
-
-          <main className="relative flex-1 p-6">
-            {children}
-            <TimesheetNotificationSlot />
-          </main>
         </div>
-      </div>
-    </TimesheetEventsProvider>
+      </TimesheetEventsProvider>
+    </AuthUserProvider>
   );
 }

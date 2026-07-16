@@ -353,6 +353,7 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
 
       <div className="mt-6">
         <DataTable
+          storageKey="leave-requests-list"
           columns={columns}
           data={requests}
           rowKey={(row) => row.id}

@@ -6,10 +6,10 @@ import {
   type UserDto,
   type UserListSortBy,
 } from '@fabxpert/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { UserFormPanel } from './UserFormPanel';
 import { PersonAvatar } from '@/components/PersonAvatar';
-import { DataTableSortIcon } from '@/components/DataTable';
+import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { Pagination } from '@/components/Pagination';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { replaceById } from '@/utils/replaceById';
@@ -92,16 +92,6 @@ export function UsersTab({ active }: UsersTabProps) {
     }
   }, [active, loadUsers]);
 
-  function handleNameSort() {
-    if (sortBy !== 'name') {
-      setSortBy('name');
-      setSortOrder('asc');
-    } else {
-      setSortOrder((current) => (current === 'asc' ? 'desc' : 'asc'));
-    }
-    setPage(1);
-  }
-
   function openCreate() {
     setPanel({ open: true, mode: 'create', user: null });
   }
@@ -130,7 +120,77 @@ export function UsersTab({ active }: UsersTabProps) {
   const hasSearch = debouncedSearch.length > 0;
   const showEmptyState = !loading && !error && total === 0 && !hasSearch;
   const showNoSearchResults = !loading && !error && total === 0 && hasSearch;
-  const nameSortActive = sortBy === 'name';
+  const userColumns = useMemo((): DataTableColumn<UserDto>[] => {
+    return [
+      {
+        key: 'name',
+        header: 'Nume',
+        sortKey: 'name',
+        width: '240px',
+        render: (user) => (
+          <div className="flex min-w-0 items-center gap-3">
+            <PersonAvatar person={user.person} />
+            <span className="truncate font-medium text-text-primary">{personName(user)}</span>
+          </div>
+        ),
+      },
+      {
+        key: 'email',
+        header: 'E-mail',
+        width: '260px',
+        className: 'text-text-muted',
+      },
+      {
+        key: 'role',
+        header: 'Rol',
+        width: '120px',
+        render: (user) => (
+          <span
+            className={`inline-block rounded px-2 py-0.5 text-center text-xs font-medium ${rolePillClass(user.role)}`}
+          >
+            {user.role}
+          </span>
+        ),
+      },
+      {
+        key: 'isActive',
+        header: 'Status',
+        width: '120px',
+        render: (user) => (
+          <span
+            className={`inline-block rounded px-2 py-0.5 text-center text-xs font-medium ${
+              user.isActive
+                ? 'bg-status-livrat-bg text-status-livrat-text'
+                : 'bg-status-anulat-bg text-status-anulat-text'
+            }`}
+          >
+            {user.isActive ? 'Activ' : 'Inactiv'}
+          </span>
+        ),
+      },
+      {
+        key: 'actions',
+        header: '',
+        width: '64px',
+        className: 'overflow-visible',
+        render: (user) => (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              aria-label="Editează utilizatorul"
+              onClick={(event) => {
+                event.stopPropagation();
+                openEdit(user);
+              }}
+              className="rounded p-1.5 text-text-muted transition-all hover:bg-surface hover:text-text-primary"
+            >
+              <i className="ti ti-pencil text-base" aria-hidden="true" />
+            </button>
+          </div>
+        ),
+      },
+    ];
+  }, []);
 
   return (
     <div>
@@ -193,83 +253,24 @@ export function UsersTab({ active }: UsersTabProps) {
       )}
 
       {(loading || total > 0) && (
-        <div className="mt-4 overflow-hidden rounded-md border border-border-subtle bg-surface">
-          <div
-            className="flex items-center gap-3 border-b border-border-subtle bg-surface px-4 py-2 text-[11px] font-medium uppercase tracking-wider text-text-muted"
-            aria-sort={
-              nameSortActive ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'
-            }
-          >
-            <button
-              type="button"
-              onClick={handleNameSort}
-              className={`inline-flex min-w-0 flex-1 items-center gap-1 rounded text-left transition-colors hover:text-text-secondary${
-                nameSortActive ? ' text-accent' : ''
-              }`}
-            >
-              <span className="truncate">Nume</span>
-              <DataTableSortIcon active={nameSortActive} order={sortOrder} />
-            </button>
-            <span className="hidden min-w-0 flex-[1.2] truncate sm:inline">E-mail</span>
-            <span className="hidden w-20 shrink-0 sm:inline">Rol</span>
-            <span className="hidden w-16 shrink-0 md:inline">Status</span>
-            <span className="w-8 shrink-0" aria-hidden="true" />
-          </div>
-
-          {loading && users.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-text-muted">Se încarcă…</div>
-          ) : (
-            <ul className="divide-y divide-border-subtle">
-              {users.map((user) => (
-                <li key={user.id}>
-                  <div className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-raised">
-                    <button
-                      type="button"
-                      onClick={() => openEdit(user)}
-                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                    >
-                      <PersonAvatar person={user.person} />
-                      <div className="min-w-0 flex-1 sm:hidden">
-                        <p className="truncate font-medium text-text-primary">{personName(user)}</p>
-                        <p className="truncate text-sm text-text-muted">{user.email}</p>
-                      </div>
-                      <p className="hidden min-w-0 flex-1 truncate font-medium text-text-primary sm:block">
-                        {personName(user)}
-                      </p>
-                      <p className="hidden min-w-0 flex-[1.2] truncate text-sm text-text-muted sm:block">
-                        {user.email}
-                      </p>
-                      <span
-                        className={`hidden w-20 shrink-0 rounded px-2 py-0.5 text-center text-xs font-medium sm:inline-block ${rolePillClass(user.role)}`}
-                      >
-                        {user.role}
-                      </span>
-                      <span
-                        className={`hidden w-16 shrink-0 rounded px-2 py-0.5 text-center text-xs font-medium md:inline-block ${
-                          user.isActive
-                            ? 'bg-status-livrat-bg text-status-livrat-text'
-                            : 'bg-status-anulat-bg text-status-anulat-text'
-                        }`}
-                      >
-                        {user.isActive ? 'Activ' : 'Inactiv'}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="Editează utilizatorul"
-                      onClick={() => openEdit(user)}
-                      className="shrink-0 rounded p-1.5 text-text-muted opacity-0 transition-all hover:bg-surface hover:text-text-primary group-hover:opacity-100 focus:opacity-100"
-                    >
-                      <i className="ti ti-pencil text-base" aria-hidden="true" />
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-
+        <div className="mt-4">
+          <DataTable
+            storageKey="admin-users-list"
+            columns={userColumns}
+            data={users}
+            rowKey={(user) => user.id}
+            loading={loading}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSortChange={(nextSortBy, nextSortOrder) => {
+              setSortBy(nextSortBy as UserListSortBy);
+              setSortOrder(nextSortOrder);
+              setPage(1);
+            }}
+            onRowClick={loading ? undefined : openEdit}
+          />
           {!loading && total > 0 && (
-            <div className="border-t border-border-subtle px-2">
+            <div className="border-x border-b border-border-subtle px-2">
               <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
             </div>
           )}

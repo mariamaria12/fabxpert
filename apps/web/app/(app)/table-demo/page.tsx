@@ -151,6 +151,7 @@ export default function TableDemoPage() {
           Proiecte (cu accent bar)
         </h2>
         <DataTable
+          storageKey="table-demo-projects"
           columns={projectColumns}
           data={projectRows}
           rowKey={(row) => row.id}
@@ -169,6 +170,7 @@ export default function TableDemoPage() {
           Companii (fără accent bar)
         </h2>
         <DataTable
+          storageKey="table-demo-companies"
           columns={companyColumns}
           data={companyRows}
           rowKey={(row) => row.id}

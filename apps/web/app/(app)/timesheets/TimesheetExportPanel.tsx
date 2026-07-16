@@ -223,6 +223,7 @@ export function TimesheetExportPanel({
         )}
 
         <DataTable
+          storageKey="timesheet-export-preview"
           columns={previewColumns}
           data={previewRows}
           rowKey={(row) => row.id}

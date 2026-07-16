@@ -230,6 +230,7 @@ export default function PeoplePage() {
       {showDataTable && (
         <div className="mt-6">
           <DataTable
+            storageKey="people-list"
             columns={personColumns}
             data={persons}
             rowKey={(row) => row.id}

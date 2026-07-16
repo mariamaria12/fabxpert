@@ -113,6 +113,7 @@ export function PanouOnLeaveView() {
 
       {(loading || requests.length > 0) && (
         <DataTable
+          storageKey="panou-on-leave"
           columns={columns}
           data={requests}
           rowKey={(row) => row.id}
