@@ -30,8 +30,9 @@ export interface ListProjectsParams {
   statusGroup?: ProjectStatusGroup;
   /**
    * Visibility filter values:
-   * - `everyone` → projects with no role restriction
-   * - role UUID → projects that include that role
+   * - `everyone` → projects with no role restriction ("Toți")
+   * - role UUID(s) → projects whose visibility set is exactly those roles
+   * - `everyone` combined with role UUIDs → OR of the above
    */
   visibleFor?: Array<'everyone' | string>;
   sortBy?: ProjectListSortBy;

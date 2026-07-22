@@ -108,6 +108,18 @@ export type VisibleForFilter = {
   roleIds: string[];
 };
 
+function exactVisibleForRolesClause(roleIds: string[]): Prisma.ProjectWhereInput {
+  // Exact set match: all selected roles present, and no other roles.
+  return {
+    AND: [
+      ...roleIds.map((roleId) => ({
+        visibleForRoles: { some: { id: roleId } },
+      })),
+      { visibleForRoles: { every: { id: { in: roleIds } } } },
+    ],
+  };
+}
+
 function applyVisibleForFilter(
   where: Prisma.ProjectWhereInput,
   visibleFor?: VisibleForFilter,
@@ -122,8 +134,9 @@ function applyVisibleForFilter(
     clauses.push({ visibleForRoles: { none: {} } });
   }
 
-  for (const roleId of visibleFor.roleIds) {
-    clauses.push({ visibleForRoles: { some: { id: roleId } } });
+  if (visibleFor.roleIds.length > 0) {
+    // Visibility is a set (unlike status). Selected roles mean "exactly these roles".
+    clauses.push(exactVisibleForRolesClause(visibleFor.roleIds));
   }
 
   if (clauses.length === 0) {
@@ -135,6 +148,7 @@ function applyVisibleForFilter(
     return;
   }
 
+  // "Toți" OR exact role-set — e.g. everyone + Administrativ.
   pushAndClause(where, { OR: clauses });
 }
 
