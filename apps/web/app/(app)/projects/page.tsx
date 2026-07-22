@@ -9,6 +9,7 @@ import {
   listProjects,
   type ProjectDto,
   type ProjectListSortBy,
+  type ProjectStatus,
   type SortOrder,
 } from '@fabxpert/shared';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -23,9 +24,11 @@ import {
   TruncatedTableCell,
 } from '@/components/ProjectNameCell';
 import { Pagination } from '@/components/Pagination';
+import { SearchableMultiSelect } from '@/components/SearchableMultiSelect';
 import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { panouPathFromProjectEditReturn } from '@/utils/projectEditNavigation';
+import { STATUS_FILTER_OPTIONS } from '@/utils/projectStatusFilter';
 import { replaceById } from '@/utils/replaceById';
 
 const PAGE_SIZE = 20;
@@ -34,7 +37,7 @@ const DEFAULT_SORT_BY: ProjectListSortBy = 'name';
 const DEFAULT_SORT_ORDER: SortOrder = 'asc';
 
 const searchInputClassName =
-  'w-full max-w-md rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
+  'w-full rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
 
 function nullableCell(value: string | null | undefined) {
   if (!value) {
@@ -85,6 +88,7 @@ export default function ProjectsPage() {
   const [panel, setPanel] = useState<PanelState>({ open: false });
   const [sortBy, setSortBy] = useState<ProjectListSortBy>(DEFAULT_SORT_BY);
   const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
+  const [statusFilters, setStatusFilters] = useState<ProjectStatus[]>([]);
   const deepLinkEditId = searchParams.get('edit');
   const returnTarget = searchParams.get('return');
 
@@ -121,7 +125,7 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch]);
+  }, [debouncedSearch, statusFilters]);
 
   const projectColumns = useMemo((): DataTableColumn<ProjectDto>[] => {
     return [
@@ -217,6 +221,7 @@ export default function ProjectsPage() {
         page,
         pageSize: PAGE_SIZE,
         search: debouncedSearch || undefined,
+        status: statusFilters.length > 0 ? statusFilters : undefined,
         sortBy,
         sortOrder,
       });
@@ -227,7 +232,7 @@ export default function ProjectsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, sortBy, sortOrder]);
+  }, [page, debouncedSearch, statusFilters, sortBy, sortOrder]);
 
   useEffect(() => {
     void loadProjects();
@@ -286,8 +291,10 @@ export default function ProjectsPage() {
   }
 
   const hasActiveSearch = debouncedSearch.length > 0;
-  const showEmptyState = !loading && !error && total === 0 && !hasActiveSearch;
-  const showNoSearchResults = !loading && !error && total === 0 && hasActiveSearch;
+  const hasActiveStatusFilter = statusFilters.length > 0;
+  const showEmptyState = !loading && !error && total === 0 && !hasActiveSearch && !hasActiveStatusFilter;
+  const showNoSearchResults =
+    !loading && !error && total === 0 && (hasActiveSearch || hasActiveStatusFilter);
   const showDataTable = loading || total > 0;
 
   return (
@@ -319,7 +326,7 @@ export default function ProjectsPage() {
       )}
 
       {!showEmptyState && (
-        <div className="mt-4">
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
           <input
             type="search"
             value={searchInput}
@@ -329,12 +336,25 @@ export default function ProjectsPage() {
             className={searchInputClassName}
             {...businessAutofill}
           />
+          <SearchableMultiSelect
+            id="project-status-filter"
+            label="Status"
+            placeholder="Filtrează după status…"
+            emptyMessage="Niciun status găsit."
+            values={statusFilters}
+            options={STATUS_FILTER_OPTIONS}
+            onChange={(values) => setStatusFilters(values as ProjectStatus[])}
+          />
         </div>
       )}
 
       {showNoSearchResults && (
         <div className="mt-8 flex flex-col items-center justify-center gap-4 text-center">
-          <p className="text-sm text-text-muted">Nu există proiecte care să corespundă căutării.</p>
+          <p className="text-sm text-text-muted">
+            {hasActiveStatusFilter && !hasActiveSearch
+              ? `Niciun proiect pentru statusurile selectate.`
+              : 'Nu există proiecte care să corespundă căutării.'}
+          </p>
         </div>
       )}
 

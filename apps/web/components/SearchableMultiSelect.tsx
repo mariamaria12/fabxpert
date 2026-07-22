@@ -20,7 +20,7 @@ import {
 import { matchesSearchText } from '@/utils/searchText';
 import type { SearchableSelectOption } from './SearchableSelect';
 import { contrastTextOnHex } from './roleColors';
-import { getBusinessInputAutofillProps } from './inputAutofill';
+import { getSearchComboboxAutofillProps } from './inputAutofill';
 
 export interface SearchableMultiSelectProps {
   id: string;
@@ -344,7 +344,7 @@ export function SearchableMultiSelect({
             disabled={disabled}
             placeholder={selectedOptions.length === 0 ? placeholder : ''}
             aria-autocomplete="list"
-            {...getBusinessInputAutofillProps(autofillTrapId)}
+            {...getSearchComboboxAutofillProps(autofillTrapId)}
             onFocus={openDropdown}
             onBlur={handleInputBlur}
             onChange={(event) => {

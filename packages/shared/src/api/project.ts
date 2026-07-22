@@ -4,6 +4,7 @@ import type {
   ProjectDto,
   ProjectOptionDto,
   ProjectListSortBy,
+  ProjectStatus,
   ProjectStatusGroup,
   SortOrder,
   UpdateProjectInput,
@@ -24,7 +25,15 @@ export interface ListProjectsParams {
   page?: number;
   pageSize?: number;
   search?: string;
+  /** One or more project statuses (OR filter). */
+  status?: ProjectStatus | ProjectStatus[];
   statusGroup?: ProjectStatusGroup;
+  /**
+   * Visibility filter values:
+   * - `everyone` → projects with no role restriction
+   * - role UUID → projects that include that role
+   */
+  visibleFor?: Array<'everyone' | string>;
   sortBy?: ProjectListSortBy;
   sortOrder?: SortOrder;
   /** Omit role visibility join — faster for read-only lists (Panou, lookups). */
@@ -43,8 +52,17 @@ export function listProjects(params: ListProjectsParams = {}) {
   if (trimmedSearch) {
     searchParams.set('search', trimmedSearch);
   }
+  if (params.status) {
+    const statuses = Array.isArray(params.status) ? params.status : [params.status];
+    if (statuses.length > 0) {
+      searchParams.set('status', statuses.join(','));
+    }
+  }
   if (params.statusGroup) {
     searchParams.set('statusGroup', params.statusGroup);
+  }
+  if (params.visibleFor && params.visibleFor.length > 0) {
+    searchParams.set('visibleFor', params.visibleFor.join(','));
   }
   if (params.sortBy) {
     searchParams.set('sortBy', params.sortBy);

@@ -70,6 +70,56 @@ describe('Project list statusGroup filter (e2e)', () => {
     expect(response.status).toBe(400);
   });
 
+  it('filters by exact status', async () => {
+    await request(app.getHttpServer())
+      .patch(`/projects/${FIXTURES.projects.ready.id}`)
+      .set(authHeader(adminCookie))
+      .send({ status: 'IN_PRODUCTIE' })
+      .expect(200);
+
+    const filtered = await request(app.getHttpServer())
+      .get('/projects')
+      .query({ status: 'IN_PRODUCTIE', pageSize: '20' })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    expect(filtered.body.data.length).toBeGreaterThanOrEqual(1);
+    expect(
+      filtered.body.data.every((project: { status: string }) => project.status === 'IN_PRODUCTIE'),
+    ).toBe(true);
+  });
+
+  it('filters by multiple statuses', async () => {
+    await request(app.getHttpServer())
+      .patch(`/projects/${FIXTURES.projects.notReady.id}`)
+      .set(authHeader(adminCookie))
+      .send({ status: 'CIORNA' })
+      .expect(200);
+
+    const filtered = await request(app.getHttpServer())
+      .get('/projects')
+      .query({ status: 'IN_PRODUCTIE,CIORNA', pageSize: '20' })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    expect(filtered.body.data.length).toBeGreaterThanOrEqual(2);
+    expect(
+      filtered.body.data.every(
+        (project: { status: string }) =>
+          project.status === 'IN_PRODUCTIE' || project.status === 'CIORNA',
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects invalid status', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/projects')
+      .query({ status: 'invalid' })
+      .set(authHeader(adminCookie));
+
+    expect(response.status).toBe(400);
+  });
+
   it('sorts by name ascending by default and accepts sortBy/sortOrder', async () => {
     await request(app.getHttpServer())
       .patch(`/projects/${FIXTURES.projects.ready.id}`)
@@ -144,6 +194,42 @@ describe('Project list statusGroup filter (e2e)', () => {
     const response = await request(app.getHttpServer())
       .get('/projects')
       .query({ sortBy: 'passwordHash' })
+      .set(authHeader(adminCookie));
+
+    expect(response.status).toBe(400);
+  });
+
+  it('filters by visibleFor everyone and role', async () => {
+    const everyone = await request(app.getHttpServer())
+      .get('/projects')
+      .query({ visibleFor: 'everyone', pageSize: '20' })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    expect(
+      everyone.body.data.every(
+        (project: { visibleForRoles: unknown[] }) => project.visibleForRoles.length === 0,
+      ),
+    ).toBe(true);
+
+    const byRole = await request(app.getHttpServer())
+      .get('/projects')
+      .query({ visibleFor: FIXTURES.employeeRole.id, pageSize: '20' })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    expect(byRole.body.data.length).toBeGreaterThanOrEqual(1);
+    expect(
+      byRole.body.data.every((project: { visibleForRoles: { id: string }[] }) =>
+        project.visibleForRoles.some((role) => role.id === FIXTURES.employeeRole.id),
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects invalid visibleFor', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/projects')
+      .query({ visibleFor: 'not-a-uuid' })
       .set(authHeader(adminCookie));
 
     expect(response.status).toBe(400);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeWithDefaults, readColumnPrefs, type ColumnPreference } from './columnStorage.ts';
+import { mergeWithDefaults, readColumnPrefs, type ColumnPreference } from './columnStorage';
 
 const defaultColumns: ColumnPreference[] = [
   { id: 'name', visible: true, width: 240, order: 0 },

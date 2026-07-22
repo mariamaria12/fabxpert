@@ -18,7 +18,7 @@ import {
   FORM_LABEL_CLASS,
   formDropdownOptionClass,
 } from './formFieldStyles';
-import { getBusinessInputAutofillProps } from './inputAutofill';
+import { getSearchComboboxAutofillProps } from './inputAutofill';
 import { matchesSearchText } from '@/utils/searchText';
 
 export interface SearchableSelectOption {
@@ -360,7 +360,7 @@ export function SearchableSelect({
           aria-controls={listboxId}
           aria-haspopup="listbox"
           aria-autocomplete="list"
-          {...getBusinessInputAutofillProps(autofillTrapId)}
+          {...getSearchComboboxAutofillProps(autofillTrapId)}
           value={displayValue}
           disabled={disabled}
           placeholder={placeholder}

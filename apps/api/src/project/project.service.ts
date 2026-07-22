@@ -61,15 +61,81 @@ type ProjectListRow = Prisma.ProjectGetPayload<{ include: typeof projectCompanyI
 
 const IN_PROGRESS_EXCLUDED_STATUSES: ProjectStatus[] = ['FINALIZAT', 'ANULAT'];
 
+function pushAndClause(
+  where: Prisma.ProjectWhereInput,
+  clause: Prisma.ProjectWhereInput,
+): void {
+  if (!where.AND) {
+    where.AND = [clause];
+    return;
+  }
+
+  if (Array.isArray(where.AND)) {
+    where.AND.push(clause);
+    return;
+  }
+
+  where.AND = [where.AND, clause];
+}
+
 function applyStatusGroupFilter(
   where: Prisma.ProjectWhereInput,
   statusGroup?: ProjectStatusGroup,
 ): void {
   if (statusGroup === 'in_progress') {
-    where.status = { notIn: IN_PROGRESS_EXCLUDED_STATUSES };
+    pushAndClause(where, { status: { notIn: IN_PROGRESS_EXCLUDED_STATUSES } });
   } else if (statusGroup === 'completed') {
-    where.status = 'FINALIZAT';
+    pushAndClause(where, { status: 'FINALIZAT' });
   }
+}
+
+function applyStatusFilter(
+  where: Prisma.ProjectWhereInput,
+  statuses?: ProjectStatus[],
+  statusGroup?: ProjectStatusGroup,
+): void {
+  if (statuses && statuses.length > 0) {
+    pushAndClause(where, {
+      status: statuses.length === 1 ? statuses[0] : { in: statuses },
+    });
+  }
+
+  applyStatusGroupFilter(where, statusGroup);
+}
+
+export type VisibleForFilter = {
+  everyone: boolean;
+  roleIds: string[];
+};
+
+function applyVisibleForFilter(
+  where: Prisma.ProjectWhereInput,
+  visibleFor?: VisibleForFilter,
+): void {
+  if (!visibleFor) {
+    return;
+  }
+
+  const clauses: Prisma.ProjectWhereInput[] = [];
+
+  if (visibleFor.everyone) {
+    clauses.push({ visibleForRoles: { none: {} } });
+  }
+
+  for (const roleId of visibleFor.roleIds) {
+    clauses.push({ visibleForRoles: { some: { id: roleId } } });
+  }
+
+  if (clauses.length === 0) {
+    return;
+  }
+
+  if (clauses.length === 1) {
+    pushAndClause(where, clauses[0]!);
+    return;
+  }
+
+  pushAndClause(where, { OR: clauses });
 }
 
 function buildEmployeeRoleVisibilityWhere(
@@ -157,11 +223,14 @@ export class ProjectService {
     sortBy?: ProjectListSortBy,
     sortOrder: SortOrder = 'asc',
     compact = false,
+    statuses?: ProjectStatus[],
+    visibleFor?: VisibleForFilter,
   ): Promise<PaginatedResponse<ProjectDto>> {
     const { page, pageSize } = pagination;
     const where: Prisma.ProjectWhereInput = { ...notDeleted() };
 
-    applyStatusGroupFilter(where, statusGroup);
+    applyStatusFilter(where, statuses, statusGroup);
+    applyVisibleForFilter(where, visibleFor);
 
     if (search) {
       where.OR = [

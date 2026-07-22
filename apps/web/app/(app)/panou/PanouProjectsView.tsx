@@ -8,6 +8,7 @@ import {
   listProjects,
   type ProjectDto,
   type ProjectListSortBy,
+  type ProjectStatus,
   type SortOrder,
 } from '@fabxpert/shared';
 import {
@@ -28,9 +29,20 @@ import {
   TruncatedTableCell,
 } from '@/components/ProjectNameCell';
 import { Pagination } from '@/components/Pagination';
+import { SearchableMultiSelect } from '@/components/SearchableMultiSelect';
+import type { SearchableSelectOption } from '@/components/SearchableSelect';
+import {
+  buildStableIndexMap,
+  getRolePaletteColor,
+} from '@/components/roleColors';
 import { replaceById } from '@/utils/replaceById';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { useLazyVisible } from '@/hooks/useLazyVisible';
+import { getProjectFormEmployeeRoles } from '@/utils/projectFormLookups';
+import {
+  IN_PROGRESS_STATUS_FILTER_OPTIONS,
+  VISIBILITY_EVERYONE_VALUE,
+} from '@/utils/projectStatusFilter';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 import {
   PanouPinnedProjectsSection,
@@ -171,20 +183,66 @@ const ProjectTableSection = forwardRef<
     title: string;
     statusGroup: 'in_progress' | 'completed';
     showPinColumn?: boolean;
+    showFilters?: boolean;
     onPinToggled?: (updated: ProjectDto) => void;
   }
 >(function ProjectTableSection(
-  { title, statusGroup, showPinColumn = false, onPinToggled },
+  { title, statusGroup, showPinColumn = false, showFilters = false, onPinToggled },
   ref,
 ) {
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<ProjectListSortBy>(DEFAULT_SORT_BY);
   const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
+  const [statusFilters, setStatusFilters] = useState<ProjectStatus[]>([]);
+  const [visibilityFilters, setVisibilityFilters] = useState<string[]>([]);
+  const [visibilityOptions, setVisibilityOptions] = useState<SearchableSelectOption[]>([
+    { id: VISIBILITY_EVERYONE_VALUE, label: 'Toți' },
+  ]);
   const [projects, setProjects] = useState<ProjectDto[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const fetchSeqRef = useRef(0);
+
+  useEffect(() => {
+    if (!showFilters) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void getProjectFormEmployeeRoles()
+      .then((roles) => {
+        if (cancelled) {
+          return;
+        }
+
+        const activeRoles = roles.filter((role) => role.isActive);
+        const roleColorById = buildStableIndexMap(activeRoles);
+
+        setVisibilityOptions([
+          { id: VISIBILITY_EVERYONE_VALUE, label: 'Toți' },
+          ...activeRoles.map((role) => ({
+            id: role.id,
+            label: role.name,
+            color: getRolePaletteColor(roleColorById.get(role.id) ?? 0),
+          })),
+        ]);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setVisibilityOptions([{ id: VISIBILITY_EVERYONE_VALUE, label: 'Toți' }]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showFilters]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilters, visibilityFilters]);
 
   const loadProjects = useCallback(async () => {
     const fetchSeq = ++fetchSeqRef.current;
@@ -196,6 +254,11 @@ const ProjectTableSection = forwardRef<
         page,
         pageSize: PAGE_SIZE,
         statusGroup,
+        status: statusFilters.length > 0 ? statusFilters : undefined,
+        visibleFor:
+          visibilityFilters.length > 0
+            ? (visibilityFilters as Array<'everyone' | string>)
+            : undefined,
         sortBy,
         sortOrder,
       });
@@ -214,7 +277,7 @@ const ProjectTableSection = forwardRef<
         setLoading(false);
       }
     }
-  }, [page, statusGroup, sortBy, sortOrder]);
+  }, [page, statusGroup, statusFilters, visibilityFilters, sortBy, sortOrder]);
 
   useEffect(() => {
     void loadProjects();
@@ -268,14 +331,40 @@ const ProjectTableSection = forwardRef<
     onPinToggled: handlePinToggled,
   });
 
+  const hasActiveFilters = statusFilters.length > 0 || visibilityFilters.length > 0;
   const emptyMessage =
     statusGroup === 'in_progress'
-      ? 'Niciun proiect în curs.'
+      ? hasActiveFilters
+        ? 'Niciun proiect în curs pentru filtrele selectate.'
+        : 'Niciun proiect în curs.'
       : 'Niciun proiect finalizat.';
 
   return (
     <div>
       <h3 className="text-sm font-medium text-text-secondary">{title}</h3>
+
+      {showFilters && (
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <SearchableMultiSelect
+            id={`panou-${statusGroup}-status-filter`}
+            label="Status"
+            placeholder="Filtrează după status…"
+            emptyMessage="Niciun status găsit."
+            values={statusFilters}
+            options={IN_PROGRESS_STATUS_FILTER_OPTIONS}
+            onChange={(values) => setStatusFilters(values as ProjectStatus[])}
+          />
+          <SearchableMultiSelect
+            id={`panou-${statusGroup}-visibility-filter`}
+            label="Vizibil pentru"
+            placeholder="Filtrează după vizibilitate…"
+            emptyMessage="Nicio opțiune găsită."
+            values={visibilityFilters}
+            options={visibilityOptions}
+            onChange={setVisibilityFilters}
+          />
+        </div>
+      )}
 
       {error && (
         <div className="mt-3 flex items-center justify-between gap-4 rounded-md border border-border-subtle bg-[var(--color-toast-error-bg)] px-4 py-3">
@@ -366,6 +455,7 @@ export function PanouProjectsView() {
         title="Proiecte în curs"
         statusGroup="in_progress"
         showPinColumn
+        showFilters
         onPinToggled={handlePinToggled}
       />
       <div ref={completedSection.ref}>

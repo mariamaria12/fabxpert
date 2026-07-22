@@ -34,8 +34,63 @@ import { ProjectService } from './project.service';
 
 const idParamSchema = z.string().trim().min(1);
 const statusGroupSchema = z.enum(['in_progress', 'completed']);
+const statusSchema = z.enum([
+  'CIORNA',
+  'IN_OFERTARE',
+  'CASTIGAT',
+  'IN_PROIECTARE',
+  'IN_PRODUCTIE',
+  'PREGATIT_LIVRARE',
+  'LIVRAT',
+  'FINALIZAT',
+  'SUSPENDAT',
+  'ANULAT',
+]);
+const roleIdSchema = z
+  .string()
+  .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
 const sortBySchema = z.enum(['name', 'code', 'company', 'startDate', 'dueDate']);
 const sortOrderSchema = z.enum(['asc', 'desc']);
+
+function parseVisibleForQuery(raw: string | undefined): {
+  everyone: boolean;
+  roleIds: string[];
+} | undefined {
+  if (raw === undefined || raw.trim() === '') {
+    return undefined;
+  }
+
+  const parts = [
+    ...new Set(
+      raw
+        .split(',')
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0),
+    ),
+  ];
+
+  let everyone = false;
+  const roleIds: string[] = [];
+
+  for (const part of parts) {
+    if (part === 'everyone') {
+      everyone = true;
+      continue;
+    }
+
+    const parsed = roleIdSchema.safeParse(part);
+    if (!parsed.success) {
+      throw new BadRequestException('Invalid visibleFor');
+    }
+    roleIds.push(parsed.data);
+  }
+
+  if (!everyone && roleIds.length === 0) {
+    return undefined;
+  }
+
+  return { everyone, roleIds };
+}
 
 @Controller('projects')
 @Roles('ADMIN')
@@ -61,6 +116,28 @@ export class ProjectController {
   findAll(@Query() query: Record<string, string>) {
     const search = query.search?.trim() || undefined;
     let statusGroup: z.infer<typeof statusGroupSchema> | undefined;
+    let statuses: z.infer<typeof statusSchema>[] | undefined;
+
+    if (query.status !== undefined && query.status !== '') {
+      const parts = query.status
+        .split(',')
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0);
+      const uniqueParts = [...new Set(parts)];
+      const parsedStatuses: z.infer<typeof statusSchema>[] = [];
+
+      for (const part of uniqueParts) {
+        const parsed = statusSchema.safeParse(part);
+        if (!parsed.success) {
+          throw new BadRequestException('Invalid status');
+        }
+        parsedStatuses.push(parsed.data);
+      }
+
+      if (parsedStatuses.length > 0) {
+        statuses = parsedStatuses;
+      }
+    }
 
     if (query.statusGroup !== undefined && query.statusGroup !== '') {
       const parsed = statusGroupSchema.safeParse(query.statusGroup);
@@ -89,6 +166,7 @@ export class ProjectController {
     }
 
     const compact = query.compact === 'true' || query.compact === '1';
+    const visibleFor = parseVisibleForQuery(query.visibleFor);
 
     return this.projectService.findAll(
       parsePagination(query),
@@ -97,6 +175,8 @@ export class ProjectController {
       sortBy,
       sortOrder,
       compact,
+      statuses,
+      visibleFor,
     );
   }
 

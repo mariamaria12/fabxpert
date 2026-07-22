@@ -9,6 +9,18 @@ export const BUSINESS_AUTOFILL_ATTRS = {
   spellCheck: false,
 } as const;
 
+/** Combobox / filter search inputs — avoid browser history + password-manager prompts. */
+export const SEARCH_COMBOBOX_AUTOFILL_ATTRS = {
+  autoComplete: 'off',
+  autoCorrect: 'off',
+  autoCapitalize: 'off',
+  spellCheck: false,
+  'data-1p-ignore': true,
+  'data-lpignore': 'true',
+  'data-bwignore': 'true',
+  'data-form-type': 'other',
+} as const;
+
 export function businessAutofillFieldName(seed: string): string {
   return `field-${seed.replace(/:/g, '')}`;
 }
@@ -17,6 +29,13 @@ export function getBusinessInputAutofillProps(nameSeed: string) {
   return {
     ...BUSINESS_AUTOFILL_ATTRS,
     name: businessAutofillFieldName(nameSeed),
+  };
+}
+
+export function getSearchComboboxAutofillProps(nameSeed: string) {
+  return {
+    ...SEARCH_COMBOBOX_AUTOFILL_ATTRS,
+    name: businessAutofillFieldName(`search-${nameSeed}`),
   };
 }
 
