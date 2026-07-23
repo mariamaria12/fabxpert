@@ -27,6 +27,7 @@ export function PanouProjectCard({
   totalMinutes,
   expanded,
   onToggle,
+  onTitleClick,
   leadingSlot,
   expandedContent,
   durationTopActions,
@@ -41,11 +42,14 @@ export function PanouProjectCard({
   totalMinutes: number;
   expanded: boolean;
   onToggle: () => void;
+  /** Defaults to `onToggle`. Use for opening edit while keeping expand on hours/chevron. */
+  onTitleClick?: () => void;
   leadingSlot?: ReactNode;
   expandedContent?: ReactNode;
   durationTopActions?: ReactNode;
 }) {
   const color = accentColor ?? '#8c8a80';
+  const handleTitleClick = onTitleClick ?? onToggle;
 
   return (
     <div className="overflow-hidden rounded-lg border border-border-subtle bg-surface shadow-sm shadow-black/10">
@@ -71,8 +75,8 @@ export function PanouProjectCard({
 
           <button
             type="button"
-            onClick={onToggle}
-            aria-expanded={expanded}
+            onClick={handleTitleClick}
+            aria-expanded={onTitleClick ? undefined : expanded}
             className="min-w-0 flex-1 text-left transition-colors hover:opacity-90"
           >
             <span className="min-w-0 flex-1">

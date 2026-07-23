@@ -44,6 +44,7 @@ import {
   VISIBILITY_EVERYONE_VALUE,
 } from '@/utils/projectStatusFilter';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
+import { ProjectFormPanel } from '../projects/ProjectFormPanel';
 import {
   PanouPinnedProjectsSection,
   type PanouPinnedProjectsSectionHandle,
@@ -55,6 +56,7 @@ const PAGE_SIZE = 20;
 const DEFAULT_SORT_BY: ProjectListSortBy = 'name';
 const DEFAULT_SORT_ORDER: SortOrder = 'asc';
 
+type EditPanelState = { open: false } | { open: true; project: ProjectDto };
 function nullableCell(value: string | null | undefined) {
   if (!value) {
     return <span className="text-text-muted">—</span>;
@@ -185,9 +187,10 @@ const ProjectTableSection = forwardRef<
     showPinColumn?: boolean;
     showFilters?: boolean;
     onPinToggled?: (updated: ProjectDto) => void;
+    onProjectUpdated?: (updated: ProjectDto) => void;
   }
 >(function ProjectTableSection(
-  { title, statusGroup, showPinColumn = false, showFilters = false, onPinToggled },
+  { title, statusGroup, showPinColumn = false, showFilters = false, onPinToggled, onProjectUpdated },
   ref,
 ) {
   const [page, setPage] = useState(1);
@@ -202,6 +205,7 @@ const ProjectTableSection = forwardRef<
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editPanel, setEditPanel] = useState<EditPanelState>({ open: false });
   const fetchSeqRef = useRef(0);
 
   useEffect(() => {
@@ -341,6 +345,21 @@ const ProjectTableSection = forwardRef<
     onPinToggled?.(updated);
   }
 
+  function openEdit(project: ProjectDto) {
+    setEditPanel({ open: true, project });
+  }
+
+  function closeEditPanel() {
+    setEditPanel({ open: false });
+  }
+
+  function handleProjectSaved(updated?: ProjectDto) {
+    if (updated) {
+      onProjectUpdated?.(updated);
+    }
+    closeEditPanel();
+    void loadProjects();
+  }
   const columnsWithPin = useProjectTableColumns({
     showPinColumn,
     onPinToggled: handlePinToggled,
@@ -411,6 +430,7 @@ const ProjectTableSection = forwardRef<
             sortBy={sortBy}
             sortOrder={sortOrder}
             onSortChange={handleSortChange}
+            onRowClick={loading ? undefined : openEdit}
           />
           {!loading && total > 0 && (
             <Pagination
@@ -422,6 +442,16 @@ const ProjectTableSection = forwardRef<
           )}
         </div>
       )}
+
+      {editPanel.open ? (
+        <ProjectFormPanel
+          open
+          mode="edit"
+          project={editPanel.project}
+          onClose={closeEditPanel}
+          onSaved={handleProjectSaved}
+        />
+      ) : null}
     </div>
   );
 });
@@ -459,6 +489,19 @@ export function PanouProjectsView() {
     }
   }, []);
 
+  const handleTableProjectUpdated = useCallback(
+    (updated: ProjectDto) => {
+      if (updated.isPinned) {
+        void pinnedSectionRef.current?.refetch();
+      } else {
+        pinnedSectionRef.current?.removeProject(updated.id);
+      }
+
+      handlePinnedProjectUpdated(updated);
+    },
+    [handlePinnedProjectUpdated],
+  );
+
   return (
     <section className="mt-6 space-y-8">
       <PanouPinnedProjectsSection
@@ -473,6 +516,7 @@ export function PanouProjectsView() {
         showPinColumn
         showFilters
         onPinToggled={handlePinToggled}
+        onProjectUpdated={handleTableProjectUpdated}
       />
       <div ref={completedSection.ref}>
         {completedSection.visible ? (
@@ -480,6 +524,7 @@ export function PanouProjectsView() {
             ref={completedTableRef}
             title="Proiecte finalizate"
             statusGroup="completed"
+            onProjectUpdated={handleTableProjectUpdated}
           />
         ) : (
           <h3 className="text-sm font-medium text-text-secondary">Proiecte finalizate</h3>

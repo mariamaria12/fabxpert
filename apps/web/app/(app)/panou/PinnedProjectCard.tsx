@@ -74,7 +74,10 @@ function PinnedProjectEditButton({ onEdit }: { onEdit: () => void }) {
   return (
     <button
       type="button"
-      onClick={onEdit}
+      onClick={(event) => {
+        event.stopPropagation();
+        onEdit();
+      }}
       aria-label="Editează proiectul"
       className="flex size-6 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-raised hover:text-text-secondary"
     >
@@ -124,6 +127,7 @@ export function PinnedProjectCard({
       totalMinutes={project.totalMinutes}
       expanded={expanded}
       onToggle={onToggle}
+      onTitleClick={onEdit}
       leadingSlot={
         <div className="mt-0.5 flex shrink-0 items-center gap-0.5">
           {dragHandleProps && (
