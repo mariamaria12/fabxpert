@@ -52,6 +52,10 @@ export const FIXTURES = {
       id: 'e2e00001-0000-0000-0000-000000000033',
       code: 'E2E-ROLEREADY',
     },
+    roleRestrictedOther: {
+      id: 'e2e00001-0000-0000-0000-000000000034',
+      code: 'E2E-ROLE2READY',
+    },
   },
   persons: {
     admin: { id: 'e2e00001-0000-0000-0000-000000000001' },

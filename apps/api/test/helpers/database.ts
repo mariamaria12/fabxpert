@@ -147,6 +147,14 @@ export async function seedFixtures(): Promise<void> {
         readyForExecution: true,
         color: '#778899',
       },
+      {
+        id: FIXTURES.projects.roleRestrictedOther.id,
+        name: 'E2E Role2 Restricted Project',
+        code: FIXTURES.projects.roleRestrictedOther.code,
+        companyId: FIXTURES.companies.c1.id,
+        readyForExecution: true,
+        color: '#99aabb',
+      },
     ],
   });
 
@@ -155,6 +163,15 @@ export async function seedFixtures(): Promise<void> {
     data: {
       visibleForRoles: {
         connect: [{ id: FIXTURES.employeeRole.id }],
+      },
+    },
+  });
+
+  await client.project.update({
+    where: { id: FIXTURES.projects.roleRestrictedOther.id },
+    data: {
+      visibleForRoles: {
+        connect: [{ id: FIXTURES.employeeRole2.id }],
       },
     },
   });
