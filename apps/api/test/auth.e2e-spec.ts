@@ -98,6 +98,7 @@ describe('Auth (e2e)', () => {
         id: FIXTURES.persons.admin.id,
         firstName: 'E2E',
         lastName: 'Admin',
+        employeeRole: null,
       },
     });
     expect(me.body.passwordHash).toBeUndefined();

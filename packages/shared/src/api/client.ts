@@ -53,6 +53,7 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
   if (options.body !== undefined && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
+  headers.set('Cache-Control', 'no-store');
 
   let response: Response;
   try {
@@ -137,9 +138,11 @@ export async function requestBlob(
 
   let response: Response;
   try {
+    const headers = new Headers(options.headers);
+    headers.set('Cache-Control', 'no-store');
     response = await fetch(`${baseUrl}${path}`, {
       ...options,
-      headers: options.headers,
+      headers,
       credentials: 'include',
     });
   } catch {

@@ -22,6 +22,10 @@ import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { PaginationParams } from '../common/pagination/parse-pagination.util';
 import { notDeleted, visibleTimesheetWhere } from '../common/prisma/soft-delete.util';
+import {
+  buildEmployeeRoleVisibilityWhere,
+  resolveActiveEmployeeRoleId,
+} from '../project/project-visibility.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { TimesheetEventsService } from './timesheet-events.service';
 import {
@@ -171,7 +175,7 @@ export class TimesheetService {
     this.rejectPersonIdFromEmployee(actor.role, input.personId);
 
     const personId = await this.resolveManualCreatePersonId(actor, input.personId);
-    await this.assertProjectExists(input.projectId, actor.role === 'EMPLOYEE');
+    await this.assertProjectAvailable(actor, input.projectId);
     if (input.activityId !== undefined) {
       await this.assertActivityExists(input.activityId);
     }
@@ -384,10 +388,7 @@ export class TimesheetService {
     const nextActivityId =
       input.activityId !== undefined ? input.activityId : existing.activityId;
 
-    await this.assertProjectExists(
-      nextProjectId,
-      actor.role === 'EMPLOYEE',
-    );
+    await this.assertProjectAvailable(actor, nextProjectId);
     if (nextActivityId !== null) {
       await this.assertActivityExists(nextActivityId);
     }
@@ -525,21 +526,34 @@ export class TimesheetService {
     return timesheet;
   }
 
-  private async assertProjectExists(
+  private async assertProjectAvailable(
+    actor: AuthenticatedUser,
     projectId: string,
-    enforceReadyForExecution: boolean,
   ): Promise<void> {
+    const requireEmployeeVisibility = actor.role === 'EMPLOYEE';
+    const employeeRoleId = requireEmployeeVisibility
+      ? await resolveActiveEmployeeRoleId(this.prisma, actor.id)
+      : undefined;
+
     const project = await this.prisma.project.findFirst({
-      where: { id: projectId, ...notDeleted() },
+      where: {
+        id: projectId,
+        ...notDeleted(),
+        ...(requireEmployeeVisibility
+          ? {
+              readyForExecution: true,
+              ...buildEmployeeRoleVisibilityWhere(employeeRoleId ?? null),
+            }
+          : {}),
+      },
+      select: { id: true },
     });
 
     if (!project) {
-      throw new BadRequestException('projectId does not reference an existing project');
-    }
-
-    if (enforceReadyForExecution && !project.readyForExecution) {
       throw new BadRequestException(
-        'This project is not available for employee time logging',
+        requireEmployeeVisibility
+          ? 'This project is not available for employee time logging'
+          : 'projectId does not reference an existing project',
       );
     }
   }

@@ -124,6 +124,14 @@ export class AuthService {
             lastName: true,
             email: true,
             phone: true,
+            employeeRole: {
+              select: {
+                id: true,
+                name: true,
+                isActive: true,
+                deletedAt: true,
+              },
+            },
           },
         },
       },
@@ -133,6 +141,27 @@ export class AuthService {
       throw new UnauthorizedException();
     }
 
-    return user;
+    const role = user.person?.employeeRole;
+    const employeeRole =
+      role && role.isActive && !role.deletedAt
+        ? { id: role.id, name: role.name }
+        : null;
+
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive,
+      person: user.person
+        ? {
+            id: user.person.id,
+            firstName: user.person.firstName,
+            lastName: user.person.lastName,
+            email: user.person.email,
+            phone: user.person.phone,
+            employeeRole,
+          }
+        : null,
+    };
   }
 }

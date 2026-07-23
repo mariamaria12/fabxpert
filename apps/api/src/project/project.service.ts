@@ -21,18 +21,7 @@ import { notDeleted } from '../common/prisma/soft-delete.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { ProjectAvailabilityEventsService } from './project-availability-events.service';
-
-const projectOptionSelect = {
-  id: true,
-  name: true,
-  code: true,
-  color: true,
-  company: {
-    select: {
-      name: true,
-    },
-  },
-} satisfies Prisma.ProjectSelect;
+import { resolveActiveEmployeeRoleId } from './project-visibility.util';
 
 const projectCompanyInclude = {
   company: {
@@ -153,23 +142,6 @@ function applyVisibleForFilter(
   }
 
   pushAndClause(where, { OR: clauses });
-}
-
-function buildEmployeeRoleVisibilityWhere(
-  employeeRoleId: string | null,
-): Prisma.ProjectWhereInput {
-  if (employeeRoleId) {
-    return {
-      OR: [
-        { visibleForRoles: { none: {} } },
-        { visibleForRoles: { some: { id: employeeRoleId } } },
-      ],
-    };
-  }
-
-  return {
-    visibleForRoles: { none: {} },
-  };
 }
 
 function roleIdsEqual(left: string[], right: string[]): boolean {
@@ -293,17 +265,54 @@ export class ProjectService {
   }
 
   async findAvailable(actor: AuthenticatedUser): Promise<ProjectOptionDto[]> {
-    const employeeRoleId = await this.resolveEmployeeRoleId(actor.id);
+    const employeeRoleId = await resolveActiveEmployeeRoleId(this.prisma, actor.id);
 
-    return this.prisma.project.findMany({
-      where: {
-        ...notDeleted(),
-        readyForExecution: true,
-        ...buildEmployeeRoleVisibilityWhere(employeeRoleId),
-      },
-      select: projectOptionSelect,
-      orderBy: { name: 'asc' },
-    });
+    // Explicit SQL against the M2M join table — avoids any ambiguity with Prisma relation filters.
+    // "_EmployeeRoleToProject": A = employee_roles.id, B = projects.id
+    const visibilitySql = employeeRoleId
+      ? Prisma.sql`(
+          NOT EXISTS (
+            SELECT 1 FROM "_EmployeeRoleToProject" v WHERE v."B" = p.id
+          )
+          OR EXISTS (
+            SELECT 1 FROM "_EmployeeRoleToProject" v
+            WHERE v."B" = p.id AND v."A" = ${employeeRoleId}
+          )
+        )`
+      : Prisma.sql`NOT EXISTS (
+          SELECT 1 FROM "_EmployeeRoleToProject" v WHERE v."B" = p.id
+        )`;
+
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        name: string;
+        code: string;
+        color: string | null;
+        companyName: string;
+      }>
+    >`
+      SELECT
+        p.id,
+        p.name,
+        p.code,
+        p.color,
+        c.name AS "companyName"
+      FROM projects p
+      INNER JOIN companies c ON c.id = p."companyId"
+      WHERE p."deletedAt" IS NULL
+        AND p."readyForExecution" = TRUE
+        AND ${visibilitySql}
+      ORDER BY p.name ASC
+    `;
+
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      code: row.code,
+      color: row.color,
+      company: { name: row.companyName },
+    }));
   }
 
   async create(input: CreateProjectInput): Promise<ProjectDto> {
@@ -477,23 +486,6 @@ export class ProjectService {
 
     const panouColumn = columnCounts[0] <= columnCounts[1] ? 0 : 1;
     return { panouColumn, indexPanou: columnCounts[panouColumn] };
-  }
-
-  private async resolveEmployeeRoleId(userId: string): Promise<string | null> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        person: {
-          select: { employeeRoleId: true },
-        },
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    return user.person.employeeRoleId;
   }
 
   private async assertCompanyExists(companyId: string): Promise<void> {

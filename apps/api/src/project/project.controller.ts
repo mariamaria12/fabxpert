@@ -3,17 +3,16 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Param,
   Patch,
   Post,
   Query,
-  Req,
   Sse,
   BadRequestException,
 } from '@nestjs/common';
-import { Request } from 'express';
 import {
   createProjectSchema,
   updateProjectSchema,
@@ -25,6 +24,7 @@ import {
   type ReorderPinnedProjectsInput,
 } from '@fabxpert/shared/dto/project-reorder.dto';
 import { z } from 'zod';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { parsePagination } from '../common/pagination/parse-pagination.util';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
@@ -108,8 +108,9 @@ export class ProjectController {
 
   @Get('available')
   @Roles('ADMIN', 'EMPLOYEE')
-  findAvailable(@Req() req: Request & { user: AuthenticatedUser }) {
-    return this.projectService.findAvailable(req.user);
+  @Header('Cache-Control', 'private, no-store, max-age=0, must-revalidate')
+  findAvailable(@CurrentUser() user: AuthenticatedUser) {
+    return this.projectService.findAvailable(user);
   }
 
   @Get()

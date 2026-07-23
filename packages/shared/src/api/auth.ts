@@ -9,6 +9,7 @@ export interface MeResponse {
     id: string;
     firstName: string;
     lastName: string;
+    employeeRole: { id: string; name: string } | null;
   } | null;
 }
 
