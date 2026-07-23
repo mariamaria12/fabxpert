@@ -131,6 +131,8 @@ model User {
   passwordHash String
   role         Role      @default(EMPLOYEE)
   isActive     Boolean   @default(true)
+  /// When true, employee only sees projects explicitly assigned to their role (not "Toți").
+  restrictedProjects Boolean @default(false)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?

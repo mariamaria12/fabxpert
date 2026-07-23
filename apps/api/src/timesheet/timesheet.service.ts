@@ -24,7 +24,7 @@ import { PaginationParams } from '../common/pagination/parse-pagination.util';
 import { notDeleted, visibleTimesheetWhere } from '../common/prisma/soft-delete.util';
 import {
   buildEmployeeRoleVisibilityWhere,
-  resolveActiveEmployeeRoleId,
+  resolveEmployeeProjectVisibility,
 } from '../project/project-visibility.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { TimesheetEventsService } from './timesheet-events.service';
@@ -531,18 +531,21 @@ export class TimesheetService {
     projectId: string,
   ): Promise<void> {
     const requireEmployeeVisibility = actor.role === 'EMPLOYEE';
-    const employeeRoleId = requireEmployeeVisibility
-      ? await resolveActiveEmployeeRoleId(this.prisma, actor.id)
+    const visibility = requireEmployeeVisibility
+      ? await resolveEmployeeProjectVisibility(this.prisma, actor.id)
       : undefined;
 
     const project = await this.prisma.project.findFirst({
       where: {
         id: projectId,
         ...notDeleted(),
-        ...(requireEmployeeVisibility
+        ...(requireEmployeeVisibility && visibility
           ? {
               readyForExecution: true,
-              ...buildEmployeeRoleVisibilityWhere(employeeRoleId ?? null),
+              ...buildEmployeeRoleVisibilityWhere(
+                visibility.employeeRoleId,
+                visibility.restrictedProjects,
+              ),
             }
           : {}),
       },

@@ -21,7 +21,7 @@ import { notDeleted } from '../common/prisma/soft-delete.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { ProjectAvailabilityEventsService } from './project-availability-events.service';
-import { resolveActiveEmployeeRoleId } from './project-visibility.util';
+import { resolveEmployeeProjectVisibility } from './project-visibility.util';
 
 const projectCompanyInclude = {
   company: {
@@ -270,12 +270,21 @@ export class ProjectService {
   }
 
   async findAvailable(actor: AuthenticatedUser): Promise<ProjectOptionDto[]> {
-    const employeeRoleId = await resolveActiveEmployeeRoleId(this.prisma, actor.id);
+    const { employeeRoleId, restrictedProjects } =
+      await resolveEmployeeProjectVisibility(this.prisma, actor.id);
 
     // Explicit SQL against the M2M join table — avoids any ambiguity with Prisma relation filters.
     // "_EmployeeRoleToProject": A = employee_roles.id, B = projects.id
-    const visibilitySql = employeeRoleId
-      ? Prisma.sql`(
+    let visibilitySql: Prisma.Sql;
+    if (restrictedProjects) {
+      visibilitySql = employeeRoleId
+        ? Prisma.sql`EXISTS (
+            SELECT 1 FROM "_EmployeeRoleToProject" v
+            WHERE v."B" = p.id AND v."A" = ${employeeRoleId}
+          )`
+        : Prisma.sql`FALSE`;
+    } else if (employeeRoleId) {
+      visibilitySql = Prisma.sql`(
           NOT EXISTS (
             SELECT 1 FROM "_EmployeeRoleToProject" v WHERE v."B" = p.id
           )
@@ -283,10 +292,12 @@ export class ProjectService {
             SELECT 1 FROM "_EmployeeRoleToProject" v
             WHERE v."B" = p.id AND v."A" = ${employeeRoleId}
           )
-        )`
-      : Prisma.sql`NOT EXISTS (
+        )`;
+    } else {
+      visibilitySql = Prisma.sql`NOT EXISTS (
           SELECT 1 FROM "_EmployeeRoleToProject" v WHERE v."B" = p.id
         )`;
+    }
 
     const rows = await this.prisma.$queryRaw<
       Array<{

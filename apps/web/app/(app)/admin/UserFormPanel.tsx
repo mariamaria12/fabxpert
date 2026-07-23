@@ -30,6 +30,7 @@ interface UserFormValues {
   role: UserRole;
   personId: string;
   isActive: boolean;
+  restrictedProjects: boolean;
 }
 
 const EMPTY_FORM: UserFormValues = {
@@ -38,6 +39,7 @@ const EMPTY_FORM: UserFormValues = {
   role: 'EMPLOYEE',
   personId: '',
   isActive: true,
+  restrictedProjects: false,
 };
 
 function userToFormValues(user: UserDto): UserFormValues {
@@ -47,6 +49,7 @@ function userToFormValues(user: UserDto): UserFormValues {
     role: user.role,
     personId: user.personId,
     isActive: user.isActive,
+    restrictedProjects: user.restrictedProjects,
   };
 }
 
@@ -64,6 +67,9 @@ function buildUpdatePayload(user: UserDto, values: UserFormValues): UpdateUserIn
   }
   if (values.isActive !== user.isActive) {
     payload.isActive = values.isActive;
+  }
+  if (values.restrictedProjects !== user.restrictedProjects) {
+    payload.restrictedProjects = values.restrictedProjects;
   }
 
   const trimmedPassword = values.password.trim();
@@ -270,6 +276,7 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
         role: values.role,
         personId: values.personId,
         isActive: values.isActive,
+        restrictedProjects: values.restrictedProjects,
       });
 
       if (!parsed.success) {
@@ -473,6 +480,25 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
             className="size-4 rounded border-border accent-accent"
           />
           Activ
+        </label>
+
+        <label className="inline-flex items-start gap-2 text-sm text-text-secondary">
+          <input
+            type="checkbox"
+            checked={values.restrictedProjects}
+            disabled={isBusy}
+            onChange={(event) =>
+              updateField('restrictedProjects', event.target.checked)
+            }
+            className="mt-0.5 size-4 rounded border-border accent-accent"
+          />
+          <span>
+            Vede doar proiecte alocate specific
+            <span className="mt-0.5 block text-xs text-text-muted">
+              Ascunde proiectele vizibile pentru „Toți”; rămân doar cele atribuite
+              funcției sale.
+            </span>
+          </span>
         </label>
 
         {formError && (

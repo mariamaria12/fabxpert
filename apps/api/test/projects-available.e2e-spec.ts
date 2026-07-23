@@ -30,6 +30,14 @@ async function resetAvailableVisibilityFixtures(): Promise<void> {
     where: { id: FIXTURES.persons.employee2.id },
     data: { employeeRoleId: null },
   });
+  await prisma.user.update({
+    where: { id: FIXTURES.users.employee1.id },
+    data: { restrictedProjects: false },
+  });
+  await prisma.user.update({
+    where: { id: FIXTURES.users.employee2.id },
+    data: { restrictedProjects: false },
+  });
 
   await prisma.project.update({
     where: { id: FIXTURES.projects.ready.id },
@@ -196,5 +204,30 @@ describe('GET /projects/available (employee visibility contract)', () => {
     expect(ids.has(FIXTURES.projects.ready.id)).toBe(true);
     expect(ids.has(FIXTURES.projects.roleRestrictedOther.id)).toBe(true);
     expect(ids.has(FIXTURES.projects.roleRestricted.id)).toBe(false);
+  });
+
+  it('restrictedProjects hides unrestricted projects and keeps role-assigned ones', async () => {
+    await request(app.getHttpServer())
+      .patch(`/users/${FIXTURES.users.employee1.id}`)
+      .set(authHeader(adminCookie))
+      .send({ restrictedProjects: true })
+      .expect(200);
+
+    const response = await request(app.getHttpServer())
+      .get('/projects/available')
+      .set(authHeader(employee1Cookie))
+      .expect(200);
+
+    const ids = idsOf(response.body);
+    expect(ids.has(FIXTURES.projects.ready.id)).toBe(false);
+    expect(ids.has(FIXTURES.projects.roleRestricted.id)).toBe(true);
+    expect(ids.has(FIXTURES.projects.roleRestrictedOther.id)).toBe(false);
+    expect(ids.has(FIXTURES.projects.notReady.id)).toBe(false);
+
+    await request(app.getHttpServer())
+      .patch(`/users/${FIXTURES.users.employee1.id}`)
+      .set(authHeader(adminCookie))
+      .send({ restrictedProjects: false })
+      .expect(200);
   });
 });

@@ -25,6 +25,7 @@ const userSelect = {
   email: true,
   role: true,
   isActive: true,
+  restrictedProjects: true,
   personId: true,
   createdAt: true,
   updatedAt: true,
@@ -48,6 +49,7 @@ function toUserDto(user: UserWithPerson): UserDto {
     email: user.email,
     role: user.role,
     isActive: user.isActive,
+    restrictedProjects: user.restrictedProjects,
     personId: user.personId,
     person: {
       id: user.person.id,
@@ -160,6 +162,9 @@ export class UserService {
           role: input.role,
           personId: input.personId,
           ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+          ...(input.restrictedProjects !== undefined
+            ? { restrictedProjects: input.restrictedProjects }
+            : {}),
         },
         select: userSelect,
       });
@@ -187,6 +192,9 @@ export class UserService {
     }
     if (input.isActive !== undefined) {
       data.isActive = input.isActive;
+    }
+    if (input.restrictedProjects !== undefined) {
+      data.restrictedProjects = input.restrictedProjects;
     }
     if (input.personId !== undefined) {
       data.person = { connect: { id: input.personId } };

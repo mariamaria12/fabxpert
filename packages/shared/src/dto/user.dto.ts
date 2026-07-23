@@ -22,6 +22,7 @@ export const createUserSchema = z.object({
   role: userRoleSchema,
   personId: personIdSchema,
   isActive: z.boolean().optional(),
+  restrictedProjects: z.boolean().optional(),
 });
 
 export const updateUserSchema = z
@@ -31,6 +32,7 @@ export const updateUserSchema = z
     role: userRoleSchema.optional(),
     personId: personIdSchema.optional(),
     isActive: z.boolean().optional(),
+    restrictedProjects: z.boolean().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided',
@@ -52,6 +54,7 @@ export type UserDto = {
   email: string;
   role: UserRole;
   isActive: boolean;
+  restrictedProjects: boolean;
   personId: string;
   person: UserPersonDto;
   createdAt: string;
