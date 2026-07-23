@@ -128,6 +128,13 @@ export function UsersTab({ active }: UsersTabProps) {
         ),
       },
       {
+        key: 'employeeRole',
+        header: 'Funcție',
+        width: '180px',
+        className: 'text-text-secondary',
+        render: (user) => user.person.employeeRole?.name ?? '—',
+      },
+      {
         key: 'email',
         header: 'E-mail',
         width: '260px',
