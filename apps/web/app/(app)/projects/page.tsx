@@ -29,6 +29,7 @@ import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { panouPathFromProjectEditReturn } from '@/utils/projectEditNavigation';
 import { STATUS_FILTER_OPTIONS } from '@/utils/projectStatusFilter';
 import { replaceById } from '@/utils/replaceById';
+import { ProjectVisibleForCell } from '../panou/panouProjectVisibility';
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -192,19 +193,9 @@ export default function ProjectsPage() {
       {
         key: 'visibleForRoles',
         header: 'Vizibil pentru',
-        width: '160px',
-        className: 'text-text-secondary',
-        render: (row) => {
-          const roles = row.visibleForRoles ?? [];
-          if (roles.length === 0) {
-            return <span className="text-text-muted">Toți</span>;
-          }
-          return (
-            <span className="truncate" title={roles.map((role) => role.name).join(', ')}>
-              {roles.map((role) => role.name).join(', ')}
-            </span>
-          );
-        },
+        width: '200px',
+        className: 'text-text-secondary overflow-visible',
+        render: (row) => <ProjectVisibleForCell roles={row.visibleForRoles} />,
       },
     ];
   }, []);
