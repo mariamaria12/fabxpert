@@ -35,6 +35,8 @@ export interface ListProjectsParams {
    * - multiple values → OR
    */
   visibleFor?: Array<'everyone' | string>;
+  /** When set, filter by `readyForExecution` flag. */
+  readyForExecution?: boolean;
   sortBy?: ProjectListSortBy;
   sortOrder?: SortOrder;
   /** Omit role visibility join — faster for read-only lists (Panou, lookups). */
@@ -64,6 +66,9 @@ export function listProjects(params: ListProjectsParams = {}) {
   }
   if (params.visibleFor && params.visibleFor.length > 0) {
     searchParams.set('visibleFor', params.visibleFor.join(','));
+  }
+  if (params.readyForExecution !== undefined) {
+    searchParams.set('readyForExecution', params.readyForExecution ? 'true' : 'false');
   }
   if (params.sortBy) {
     searchParams.set('sortBy', params.sortBy);

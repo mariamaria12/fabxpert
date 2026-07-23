@@ -169,6 +169,17 @@ export class ProjectController {
     const compact = query.compact === 'true' || query.compact === '1';
     const visibleFor = parseVisibleForQuery(query.visibleFor);
 
+    let readyForExecution: boolean | undefined;
+    if (query.readyForExecution !== undefined && query.readyForExecution !== '') {
+      if (query.readyForExecution === 'true' || query.readyForExecution === '1') {
+        readyForExecution = true;
+      } else if (query.readyForExecution === 'false' || query.readyForExecution === '0') {
+        readyForExecution = false;
+      } else {
+        throw new BadRequestException('Invalid readyForExecution');
+      }
+    }
+
     return this.projectService.findAll(
       parsePagination(query),
       search,
@@ -178,6 +189,7 @@ export class ProjectController {
       compact,
       statuses,
       visibleFor,
+      readyForExecution,
     );
   }
 

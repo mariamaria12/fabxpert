@@ -29,20 +29,11 @@ import {
   TruncatedTableCell,
 } from '@/components/ProjectNameCell';
 import { Pagination } from '@/components/Pagination';
-import { SearchableMultiSelect } from '@/components/SearchableMultiSelect';
-import type { SearchableSelectOption } from '@/components/SearchableSelect';
-import {
-  buildStableIndexMap,
-  getRolePaletteColor,
-} from '@/components/roleColors';
+import { ProjectListFilters } from '@/components/ProjectListFilters';
 import { replaceById } from '@/utils/replaceById';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { useLazyVisible } from '@/hooks/useLazyVisible';
-import { getProjectFormEmployeeRoles } from '@/utils/projectFormLookups';
-import {
-  IN_PROGRESS_STATUS_FILTER_OPTIONS,
-  VISIBILITY_EVERYONE_VALUE,
-} from '@/utils/projectStatusFilter';
+import { IN_PROGRESS_STATUS_FILTER_OPTIONS } from '@/utils/projectStatusFilter';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 import { ProjectFormPanel } from '../projects/ProjectFormPanel';
 import {
@@ -198,51 +189,13 @@ const ProjectTableSection = forwardRef<
   const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
   const [statusFilters, setStatusFilters] = useState<ProjectStatus[]>([]);
   const [visibilityFilters, setVisibilityFilters] = useState<string[]>([]);
-  const [visibilityOptions, setVisibilityOptions] = useState<SearchableSelectOption[]>([
-    { id: VISIBILITY_EVERYONE_VALUE, label: 'Toți' },
-  ]);
   const [projects, setProjects] = useState<ProjectDto[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [readyForExecution, setReadyForExecution] = useState<boolean | null>(null);
   const [editPanel, setEditPanel] = useState<EditPanelState>({ open: false });
   const fetchSeqRef = useRef(0);
-
-  useEffect(() => {
-    if (!showFilters) {
-      return;
-    }
-
-    let cancelled = false;
-
-    void getProjectFormEmployeeRoles()
-      .then((roles) => {
-        if (cancelled) {
-          return;
-        }
-
-        const activeRoles = roles.filter((role) => role.isActive);
-        const roleColorById = buildStableIndexMap(activeRoles);
-
-        setVisibilityOptions([
-          { id: VISIBILITY_EVERYONE_VALUE, label: 'Toți' },
-          ...activeRoles.map((role) => ({
-            id: role.id,
-            label: role.name,
-            color: getRolePaletteColor(roleColorById.get(role.id) ?? 0),
-          })),
-        ]);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setVisibilityOptions([{ id: VISIBILITY_EVERYONE_VALUE, label: 'Toți' }]);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [showFilters]);
 
   const loadProjects = useCallback(async () => {
     const fetchSeq = ++fetchSeqRef.current;
@@ -260,6 +213,7 @@ const ProjectTableSection = forwardRef<
           visibilityFilters.length > 0
             ? (visibilityFilters as Array<'everyone' | string>)
             : undefined,
+        readyForExecution: readyForExecution ?? undefined,
         sortBy,
         sortOrder,
       });
@@ -286,7 +240,15 @@ const ProjectTableSection = forwardRef<
         setLoading(false);
       }
     }
-  }, [page, statusGroup, statusFilters, visibilityFilters, sortBy, sortOrder]);
+  }, [
+    page,
+    statusGroup,
+    statusFilters,
+    visibilityFilters,
+    readyForExecution,
+    sortBy,
+    sortOrder,
+  ]);
 
   useEffect(() => {
     void loadProjects();
@@ -330,14 +292,19 @@ const ProjectTableSection = forwardRef<
     setSortOrder(nextSortOrder);
   }
 
-  function handleStatusFiltersChange(values: string[]) {
+  function handleStatusFiltersChange(values: ProjectStatus[]) {
     setPage(1);
-    setStatusFilters(values as ProjectStatus[]);
+    setStatusFilters(values);
   }
 
   function handleVisibilityFiltersChange(values: string[]) {
     setPage(1);
     setVisibilityFilters(values);
+  }
+
+  function handleReadyForExecutionChange(value: boolean | null) {
+    setPage(1);
+    setReadyForExecution(value);
   }
 
   function handlePinToggled(updated: ProjectDto) {
@@ -365,7 +332,8 @@ const ProjectTableSection = forwardRef<
     onPinToggled: handlePinToggled,
   });
 
-  const hasActiveFilters = statusFilters.length > 0 || visibilityFilters.length > 0;
+  const hasActiveFilters =
+    statusFilters.length > 0 || visibilityFilters.length > 0 || readyForExecution !== null;
   const emptyMessage =
     statusGroup === 'in_progress'
       ? hasActiveFilters
@@ -378,26 +346,17 @@ const ProjectTableSection = forwardRef<
       <h3 className="text-sm font-medium text-text-secondary">{title}</h3>
 
       {showFilters && (
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
-          <SearchableMultiSelect
-            id={`panou-${statusGroup}-status-filter`}
-            label="Status"
-            placeholder="Filtrează după status…"
-            emptyMessage="Niciun status găsit."
-            values={statusFilters}
-            options={IN_PROGRESS_STATUS_FILTER_OPTIONS}
-            onChange={handleStatusFiltersChange}
-          />
-          <SearchableMultiSelect
-            id={`panou-${statusGroup}-visibility-filter`}
-            label="Vizibil pentru"
-            placeholder="Filtrează după vizibilitate…"
-            emptyMessage="Nicio opțiune găsită."
-            values={visibilityFilters}
-            options={visibilityOptions}
-            onChange={handleVisibilityFiltersChange}
-          />
-        </div>
+        <ProjectListFilters
+          idPrefix={`panou-${statusGroup}`}
+          className="mt-3"
+          statusOptions={IN_PROGRESS_STATUS_FILTER_OPTIONS}
+          statusValues={statusFilters}
+          onStatusChange={handleStatusFiltersChange}
+          visibilityValues={visibilityFilters}
+          onVisibilityChange={handleVisibilityFiltersChange}
+          readyForExecution={readyForExecution}
+          onReadyForExecutionChange={handleReadyForExecutionChange}
+        />
       )}
 
       {error && (
@@ -414,7 +373,9 @@ const ProjectTableSection = forwardRef<
       )}
 
       {!loading && !error && total === 0 && (
-        <p className="mt-3 text-sm text-text-muted">{emptyMessage}</p>
+        <div className="mt-6 mb-2 flex min-h-[7rem] flex-col items-center justify-center rounded-md border border-dashed border-border-subtle px-4 py-8 text-center">
+          <p className="text-sm text-text-muted">{emptyMessage}</p>
+        </div>
       )}
 
       {(loading || total > 0) && (

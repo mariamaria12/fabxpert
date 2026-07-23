@@ -255,4 +255,53 @@ describe('Project list statusGroup filter (e2e)', () => {
 
     expect(response.status).toBe(400);
   });
+
+  it('filters by readyForExecution', async () => {
+    const ready = await request(app.getHttpServer())
+      .get('/projects')
+      .query({ readyForExecution: 'true', pageSize: '50' })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    expect(ready.body.data.length).toBeGreaterThanOrEqual(1);
+    expect(
+      ready.body.data.every(
+        (project: { readyForExecution: boolean }) => project.readyForExecution === true,
+      ),
+    ).toBe(true);
+    expect(
+      ready.body.data.some((project: { id: string }) => project.id === FIXTURES.projects.ready.id),
+    ).toBe(true);
+    expect(
+      ready.body.data.some(
+        (project: { id: string }) => project.id === FIXTURES.projects.notReady.id,
+      ),
+    ).toBe(false);
+
+    const notReady = await request(app.getHttpServer())
+      .get('/projects')
+      .query({ readyForExecution: 'false', pageSize: '50' })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    expect(
+      notReady.body.data.every(
+        (project: { readyForExecution: boolean }) => project.readyForExecution === false,
+      ),
+    ).toBe(true);
+    expect(
+      notReady.body.data.some(
+        (project: { id: string }) => project.id === FIXTURES.projects.notReady.id,
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects invalid readyForExecution', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/projects')
+      .query({ readyForExecution: 'maybe' })
+      .set(authHeader(adminCookie));
+
+    expect(response.status).toBe(400);
+  });
 });

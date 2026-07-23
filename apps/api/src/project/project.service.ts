@@ -214,12 +214,17 @@ export class ProjectService {
     compact = false,
     statuses?: ProjectStatus[],
     visibleFor?: VisibleForFilter,
+    readyForExecution?: boolean,
   ): Promise<PaginatedResponse<ProjectDto>> {
     const { page, pageSize } = pagination;
     const where: Prisma.ProjectWhereInput = { ...notDeleted() };
 
     applyStatusFilter(where, statuses, statusGroup);
     applyVisibleForFilter(where, visibleFor);
+
+    if (readyForExecution !== undefined) {
+      where.readyForExecution = readyForExecution;
+    }
 
     if (search) {
       where.OR = [

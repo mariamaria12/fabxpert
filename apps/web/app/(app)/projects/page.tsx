@@ -24,8 +24,7 @@ import {
   TruncatedTableCell,
 } from '@/components/ProjectNameCell';
 import { Pagination } from '@/components/Pagination';
-import { SearchableMultiSelect } from '@/components/SearchableMultiSelect';
-import { useBusinessAutofillProps } from '@/components/inputAutofill';
+import { ProjectListFilters } from '@/components/ProjectListFilters';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { panouPathFromProjectEditReturn } from '@/utils/projectEditNavigation';
 import { STATUS_FILTER_OPTIONS } from '@/utils/projectStatusFilter';
@@ -35,9 +34,6 @@ const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
 const DEFAULT_SORT_BY: ProjectListSortBy = 'name';
 const DEFAULT_SORT_ORDER: SortOrder = 'asc';
-
-const searchInputClassName =
-  'w-full rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
 
 function nullableCell(value: string | null | undefined) {
   if (!value) {
@@ -77,7 +73,6 @@ type PanelState =
 export default function ProjectsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const businessAutofill = useBusinessAutofillProps();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -89,6 +84,8 @@ export default function ProjectsPage() {
   const [sortBy, setSortBy] = useState<ProjectListSortBy>(DEFAULT_SORT_BY);
   const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
   const [statusFilters, setStatusFilters] = useState<ProjectStatus[]>([]);
+  const [visibilityFilters, setVisibilityFilters] = useState<string[]>([]);
+  const [readyForExecution, setReadyForExecution] = useState<boolean | null>(null);
   const deepLinkEditId = searchParams.get('edit');
   const returnTarget = searchParams.get('return');
 
@@ -125,7 +122,7 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, statusFilters]);
+  }, [debouncedSearch, statusFilters, visibilityFilters, readyForExecution]);
 
   const projectColumns = useMemo((): DataTableColumn<ProjectDto>[] => {
     return [
@@ -222,6 +219,11 @@ export default function ProjectsPage() {
         pageSize: PAGE_SIZE,
         search: debouncedSearch || undefined,
         status: statusFilters.length > 0 ? statusFilters : undefined,
+        visibleFor:
+          visibilityFilters.length > 0
+            ? (visibilityFilters as Array<'everyone' | string>)
+            : undefined,
+        readyForExecution: readyForExecution ?? undefined,
         sortBy,
         sortOrder,
       });
@@ -232,7 +234,15 @@ export default function ProjectsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, statusFilters, sortBy, sortOrder]);
+  }, [
+    page,
+    debouncedSearch,
+    statusFilters,
+    visibilityFilters,
+    readyForExecution,
+    sortBy,
+    sortOrder,
+  ]);
 
   useEffect(() => {
     void loadProjects();
@@ -291,10 +301,11 @@ export default function ProjectsPage() {
   }
 
   const hasActiveSearch = debouncedSearch.length > 0;
-  const hasActiveStatusFilter = statusFilters.length > 0;
-  const showEmptyState = !loading && !error && total === 0 && !hasActiveSearch && !hasActiveStatusFilter;
+  const hasActiveFilters =
+    statusFilters.length > 0 || visibilityFilters.length > 0 || readyForExecution !== null;
+  const showEmptyState = !loading && !error && total === 0 && !hasActiveSearch && !hasActiveFilters;
   const showNoSearchResults =
-    !loading && !error && total === 0 && (hasActiveSearch || hasActiveStatusFilter);
+    !loading && !error && total === 0 && (hasActiveSearch || hasActiveFilters);
   const showDataTable = loading || total > 0;
 
   return (
@@ -326,36 +337,28 @@ export default function ProjectsPage() {
       )}
 
       {!showEmptyState && (
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <input
-            type="search"
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Caută după denumire, cod sau client..."
-            aria-label="Caută după denumire, cod sau client"
-            className={searchInputClassName}
-            {...businessAutofill}
-          />
-          <SearchableMultiSelect
-            id="project-status-filter"
-            label="Status"
-            placeholder="Filtrează după status…"
-            emptyMessage="Niciun status găsit."
-            values={statusFilters}
-            options={STATUS_FILTER_OPTIONS}
-            onChange={(values) => {
-              setPage(1);
-              setStatusFilters(values as ProjectStatus[]);
-            }}
-          />
-        </div>
+        <ProjectListFilters
+          idPrefix="projects"
+          className="mt-4"
+          statusOptions={STATUS_FILTER_OPTIONS}
+          statusValues={statusFilters}
+          onStatusChange={setStatusFilters}
+          visibilityValues={visibilityFilters}
+          onVisibilityChange={setVisibilityFilters}
+          readyForExecution={readyForExecution}
+          onReadyForExecutionChange={setReadyForExecution}
+          search={{
+            value: searchInput,
+            onChange: setSearchInput,
+          }}
+        />
       )}
 
       {showNoSearchResults && (
         <div className="mt-8 flex flex-col items-center justify-center gap-4 text-center">
           <p className="text-sm text-text-muted">
-            {hasActiveStatusFilter && !hasActiveSearch
-              ? `Niciun proiect pentru statusurile selectate.`
+            {hasActiveFilters && !hasActiveSearch
+              ? 'Niciun proiect pentru filtrele selectate.'
               : 'Nu există proiecte care să corespundă căutării.'}
           </p>
         </div>
