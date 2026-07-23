@@ -199,7 +199,7 @@ describe('Project list statusGroup filter (e2e)', () => {
     expect(response.status).toBe(400);
   });
 
-  it('filters by visibleFor everyone and exact role set', async () => {
+  it('filters by visibleFor everyone and role', async () => {
     const everyone = await request(app.getHttpServer())
       .get('/projects')
       .query({ visibleFor: 'everyone', pageSize: '20' })
@@ -220,15 +220,12 @@ describe('Project list statusGroup filter (e2e)', () => {
 
     expect(byRole.body.data.length).toBeGreaterThanOrEqual(1);
     expect(
-      byRole.body.data.every((project: { visibleForRoles: { id: string }[] }) => {
-        return (
-          project.visibleForRoles.length === 1 &&
-          project.visibleForRoles[0]?.id === FIXTURES.employeeRole.id
-        );
-      }),
+      byRole.body.data.every((project: { visibleForRoles: { id: string }[] }) =>
+        project.visibleForRoles.some((role) => role.id === FIXTURES.employeeRole.id),
+      ),
     ).toBe(true);
 
-    // Multi-role projects must not match a single-role filter (exact set).
+    // Multi-role projects still match a single-role contains filter.
     await request(app.getHttpServer())
       .patch(`/projects/${FIXTURES.projects.roleRestricted.id}`)
       .set(authHeader(adminCookie))
@@ -245,21 +242,6 @@ describe('Project list statusGroup filter (e2e)', () => {
 
     expect(
       afterMultiRole.body.data.some(
-        (project: { id: string }) => project.id === FIXTURES.projects.roleRestricted.id,
-      ),
-    ).toBe(false);
-
-    const exactPair = await request(app.getHttpServer())
-      .get('/projects')
-      .query({
-        visibleFor: `${FIXTURES.employeeRole.id},${FIXTURES.employeeRole2.id}`,
-        pageSize: '50',
-      })
-      .set(authHeader(adminCookie))
-      .expect(200);
-
-    expect(
-      exactPair.body.data.some(
         (project: { id: string }) => project.id === FIXTURES.projects.roleRestricted.id,
       ),
     ).toBe(true);

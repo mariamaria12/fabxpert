@@ -240,14 +240,11 @@ const ProjectTableSection = forwardRef<
     };
   }, [showFilters]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [statusFilters, visibilityFilters]);
-
   const loadProjects = useCallback(async () => {
     const fetchSeq = ++fetchSeqRef.current;
     setLoading(true);
     setError(null);
+    let keepLoadingForPageClamp = false;
 
     try {
       const response = await listProjects({
@@ -265,6 +262,14 @@ const ProjectTableSection = forwardRef<
       if (fetchSeq !== fetchSeqRef.current) {
         return;
       }
+
+      // Filter/sort can shrink the result set below the current page.
+      if (response.data.length === 0 && response.meta.total > 0 && page > 1) {
+        keepLoadingForPageClamp = true;
+        setPage(1);
+        return;
+      }
+
       setProjects(response.data);
       setTotal(response.meta.total);
     } catch (caught) {
@@ -273,7 +278,7 @@ const ProjectTableSection = forwardRef<
       }
       setError(apiErrorToastMessage(caught));
     } finally {
-      if (fetchSeq === fetchSeqRef.current) {
+      if (fetchSeq === fetchSeqRef.current && !keepLoadingForPageClamp) {
         setLoading(false);
       }
     }
@@ -321,6 +326,16 @@ const ProjectTableSection = forwardRef<
     setSortOrder(nextSortOrder);
   }
 
+  function handleStatusFiltersChange(values: string[]) {
+    setPage(1);
+    setStatusFilters(values as ProjectStatus[]);
+  }
+
+  function handleVisibilityFiltersChange(values: string[]) {
+    setPage(1);
+    setVisibilityFilters(values);
+  }
+
   function handlePinToggled(updated: ProjectDto) {
     setProjects((current) => replaceById(current, updated));
     onPinToggled?.(updated);
@@ -352,7 +367,7 @@ const ProjectTableSection = forwardRef<
             emptyMessage="Niciun status găsit."
             values={statusFilters}
             options={IN_PROGRESS_STATUS_FILTER_OPTIONS}
-            onChange={(values) => setStatusFilters(values as ProjectStatus[])}
+            onChange={handleStatusFiltersChange}
           />
           <SearchableMultiSelect
             id={`panou-${statusGroup}-visibility-filter`}
@@ -361,7 +376,7 @@ const ProjectTableSection = forwardRef<
             emptyMessage="Nicio opțiune găsită."
             values={visibilityFilters}
             options={visibilityOptions}
-            onChange={setVisibilityFilters}
+            onChange={handleVisibilityFiltersChange}
           />
         </div>
       )}
@@ -392,6 +407,7 @@ const ProjectTableSection = forwardRef<
             rowKey={(row) => row.id}
             rowAccentColor={(row) => row.color ?? 'var(--color-border-subtle)'}
             loading={loading}
+            emptyMessage={emptyMessage}
             sortBy={sortBy}
             sortOrder={sortOrder}
             onSortChange={handleSortChange}

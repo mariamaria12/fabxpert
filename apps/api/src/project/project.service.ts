@@ -95,9 +95,25 @@ function applyStatusFilter(
   statusGroup?: ProjectStatusGroup,
 ): void {
   if (statuses && statuses.length > 0) {
+    let allowed = statuses;
+    if (statusGroup === 'in_progress') {
+      allowed = statuses.filter(
+        (status) => !IN_PROGRESS_EXCLUDED_STATUSES.includes(status),
+      );
+    } else if (statusGroup === 'completed') {
+      allowed = statuses.filter((status) => status === 'FINALIZAT');
+    }
+
+    if (allowed.length === 0) {
+      // Selected statuses are outside this section — force an empty page.
+      pushAndClause(where, { id: { in: [] } });
+      return;
+    }
+
     pushAndClause(where, {
-      status: statuses.length === 1 ? statuses[0] : { in: statuses },
+      status: allowed.length === 1 ? allowed[0] : { in: allowed },
     });
+    return;
   }
 
   applyStatusGroupFilter(where, statusGroup);
@@ -107,18 +123,6 @@ export type VisibleForFilter = {
   everyone: boolean;
   roleIds: string[];
 };
-
-function exactVisibleForRolesClause(roleIds: string[]): Prisma.ProjectWhereInput {
-  // Exact set match: all selected roles present, and no other roles.
-  return {
-    AND: [
-      ...roleIds.map((roleId) => ({
-        visibleForRoles: { some: { id: roleId } },
-      })),
-      { visibleForRoles: { every: { id: { in: roleIds } } } },
-    ],
-  };
-}
 
 function applyVisibleForFilter(
   where: Prisma.ProjectWhereInput,
@@ -134,9 +138,9 @@ function applyVisibleForFilter(
     clauses.push({ visibleForRoles: { none: {} } });
   }
 
-  if (visibleFor.roleIds.length > 0) {
-    // Visibility is a set (unlike status). Selected roles mean "exactly these roles".
-    clauses.push(exactVisibleForRolesClause(visibleFor.roleIds));
+  // OR across selected roles: project includes at least one of them.
+  for (const roleId of visibleFor.roleIds) {
+    clauses.push({ visibleForRoles: { some: { id: roleId } } });
   }
 
   if (clauses.length === 0) {
@@ -148,7 +152,6 @@ function applyVisibleForFilter(
     return;
   }
 
-  // "Toți" OR exact role-set — e.g. everyone + Administrativ.
   pushAndClause(where, { OR: clauses });
 }
 

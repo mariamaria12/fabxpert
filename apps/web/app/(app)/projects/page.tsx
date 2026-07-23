@@ -343,7 +343,10 @@ export default function ProjectsPage() {
             emptyMessage="Niciun status găsit."
             values={statusFilters}
             options={STATUS_FILTER_OPTIONS}
-            onChange={(values) => setStatusFilters(values as ProjectStatus[])}
+            onChange={(values) => {
+              setPage(1);
+              setStatusFilters(values as ProjectStatus[]);
+            }}
           />
         </div>
       )}
