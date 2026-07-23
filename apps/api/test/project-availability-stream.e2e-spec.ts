@@ -168,6 +168,31 @@ describe('Project availability stream (e2e)', () => {
       .expect(200);
   });
 
+  it('emits when restrictedProjects changes on a user', async () => {
+    await request(app.getHttpServer())
+      .patch(`/users/${FIXTURES.users.employee1.id}`)
+      .set(authHeader(adminCookie))
+      .send({ restrictedProjects: false })
+      .expect(200);
+
+    const listener = listenForAvailabilityChanged(app, employee1Cookie);
+    await sleep(300);
+
+    await request(app.getHttpServer())
+      .patch(`/users/${FIXTURES.users.employee1.id}`)
+      .set(authHeader(adminCookie))
+      .send({ restrictedProjects: true })
+      .expect(200);
+
+    await expect(listener.promise).resolves.toBe('changed');
+
+    await request(app.getHttpServer())
+      .patch(`/users/${FIXTURES.users.employee1.id}`)
+      .set(authHeader(adminCookie))
+      .send({ restrictedProjects: false })
+      .expect(200);
+  });
+
   it('does NOT emit on name-only update of a not-ready project', async () => {
     await request(app.getHttpServer())
       .patch(`/projects/${FIXTURES.projects.notReady.id}`)

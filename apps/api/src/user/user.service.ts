@@ -17,6 +17,7 @@ import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
 import { PaginationParams } from '../common/pagination/parse-pagination.util';
 import { notDeleted } from '../common/prisma/soft-delete.util';
 import { PrismaService } from '../prisma/prisma.service';
+import { ProjectAvailabilityEventsService } from '../project/project-availability-events.service';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -105,7 +106,10 @@ function buildUserSearchWhere(search: string): Prisma.UserWhereInput {
 
 @Injectable()
 export class UserService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly availabilityEvents: ProjectAvailabilityEventsService,
+  ) {}
 
   async findAll(
     pagination: PaginationParams,
@@ -168,6 +172,9 @@ export class UserService {
         },
         select: userSelect,
       });
+      if (user.restrictedProjects) {
+        this.availabilityEvents.emitChanged();
+      }
       return toUserDto(user);
     } catch (error) {
       this.handleUniqueViolation(error);
@@ -175,12 +182,16 @@ export class UserService {
   }
 
   async update(id: string, input: UpdateUserInput, actorId: string): Promise<UserDto> {
-    await this.findOne(id);
+    const existing = await this.findOne(id);
     this.assertSelfProtectionOnUpdate(id, actorId, input);
 
     if (input.personId !== undefined) {
       await this.assertPersonExists(input.personId);
     }
+
+    const restrictedProjectsChanged =
+      input.restrictedProjects !== undefined &&
+      input.restrictedProjects !== existing.restrictedProjects;
 
     const data: Prisma.UserUpdateInput = {};
 
@@ -209,6 +220,9 @@ export class UserService {
         data,
         select: userSelect,
       });
+      if (restrictedProjectsChanged) {
+        this.availabilityEvents.emitChanged();
+      }
       return toUserDto(user);
     } catch (error) {
       this.handleUniqueViolation(error);

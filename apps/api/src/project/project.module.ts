@@ -8,5 +8,6 @@ import { ProjectService } from './project.service';
   imports: [PrismaModule],
   controllers: [ProjectController],
   providers: [ProjectService, ProjectAvailabilityEventsService],
+  exports: [ProjectAvailabilityEventsService],
 })
 export class ProjectModule {}
