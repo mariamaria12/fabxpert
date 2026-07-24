@@ -254,13 +254,14 @@ export class TimesheetService {
     }
 
     const projectIds = summary.projects.map((project) => project.id);
-    const projectsWithRoles = await this.prisma.project.findMany({
+    const projectsWithMeta = await this.prisma.project.findMany({
       where: {
         id: { in: projectIds },
         ...notDeleted(),
       },
       select: {
         id: true,
+        readyForExecution: true,
         visibleForRoles: {
           select: { id: true, name: true },
           orderBy: { name: 'asc' },
@@ -268,15 +269,25 @@ export class TimesheetService {
       },
     });
 
-    const rolesByProjectId = new Map(
-      projectsWithRoles.map((project) => [project.id, project.visibleForRoles]),
+    const metaByProjectId = new Map(
+      projectsWithMeta.map((project) => [
+        project.id,
+        {
+          readyForExecution: project.readyForExecution,
+          visibleForRoles: project.visibleForRoles,
+        },
+      ]),
     );
 
     return {
-      projects: summary.projects.map((project) => ({
-        ...project,
-        visibleForRoles: rolesByProjectId.get(project.id) ?? [],
-      })),
+      projects: summary.projects.map((project) => {
+        const meta = metaByProjectId.get(project.id);
+        return {
+          ...project,
+          readyForExecution: meta?.readyForExecution ?? false,
+          visibleForRoles: meta?.visibleForRoles ?? [],
+        };
+      }),
     };
   }
 

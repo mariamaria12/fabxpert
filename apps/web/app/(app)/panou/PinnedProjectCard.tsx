@@ -122,7 +122,12 @@ export function PinnedProjectCard({
       title={project.code}
       status={project.status}
       subtitle={project.company.name}
-      metaContent={<ProjectVisibleForCardMeta roles={project.visibleForRoles} />}
+      metaContent={
+        <ProjectVisibleForCardMeta
+          roles={project.visibleForRoles}
+          readyForExecution={project.readyForExecution}
+        />
+      }
       timeline={timeline}
       totalMinutes={project.totalMinutes}
       expanded={expanded}

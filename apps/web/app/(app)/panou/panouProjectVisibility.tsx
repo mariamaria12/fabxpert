@@ -11,7 +11,12 @@ import { getProjectFormEmployeeRoles } from '@/utils/projectFormLookups';
 
 export function formatProjectVisibleForLabel(
   roles: ProjectVisibleRoleDto[] | undefined | null,
+  readyForExecution?: boolean,
 ): string {
+  if (readyForExecution === false) {
+    return 'Nimeni';
+  }
+
   const list = roles ?? [];
   if (list.length === 0) {
     return 'Toți';
@@ -66,19 +71,25 @@ function roleChipColor(role: ProjectVisibleRoleDto, roleColorById: Map<string, s
 
 export function ProjectVisibleForRoleChips({
   roles,
+  readyForExecution,
   className,
 }: {
   roles: ProjectVisibleRoleDto[] | undefined | null;
+  readyForExecution?: boolean;
   className?: string;
 }) {
   const roleColorById = useRoleColorById();
   const list = roles ?? [];
 
-  if (list.length === 0) {
-    return <span className="text-text-muted">Toți</span>;
+  if (readyForExecution === false) {
+    return <span className="text-accent">Nimeni</span>;
   }
 
-  const label = formatProjectVisibleForLabel(list);
+  if (list.length === 0) {
+    return <span className="text-success">Toți</span>;
+  }
+
+  const label = formatProjectVisibleForLabel(list, readyForExecution);
 
   return (
     <span className={`inline-flex flex-wrap items-center gap-1 ${className ?? ''}`} title={label}>
@@ -95,21 +106,37 @@ export function ProjectVisibleForRoleChips({
 
 export function ProjectVisibleForCell({
   roles,
+  readyForExecution,
 }: {
   roles: ProjectVisibleRoleDto[] | undefined | null;
+  readyForExecution?: boolean;
 }) {
-  return <ProjectVisibleForRoleChips roles={roles} />;
+  return (
+    <ProjectVisibleForRoleChips
+      roles={roles}
+      readyForExecution={readyForExecution}
+    />
+  );
 }
 
 export function ProjectVisibleForCardMeta({
   roles,
+  readyForExecution,
 }: {
   roles: ProjectVisibleRoleDto[] | undefined | null;
+  readyForExecution?: boolean;
 }) {
+  const labelClass =
+    readyForExecution === false ? 'text-accent' : 'text-success';
+
   return (
     <span className="mt-0.5 flex flex-wrap items-center gap-1">
-      <span className="shrink-0 text-[11px] text-text-muted">Vizibil pentru:</span>
-      <ProjectVisibleForRoleChips roles={roles} className="min-w-0 flex-1" />
+      <span className={`shrink-0 text-[11px] ${labelClass}`}>Vizibil pentru:</span>
+      <ProjectVisibleForRoleChips
+        roles={roles}
+        readyForExecution={readyForExecution}
+        className="min-w-0 flex-1"
+      />
     </span>
   );
 }

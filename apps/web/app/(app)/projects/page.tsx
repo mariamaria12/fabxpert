@@ -195,7 +195,12 @@ export default function ProjectsPage() {
         header: 'Vizibil pentru',
         width: '200px',
         className: 'text-text-secondary overflow-visible',
-        render: (row) => <ProjectVisibleForCell roles={row.visibleForRoles} />,
+        render: (row) => (
+          <ProjectVisibleForCell
+            roles={row.visibleForRoles}
+            readyForExecution={row.readyForExecution}
+          />
+        ),
       },
     ];
   }, []);

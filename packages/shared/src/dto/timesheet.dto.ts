@@ -118,6 +118,7 @@ export type PinnedProjectSummaryRow = {
   dueDate: string | null;
   indexPanou: number | null;
   panouColumn: number | null;
+  readyForExecution: boolean;
   company: { id: string; name: string };
   visibleForRoles: ProjectVisibleRoleDto[];
   totalMinutes: number;

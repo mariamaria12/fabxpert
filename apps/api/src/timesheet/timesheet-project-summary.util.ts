@@ -243,6 +243,7 @@ export function shapePinnedProjectsSummary(
         dueDate: row.projectDueDate?.toISOString() ?? null,
         indexPanou: row.projectIndexPanou ?? null,
         panouColumn: row.projectPanouColumn ?? null,
+        readyForExecution: false,
         company: { id: row.companyId, name: row.companyName },
         visibleForRoles: [],
         totalMinutes: 0,

@@ -9,7 +9,7 @@ export function pinnedSummaryToProjectStub(row: PinnedProjectSummaryRow): Projec
     status: row.status,
     startDate: row.startDate,
     dueDate: row.dueDate,
-    readyForExecution: false,
+    readyForExecution: row.readyForExecution,
     isPinned: true,
     indexPanou: row.indexPanou,
     panouColumn: row.panouColumn,

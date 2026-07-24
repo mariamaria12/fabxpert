@@ -156,6 +156,8 @@ describe('Pinned projects summary (e2e)', () => {
     expect(pinnedReady.indexPanou).not.toBeNull();
     expect(pinnedNotReady.indexPanou).not.toBeNull();
     expect(pinnedReady.visibleForRoles).toEqual([]);
+    expect(pinnedReady.readyForExecution).toBe(true);
+    expect(pinnedNotReady.readyForExecution).toBe(false);
   });
 
   it('includes visibleForRoles on pinned-summary projects', async () => {
