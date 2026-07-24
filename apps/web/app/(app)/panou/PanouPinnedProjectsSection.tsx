@@ -23,6 +23,10 @@ import {
 } from '@dnd-kit/sortable';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { ProjectFormPanel } from '../projects/ProjectFormPanel';
+import {
+  SearchableSelect,
+  type SearchableSelectOption,
+} from '@/components/SearchableSelect';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
@@ -37,6 +41,11 @@ import {
 import { SortablePinnedProjectCard } from './SortablePinnedProjectCard';
 import { PanouPinnedProjectsSkeleton } from './PanouPinnedProjectsSkeleton';
 import { pinnedSummaryToProjectStub } from './pinnedSummaryToProjectStub';
+
+const READY_FOR_EXECUTION_OPTIONS: SearchableSelectOption[] = [
+  { id: 'true', label: 'Da' },
+  { id: 'false', label: 'Nu' },
+];
 
 type EditPanelState =
   | { open: false }
@@ -137,17 +146,31 @@ export const PanouPinnedProjectsSection = forwardRef<
   const [error, setError] = useState<string | null>(null);
   const [editPanel, setEditPanel] = useState<EditPanelState>({ open: false });
   const [viewMode, setViewMode] = useState<PanouPinnedViewMode>(() => readStoredViewMode());
+  const [readyForExecution, setReadyForExecution] = useState<boolean | null>(null);
   const fetchSeqRef = useRef(0);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const [column0, column1] = useMemo(() => splitPinnedProjectsByColumn(projects), [projects]);
-  const oneColumnProjects = useMemo(
-    () => flattenPinnedProjectsForOneColumn(projects),
-    [projects],
+  const visibleProjects = useMemo(() => {
+    if (readyForExecution === null) {
+      return projects;
+    }
+    return projects.filter((project) => project.readyForExecution === readyForExecution);
+  }, [projects, readyForExecution]);
+
+  const [column0, column1] = useMemo(
+    () => splitPinnedProjectsByColumn(visibleProjects),
+    [visibleProjects],
   );
+  const oneColumnProjects = useMemo(
+    () => flattenPinnedProjectsForOneColumn(visibleProjects),
+    [visibleProjects],
+  );
+  const canReorder = readyForExecution === null;
+  const readyForExecutionValue =
+    readyForExecution === null ? null : readyForExecution ? 'true' : 'false';
 
   const loadPinnedSummary = useCallback(async (background = false) => {
     const fetchSeq = ++fetchSeqRef.current;
@@ -283,7 +306,7 @@ export const PanouPinnedProjectsSection = forwardRef<
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (!over || active.id === over.id) {
+    if (!canReorder || !over || active.id === over.id) {
       return;
     }
 
@@ -300,8 +323,8 @@ export const PanouPinnedProjectsSection = forwardRef<
       return;
     }
 
-    const activeColumn = getPinnedProjectColumn(projects, String(active.id));
-    const overColumn = getPinnedProjectColumn(projects, String(over.id));
+    const activeColumn = getPinnedProjectColumn(visibleProjects, String(active.id));
+    const overColumn = getPinnedProjectColumn(visibleProjects, String(over.id));
     if (activeColumn === null || overColumn === null || activeColumn !== overColumn) {
       return;
     }
@@ -327,6 +350,8 @@ export const PanouPinnedProjectsSection = forwardRef<
   }
 
   const showEmptyHint = !loading && !error && projects.length === 0;
+  const showFilteredEmpty =
+    !loading && !error && projects.length > 0 && visibleProjects.length === 0;
   const cardOptions = {
     expandedIds,
     toggleExpanded,
@@ -336,9 +361,32 @@ export const PanouPinnedProjectsSection = forwardRef<
 
   return (
     <section className="mt-4">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+      <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
         <h2 className="text-sm font-semibold text-text-primary">Proiecte</h2>
-        <PanouPinnedViewModeToggle viewMode={viewMode} onChange={handleViewModeChange} />
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="w-44">
+            <SearchableSelect
+              id="panou-pinned-ready-for-execution-filter"
+              label="Gata de execuție"
+              placeholder="Toate"
+              emptyMessage="Nicio opțiune găsită."
+              value={readyForExecutionValue}
+              options={READY_FOR_EXECUTION_OPTIONS}
+              onChange={(value) => {
+                if (value === 'true') {
+                  setReadyForExecution(true);
+                  return;
+                }
+                if (value === 'false') {
+                  setReadyForExecution(false);
+                  return;
+                }
+                setReadyForExecution(null);
+              }}
+            />
+          </div>
+          <PanouPinnedViewModeToggle viewMode={viewMode} onChange={handleViewModeChange} />
+        </div>
       </div>
 
       {error && (
@@ -364,7 +412,13 @@ export const PanouPinnedProjectsSection = forwardRef<
         </p>
       )}
 
-      {projects.length > 0 && (
+      {showFilteredEmpty && (
+        <p className="mt-3 text-sm text-text-muted">
+          Niciun proiect fixat pentru filtrul selectat.
+        </p>
+      )}
+
+      {visibleProjects.length > 0 && (
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -374,6 +428,7 @@ export const PanouPinnedProjectsSection = forwardRef<
             <SortableContext
               items={oneColumnProjects.map((project) => project.id)}
               strategy={verticalListSortingStrategy}
+              disabled={!canReorder}
             >
               <div className="mt-3 space-y-2">
                 {renderPinnedProjectCards(oneColumnProjects, cardOptions)}
@@ -384,6 +439,7 @@ export const PanouPinnedProjectsSection = forwardRef<
               <SortableContext
                 items={column0.map((project) => project.id)}
                 strategy={verticalListSortingStrategy}
+                disabled={!canReorder}
               >
                 <div className="min-w-0 space-y-2">
                   {renderPinnedProjectCards(column0, cardOptions)}
@@ -392,6 +448,7 @@ export const PanouPinnedProjectsSection = forwardRef<
               <SortableContext
                 items={column1.map((project) => project.id)}
                 strategy={verticalListSortingStrategy}
+                disabled={!canReorder}
               >
                 <div className="min-w-0 space-y-2">
                   {renderPinnedProjectCards(column1, cardOptions)}

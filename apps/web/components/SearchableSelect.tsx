@@ -185,11 +185,8 @@ export function SearchableSelect({
 
   function clearSelection() {
     onChange(null);
-    setQuery('');
-    setHighlightedId(firstSelectableId);
-    inputRef.current?.focus();
-    setIsOpen(true);
-    updateDropdownPosition();
+    closeDropdown();
+    inputRef.current?.blur();
   }
 
   function moveHighlight(direction: 1 | -1) {
