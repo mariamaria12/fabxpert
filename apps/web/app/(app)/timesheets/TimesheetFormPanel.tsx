@@ -299,7 +299,9 @@ export function TimesheetFormPanel({
 
   const projectOptions = projects.map((project) => ({
     id: project.id,
-    label: project.code ? `${project.name} · ${project.code}` : project.name,
+    label: project.company.name
+      ? `${project.code || project.name} - ${project.company.name}`
+      : project.code || project.name,
   }));
 
   const activityOptions = activities.map((activity) => ({
