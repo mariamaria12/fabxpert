@@ -154,12 +154,26 @@ export type PersonSummaryResponse = {
   persons: PersonSummaryPersonRow[];
 };
 
+export type NotLoggedPersonRow = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  employeeRoleName: string | null;
+};
+
+export type NotLoggedResponse = {
+  period: TimesheetSummaryPeriod;
+  persons: NotLoggedPersonRow[];
+};
+
 export type DashboardMetricsResponse = {
   inProgressProjectCount: number;
   todayTotalMinutes: number;
   todayDistinctPersonCount: number;
   /** Distinct persons with an approved leave request covering today. */
   todayOnLeaveCount: number;
+  /** Persons with no logged time today, excluding those on approved leave. */
+  todayNotLoggedPersonCount: number;
 };
 
 export type TimesheetSummaryParams = {

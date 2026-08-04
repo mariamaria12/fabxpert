@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import type { DashboardMetricsResponse } from '@fabxpert/shared/dto/timesheet.dto';
+import { buildNotLoggedCountQuery } from './timesheet-not-logged.util';
 import { getTodayRange } from './timesheet-summary-period.util';
 
 type CountRow = { count: number | bigint };
@@ -18,7 +19,13 @@ export async function queryDashboardMetrics(
 ): Promise<DashboardMetricsResponse> {
   const { from, to } = getTodayRange(now);
 
-  const [projectCountRows, minutesRows, personCountRows, onLeaveCountRows] = await Promise.all([
+  const [
+    projectCountRows,
+    minutesRows,
+    personCountRows,
+    onLeaveCountRows,
+    notLoggedCountRows,
+  ] = await Promise.all([
     prisma.$queryRaw<CountRow[]>`
       SELECT COUNT(*)::int AS count
       FROM projects p
@@ -56,6 +63,7 @@ export async function queryDashboardMetrics(
         AND lr."startDate" < ${to}
         AND lr."endDate" >= ${from}
     `,
+    prisma.$queryRaw<CountRow[]>(buildNotLoggedCountQuery(from, to)),
   ]);
 
   return {
@@ -63,5 +71,6 @@ export async function queryDashboardMetrics(
     todayTotalMinutes: toNumber(minutesRows[0]?.minutes),
     todayDistinctPersonCount: toNumber(personCountRows[0]?.count),
     todayOnLeaveCount: toNumber(onLeaveCountRows[0]?.count),
+    todayNotLoggedPersonCount: toNumber(notLoggedCountRows[0]?.count),
   };
 }

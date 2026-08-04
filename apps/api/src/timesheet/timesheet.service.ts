@@ -10,6 +10,7 @@ import type {
   PinnedProjectsSummaryResponse,
   ProjectSummaryResponse,
   PersonSummaryResponse,
+  NotLoggedResponse,
   DashboardMetricsResponse,
   TimesheetDto,
   TimesheetListSortBy,
@@ -44,6 +45,11 @@ import {
   shapePersonSummary,
   type PersonSummarySqlRow,
 } from './timesheet-person-summary.util';
+import {
+  buildNotLoggedPersonsQuery,
+  shapeNotLogged,
+  type NotLoggedSqlRow,
+} from './timesheet-not-logged.util';
 import { queryDashboardMetrics } from './timesheet-dashboard-metrics.util';
 import {
   buildTimesheetExportFilename,
@@ -296,6 +302,13 @@ export class TimesheetService {
       buildPersonSummaryQuery(resolved.from, resolved.to),
     );
     return shapePersonSummary(rows, resolved.period);
+  }
+
+  async getNotLoggedPersons(resolved: ResolvedSummaryPeriod): Promise<NotLoggedResponse> {
+    const rows = await this.prisma.$queryRaw<NotLoggedSqlRow[]>(
+      buildNotLoggedPersonsQuery(resolved.from, resolved.to),
+    );
+    return shapeNotLogged(rows, resolved.period);
   }
 
   async getDashboardMetrics(): Promise<DashboardMetricsResponse> {

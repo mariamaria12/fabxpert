@@ -135,6 +135,13 @@ export class TimesheetController {
     return this.timesheetService.getPersonSummary(resolved);
   }
 
+  @Get('not-logged')
+  @Roles('ADMIN')
+  notLogged(@Query() query: Record<string, string>) {
+    const resolved = parseSummaryPeriodQuery(query);
+    return this.timesheetService.getNotLoggedPersons(resolved);
+  }
+
   @Get('export.xlsx')
   @Roles('ADMIN')
   async exportXlsx(@Query() query: Record<string, string>, @Res() res: Response) {

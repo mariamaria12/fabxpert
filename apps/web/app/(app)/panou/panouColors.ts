@@ -9,4 +9,5 @@ export const PANOU_METRIC_THEMES = {
   hours: { accent: '#60a5fa', icon: 'ti-clock', label: 'Astăzi' },
   people: { accent: '#86efac', icon: 'ti-users', label: 'Utilizatori' },
   onLeave: { accent: '#fbbf24', icon: 'ti-calendar-off', label: 'Utilizatori' },
+  notLogged: { accent: '#f87171', icon: 'ti-clock-off', label: 'Utilizatori' },
 } as const;

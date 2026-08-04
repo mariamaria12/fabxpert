@@ -2,6 +2,7 @@ import { getApiClientBaseUrl, request, requestBlob } from './client';
 import type {
   CreateTimesheetInput,
   DashboardMetricsResponse,
+  NotLoggedResponse,
   PersonSummaryResponse,
   ProjectSummaryResponse,
   TimesheetDto,
@@ -153,6 +154,12 @@ export function getPersonSummary(period: Period = { kind: 'today' }) {
   return request<PersonSummaryResponse>(
     `/timesheets/person-summary?${searchParams.toString()}`,
   );
+}
+
+export function getNotLogged(period: Period = { kind: 'today' }) {
+  const searchParams = new URLSearchParams();
+  appendPeriodQuery(searchParams, period);
+  return request<NotLoggedResponse>(`/timesheets/not-logged?${searchParams.toString()}`);
 }
 
 export function getDashboardMetrics() {

@@ -38,14 +38,14 @@ const METRIC_CARDS: {
 function MetricCardSkeleton() {
   return (
     <div
-      className="flex items-center gap-2.5 rounded-lg border border-border-subtle bg-surface px-3 py-2.5"
+      className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface px-2.5 py-2"
       aria-hidden="true"
     >
-      <div className="size-8 animate-pulse rounded-md bg-surface-raised" />
-      <div className="min-w-0 flex-1 space-y-1.5">
-        <div className="h-2.5 w-24 animate-pulse rounded bg-surface-raised" />
-        <div className="h-5 w-10 animate-pulse rounded bg-surface-raised" />
-        <div className="h-2 w-16 animate-pulse rounded bg-surface-raised" />
+      <div className="size-7 animate-pulse rounded-md bg-surface-raised" />
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="h-2.5 w-20 animate-pulse rounded bg-surface-raised" />
+        <div className="h-4 w-9 animate-pulse rounded bg-surface-raised" />
+        <div className="h-2 w-14 animate-pulse rounded bg-surface-raised" />
       </div>
     </div>
   );
@@ -79,6 +79,10 @@ function metricSubtext(
     return metrics.todayOnLeaveCount === 1 ? 'Utilizator' : 'Utilizatori';
   }
 
+  if (themeKey === 'notLogged') {
+    return metrics.todayNotLoggedPersonCount === 1 ? 'Utilizator' : 'Utilizatori';
+  }
+
   return PANOU_METRIC_THEMES[themeKey].label;
 }
 
@@ -88,7 +92,12 @@ export function PanouMetricCards() {
 
   function selectView(view: PanouView) {
     setActiveView(view);
-    if (view === 'hours' || view === 'people' || view === 'onLeave') {
+    if (
+      view === 'hours' ||
+      view === 'people' ||
+      view === 'onLeave' ||
+      view === 'notLogged'
+    ) {
       setPeriod({ kind: 'today' });
     }
   }
@@ -111,15 +120,16 @@ export function PanouMetricCards() {
   useRegisterPanouRefetch('dashboard-metrics', loadMetrics);
 
   const onLeaveCount = metrics?.todayOnLeaveCount ?? 0;
+  const notLoggedCount = metrics?.todayNotLoggedPersonCount ?? 0;
 
   if (metricsLoading) {
     return (
       <div
-        className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4"
+        className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
         aria-busy="true"
         aria-label="Se încarcă metricile panoului"
       >
-        {Array.from({ length: 4 }, (_, index) => (
+        {Array.from({ length: 5 }, (_, index) => (
           <MetricCardSkeleton key={index} />
         ))}
       </div>
@@ -143,7 +153,7 @@ export function PanouMetricCards() {
         type="button"
         aria-pressed={isSelected}
         onClick={() => selectView(id)}
-        className={`flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-all ${
+        className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-all ${
           isSelected
             ? 'border-transparent shadow-sm shadow-black/10'
             : 'border-border-subtle bg-surface hover:border-border hover:bg-surface-raised/40'
@@ -158,21 +168,21 @@ export function PanouMetricCards() {
         }
       >
         <span
-          className="flex size-8 shrink-0 items-center justify-center rounded-md"
+          className="flex size-7 shrink-0 items-center justify-center rounded-md"
           style={{
             backgroundColor: panouAccentTint(theme.accent, '22%'),
             color: theme.accent,
           }}
           aria-hidden="true"
         >
-          <i className={`ti ${theme.icon} text-base`} />
+          <i className={`ti ${theme.icon} text-sm`} />
         </span>
         <span className="min-w-0">
-          <span className="block text-xs text-text-secondary">{label}</span>
-          <span className="mt-0.5 block text-lg font-semibold tabular-nums leading-tight text-text-primary">
+          <span className="block truncate text-[11px] text-text-secondary">{label}</span>
+          <span className="block text-base font-semibold tabular-nums leading-tight text-text-primary">
             {value}
           </span>
-          <span className="mt-0.5 block text-[11px] font-medium" style={{ color: theme.accent }}>
+          <span className="block text-[10px] font-medium" style={{ color: theme.accent }}>
             {metricSubtext(themeKey, metrics)}
           </span>
         </span>
@@ -181,7 +191,7 @@ export function PanouMetricCards() {
   }
 
   return (
-    <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       {METRIC_CARDS.map((card) =>
         renderMetricCard(card.id, card.label, card.metricKey, card.themeKey),
       )}
@@ -191,6 +201,13 @@ export function PanouMetricCards() {
         'todayOnLeaveCount',
         'onLeave',
         String(onLeaveCount),
+      )}
+      {renderMetricCard(
+        'notLogged',
+        'Nu au pontat azi',
+        'todayNotLoggedPersonCount',
+        'notLogged',
+        String(notLoggedCount),
       )}
     </div>
   );
