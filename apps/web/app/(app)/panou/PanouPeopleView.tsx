@@ -9,6 +9,7 @@ import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 import { PersonBreakdownRows } from './PersonBreakdownRows';
 import { usePanouDashboard } from './PanouDashboardContext';
+import { PANOU_PERSON_GROUPS } from './panouPersonGroups';
 
 function PersonHoursCard({
   person,
@@ -152,15 +153,38 @@ export function PanouPeopleView() {
       )}
 
       {persons.length > 0 && (
-        <div className="space-y-2">
-          {persons.map((person) => (
-            <PersonHoursCard
-              key={person.id}
-              person={person}
-              expanded={expandedIds.has(person.id)}
-              onToggle={() => toggleExpanded(person.id)}
-            />
-          ))}
+        <div className="space-y-6">
+          {PANOU_PERSON_GROUPS.map(({ group, title }) => {
+            const rows = persons.filter((person) => person.group === group);
+
+            return (
+              <div key={group}>
+                <h3 className="mb-2 flex items-baseline gap-2 text-sm font-semibold text-text-primary">
+                  {title}
+                  <span className="text-xs font-normal tabular-nums text-text-muted">
+                    {rows.length}
+                  </span>
+                </h3>
+
+                {rows.length === 0 ? (
+                  <p className="text-sm text-text-muted">
+                    Nimeni din această categorie nu a pontat în perioada selectată.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {rows.map((person) => (
+                      <PersonHoursCard
+                        key={person.id}
+                        person={person}
+                        expanded={expandedIds.has(person.id)}
+                        onToggle={() => toggleExpanded(person.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

@@ -1,31 +1,36 @@
 'use client';
 
 import { getNotLogged, type NotLoggedPersonRow } from '@fabxpert/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { PersonName } from '@/components/PersonAvatar';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 import { usePanouDashboard } from './PanouDashboardContext';
+import { PANOU_PERSON_GROUPS } from './panouPersonGroups';
 
-function NotLoggedPersonCard({ person }: { person: NotLoggedPersonRow }) {
-  return (
-    <div className="flex items-center gap-2.5 rounded-lg border border-border-subtle bg-surface px-3 py-2.5 shadow-sm shadow-black/10">
-      <PersonName
-        person={person}
-        className="min-w-0 flex-1"
-        nameClassName="text-sm font-medium text-text-primary"
-      />
-      {person.employeeRoleName && (
-        <span className="shrink-0 truncate text-xs text-text-muted">
-          {person.employeeRoleName}
-        </span>
-      )}
-    </div>
+function useNotLoggedColumns(): DataTableColumn<NotLoggedPersonRow>[] {
+  return useMemo(
+    (): DataTableColumn<NotLoggedPersonRow>[] => [
+      {
+        key: 'person',
+        header: 'Angajat',
+        render: (row) => <PersonName person={row} nameClassName="font-medium" />,
+      },
+      {
+        key: 'employeeRoleName',
+        header: 'Rol',
+        className: 'text-text-secondary',
+        render: (row) => row.employeeRoleName ?? '—',
+      },
+    ],
+    [],
   );
 }
 
 export function PanouNotLoggedView() {
   const { period, periodReady } = usePanouDashboard();
+  const columns = useNotLoggedColumns();
   const [persons, setPersons] = useState<NotLoggedPersonRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,11 +70,10 @@ export function PanouNotLoggedView() {
 
   useRegisterPanouRefetch('panou-not-logged', refetchNotLogged);
 
-  const showEmptyState = !loading && !error && persons.length === 0;
   const waitingForCustomRange = !periodReady;
 
   return (
-    <section className="mt-4">
+    <section className="mt-4 space-y-6">
       {error && (
         <div className="flex items-center justify-between gap-4 rounded-md border border-border-subtle bg-[var(--color-toast-error-bg)] px-4 py-3">
           <p className="text-sm text-danger">{error}</p>
@@ -87,26 +91,38 @@ export function PanouNotLoggedView() {
         <p className="text-sm text-text-muted">Selectează intervalul de date.</p>
       )}
 
-      {loading && persons.length === 0 && !error && !waitingForCustomRange && (
-        <p className="text-sm text-text-muted">Se încarcă…</p>
-      )}
-
-      {showEmptyState && (
-        <p className="text-sm text-text-muted">
-          Toată lumea a pontat în perioada selectată.
-        </p>
-      )}
-
-      {persons.length > 0 && (
+      {!error && !waitingForCustomRange && (
         <>
-          <p className="mb-3 text-xs text-text-muted">
-            Persoanele aflate în concediu aprobat nu sunt incluse.
+          <p className="text-xs text-text-muted">
+            Conturile de administrator și persoanele aflate în concediu aprobat nu sunt
+            incluse.
           </p>
-          <div className="space-y-2">
-            {persons.map((person) => (
-              <NotLoggedPersonCard key={person.id} person={person} />
-            ))}
-          </div>
+
+          {PANOU_PERSON_GROUPS.map(({ group, title }) => {
+            const rows = persons.filter((person) => person.group === group);
+
+            return (
+              <div key={group}>
+                <h3 className="mb-2 flex items-baseline gap-2 text-sm font-semibold text-text-primary">
+                  {title}
+                  {!loading && (
+                    <span className="text-xs font-normal tabular-nums text-text-muted">
+                      {rows.length}
+                    </span>
+                  )}
+                </h3>
+                <DataTable
+                  storageKey={`panou-not-logged-${group}`}
+                  columns={columns}
+                  data={rows}
+                  rowKey={(row) => row.id}
+                  loading={loading}
+                  loadingRowCount={3}
+                  emptyMessage="Toată lumea din această categorie a pontat în perioada selectată."
+                />
+              </div>
+            );
+          })}
         </>
       )}
     </section>

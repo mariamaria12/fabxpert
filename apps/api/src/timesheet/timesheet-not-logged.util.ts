@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import type {
+  PersonAccountGroup,
   NotLoggedResponse,
   TimesheetSummaryPeriod,
 } from '@fabxpert/shared/dto/timesheet.dto';
@@ -9,13 +10,21 @@ export type NotLoggedSqlRow = {
   firstName: string;
   lastName: string;
   employeeRoleName: string | null;
+  group: PersonAccountGroup;
 };
+
+/** Live account for a person, if any — soft-deleted users don't count. */
+const accountJoin = Prisma.sql`
+  LEFT JOIN users u ON u."personId" = pe.id AND u."deletedAt" IS NULL
+`;
 
 /**
  * Persons who logged nothing in the range. Mirrors the "au pontat" set used by
- * `todayDistinctPersonCount` (same GROUP BY / HAVING), so the two are exact
- * complements. Persons on approved leave are left out — they are counted by the
- * separate "în concediu" metric and are not expected to log time.
+ * `todayDistinctPersonCount` (same GROUP BY / HAVING), so the two agree on who
+ * counts as having logged.
+ *
+ * Left out entirely: admin accounts (not expected to log), and persons on
+ * approved leave (covered by the separate "în concediu" metric).
  */
 function notLoggedPredicate(from: Date | null, to: Date | null) {
   const timesheetPeriod =
@@ -30,6 +39,7 @@ function notLoggedPredicate(from: Date | null, to: Date | null) {
 
   return Prisma.sql`
     pe."deletedAt" IS NULL
+    AND (u.id IS NULL OR u.role <> 'ADMIN')
     AND pe.id NOT IN (
       SELECT t."personId"
       FROM timesheets t
@@ -56,8 +66,10 @@ export function buildNotLoggedPersonsQuery(from: Date | null, to: Date | null) {
       pe.id AS "id",
       pe."firstName" AS "firstName",
       pe."lastName" AS "lastName",
-      er.name AS "employeeRoleName"
+      er.name AS "employeeRoleName",
+      CASE WHEN u."restrictedProjects" THEN 'external' ELSE 'employee' END AS "group"
     FROM persons pe
+    ${accountJoin}
     LEFT JOIN employee_roles er ON er.id = pe."employeeRoleId" AND er."deletedAt" IS NULL
     WHERE ${notLoggedPredicate(from, to)}
     ORDER BY pe."lastName" ASC, pe."firstName" ASC
@@ -68,6 +80,7 @@ export function buildNotLoggedCountQuery(from: Date | null, to: Date | null) {
   return Prisma.sql`
     SELECT COUNT(*)::int AS count
     FROM persons pe
+    ${accountJoin}
     WHERE ${notLoggedPredicate(from, to)}
   `;
 }
@@ -83,6 +96,7 @@ export function shapeNotLogged(
       firstName: row.firstName,
       lastName: row.lastName,
       employeeRoleName: row.employeeRoleName,
+      group: row.group,
     })),
   };
 }

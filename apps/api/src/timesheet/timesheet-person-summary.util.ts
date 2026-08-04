@@ -1,11 +1,16 @@
 import { Prisma } from '@prisma/client';
 import type { ProjectStatus } from '@fabxpert/shared/dto/project.dto';
-import type { PersonSummaryResponse, TimesheetSummaryPeriod } from '@fabxpert/shared/dto/timesheet.dto';
+import type {
+  PersonAccountGroup,
+  PersonSummaryResponse,
+  TimesheetSummaryPeriod,
+} from '@fabxpert/shared/dto/timesheet.dto';
 
 export type PersonSummarySqlRow = {
   personId: string;
   firstName: string;
   lastName: string;
+  group: PersonAccountGroup;
   projectId: string;
   projectName: string;
   projectCode: string;
@@ -30,6 +35,7 @@ export function buildPersonSummaryQuery(from: Date | null, to: Date | null) {
       pe.id AS "personId",
       pe."firstName" AS "firstName",
       pe."lastName" AS "lastName",
+      CASE WHEN u."restrictedProjects" THEN 'external' ELSE 'employee' END AS "group",
       p.id AS "projectId",
       p.name AS "projectName",
       p.code AS "projectCode",
@@ -42,6 +48,7 @@ export function buildPersonSummaryQuery(from: Date | null, to: Date | null) {
     FROM timesheets t
     INNER JOIN persons pe ON pe.id = t."personId" AND pe."deletedAt" IS NULL
     INNER JOIN projects p ON p.id = t."projectId" AND p."deletedAt" IS NULL
+    LEFT JOIN users u ON u."personId" = pe.id AND u."deletedAt" IS NULL
     LEFT JOIN activities a ON a.id = t."activityId"
     WHERE t."deletedAt" IS NULL
       ${periodFilter}
@@ -49,6 +56,7 @@ export function buildPersonSummaryQuery(from: Date | null, to: Date | null) {
       pe.id,
       pe."firstName",
       pe."lastName",
+      u."restrictedProjects",
       p.id,
       p.name,
       p.code,
@@ -86,6 +94,7 @@ export function shapePersonSummary(
         id: row.personId,
         firstName: row.firstName,
         lastName: row.lastName,
+        group: row.group,
         totalMinutes: 0,
         activities: [],
       };

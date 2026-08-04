@@ -217,6 +217,7 @@ export type {
   PersonSummaryActivityRow,
   PersonSummaryPersonRow,
   PersonSummaryResponse,
+  PersonAccountGroup,
   NotLoggedPersonRow,
   NotLoggedResponse,
   DashboardMetricsResponse,

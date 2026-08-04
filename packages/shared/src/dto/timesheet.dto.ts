@@ -145,6 +145,7 @@ export type PersonSummaryPersonRow = {
   id: string;
   firstName: string;
   lastName: string;
+  group: PersonAccountGroup;
   totalMinutes: number;
   activities: PersonSummaryActivityRow[];
 };
@@ -154,11 +155,19 @@ export type PersonSummaryResponse = {
   persons: PersonSummaryPersonRow[];
 };
 
+/**
+ * 'external' = linked account has "Vede doar proiecte alocate specific"
+ * (User.restrictedProjects). Everyone else is 'employee', including persons
+ * with no account at all.
+ */
+export type PersonAccountGroup = 'employee' | 'external';
+
 export type NotLoggedPersonRow = {
   id: string;
   firstName: string;
   lastName: string;
   employeeRoleName: string | null;
+  group: PersonAccountGroup;
 };
 
 export type NotLoggedResponse = {
@@ -172,7 +181,10 @@ export type DashboardMetricsResponse = {
   todayDistinctPersonCount: number;
   /** Distinct persons with an approved leave request covering today. */
   todayOnLeaveCount: number;
-  /** Persons with no logged time today, excluding those on approved leave. */
+  /**
+   * Persons with no logged time today, excluding admin accounts and anyone on
+   * approved leave.
+   */
   todayNotLoggedPersonCount: number;
 };
 
