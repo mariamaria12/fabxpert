@@ -9,7 +9,7 @@ import { useToast } from '../context/ToastContext';
 import { apiErrorToastMessage } from '../utils/apiToastMessage';
 import { getBusinessInputAutofillProps } from '../utils/inputAutofill';
 
-const DEFAULT_HOURS = 8;
+const DEFAULT_HOURS = 9;
 
 interface TimeEntryProps {
   project: ProjectOptionDto;
