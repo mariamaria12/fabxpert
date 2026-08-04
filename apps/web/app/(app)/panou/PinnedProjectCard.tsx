@@ -132,7 +132,6 @@ export function PinnedProjectCard({
       totalMinutes={project.totalMinutes}
       expanded={expanded}
       onToggle={onToggle}
-      onTitleClick={onEdit}
       leadingSlot={
         <div className="mt-0.5 flex shrink-0 items-center gap-0.5">
           {dragHandleProps && (
