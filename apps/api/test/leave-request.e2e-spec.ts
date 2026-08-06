@@ -94,6 +94,37 @@ describe('Leave requests (e2e)', () => {
     ).toBe(true);
   });
 
+  it('ADMIN creates a request on behalf of a person via personId', async () => {
+    const create = await request(app.getHttpServer())
+      .post('/leave-requests')
+      .set(authHeader(adminCookie))
+      .send({
+        personId: FIXTURES.persons.employee2.id,
+        type: 'ODIHNA',
+        startDate: leaveDateIso(2, 10),
+        endDate: leaveDateIso(2, 12),
+      });
+
+    expect(create.status).toBe(201);
+    expect(create.body.leaveRequest.person.id).toBe(FIXTURES.persons.employee2.id);
+    expect(create.body.leaveRequest.status).toBe('IN_ASTEPTARE');
+    expect(create.body.balance.personId).toBe(FIXTURES.persons.employee2.id);
+  });
+
+  it('EMPLOYEE supplying personId → 400', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/leave-requests')
+      .set(authHeader(employee1Cookie))
+      .send({
+        personId: FIXTURES.persons.employee2.id,
+        type: 'ODIHNA',
+        startDate: leaveDateIso(2, 20),
+        endDate: leaveDateIso(2, 21),
+      });
+
+    expect(res.status).toBe(400);
+  });
+
   it('weekend-only period → 400', async () => {
     const weekend = firstWeekendRangeInYear();
     const res = await request(app.getHttpServer())

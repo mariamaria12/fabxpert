@@ -12,6 +12,15 @@ function localTodayWorkDate(): string {
   return `${year}-${month}-${day}`;
 }
 
+function localWorkDateOffsetByDays(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function sumProjectSummaryMinutes(projects: Array<{ totalMinutes: number }>): number {
   return projects.reduce((sum, project) => sum + project.totalMinutes, 0);
 }
@@ -58,11 +67,12 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
       .set(authHeader(adminCookie))
       .expect(200);
 
-    const baselineMinutes = baseline.body.todayTotalMinutes as number;
-    const baselinePersonCount = baseline.body.todayDistinctPersonCount as number;
+    const baselineMinutes = baseline.body.totalMinutes as number;
+    const baselinePersonCount = baseline.body.distinctPersonCount as number;
     const baselineInProgress = baseline.body.inProgressProjectCount as number;
 
-    expect(baselineInProgress).toBe(2);
+    // Seed has 5 projects, one soft-deleted; none start in a terminal status.
+    expect(baselineInProgress).toBe(4);
 
     await request(app.getHttpServer())
       .post('/timesheets')
@@ -124,8 +134,8 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
       .expect(200);
 
     expect(metrics.body.inProgressProjectCount).toBe(baselineInProgress - 1);
-    expect(metrics.body.todayTotalMinutes).toBe(baselineMinutes + 330);
-    expect(metrics.body.todayDistinctPersonCount).toBe(
+    expect(metrics.body.totalMinutes).toBe(baselineMinutes + 330);
+    expect(metrics.body.distinctPersonCount).toBe(
       Math.max(baselinePersonCount, 2),
     );
 
@@ -135,7 +145,7 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
       .set(authHeader(adminCookie))
       .expect(200);
 
-    expect(metrics.body.todayTotalMinutes).toBe(
+    expect(metrics.body.totalMinutes).toBe(
       sumProjectSummaryMinutes(projectSummary.body.projects),
     );
 
@@ -171,7 +181,7 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
 
     expect(personSummary.body.period).toBe('today');
     expect(personSummary.body.persons).toHaveLength(2);
-    expect(metrics.body.todayDistinctPersonCount).toBe(
+    expect(metrics.body.distinctPersonCount).toBe(
       personSummary.body.persons.length,
     );
 
@@ -196,7 +206,7 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
     expect(employee2Row.activities[0].projectId).toBe(FIXTURES.projects.ready.id);
   });
 
-  it('dashboard metrics include todayOnLeaveCount for approved leave covering today', async () => {
+  it('dashboard metrics include onLeaveCount for approved leave covering today', async () => {
     const today = localTodayWorkDate();
 
     const create = await request(app.getHttpServer())
@@ -220,7 +230,7 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
       .set(authHeader(adminCookie))
       .expect(200);
 
-    expect(metrics.body.todayOnLeaveCount).toBeGreaterThanOrEqual(1);
+    expect(metrics.body.onLeaveCount).toBeGreaterThanOrEqual(1);
 
     const onLeaveToday = await request(app.getHttpServer())
       .get('/leave-requests/on-leave')
@@ -242,7 +252,7 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
     });
   });
 
-  it('dashboard todayDistinctPersonCount matches person-summary after soft-deleting a project', async () => {
+  it('dashboard distinctPersonCount matches person-summary after soft-deleting a project', async () => {
     const today = localTodayWorkDate();
 
     await request(app.getHttpServer())
@@ -272,10 +282,10 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
       .set(authHeader(adminCookie))
       .expect(200);
 
-    expect(beforeMetrics.body.todayDistinctPersonCount).toBe(
+    expect(beforeMetrics.body.distinctPersonCount).toBe(
       beforeSummary.body.persons.length,
     );
-    expect(beforeMetrics.body.todayTotalMinutes).toBe(
+    expect(beforeMetrics.body.totalMinutes).toBe(
       sumProjectSummaryMinutes(beforeProjectSummary.body.projects),
     );
 
@@ -299,14 +309,14 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
       .set(authHeader(adminCookie))
       .expect(200);
 
-    expect(metrics.body.todayDistinctPersonCount).toBe(
+    expect(metrics.body.distinctPersonCount).toBe(
       personSummary.body.persons.length,
     );
-    expect(metrics.body.todayTotalMinutes).toBe(
+    expect(metrics.body.totalMinutes).toBe(
       sumProjectSummaryMinutes(projectSummary.body.projects),
     );
-    expect(metrics.body.todayTotalMinutes).toBeLessThan(
-      beforeMetrics.body.todayTotalMinutes,
+    expect(metrics.body.totalMinutes).toBeLessThan(
+      beforeMetrics.body.totalMinutes,
     );
   });
 
@@ -363,6 +373,81 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
           activity.minutes === 45,
       ),
     ).toBe(true);
+  });
+
+  it('dashboard metrics follow the requested period', async () => {
+    const yesterday = localWorkDateOffsetByDays(-1);
+
+    const [todayBefore, yesterdayBefore] = await Promise.all([
+      request(app.getHttpServer())
+        .get('/timesheets/dashboard-metrics')
+        .query({ period: 'today' })
+        .set(authHeader(adminCookie))
+        .expect(200),
+      request(app.getHttpServer())
+        .get('/timesheets/dashboard-metrics')
+        .query({ period: 'yesterday' })
+        .set(authHeader(adminCookie))
+        .expect(200),
+    ]);
+
+    expect(todayBefore.body.period).toBe('today');
+    expect(yesterdayBefore.body.period).toBe('yesterday');
+
+    await request(app.getHttpServer())
+      .post('/timesheets')
+      .set(authHeader(adminCookie))
+      .send({
+        personId: FIXTURES.persons.employee1.id,
+        projectId: FIXTURES.projects.ready.id,
+        activityId: FIXTURES.activities.active.id,
+        workDate: yesterday,
+        durationMinutes: 120,
+      })
+      .expect(201);
+
+    const [todayAfter, yesterdayAfter] = await Promise.all([
+      request(app.getHttpServer())
+        .get('/timesheets/dashboard-metrics')
+        .query({ period: 'today' })
+        .set(authHeader(adminCookie))
+        .expect(200),
+      request(app.getHttpServer())
+        .get('/timesheets/dashboard-metrics')
+        .query({ period: 'yesterday' })
+        .set(authHeader(adminCookie))
+        .expect(200),
+    ]);
+
+    // The entry lands in yesterday's bucket only.
+    expect(yesterdayAfter.body.totalMinutes).toBe(yesterdayBefore.body.totalMinutes + 120);
+    expect(yesterdayAfter.body.distinctPersonCount).toBeGreaterThanOrEqual(1);
+    expect(todayAfter.body.totalMinutes).toBe(todayBefore.body.totalMinutes);
+
+    // Project count is live status, not period-scoped.
+    expect(yesterdayAfter.body.inProgressProjectCount).toBe(
+      todayAfter.body.inProgressProjectCount,
+    );
+
+    const weekly = await request(app.getHttpServer())
+      .get('/timesheets/dashboard-metrics')
+      .query({ period: 'week' })
+      .set(authHeader(adminCookie))
+      .expect(200);
+
+    expect(weekly.body.period).toBe('week');
+    expect(weekly.body.totalMinutes).toBeGreaterThanOrEqual(
+      todayAfter.body.totalMinutes,
+    );
+  });
+
+  it('rejects an unbounded period on dashboard-metrics', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/timesheets/dashboard-metrics')
+      .query({ period: 'all' })
+      .set(authHeader(adminCookie));
+
+    expect(response.status).toBe(400);
   });
 
   it('rejects invalid period on person-summary', async () => {

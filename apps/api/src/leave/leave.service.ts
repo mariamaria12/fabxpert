@@ -89,7 +89,7 @@ export class LeaveService {
     actor: AuthenticatedUser,
     input: CreateLeaveRequestInput,
   ): Promise<EmployeeLeaveRequestResponse> {
-    const personId = await this.resolveActorPersonId(actor.id);
+    const personId = await this.resolveCreatePersonId(actor, input.personId);
     const startDate = parseWorkDateString(input.startDate);
     const endDate = parseWorkDateString(input.endDate);
 
@@ -542,6 +542,26 @@ export class LeaveService {
         'Only pending leave requests can be edited or cancelled',
       );
     }
+  }
+
+  /**
+   * Admins may file a request on behalf of someone by passing `personId`;
+   * everyone else (and an admin filing their own) falls back to their person.
+   */
+  private async resolveCreatePersonId(
+    actor: AuthenticatedUser,
+    explicitPersonId?: string,
+  ): Promise<string> {
+    if (explicitPersonId === undefined) {
+      return this.resolveActorPersonId(actor.id);
+    }
+
+    if (actor.role !== 'ADMIN') {
+      throw new BadRequestException('personId must not be supplied by employees');
+    }
+
+    await this.assertPersonExists(explicitPersonId);
+    return explicitPersonId;
   }
 
   private async resolveActorPersonId(userId: string): Promise<string> {

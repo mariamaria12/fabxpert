@@ -15,6 +15,14 @@ const leaveDateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD');
 
+/** UUID-like id (accepts seed person ids with `p` prefix). */
+const uuidSchema = z
+  .string()
+  .regex(
+    /^([0-9a-f]{8}|p[0-9a-f]{7})-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    'Invalid UUID format',
+  );
+
 const leaveTypeSchema = z.enum(LEAVE_TYPE_VALUES);
 const reviewStatusSchema = z.enum(['APROBAT', 'RESPINS']);
 
@@ -40,6 +48,8 @@ export const createLeaveRequestSchema = z
     startDate: leaveDateSchema,
     endDate: leaveDateSchema,
     reason: z.string().optional(),
+    /** Admin only — creates the request on behalf of that person. */
+    personId: uuidSchema.optional(),
   })
   .superRefine(endDateOnOrAfterStartDate);
 

@@ -5,7 +5,7 @@ import {
   periodsEqual,
   type Period,
 } from '@fabxpert/shared';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { DateField } from '@/components/DateField';
 
 type PeriodKind = Period['kind'];
@@ -70,6 +70,7 @@ export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) 
   const [draftFrom, setDraftFrom] = useState('');
   const [draftTo, setDraftTo] = useState('');
   const [customError, setCustomError] = useState<string | null>(null);
+  const customRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -77,6 +78,33 @@ export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) 
     }, 60_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  // The range inputs float over the page, so they close like any other popover.
+  useEffect(() => {
+    if (!customMode) {
+      return;
+    }
+
+    function handlePointerDown(event: MouseEvent) {
+      if (customRef.current?.contains(event.target as Node)) {
+        return;
+      }
+      setCustomMode(false);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setCustomMode(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown, true);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown, true);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [customMode]);
 
   useEffect(() => {
     if (value.kind === 'custom') {
@@ -124,83 +152,91 @@ export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) 
     onChange(next);
   }
 
+  const chipClassName = (selected: boolean) =>
+    `inline-flex items-baseline gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors ${
+      selected
+        ? 'border-accent/40 bg-accent/10 text-accent'
+        : 'border-border bg-surface text-text-secondary hover:bg-surface-raised hover:text-text-primary'
+    }`;
+
   return (
     <div className={className}>
-      <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
-        <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {PERIOD_CARDS.map((card) => {
-            const selected = isCardSelected(value, card.kind, customMode);
-            return (
-              <button
-                key={card.kind}
-                type="button"
-                aria-pressed={selected}
-                onClick={() => {
-                  if (card.kind === 'custom') {
-                    selectCustom();
-                    return;
-                  }
-                  selectPreset(card.kind);
-                }}
-                className={`flex min-h-[4.5rem] flex-col items-start rounded-md border px-4 py-3 text-left transition-colors ${
-                  selected
-                    ? 'border-accent/30 bg-accent/10'
-                    : 'border-border-subtle bg-surface hover:bg-surface-raised'
-                }`}
-              >
-                <span
-                  className={`text-sm font-medium ${
-                    selected ? 'text-accent' : 'text-text-secondary'
-                  }`}
-                >
-                  {card.label}
-                </span>
-                <span
-                  className={`mt-1 text-xs ${
-                    selected ? 'text-accent/80' : 'text-text-muted'
-                  }`}
-                >
-                  {cardSubLabel(card.kind, value, customMode, draftFrom, draftTo, now)}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {customMode && (
-          <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end lg:w-auto">
-            <DateField
-              id="period-filter-from"
-              label="De la"
-              value={draftFrom}
-              className={dateInputClassName}
-              onChange={(value) => {
-                setDraftFrom(value);
-                setCustomError(null);
-              }}
-            />
-            <DateField
-              id="period-filter-to"
-              label="Până la"
-              value={draftTo}
-              className={dateInputClassName}
-              onChange={(value) => {
-                setDraftTo(value);
-                setCustomError(null);
-              }}
-            />
+      <div className="flex flex-wrap items-center gap-1.5">
+        {PERIOD_CARDS.map((card) => {
+          const selected = isCardSelected(value, card.kind, customMode);
+          const chip = (
             <button
               type="button"
-              onClick={applyCustomRange}
-              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
+              aria-pressed={selected}
+              aria-expanded={card.kind === 'custom' ? customMode : undefined}
+              onClick={() => {
+                if (card.kind === 'custom') {
+                  if (customMode) {
+                    setCustomMode(false);
+                    return;
+                  }
+                  selectCustom();
+                  return;
+                }
+                selectPreset(card.kind);
+              }}
+              className={chipClassName(selected)}
             >
-              Aplică
+              <span className="font-medium">{card.label}</span>
+              <span className={selected ? 'text-accent/80' : 'text-text-muted'}>
+                {cardSubLabel(card.kind, value, customMode, draftFrom, draftTo, now)}
+              </span>
             </button>
-            {customError && (
-              <p className="w-full text-xs text-danger sm:order-last">{customError}</p>
-            )}
-          </div>
-        )}
+          );
+
+          if (card.kind !== 'custom') {
+            return <div key={card.kind}>{chip}</div>;
+          }
+
+          // Floated over the page so opening the range picker shifts nothing.
+          return (
+            <div key={card.kind} className="relative" ref={customRef}>
+              {chip}
+
+              {customMode && (
+                <div className="absolute left-0 top-full z-30 mt-1.5 w-max rounded-lg border border-strong bg-surface-popover p-3 shadow-popover">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                    <DateField
+                      id="period-filter-from"
+                      label="De la"
+                      value={draftFrom}
+                      className={dateInputClassName}
+                      onChange={(value) => {
+                        setDraftFrom(value);
+                        setCustomError(null);
+                      }}
+                    />
+                    <DateField
+                      id="period-filter-to"
+                      label="Până la"
+                      value={draftTo}
+                      className={dateInputClassName}
+                      onChange={(value) => {
+                        setDraftTo(value);
+                        setCustomError(null);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={applyCustomRange}
+                      className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
+                    >
+                      Aplică
+                    </button>
+                  </div>
+                  {customError && (
+                    <p className="mt-2 text-xs text-danger">{customError}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -41,6 +41,9 @@ interface TimesheetFormValues {
   notes: string;
 }
 
+/** Mirrors what parseDurationMinutesInput accepts. */
+const DURATION_PLACEHOLDER = 'ex. 9h, 1h30 sau 45m';
+
 const EMPTY_FORM: TimesheetFormValues = {
   personId: '',
   projectId: '',
@@ -101,6 +104,9 @@ function mapZodFieldErrors(error: {
   }
   if (flat.projectId?.[0]) {
     mapped.projectId = 'Proiectul este obligatoriu.';
+  }
+  if (flat.activityId?.[0]) {
+    mapped.activityId = 'Activitatea este obligatorie.';
   }
   if (flat.durationMinutes?.[0]) {
     mapped.duration = 'Durata trebuie să fie un număr pozitiv de minute.';
@@ -217,21 +223,31 @@ export function TimesheetFormPanel({
     setFormError(null);
     setFieldErrors({});
 
-    if (!values.workDate || !parseDateDisplay(values.workDate) || !values.duration) {
-      const nextErrors: Partial<Record<keyof TimesheetFormValues, string>> = {};
-      if (!values.workDate || !parseDateDisplay(values.workDate)) {
-        nextErrors.workDate = 'Introdu data în format dd/mm/yyyy.';
-      }
-      if (!values.duration) {
-        nextErrors.duration = 'Durata este obligatorie.';
-      }
+    // Everything except the notes is mandatory.
+    const nextErrors: Partial<Record<keyof TimesheetFormValues, string>> = {};
+    if (!values.personId) {
+      nextErrors.personId = 'Persoana este obligatorie.';
+    }
+    if (!values.projectId) {
+      nextErrors.projectId = 'Proiectul este obligatoriu.';
+    }
+    if (!values.activityId) {
+      nextErrors.activityId = 'Activitatea este obligatorie.';
+    }
+    if (!values.workDate || !parseDateDisplay(values.workDate)) {
+      nextErrors.workDate = 'Introdu data în format dd/mm/yyyy.';
+    }
+    if (!values.duration) {
+      nextErrors.duration = 'Durata este obligatorie.';
+    }
+    if (Object.keys(nextErrors).length > 0) {
       setFieldErrors(nextErrors);
       return;
     }
 
     const durationMinutes = parseDurationMinutesInput(values.duration);
     if (durationMinutes === null || durationMinutes <= 0) {
-      setFieldErrors({ duration: 'Introdu o durată validă (ex. 4h sau 2h30m).' });
+      setFieldErrors({ duration: `Introdu o durată validă (${DURATION_PLACEHOLDER}).` });
       return;
     }
 
@@ -413,9 +429,11 @@ export function TimesheetFormPanel({
           id="activityId"
           label="Activitate"
           value={values.activityId}
+          error={fieldErrors.activityId}
           disabled={isBusy}
+          required
           allowEmpty
-          placeholder="Fără activitate"
+          placeholder="Selectează activitatea"
           options={activityOptions}
           onChange={(value) => updateField('activityId', value)}
         />
@@ -437,6 +455,7 @@ export function TimesheetFormPanel({
           error={fieldErrors.duration}
           disabled={isBusy}
           required
+          placeholder={DURATION_PLACEHOLDER}
           onChange={(value) => updateField('duration', value)}
         />
 

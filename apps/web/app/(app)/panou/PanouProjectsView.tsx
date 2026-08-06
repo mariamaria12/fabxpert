@@ -8,7 +8,6 @@ import {
   listProjects,
   type ProjectDto,
   type ProjectListSortBy,
-  type ProjectStatus,
   type SortOrder,
 } from '@fabxpert/shared';
 import {
@@ -29,17 +28,16 @@ import {
   TruncatedTableCell,
 } from '@/components/ProjectNameCell';
 import { Pagination } from '@/components/Pagination';
-import { ProjectListFilters } from '@/components/ProjectListFilters';
 import { replaceById } from '@/utils/replaceById';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { useLazyVisible } from '@/hooks/useLazyVisible';
-import { IN_PROGRESS_STATUS_FILTER_OPTIONS } from '@/utils/projectStatusFilter';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 import { ProjectFormPanel } from '../projects/ProjectFormPanel';
 import {
   PanouPinnedProjectsSection,
   type PanouPinnedProjectsSectionHandle,
 } from './PanouPinnedProjectsSection';
+import { usePanouDashboard } from './PanouDashboardContext';
 import { ProjectPinButton } from './ProjectPinButton';
 import { ProjectVisibleForCell } from './panouProjectVisibility';
 
@@ -181,26 +179,29 @@ const ProjectTableSection = forwardRef<
     title: string;
     statusGroup: 'in_progress' | 'completed';
     showPinColumn?: boolean;
-    showFilters?: boolean;
+    /** Comes from the panou toolbar; the completed table stays unfiltered. */
+    readyForExecution: boolean | null;
     onPinToggled?: (updated: ProjectDto) => void;
     onProjectUpdated?: (updated: ProjectDto) => void;
   }
 >(function ProjectTableSection(
-  { title, statusGroup, showPinColumn = false, showFilters = false, onPinToggled, onProjectUpdated },
+  { title, statusGroup, showPinColumn = false, readyForExecution, onPinToggled, onProjectUpdated },
   ref,
 ) {
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<ProjectListSortBy>(DEFAULT_SORT_BY);
   const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
-  const [statusFilters, setStatusFilters] = useState<ProjectStatus[]>([]);
-  const [visibilityFilters, setVisibilityFilters] = useState<string[]>([]);
   const [projects, setProjects] = useState<ProjectDto[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [readyForExecution, setReadyForExecution] = useState<boolean | null>(null);
   const [editPanel, setEditPanel] = useState<EditPanelState>({ open: false });
   const fetchSeqRef = useRef(0);
+
+  // A narrower filter can leave the current page empty.
+  useEffect(() => {
+    setPage(1);
+  }, [readyForExecution]);
 
   const loadProjects = useCallback(async () => {
     const fetchSeq = ++fetchSeqRef.current;
@@ -213,11 +214,6 @@ const ProjectTableSection = forwardRef<
         page,
         pageSize: PAGE_SIZE,
         statusGroup,
-        status: statusFilters.length > 0 ? statusFilters : undefined,
-        visibleFor:
-          visibilityFilters.length > 0
-            ? (visibilityFilters as Array<'everyone' | string>)
-            : undefined,
         readyForExecution: readyForExecution ?? undefined,
         sortBy,
         sortOrder,
@@ -245,15 +241,7 @@ const ProjectTableSection = forwardRef<
         setLoading(false);
       }
     }
-  }, [
-    page,
-    statusGroup,
-    statusFilters,
-    visibilityFilters,
-    readyForExecution,
-    sortBy,
-    sortOrder,
-  ]);
+  }, [page, statusGroup, readyForExecution, sortBy, sortOrder]);
 
   useEffect(() => {
     void loadProjects();
@@ -297,21 +285,6 @@ const ProjectTableSection = forwardRef<
     setSortOrder(nextSortOrder);
   }
 
-  function handleStatusFiltersChange(values: ProjectStatus[]) {
-    setPage(1);
-    setStatusFilters(values);
-  }
-
-  function handleVisibilityFiltersChange(values: string[]) {
-    setPage(1);
-    setVisibilityFilters(values);
-  }
-
-  function handleReadyForExecutionChange(value: boolean | null) {
-    setPage(1);
-    setReadyForExecution(value);
-  }
-
   function handlePinToggled(updated: ProjectDto) {
     setProjects((current) => replaceById(current, updated));
     onPinToggled?.(updated);
@@ -337,11 +310,9 @@ const ProjectTableSection = forwardRef<
     onPinToggled: handlePinToggled,
   });
 
-  const hasActiveFilters =
-    statusFilters.length > 0 || visibilityFilters.length > 0 || readyForExecution !== null;
   const emptyMessage =
     statusGroup === 'in_progress'
-      ? hasActiveFilters
+      ? readyForExecution !== null
         ? 'Niciun proiect în curs pentru filtrele selectate.'
         : 'Niciun proiect în curs.'
       : 'Niciun proiect finalizat.';
@@ -349,20 +320,6 @@ const ProjectTableSection = forwardRef<
   return (
     <div>
       <h3 className="text-sm font-medium text-text-secondary">{title}</h3>
-
-      {showFilters && (
-        <ProjectListFilters
-          idPrefix={`panou-${statusGroup}`}
-          className="mt-3"
-          statusOptions={IN_PROGRESS_STATUS_FILTER_OPTIONS}
-          statusValues={statusFilters}
-          onStatusChange={handleStatusFiltersChange}
-          visibilityValues={visibilityFilters}
-          onVisibilityChange={handleVisibilityFiltersChange}
-          readyForExecution={readyForExecution}
-          onReadyForExecutionChange={handleReadyForExecutionChange}
-        />
-      )}
 
       {error && (
         <div className="mt-3 flex items-center justify-between gap-4 rounded-md border border-border-subtle bg-[var(--color-toast-error-bg)] px-4 py-3">
@@ -423,6 +380,7 @@ const ProjectTableSection = forwardRef<
 });
 
 export function PanouProjectsView() {
+  const { readyForExecution } = usePanouDashboard();
   const pinnedSectionRef = useRef<PanouPinnedProjectsSectionHandle>(null);
   const inProgressTableRef = useRef<ProjectTableSectionHandle>(null);
   const completedTableRef = useRef<ProjectTableSectionHandle>(null);
@@ -480,7 +438,7 @@ export function PanouProjectsView() {
         title="Proiecte în curs"
         statusGroup="in_progress"
         showPinColumn
-        showFilters
+        readyForExecution={readyForExecution}
         onPinToggled={handlePinToggled}
         onProjectUpdated={handleTableProjectUpdated}
       />
@@ -490,6 +448,7 @@ export function PanouProjectsView() {
             ref={completedTableRef}
             title="Proiecte finalizate"
             statusGroup="completed"
+            readyForExecution={null}
             onProjectUpdated={handleTableProjectUpdated}
           />
         ) : (

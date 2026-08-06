@@ -1,39 +1,23 @@
 'use client';
 
-import { getDashboardMetrics, type DashboardMetricsResponse } from '@fabxpert/shared';
+import {
+  formatPeriodLabel,
+  getDashboardMetrics,
+  type DashboardMetricsResponse,
+  type Period,
+} from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 import { usePanouDashboard, type PanouView } from './PanouDashboardContext';
 import { PANOU_METRIC_THEMES, panouAccentTint } from './panouColors';
 
-type MetricKey = keyof DashboardMetricsResponse;
-
-const METRIC_CARDS: {
-  id: PanouView;
-  label: string;
-  metricKey: MetricKey;
-  themeKey: keyof typeof PANOU_METRIC_THEMES;
-}[] = [
-  {
-    id: 'projects',
-    label: 'Proiecte în curs',
-    metricKey: 'inProgressProjectCount',
-    themeKey: 'projects',
-  },
-  {
-    id: 'hours',
-    label: 'Ore logate azi',
-    metricKey: 'todayTotalMinutes',
-    themeKey: 'hours',
-  },
-  {
-    id: 'people',
-    label: 'Au pontat azi',
-    metricKey: 'todayDistinctPersonCount',
-    themeKey: 'people',
-  },
-];
+/** "azi", "săptămâna 3–9 august", "luna august", … */
+function periodWording(period: Period): string {
+  return period.kind === 'custom'
+    ? formatPeriodLabel('custom', new Date(), { from: period.from, to: period.to })
+    : formatPeriodLabel(period.kind);
+}
 
 function MetricCardSkeleton() {
   return (
@@ -43,75 +27,91 @@ function MetricCardSkeleton() {
     >
       <div className="size-7 animate-pulse rounded-md bg-surface-raised" />
       <div className="min-w-0 flex-1 space-y-1">
-        <div className="h-2.5 w-20 animate-pulse rounded bg-surface-raised" />
+        <div className="h-2.5 w-24 animate-pulse rounded bg-surface-raised" />
         <div className="h-4 w-9 animate-pulse rounded bg-surface-raised" />
-        <div className="h-2 w-14 animate-pulse rounded bg-surface-raised" />
       </div>
     </div>
   );
 }
 
-function formatMetricValue(key: MetricKey, metrics: DashboardMetricsResponse | null): string {
-  if (!metrics) {
-    return '—';
-  }
+type MetricCard = {
+  id: PanouView;
+  label: string;
+  value: string;
+  /** Secondary value shown next to the main one (hours on the people card). */
+  valueSuffix?: string;
+  themeKey: keyof typeof PANOU_METRIC_THEMES;
+};
 
-  if (key === 'todayTotalMinutes') {
-    return formatDurationMinutes(metrics.todayTotalMinutes);
-  }
-
-  return String(metrics[key]);
-}
-
-function metricSubtext(
-  themeKey: keyof typeof PANOU_METRIC_THEMES,
+function buildCards(
   metrics: DashboardMetricsResponse | null,
-): string {
-  if (!metrics) {
-    return PANOU_METRIC_THEMES[themeKey].label;
-  }
+  period: Period,
+): MetricCard[] {
+  const wording = periodWording(period);
+  const dash = '—';
 
-  if (themeKey === 'people') {
-    return metrics.todayDistinctPersonCount === 1 ? 'Utilizator' : 'Utilizatori';
-  }
-
-  if (themeKey === 'onLeave') {
-    return metrics.todayOnLeaveCount === 1 ? 'Utilizator' : 'Utilizatori';
-  }
-
-  if (themeKey === 'notLogged') {
-    return metrics.todayNotLoggedPersonCount === 1 ? 'Utilizator' : 'Utilizatori';
-  }
-
-  return PANOU_METRIC_THEMES[themeKey].label;
+  return [
+    {
+      id: 'projects',
+      label: 'Proiecte în curs',
+      value: metrics ? String(metrics.inProgressProjectCount) : dash,
+      themeKey: 'projects',
+    },
+    {
+      id: 'hours',
+      label: `Ore logate ${wording}`,
+      value: metrics ? formatDurationMinutes(metrics.totalMinutes) : dash,
+      themeKey: 'hours',
+    },
+    {
+      id: 'people',
+      label: `Au pontat ${wording}`,
+      value: metrics ? String(metrics.distinctPersonCount) : dash,
+      // Same total as the "Ore logate" card — persons without logged time
+      // contribute nothing, so this needs no extra query.
+      valueSuffix: metrics ? formatDurationMinutes(metrics.totalMinutes) : undefined,
+      themeKey: 'people',
+    },
+    {
+      id: 'onLeave',
+      label: `În concediu ${wording}`,
+      value: metrics ? String(metrics.onLeaveCount) : dash,
+      themeKey: 'onLeave',
+    },
+    {
+      id: 'notLogged',
+      label: `Nu au pontat ${wording}`,
+      value: metrics ? String(metrics.notLoggedPersonCount) : dash,
+      themeKey: 'notLogged',
+    },
+  ];
 }
 
 export function PanouMetricCards() {
-  const { activeView, setActiveView, setPeriod, metrics, setMetrics } = usePanouDashboard();
+  const { activeView, setActiveView, period, periodReady, metrics, setMetrics } =
+    usePanouDashboard();
   const [metricsLoading, setMetricsLoading] = useState(true);
 
   function selectView(view: PanouView) {
+    // The period is deliberately kept: the cards themselves are period-scoped,
+    // so switching views must not silently reset what they show.
     setActiveView(view);
-    if (
-      view === 'hours' ||
-      view === 'people' ||
-      view === 'onLeave' ||
-      view === 'notLogged'
-    ) {
-      setPeriod({ kind: 'today' });
-    }
   }
 
   const loadMetrics = useCallback(async () => {
+    if (!periodReady) {
+      return;
+    }
+
     try {
-      const response = await getDashboardMetrics();
+      const response = await getDashboardMetrics(period);
       setMetrics(response);
     } catch {
       setMetrics(null);
     } finally {
       setMetricsLoading(false);
     }
-  }, [setMetrics]);
+  }, [period, periodReady, setMetrics]);
 
   useEffect(() => {
     void loadMetrics();
@@ -119,8 +119,7 @@ export function PanouMetricCards() {
 
   useRegisterPanouRefetch('dashboard-metrics', loadMetrics);
 
-  const onLeaveCount = metrics?.todayOnLeaveCount ?? 0;
-  const notLoggedCount = metrics?.todayNotLoggedPersonCount ?? 0;
+  const cards = buildCards(metrics, period);
 
   if (metricsLoading) {
     return (
@@ -136,16 +135,9 @@ export function PanouMetricCards() {
     );
   }
 
-  function renderMetricCard(
-    id: PanouView,
-    label: string,
-    metricKey: MetricKey,
-    themeKey: keyof typeof PANOU_METRIC_THEMES,
-    valueOverride?: string,
-  ) {
+  function renderMetricCard({ id, label, value, valueSuffix, themeKey }: MetricCard) {
     const theme = PANOU_METRIC_THEMES[themeKey];
     const isSelected = activeView === id;
-    const value = valueOverride ?? formatMetricValue(metricKey, metrics);
 
     return (
       <button
@@ -178,12 +170,14 @@ export function PanouMetricCards() {
           <i className={`ti ${theme.icon} text-sm`} />
         </span>
         <span className="min-w-0">
-          <span className="block truncate text-[11px] text-text-secondary">{label}</span>
-          <span className="block text-base font-semibold tabular-nums leading-tight text-text-primary">
+          <span className="block text-[11px] leading-snug text-text-secondary">{label}</span>
+          <span className="mt-0.5 block text-base font-semibold tabular-nums leading-tight text-text-primary">
             {value}
-          </span>
-          <span className="block text-[10px] font-medium" style={{ color: theme.accent }}>
-            {metricSubtext(themeKey, metrics)}
+            {valueSuffix && (
+              <span className="ml-1.5 text-xs font-medium" style={{ color: theme.accent }}>
+                {valueSuffix}
+              </span>
+            )}
           </span>
         </span>
       </button>
@@ -192,23 +186,7 @@ export function PanouMetricCards() {
 
   return (
     <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-      {METRIC_CARDS.map((card) =>
-        renderMetricCard(card.id, card.label, card.metricKey, card.themeKey),
-      )}
-      {renderMetricCard(
-        'onLeave',
-        'În concediu azi',
-        'todayOnLeaveCount',
-        'onLeave',
-        String(onLeaveCount),
-      )}
-      {renderMetricCard(
-        'notLogged',
-        'Nu au pontat azi',
-        'todayNotLoggedPersonCount',
-        'notLogged',
-        String(notLoggedCount),
-      )}
+      {cards.map((card) => renderMetricCard(card))}
     </div>
   );
 }

@@ -17,10 +17,15 @@ export type PanouDashboardContextValue = {
   setActiveView: (view: PanouView) => void;
   period: Period;
   setPeriod: (period: Period) => void;
-  showPeriodSelector: boolean;
   periodReady: boolean;
   metrics: DashboardMetricsResponse | null;
   setMetrics: (metrics: DashboardMetricsResponse | null) => void;
+  /**
+   * "Gata de execuție" filter for the projects table. It lives here because the
+   * control sits in the top toolbar while the table is further down the page.
+   */
+  readyForExecution: boolean | null;
+  setReadyForExecution: (value: boolean | null) => void;
 };
 
 const PanouDashboardContext = createContext<PanouDashboardContextValue | null>(null);
@@ -29,12 +34,9 @@ export function PanouDashboardProvider({ children }: { children: ReactNode }) {
   const [activeView, setActiveView] = useState<PanouView>('projects');
   const [period, setPeriod] = useState<Period>({ kind: 'today' });
   const [metrics, setMetrics] = useState<DashboardMetricsResponse | null>(null);
+  const [readyForExecution, setReadyForExecution] = useState<boolean | null>(null);
 
-  const showPeriodSelector =
-    activeView === 'hours' ||
-    activeView === 'people' ||
-    activeView === 'onLeave' ||
-    activeView === 'notLogged';
+  // The metric cards are period-scoped, so the selector is always relevant.
   const periodReady = isPeriodQueryReady(period);
 
   const value = useMemo(
@@ -43,12 +45,13 @@ export function PanouDashboardProvider({ children }: { children: ReactNode }) {
       setActiveView,
       period,
       setPeriod,
-      showPeriodSelector,
       periodReady,
       metrics,
       setMetrics,
+      readyForExecution,
+      setReadyForExecution,
     }),
-    [activeView, period, showPeriodSelector, periodReady, metrics],
+    [activeView, period, periodReady, metrics, readyForExecution],
   );
 
   return (

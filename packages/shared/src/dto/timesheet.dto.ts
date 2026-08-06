@@ -175,17 +175,21 @@ export type NotLoggedResponse = {
   persons: NotLoggedPersonRow[];
 };
 
+/** Every count except the project one is scoped to the requested period. */
 export type DashboardMetricsResponse = {
+  period: TimesheetSummaryPeriod;
+  /** Live project status — not period-scoped. */
   inProgressProjectCount: number;
-  todayTotalMinutes: number;
-  todayDistinctPersonCount: number;
-  /** Distinct persons with an approved leave request covering today. */
-  todayOnLeaveCount: number;
+  totalMinutes: number;
+  /** Persons with logged time in the period; their hours are `totalMinutes`. */
+  distinctPersonCount: number;
+  /** Distinct persons with an approved leave request overlapping the period. */
+  onLeaveCount: number;
   /**
-   * Persons with no logged time today, excluding admin accounts and anyone on
-   * approved leave.
+   * Persons with no logged time in the period, excluding admin accounts and
+   * anyone on approved leave.
    */
-  todayNotLoggedPersonCount: number;
+  notLoggedPersonCount: number;
 };
 
 export type TimesheetSummaryParams = {

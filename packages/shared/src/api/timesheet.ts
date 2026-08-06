@@ -144,8 +144,17 @@ export function getProjectSummary(period: Period = { kind: 'today' }) {
   );
 }
 
-export function getPinnedProjectsSummary() {
-  return request<PinnedProjectsSummaryResponse>('/timesheets/pinned-summary');
+/** Without a period the totals cover every logged entry. */
+export function getPinnedProjectsSummary(period?: Period) {
+  if (!period) {
+    return request<PinnedProjectsSummaryResponse>('/timesheets/pinned-summary');
+  }
+
+  const searchParams = new URLSearchParams();
+  appendPeriodQuery(searchParams, period);
+  return request<PinnedProjectsSummaryResponse>(
+    `/timesheets/pinned-summary?${searchParams.toString()}`,
+  );
 }
 
 export function getPersonSummary(period: Period = { kind: 'today' }) {
@@ -162,8 +171,12 @@ export function getNotLogged(period: Period = { kind: 'today' }) {
   return request<NotLoggedResponse>(`/timesheets/not-logged?${searchParams.toString()}`);
 }
 
-export function getDashboardMetrics() {
-  return request<DashboardMetricsResponse>('/timesheets/dashboard-metrics');
+export function getDashboardMetrics(period: Period = { kind: 'today' }) {
+  const searchParams = new URLSearchParams();
+  appendPeriodQuery(searchParams, period);
+  return request<DashboardMetricsResponse>(
+    `/timesheets/dashboard-metrics?${searchParams.toString()}`,
+  );
 }
 
 export function exportTimesheetsXlsx(params: ExportTimesheetsParams) {

@@ -69,6 +69,56 @@ export function formatRomanianDayMonthRange(from: Date, to: Date): string {
   return `${formatRomanianDayMonth(from)} – ${formatRomanianDayMonth(to)}`;
 }
 
+function formatLongDayMonthRange(from: Date, to: Date): string {
+  const sameMonth =
+    from.getFullYear() === to.getFullYear() && from.getMonth() === to.getMonth();
+
+  if (from.getTime() === to.getTime()) {
+    return `${from.getDate()} ${RO_MONTHS_LONG[from.getMonth()]}`;
+  }
+
+  if (sameMonth) {
+    return `${from.getDate()}–${to.getDate()} ${RO_MONTHS_LONG[from.getMonth()]}`;
+  }
+
+  return `${from.getDate()} ${RO_MONTHS_LONG[from.getMonth()]} – ${to.getDate()} ${RO_MONTHS_LONG[to.getMonth()]}`;
+}
+
+/**
+ * Headline period wording for the panou cards: "azi", "ieri",
+ * "săptămâna 3–9 august", "luna august", "3–9 august" for a custom range.
+ */
+export function formatPeriodLabel(
+  kind: 'today' | 'yesterday' | 'week' | 'month' | 'custom',
+  now = new Date(),
+  custom?: { from: string; to: string },
+): string {
+  if (kind === 'today') {
+    return 'azi';
+  }
+
+  if (kind === 'yesterday') {
+    return 'ieri';
+  }
+
+  if (kind === 'week') {
+    const { from, to } = getIsoWeekRange(now);
+    return `săptămâna ${formatLongDayMonthRange(from, to)}`;
+  }
+
+  if (kind === 'month') {
+    return `luna ${formatRomanianMonthName(now)}`;
+  }
+
+  const from = custom?.from ? parseIsoDateOnly(custom.from) : null;
+  const to = custom?.to ? parseIsoDateOnly(custom.to) : null;
+  if (!from || !to) {
+    return 'interval';
+  }
+
+  return formatLongDayMonthRange(from, to);
+}
+
 export function formatCustomPeriodSubLabel(from: string, to: string): string {
   const fromDate = parseIsoDateOnly(from);
   const toDate = parseIsoDateOnly(to);

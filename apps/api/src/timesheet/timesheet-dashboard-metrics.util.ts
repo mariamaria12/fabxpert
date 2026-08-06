@@ -1,7 +1,9 @@
 import { Prisma } from '@prisma/client';
-import type { DashboardMetricsResponse } from '@fabxpert/shared/dto/timesheet.dto';
+import type {
+  DashboardMetricsResponse,
+  TimesheetSummaryPeriod,
+} from '@fabxpert/shared/dto/timesheet.dto';
 import { buildNotLoggedCountQuery } from './timesheet-not-logged.util';
-import { getTodayRange } from './timesheet-summary-period.util';
 
 type CountRow = { count: number | bigint };
 type MinutesRow = { minutes: number | bigint | null };
@@ -13,12 +15,16 @@ function toNumber(value: number | bigint | null | undefined): number {
   return typeof value === 'bigint' ? Number(value) : value;
 }
 
+/**
+ * One round of five parallel aggregate queries, all bounded by [from, to) so
+ * they ride the timesheets (deletedAt, workDate) and leave_requests indexes.
+ */
 export async function queryDashboardMetrics(
   prisma: { $queryRaw: Prisma.DefaultPrismaClient['$queryRaw'] },
-  now = new Date(),
+  period: TimesheetSummaryPeriod,
+  from: Date,
+  to: Date,
 ): Promise<DashboardMetricsResponse> {
-  const { from, to } = getTodayRange(now);
-
   const [
     projectCountRows,
     minutesRows,
@@ -67,10 +73,11 @@ export async function queryDashboardMetrics(
   ]);
 
   return {
+    period,
     inProgressProjectCount: toNumber(projectCountRows[0]?.count),
-    todayTotalMinutes: toNumber(minutesRows[0]?.minutes),
-    todayDistinctPersonCount: toNumber(personCountRows[0]?.count),
-    todayOnLeaveCount: toNumber(onLeaveCountRows[0]?.count),
-    todayNotLoggedPersonCount: toNumber(notLoggedCountRows[0]?.count),
+    totalMinutes: toNumber(minutesRows[0]?.minutes),
+    distinctPersonCount: toNumber(personCountRows[0]?.count),
+    onLeaveCount: toNumber(onLeaveCountRows[0]?.count),
+    notLoggedPersonCount: toNumber(notLoggedCountRows[0]?.count),
   };
 }

@@ -4,7 +4,7 @@ import { PanouRefreshProvider, usePanouRefresh } from './PanouRefreshContext';
 import { PanouContentViews } from './panou/PanouContentViews';
 import { PanouDashboardProvider } from './panou/PanouDashboardContext';
 import { PanouMetricCards } from './panou/PanouMetricCards';
-import { PanouPeriodFilter } from './panou/PanouPeriodFilter';
+import { PanouToolbar } from './panou/PanouToolbar';
 
 function formatUpdatedAt(date: Date): string {
   return date.toLocaleTimeString('ro-RO', {
@@ -47,7 +47,7 @@ function DashboardPageContent() {
       </div>
 
       <PanouMetricCards />
-      <PanouPeriodFilter />
+      <PanouToolbar />
       <PanouContentViews />
     </div>
   );

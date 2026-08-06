@@ -246,11 +246,15 @@ export class TimesheetService {
     return shapeProjectSummary(rows, resolved.period);
   }
 
-  async getPinnedProjectsSummary(): Promise<PinnedProjectsSummaryResponse> {
+  async getPinnedProjectsSummary(
+    resolved: ResolvedSummaryPeriod,
+  ): Promise<PinnedProjectsSummaryResponse> {
     const rows = await this.prisma.$queryRaw<ProjectSummarySqlRow[]>(
       buildProjectSummaryQuery({
         pinnedOnly: true,
         includeZeroEntryProjects: true,
+        from: resolved.from,
+        to: resolved.to,
       }),
     );
     const summary = shapePinnedProjectsSummary(rows);
@@ -311,8 +315,14 @@ export class TimesheetService {
     return shapeNotLogged(rows, resolved.period);
   }
 
-  async getDashboardMetrics(): Promise<DashboardMetricsResponse> {
-    return queryDashboardMetrics(this.prisma);
+  async getDashboardMetrics(
+    resolved: ResolvedSummaryPeriod,
+  ): Promise<DashboardMetricsResponse> {
+    if (resolved.from === null || resolved.to === null) {
+      throw new BadRequestException('dashboard-metrics requires a bounded period');
+    }
+
+    return queryDashboardMetrics(this.prisma, resolved.period, resolved.from, resolved.to);
   }
 
   /**

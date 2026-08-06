@@ -120,10 +120,10 @@ describe('Soft-deleted project visibility (e2e)', () => {
         (project: { id: string }) => project.id === TEST_PROJECT_ID,
       ),
     ).toBe(true);
-    expect(beforeMetrics.body.todayTotalMinutes).toBe(
+    expect(beforeMetrics.body.totalMinutes).toBe(
       sumProjectSummaryMinutes(beforeProjectSummary.body.projects),
     );
-    expect(beforeMetrics.body.todayDistinctPersonCount).toBe(
+    expect(beforeMetrics.body.distinctPersonCount).toBe(
       beforePersonSummary.body.persons.length,
     );
     expect(
@@ -199,11 +199,11 @@ describe('Soft-deleted project visibility (e2e)', () => {
         ),
       ),
     ).toBe(false);
-    expect(afterMetrics.body.todayTotalMinutes).toBe(
+    expect(afterMetrics.body.totalMinutes).toBe(
       sumProjectSummaryMinutes(afterProjectSummary.body.projects),
     );
-    expect(afterMetrics.body.todayTotalMinutes).toBeLessThan(
-      beforeMetrics.body.todayTotalMinutes,
+    expect(afterMetrics.body.totalMinutes).toBeLessThan(
+      beforeMetrics.body.totalMinutes,
     );
     expect(
       afterMine.body.data.some((row: { id: string }) => row.id === create.body.id),

@@ -80,13 +80,17 @@ export function durationMinutesToHoursInput(durationMinutes: number): string {
   return `${hours}h${minutes}m`;
 }
 
+/**
+ * Accepted duration inputs: `9h`, `1h30`, `1h30m`, `1h 30`, `45m`, `8`, `7.5`.
+ * A trailing `m` is optional so `1h30` isn't silently read as one hour.
+ */
 export function parseDurationMinutesInput(value: string): number | null {
   const trimmed = value.trim().toLowerCase();
   if (trimmed === '') {
     return null;
   }
 
-  const hoursMinutesMatch = /^(\d+)h(?:(\d+)m)?$/.exec(trimmed);
+  const hoursMinutesMatch = /^(\d+)\s*h\s*(?:(\d+)\s*m?)?$/.exec(trimmed);
   if (hoursMinutesMatch) {
     const hours = Number.parseInt(hoursMinutesMatch[1], 10);
     const minutes = hoursMinutesMatch[2]
@@ -100,7 +104,7 @@ export function parseDurationMinutesInput(value: string): number | null {
     return hours * 60 + minutes;
   }
 
-  const minutesOnlyMatch = /^(\d+)m$/.exec(trimmed);
+  const minutesOnlyMatch = /^(\d+)\s*m$/.exec(trimmed);
   if (minutesOnlyMatch) {
     const minutes = Number.parseInt(minutesOnlyMatch[1], 10);
     if (minutes <= 0) {
@@ -110,7 +114,13 @@ export function parseDurationMinutesInput(value: string): number | null {
     return minutes;
   }
 
-  const decimalHours = Number.parseFloat(trimmed.replace(',', '.'));
+  // Plain hours only — anything else would be a partial parse ("1x30" → 1h).
+  const decimalInput = trimmed.replace(',', '.');
+  if (!/^\d+(\.\d+)?$/.test(decimalInput)) {
+    return null;
+  }
+
+  const decimalHours = Number.parseFloat(decimalInput);
   if (Number.isFinite(decimalHours) && decimalHours > 0) {
     return Math.round(decimalHours * 60);
   }

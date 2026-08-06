@@ -111,14 +111,16 @@ export class TimesheetController {
 
   @Get('dashboard-metrics')
   @Roles('ADMIN')
-  dashboardMetrics() {
-    return this.timesheetService.getDashboardMetrics();
+  dashboardMetrics(@Query() query: Record<string, string>) {
+    return this.timesheetService.getDashboardMetrics(parseSummaryPeriodQuery(query));
   }
 
   @Get('pinned-summary')
   @Roles('ADMIN')
-  pinnedSummary() {
-    return this.timesheetService.getPinnedProjectsSummary();
+  pinnedSummary(@Query() query: Record<string, string>) {
+    // No period means all-time totals, unlike the other summary endpoints.
+    const resolved = parseSummaryPeriodQuery({ ...query, period: query.period ?? 'all' });
+    return this.timesheetService.getPinnedProjectsSummary(resolved);
   }
 
   @Get('project-summary')

@@ -710,27 +710,27 @@ body {
 }
 
 .skeleton-color-bar-project {
-  width: 5px;
+  width: 7px;
   align-self: stretch;
-  min-height: 36px;
+  min-height: 54px;
   border-radius: 3px;
   flex-shrink: 0;
 }
 
 .skeleton-dot {
-  width: 10px;
-  height: 10px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
 .skeleton-line-title {
-  height: 14px;
+  height: 17px;
   width: 72%;
 }
 
 .skeleton-line-subtitle {
-  height: 12px;
+  height: 14px;
   width: 38%;
 }
 
@@ -829,7 +829,7 @@ body {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .option-list li {
@@ -840,12 +840,12 @@ body {
 .option-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 18px;
   width: 100%;
-  min-height: 44px;
-  padding: 10px 12px;
+  min-height: 66px;
+  padding: 15px 18px;
   border: 1px solid var(--color-border-subtle);
-  border-radius: 10px;
+  border-radius: 14px;
   background: var(--color-surface-raised);
   color: inherit;
   text-align: left;
@@ -869,20 +869,20 @@ body {
 }
 
 .option-color-bar-project {
-  width: 5px;
+  width: 7px;
   align-self: stretch;
-  min-height: 36px;
+  min-height: 54px;
 }
 
 .activity-dot {
   flex-shrink: 0;
-  width: 10px;
-  height: 10px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
 }
 
 .option-row-activity {
-  gap: 12px;
+  gap: 18px;
 }
 
 .option-row-body {
@@ -890,18 +890,18 @@ body {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .option-row-title {
-  font-size: 14px;
+  font-size: 17px;
   font-weight: 500;
   color: var(--color-text-primary);
 }
 
 .option-row-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--color-text-muted);
 }
 

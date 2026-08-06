@@ -153,6 +153,7 @@ export {
   formatRomanianDayMonthRange,
   formatCustomPeriodSubLabel,
   formatPeriodCardSubLabel,
+  formatPeriodLabel,
 } from './periodDisplay';
 export {
   listUsers,

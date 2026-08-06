@@ -20,7 +20,7 @@ const accountJoin = Prisma.sql`
 
 /**
  * Persons who logged nothing in the range. Mirrors the "au pontat" set used by
- * `todayDistinctPersonCount` (same GROUP BY / HAVING), so the two agree on who
+ * `distinctPersonCount` (same GROUP BY / HAVING), so the two agree on who
  * counts as having logged.
  *
  * Left out entirely: admin accounts (not expected to log), and persons on

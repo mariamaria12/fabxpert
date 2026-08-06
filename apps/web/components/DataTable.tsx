@@ -29,6 +29,8 @@ export interface DataTableProps<T> {
   sortBy?: string | null;
   sortOrder?: DataTableSortOrder;
   onSortChange?: (sortBy: string, sortOrder: DataTableSortOrder) => void;
+  /** The show/hide-columns button sits in its own row above the table. */
+  showColumnMenu?: boolean;
 }
 
 const DEFAULT_COLUMN_WIDTH_PX = 180;
@@ -168,6 +170,7 @@ export function DataTable<T>({
   sortBy = null,
   sortOrder = 'asc',
   onSortChange,
+  showColumnMenu = true,
 }: DataTableProps<T>) {
   const showAccent = rowAccentColor !== undefined;
   const columnMenuRef = useRef<HTMLDivElement>(null);
@@ -305,7 +308,7 @@ export function DataTable<T>({
 
   return (
     <div className="w-full">
-      {hideableColumns.length > 0 && (
+      {showColumnMenu && hideableColumns.length > 0 && (
         <div className="mb-2 flex justify-end" ref={columnMenuRef}>
           <div className="relative">
             <button

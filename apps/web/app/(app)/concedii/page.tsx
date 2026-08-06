@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { LeaveBalancesTab } from './LeaveBalancesTab';
+import { LeaveFormPanel } from './LeaveFormPanel';
 import { LeaveRequestsTab } from './LeaveRequestsTab';
 import { useLeavePendingCount } from '@/context/LeavePendingCountContext';
 
@@ -26,9 +27,18 @@ export default function ConcediiPage() {
   const [requestsRefreshToken, setRequestsRefreshToken] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   function refreshBalances() {
     setBalancesRefreshToken((token) => token + 1);
+  }
+
+  // A new request lands as pending, so the list, the balances and the
+  // sidebar counter all need to pick it up.
+  function handleLeaveCreated() {
+    setRequestsRefreshToken((token) => token + 1);
+    setBalancesRefreshToken((token) => token + 1);
+    void refreshPendingCount();
   }
 
   async function refreshAll() {
@@ -66,6 +76,14 @@ export default function ConcediiPage() {
             />
             Împrospătare date
           </button>
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            className="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
+          >
+            <i className="ti ti-plus text-base" aria-hidden="true" />
+            Adaugă concediu
+          </button>
         </div>
       </div>
 
@@ -96,6 +114,14 @@ export default function ConcediiPage() {
           <LeaveBalancesTab refreshToken={balancesRefreshToken} />
         )}
       </div>
+
+      {addOpen && (
+        <LeaveFormPanel
+          open
+          onClose={() => setAddOpen(false)}
+          onSaved={handleLeaveCreated}
+        />
+      )}
     </div>
   );
 }

@@ -23,13 +23,10 @@ import {
 } from '@dnd-kit/sortable';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { ProjectFormPanel } from '../projects/ProjectFormPanel';
-import {
-  SearchableSelect,
-  type SearchableSelectOption,
-} from '@/components/SearchableSelect';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
+import { usePanouDashboard } from './PanouDashboardContext';
 import {
   flattenPinnedProjectsForOneColumn,
   getPinnedProjectColumn,
@@ -41,11 +38,6 @@ import {
 import { SortablePinnedProjectCard } from './SortablePinnedProjectCard';
 import { PanouPinnedProjectsSkeleton } from './PanouPinnedProjectsSkeleton';
 import { pinnedSummaryToProjectStub } from './pinnedSummaryToProjectStub';
-
-const READY_FOR_EXECUTION_OPTIONS: SearchableSelectOption[] = [
-  { id: 'true', label: 'Da' },
-  { id: 'false', label: 'Nu' },
-];
 
 type EditPanelState =
   | { open: false }
@@ -146,7 +138,8 @@ export const PanouPinnedProjectsSection = forwardRef<
   const [error, setError] = useState<string | null>(null);
   const [editPanel, setEditPanel] = useState<EditPanelState>({ open: false });
   const [viewMode, setViewMode] = useState<PanouPinnedViewMode>(() => readStoredViewMode());
-  const [readyForExecution, setReadyForExecution] = useState<boolean | null>(null);
+  // Driven by the panou toolbar: the "Gata de execuție" chips and the period.
+  const { readyForExecution, period, periodReady } = usePanouDashboard();
   const fetchSeqRef = useRef(0);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -169,8 +162,6 @@ export const PanouPinnedProjectsSection = forwardRef<
     [visibleProjects],
   );
   const canReorder = readyForExecution === null;
-  const readyForExecutionValue =
-    readyForExecution === null ? null : readyForExecution ? 'true' : 'false';
 
   const loadPinnedSummary = useCallback(async (background = false) => {
     const fetchSeq = ++fetchSeqRef.current;
@@ -180,7 +171,7 @@ export const PanouPinnedProjectsSection = forwardRef<
     setError(null);
 
     try {
-      const response = await getPinnedProjectsSummary();
+      const response = await getPinnedProjectsSummary(period);
       if (fetchSeq !== fetchSeqRef.current) {
         return;
       }
@@ -214,11 +205,14 @@ export const PanouPinnedProjectsSection = forwardRef<
         setLoading(false);
       }
     }
-  }, [showToast]);
+  }, [period, showToast]);
 
   useEffect(() => {
+    if (!periodReady) {
+      return;
+    }
     void loadPinnedSummary();
-  }, [loadPinnedSummary]);
+  }, [loadPinnedSummary, periodReady]);
 
   function handleViewModeChange(mode: PanouPinnedViewMode) {
     setViewMode(mode);
@@ -363,30 +357,7 @@ export const PanouPinnedProjectsSection = forwardRef<
     <section className="mt-4">
       <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
         <h2 className="text-sm font-semibold text-text-primary">Proiecte</h2>
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="w-44">
-            <SearchableSelect
-              id="panou-pinned-ready-for-execution-filter"
-              label="Gata de execuție"
-              placeholder="Toate"
-              emptyMessage="Nicio opțiune găsită."
-              value={readyForExecutionValue}
-              options={READY_FOR_EXECUTION_OPTIONS}
-              onChange={(value) => {
-                if (value === 'true') {
-                  setReadyForExecution(true);
-                  return;
-                }
-                if (value === 'false') {
-                  setReadyForExecution(false);
-                  return;
-                }
-                setReadyForExecution(null);
-              }}
-            />
-          </div>
-          <PanouPinnedViewModeToggle viewMode={viewMode} onChange={handleViewModeChange} />
-        </div>
+        <PanouPinnedViewModeToggle viewMode={viewMode} onChange={handleViewModeChange} />
       </div>
 
       {error && (

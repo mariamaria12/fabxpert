@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { PersonName } from '@/components/PersonAvatar';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { removeById } from '@/utils/replaceById';
 import { TimesheetFormPanel } from '../timesheets/TimesheetFormPanel';
 import { useRegisterPanouRefetch, usePanouRefresh } from '../PanouRefreshContext';
 import { usePanouDashboard } from './PanouDashboardContext';
@@ -32,14 +33,14 @@ function useNotLoggedColumns(
       {
         key: 'actions',
         header: '',
-        width: '160px',
+        width: '140px',
+        className: 'text-right',
         render: (row) => (
           <button
             type="button"
             onClick={() => onAddTimesheet(row)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary"
+            className="rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-accent-contrast transition-opacity hover:opacity-90"
           >
-            <i className="ti ti-plus text-base" aria-hidden="true" />
             Adaugă pontaj
           </button>
         ),
@@ -60,6 +61,17 @@ export function PanouNotLoggedView() {
   const openAddTimesheet = useCallback((person: NotLoggedPersonRow) => {
     setAddForPersonId(person.id);
   }, []);
+
+  // Drop the row right away — the person has logged time now, so they belong
+  // under "au pontat". refreshAll then resyncs the metric cards and the other
+  // panou views against the server.
+  const handleTimesheetSaved = useCallback(
+    (personId: string) => {
+      setPersons((current) => removeById(current, personId).items);
+      void refreshAll();
+    },
+    [refreshAll],
+  );
 
   const columns = useNotLoggedColumns(openAddTimesheet);
 
@@ -136,7 +148,7 @@ export function PanouNotLoggedView() {
 
             return (
               <div key={group}>
-                <h3 className="mb-2 flex items-baseline gap-2 text-sm font-semibold text-text-primary">
+                <h3 className="mb-1.5 flex items-baseline gap-2 text-sm font-semibold text-text-primary">
                   {title}
                   {!loading && (
                     <span className="text-xs font-normal tabular-nums text-text-muted">
@@ -151,6 +163,7 @@ export function PanouNotLoggedView() {
                   rowKey={(row) => row.id}
                   loading={loading}
                   loadingRowCount={3}
+                  showColumnMenu={false}
                   emptyMessage="Toată lumea din această categorie a pontat în perioada selectată."
                 />
               </div>
@@ -166,7 +179,7 @@ export function PanouNotLoggedView() {
           timesheet={null}
           createDefaults={createDefaults}
           onClose={() => setAddForPersonId(null)}
-          onSaved={() => void refreshAll()}
+          onSaved={() => handleTimesheetSaved(addForPersonId)}
         />
       )}
     </section>
