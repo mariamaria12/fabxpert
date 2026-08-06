@@ -118,7 +118,7 @@ export function PanouNotLoggedView() {
   const waitingForCustomRange = !periodReady;
 
   return (
-    <section className="mt-4 space-y-6">
+    <section className="mt-6 space-y-6">
       {error && (
         <div className="flex items-center justify-between gap-4 rounded-md border border-border-subtle bg-[var(--color-toast-error-bg)] px-4 py-3">
           <p className="text-sm text-danger">{error}</p>

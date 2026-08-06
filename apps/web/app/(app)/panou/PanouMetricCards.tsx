@@ -38,8 +38,6 @@ type MetricCard = {
   id: PanouView;
   label: string;
   value: string;
-  /** Secondary value shown next to the main one (hours on the people card). */
-  valueSuffix?: string;
   themeKey: keyof typeof PANOU_METRIC_THEMES;
 };
 
@@ -67,9 +65,6 @@ function buildCards(
       id: 'people',
       label: `Au pontat ${wording}`,
       value: metrics ? String(metrics.distinctPersonCount) : dash,
-      // Same total as the "Ore logate" card — persons without logged time
-      // contribute nothing, so this needs no extra query.
-      valueSuffix: metrics ? formatDurationMinutes(metrics.totalMinutes) : undefined,
       themeKey: 'people',
     },
     {
@@ -135,7 +130,7 @@ export function PanouMetricCards() {
     );
   }
 
-  function renderMetricCard({ id, label, value, valueSuffix, themeKey }: MetricCard) {
+  function renderMetricCard({ id, label, value, themeKey }: MetricCard) {
     const theme = PANOU_METRIC_THEMES[themeKey];
     const isSelected = activeView === id;
 
@@ -173,11 +168,6 @@ export function PanouMetricCards() {
           <span className="block text-[11px] leading-snug text-text-secondary">{label}</span>
           <span className="mt-0.5 block text-base font-semibold tabular-nums leading-tight text-text-primary">
             {value}
-            {valueSuffix && (
-              <span className="ml-1.5 text-xs font-medium" style={{ color: theme.accent }}>
-                {valueSuffix}
-              </span>
-            )}
           </span>
         </span>
       </button>

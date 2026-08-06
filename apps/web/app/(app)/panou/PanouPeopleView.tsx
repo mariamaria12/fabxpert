@@ -115,7 +115,7 @@ export function PanouPeopleView() {
   const waitingForCustomRange = !periodReady;
 
   return (
-    <section className="mt-4">
+    <section className="mt-6">
       <div className="mb-3 flex justify-end">
         <button
           type="button"
