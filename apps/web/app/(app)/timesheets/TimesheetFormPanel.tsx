@@ -50,10 +50,19 @@ const EMPTY_FORM: TimesheetFormValues = {
   notes: '',
 };
 
-function createEmptyForm(): TimesheetFormValues {
+/** Values prefilled when the panel is opened in create mode from another screen. */
+export interface TimesheetCreateDefaults {
+  personId?: string;
+  workDate?: string;
+  duration?: string;
+}
+
+function createEmptyForm(defaults?: TimesheetCreateDefaults): TimesheetFormValues {
   return {
     ...EMPTY_FORM,
-    workDate: todayDateInputValue(),
+    personId: defaults?.personId ?? EMPTY_FORM.personId,
+    duration: defaults?.duration ?? EMPTY_FORM.duration,
+    workDate: defaults?.workDate ?? todayDateInputValue(),
   };
 }
 
@@ -104,6 +113,8 @@ export interface TimesheetFormPanelProps {
   open: boolean;
   mode: 'create' | 'edit';
   timesheet: TimesheetDto | null;
+  /** Only used in create mode; memoize it so the form isn't reset on every render. */
+  createDefaults?: TimesheetCreateDefaults;
   onClose: () => void;
   onSaved: (updated?: TimesheetDto) => void;
 }
@@ -114,6 +125,7 @@ export function TimesheetFormPanel({
   open,
   mode,
   timesheet,
+  createDefaults,
   onClose,
   onSaved,
 }: TimesheetFormPanelProps) {
@@ -176,8 +188,12 @@ export function TimesheetFormPanel({
     setConfirmDelete(false);
     setIsSubmitting(false);
     setIsDeleting(false);
-    setValues(mode === 'edit' && timesheet ? timesheetToFormValues(timesheet) : createEmptyForm());
-  }, [open, mode, timesheet]);
+    setValues(
+      mode === 'edit' && timesheet
+        ? timesheetToFormValues(timesheet)
+        : createEmptyForm(createDefaults),
+    );
+  }, [open, mode, timesheet, createDefaults]);
 
   function updateField(field: keyof TimesheetFormValues, value: string) {
     setValues((current) => ({ ...current, [field]: value }));

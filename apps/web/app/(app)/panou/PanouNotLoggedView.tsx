@@ -5,11 +5,17 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { PersonName } from '@/components/PersonAvatar';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
-import { useRegisterPanouRefetch } from '../PanouRefreshContext';
+import { TimesheetFormPanel } from '../timesheets/TimesheetFormPanel';
+import { useRegisterPanouRefetch, usePanouRefresh } from '../PanouRefreshContext';
 import { usePanouDashboard } from './PanouDashboardContext';
 import { PANOU_PERSON_GROUPS } from './panouPersonGroups';
 
-function useNotLoggedColumns(): DataTableColumn<NotLoggedPersonRow>[] {
+/** A full work day — what a missing entry almost always turns out to be. */
+const DEFAULT_DURATION = '9h';
+
+function useNotLoggedColumns(
+  onAddTimesheet: (person: NotLoggedPersonRow) => void,
+): DataTableColumn<NotLoggedPersonRow>[] {
   return useMemo(
     (): DataTableColumn<NotLoggedPersonRow>[] => [
       {
@@ -23,17 +29,44 @@ function useNotLoggedColumns(): DataTableColumn<NotLoggedPersonRow>[] {
         className: 'text-text-secondary',
         render: (row) => row.employeeRoleName ?? '—',
       },
+      {
+        key: 'actions',
+        header: '',
+        width: '160px',
+        render: (row) => (
+          <button
+            type="button"
+            onClick={() => onAddTimesheet(row)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary"
+          >
+            <i className="ti ti-plus text-base" aria-hidden="true" />
+            Adaugă pontaj
+          </button>
+        ),
+      },
     ],
-    [],
+    [onAddTimesheet],
   );
 }
 
 export function PanouNotLoggedView() {
   const { period, periodReady } = usePanouDashboard();
-  const columns = useNotLoggedColumns();
+  const { refreshAll } = usePanouRefresh();
   const [persons, setPersons] = useState<NotLoggedPersonRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [addForPersonId, setAddForPersonId] = useState<string | null>(null);
+
+  const openAddTimesheet = useCallback((person: NotLoggedPersonRow) => {
+    setAddForPersonId(person.id);
+  }, []);
+
+  const columns = useNotLoggedColumns(openAddTimesheet);
+
+  const createDefaults = useMemo(
+    () => ({ personId: addForPersonId ?? '', duration: DEFAULT_DURATION }),
+    [addForPersonId],
+  );
 
   const loadNotLogged = useCallback(
     async (background = false) => {
@@ -124,6 +157,17 @@ export function PanouNotLoggedView() {
             );
           })}
         </>
+      )}
+
+      {addForPersonId && (
+        <TimesheetFormPanel
+          open
+          mode="create"
+          timesheet={null}
+          createDefaults={createDefaults}
+          onClose={() => setAddForPersonId(null)}
+          onSaved={() => void refreshAll()}
+        />
       )}
     </section>
   );
