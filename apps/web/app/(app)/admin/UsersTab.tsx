@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  listUsers,
-  type SortOrder,
-  type UserDto,
-  type UserListSortBy,
-} from '@fabxpert/shared';
+import { listUsers, type SortOrder, type UserDto } from '@fabxpert/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { UserFormPanel } from './UserFormPanel';
 import { ImpersonationModal } from './impersonation/ImpersonationModal';
@@ -13,11 +8,12 @@ import { PersonAvatar } from '@/components/PersonAvatar';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { Pagination } from '@/components/Pagination';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { loadAllPages } from '@/utils/loadAllPages';
 import { replaceById } from '@/utils/replaceById';
 
 const PAGE_SIZE = 20;
+const LOAD_PAGE_SIZE = 200;
 const SEARCH_DEBOUNCE_MS = 300;
-const DEFAULT_SORT_BY: UserListSortBy = 'name';
 const DEFAULT_SORT_ORDER: SortOrder = 'asc';
 
 const searchInputClassName =
@@ -32,24 +28,140 @@ type PanelState =
   | { open: true; mode: 'create'; user: null }
   | { open: true; mode: 'edit'; user: UserDto };
 
-function rolePillClass(role: UserDto['role']): string {
-  return role === 'ADMIN'
-    ? 'bg-status-in-proiectare-bg text-status-in-proiectare-text'
-    : 'bg-status-ciorna-bg text-status-ciorna-text';
+/** Account groups shown as separate tables — every user lands in exactly one. */
+type UserGroupId = 'angajati' | 'office' | 'externi';
+
+const USER_GROUPS: {
+  id: UserGroupId;
+  title: string;
+  description: string;
+  emptyMessage: string;
+}[] = [
+  {
+    id: 'angajati',
+    title: 'Angajați',
+    description: 'conturi cu rol employee',
+    emptyMessage: 'Niciun angajat.',
+  },
+  {
+    id: 'externi',
+    title: 'Externi',
+    description: 'văd doar proiectele alocate specific',
+    emptyMessage: 'Niciun utilizator extern.',
+  },
+  {
+    id: 'office',
+    title: 'Office',
+    description: 'conturi cu rol admin',
+    emptyMessage: 'Niciun utilizator office.',
+  },
+];
+
+function userGroupOf(user: UserDto): UserGroupId {
+  if (user.role === 'ADMIN') {
+    return 'office';
+  }
+  return user.restrictedProjects ? 'externi' : 'angajati';
 }
 
 function personName(user: UserDto): string {
   return `${user.person.firstName} ${user.person.lastName}`;
 }
 
-export function UsersTab({ active }: UsersTabProps) {
+function compareByName(a: UserDto, b: UserDto): number {
+  return (
+    a.person.lastName.localeCompare(b.person.lastName, 'ro') ||
+    a.person.firstName.localeCompare(b.person.firstName, 'ro') ||
+    a.id.localeCompare(b.id)
+  );
+}
+
+interface UserGroupTableProps {
+  title: string;
+  description: string;
+  emptyMessage: string;
+  storageKey: string;
+  users: UserDto[];
+  columns: DataTableColumn<UserDto>[];
+  loading: boolean;
+  onRowClick: (user: UserDto) => void;
+}
+
+/** One group table with its own sort order and pagination over the loaded rows. */
+function UserGroupTable({
+  title,
+  description,
+  emptyMessage,
+  storageKey,
+  users,
+  columns,
+  loading,
+  onRowClick,
+}: UserGroupTableProps) {
   const [page, setPage] = useState(1);
-  const [sortBy, setSortBy] = useState<UserListSortBy>(DEFAULT_SORT_BY);
   const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
+
+  const sortedUsers = useMemo(() => {
+    const rows = [...users].sort(compareByName);
+    return sortOrder === 'desc' ? rows.reverse() : rows;
+  }, [users, sortOrder]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedUsers.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages));
+  }, [totalPages]);
+
+  const pageUsers = sortedUsers.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  return (
+    <section className="relative mt-8 first:mt-0">
+      {/* Sits on the table's own column-menu row (that button is right-aligned),
+          so the label stays tight against the table header. */}
+      <div className="absolute left-0 top-0 flex h-8 items-center gap-2">
+        <h2 className="text-sm font-medium text-text-primary">{title}</h2>
+        <span className="text-xs text-text-muted">
+          {loading ? 'se încarcă…' : `${sortedUsers.length} · ${description}`}
+        </span>
+      </div>
+
+      <div>
+        <DataTable
+          storageKey={storageKey}
+          columns={columns}
+          data={pageUsers}
+          rowKey={(user) => user.id}
+          loading={loading}
+          loadingRowCount={3}
+          emptyMessage={emptyMessage}
+          sortBy="name"
+          sortOrder={sortOrder}
+          onSortChange={(_sortBy, nextSortOrder) => {
+            setSortOrder(nextSortOrder);
+            setPage(1);
+          }}
+          onRowClick={loading ? undefined : onRowClick}
+        />
+        {!loading && sortedUsers.length > PAGE_SIZE && (
+          <div className="border-x border-b border-border-subtle px-2">
+            <Pagination
+              page={safePage}
+              pageSize={PAGE_SIZE}
+              total={sortedUsers.length}
+              onPageChange={setPage}
+            />
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+export function UsersTab({ active }: UsersTabProps) {
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [users, setUsers] = useState<UserDto[]>([]);
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [panel, setPanel] = useState<PanelState>({ open: false });
@@ -63,30 +175,31 @@ export function UsersTab({ active }: UsersTabProps) {
     return () => window.clearTimeout(timeout);
   }, [searchInput]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch]);
-
   const loadUsers = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const usersResponse = await listUsers({
-        page,
-        pageSize: PAGE_SIZE,
-        sortBy,
-        sortOrder,
-        ...(debouncedSearch ? { search: debouncedSearch } : {}),
-      });
-      setUsers(usersResponse.data);
-      setTotal(usersResponse.meta.total);
+      // Every row is fetched once, then split into groups on render — each group
+      // table paginates on its own.
+      const allUsers = await loadAllPages(
+        (page, pageSize) =>
+          listUsers({
+            page,
+            pageSize,
+            sortBy: 'name',
+            sortOrder: 'asc',
+            ...(debouncedSearch ? { search: debouncedSearch } : {}),
+          }),
+        LOAD_PAGE_SIZE,
+      );
+      setUsers(allUsers);
     } catch (caught) {
       setError(apiErrorToastMessage(caught));
     } finally {
       setLoading(false);
     }
-  }, [page, sortBy, sortOrder, debouncedSearch]);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     if (active) {
@@ -107,6 +220,8 @@ export function UsersTab({ active }: UsersTabProps) {
   }
 
   function handleSaved(updated?: UserDto) {
+    // Changing the role or the "proiecte alocate specific" flag moves the row to
+    // another table — grouping is derived on render, so replacing is enough.
     if (updated) {
       setUsers((current) => replaceById(current, updated));
       return;
@@ -143,18 +258,6 @@ export function UsersTab({ active }: UsersTabProps) {
         className: 'text-text-muted',
       },
       {
-        key: 'role',
-        header: 'Rol',
-        width: '120px',
-        render: (user) => (
-          <span
-            className={`inline-block rounded px-2 py-0.5 text-center text-xs font-medium ${rolePillClass(user.role)}`}
-          >
-            {user.role}
-          </span>
-        ),
-      },
-      {
         key: 'isActive',
         header: 'Status',
         width: '120px',
@@ -177,18 +280,20 @@ export function UsersTab({ active }: UsersTabProps) {
         className: 'overflow-visible',
         render: (user) => (
           <div className="flex justify-end gap-1">
-            <button
-              type="button"
-              aria-label="Impersonează utilizator"
-              title="Impersonează utilizator"
-              onClick={(event) => {
-                event.stopPropagation();
-                setImpersonatedUser(user);
-              }}
-              className="rounded p-1.5 text-text-muted transition-all hover:bg-surface hover:text-text-primary"
-            >
-              <i className="ti ti-eye text-base" aria-hidden="true" />
-            </button>
+            {user.role === 'EMPLOYEE' && (
+              <button
+                type="button"
+                aria-label="Impersonează utilizator"
+                title="Impersonează utilizator"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setImpersonatedUser(user);
+                }}
+                className="rounded p-1.5 text-text-muted transition-all hover:bg-surface hover:text-text-primary"
+              >
+                <i className="ti ti-eye text-base" aria-hidden="true" />
+              </button>
+            )}
             <button
               type="button"
               aria-label="Editează utilizatorul"
@@ -206,10 +311,19 @@ export function UsersTab({ active }: UsersTabProps) {
     ];
   }, []);
 
+  const groupedUsers = useMemo(() => {
+    const groups: Record<UserGroupId, UserDto[]> = { angajati: [], office: [], externi: [] };
+    for (const user of users) {
+      groups[userGroupOf(user)].push(user);
+    }
+    return groups;
+  }, [users]);
+
   if (!active) {
     return null;
   }
 
+  const total = users.length;
   const hasSearch = debouncedSearch.length > 0;
   const showEmptyState = !loading && !error && total === 0 && !hasSearch;
   const showNoSearchResults = !loading && !error && total === 0 && hasSearch;
@@ -218,7 +332,7 @@ export function UsersTab({ active }: UsersTabProps) {
     <div>
       <div className="flex items-center justify-between gap-4">
         <p className="text-sm text-text-secondary">
-          {loading && users.length === 0 ? 'Se încarcă…' : `${total} utilizatori`}
+          {loading && total === 0 ? 'Se încarcă…' : `${total} utilizatori`}
         </p>
         {!showEmptyState && (
           <button
@@ -275,27 +389,20 @@ export function UsersTab({ active }: UsersTabProps) {
       )}
 
       {(loading || total > 0) && (
-        <div className="mt-4">
-          <DataTable
-            storageKey="admin-users-list"
-            columns={userColumns}
-            data={users}
-            rowKey={(user) => user.id}
-            loading={loading}
-            sortBy={sortBy}
-            sortOrder={sortOrder}
-            onSortChange={(nextSortBy, nextSortOrder) => {
-              setSortBy(nextSortBy as UserListSortBy);
-              setSortOrder(nextSortOrder);
-              setPage(1);
-            }}
-            onRowClick={loading ? undefined : openEdit}
-          />
-          {!loading && total > 0 && (
-            <div className="border-x border-b border-border-subtle px-2">
-              <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
-            </div>
-          )}
+        <div className="mt-6">
+          {USER_GROUPS.map((group) => (
+            <UserGroupTable
+              key={group.id}
+              title={group.title}
+              description={group.description}
+              emptyMessage={group.emptyMessage}
+              storageKey={`admin-users-list-${group.id}`}
+              users={groupedUsers[group.id]}
+              columns={userColumns}
+              loading={loading}
+              onRowClick={openEdit}
+            />
+          ))}
         </div>
       )}
 
