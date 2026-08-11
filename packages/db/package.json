@@ -27,7 +27,8 @@
     "db:seed:perf": "tsx prisma/seed-perf.ts",
     "db:seed:perf:clear": "tsx prisma/seed-perf-clear.ts",
     "db:studio": "prisma studio",
-    "db:import-sql": "tsx scripts/generate-companies-import-sql.ts"
+    "db:import-sql": "tsx scripts/generate-companies-import-sql.ts",
+    "db:backfill-denumire-lucrare": "tsx scripts/backfill-denumire-lucrare.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
