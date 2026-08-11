@@ -62,6 +62,33 @@ export function PanouProjectCard({
   // Null or blank leaves the row exactly as it was — no orphan separator.
   const subline = titleSubline?.trim() ? titleSubline.trim() : null;
   const info = infoLine?.trim() ? infoLine.trim() : null;
+  const totalBlock = (
+    <div className="flex items-center gap-1">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="text-right transition-colors hover:opacity-90"
+      >
+        <span className="block font-mono text-xs font-medium tabular-nums text-text-primary">
+          {formatDurationMinutes(totalMinutes)}
+        </span>
+        <span className="block text-[10px] text-text-muted">total logat</span>
+      </button>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        aria-label={expanded ? 'Restrânge detaliile' : 'Extinde detaliile'}
+        className="flex size-6 shrink-0 items-center justify-center text-text-muted transition-colors hover:text-text-secondary"
+      >
+        <i
+          className={`ti ${expanded ? 'ti-chevron-up' : 'ti-chevron-down'} text-sm`}
+          aria-hidden="true"
+        />
+      </button>
+    </div>
+  );
   const meta =
     metaContent ??
     (metaLine ? (
@@ -69,6 +96,8 @@ export function PanouProjectCard({
         {metaLine}
       </span>
     ) : null);
+  // Cards without roles/timeline (the hours view) keep the hours block top right.
+  const hasFooter = Boolean(meta || timeline);
 
   return (
     <div className="overflow-hidden rounded-lg border border-border-subtle bg-surface shadow-sm shadow-black/10">
@@ -139,51 +168,30 @@ export function PanouProjectCard({
 
           <div className="flex shrink-0 flex-col items-end gap-0.5 self-start">
             {durationTopActions}
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={onToggle}
-                aria-expanded={expanded}
-                className="text-right transition-colors hover:opacity-90"
-              >
-                <span className="block font-mono text-xs font-medium tabular-nums text-text-primary">
-                  {formatDurationMinutes(totalMinutes)}
-                </span>
-                <span className="block text-[10px] text-text-muted">total logat</span>
-              </button>
-              <button
-                type="button"
-                onClick={onToggle}
-                aria-expanded={expanded}
-                aria-label={expanded ? 'Restrânge detaliile' : 'Extinde detaliile'}
-                className="flex size-6 shrink-0 items-center justify-center text-text-muted transition-colors hover:text-text-secondary"
-              >
-                <i
-                  className={`ti ${expanded ? 'ti-chevron-up' : 'ti-chevron-down'} text-sm`}
-                  aria-hidden="true"
-                />
-              </button>
-            </div>
+            {!hasFooter && totalBlock}
           </div>
           </div>
 
-          {(meta || timeline) && (
-            /* Full-width footer row: on phones the roles can use the whole card
-               width (including under the hours column); from `md` up "vizibil
-               pentru" and the timeline sit on one line, aligned to each other. */
-            <div className="mt-1.5 flex flex-col gap-1 md:flex-row md:items-start md:justify-between md:gap-4">
+          {hasFooter && (
+            /* Bottom row across the card: roles on the left, then the timeline
+               and — bottom right — the hours toggle. On phones the roles get the
+               whole width and this stacks. */
+            <div className="mt-1.5 flex flex-col gap-1 md:flex-row md:items-end md:justify-between md:gap-4">
               <div className="min-w-0">{meta}</div>
-              {timeline && (
-                <div className="flex shrink-0 flex-col gap-0.5 md:items-end">
-                  <span
-                    className={`inline-flex items-center gap-1 text-[11px] ${timeline.daysClassName}`}
-                  >
-                    <i className="ti ti-calendar text-xs" aria-hidden="true" />
-                    {timeline.daysText}
-                  </span>
-                  <span className="text-[10px] text-text-muted">{timeline.dateRange}</span>
-                </div>
-              )}
+              <div className="flex shrink-0 items-end justify-between gap-3 md:justify-end">
+                {timeline && (
+                  <div className="flex flex-col gap-0.5">
+                    <span
+                      className={`inline-flex items-center gap-1 text-[11px] ${timeline.daysClassName}`}
+                    >
+                      <i className="ti ti-calendar text-xs" aria-hidden="true" />
+                      {timeline.daysText}
+                    </span>
+                    <span className="text-[10px] text-text-muted">{timeline.dateRange}</span>
+                  </div>
+                )}
+                {totalBlock}
+              </div>
             </div>
           )}
         </div>
