@@ -136,9 +136,25 @@ export default function ProjectsPage() {
         render: (row) => <TruncatedTableCell text={row.code} />,
       },
       {
-        key: 'name',
+        key: 'denumireLucrare',
+        header: 'Nume',
+        sortKey: 'denumireLucrare',
+        width: projectNameTableColumnLayout.width,
+        className: projectNameTableColumnLayout.className,
+        render: (row) =>
+          row.denumireLucrare ? (
+            <ProjectNameCell name={row.denumireLucrare} />
+          ) : (
+            nullableCell(null)
+          ),
+      },
+      {
+        // Full template name — key differs from the DTO field so the stored
+        // column preferences of existing users pick up the hidden-by-default.
+        key: 'projectName',
         header: 'Proiect',
         sortKey: 'name',
+        defaultVisible: false,
         width: projectNameTableColumnLayout.width,
         className: projectNameTableColumnLayout.className,
         render: (row) => <ProjectNameCell name={row.name} />,

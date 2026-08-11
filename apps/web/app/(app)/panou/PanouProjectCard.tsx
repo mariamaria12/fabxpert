@@ -20,6 +20,7 @@ export function PanouProjectCard({
   accentColor,
   title,
   status,
+  titleSubline,
   subtitle,
   metaLine,
   metaContent,
@@ -35,6 +36,8 @@ export function PanouProjectCard({
   accentColor: string | null;
   title: string;
   status?: ProjectStatus;
+  /** Sits between the title and the subtitle; skipped when empty. */
+  titleSubline?: string | null;
   subtitle: string;
   metaLine?: string;
   metaContent?: ReactNode;
@@ -92,6 +95,14 @@ export function PanouProjectCard({
                 </span>
               )}
             </span>
+            {titleSubline && (
+              <span
+                className="mt-0.5 block truncate text-xs text-text-secondary"
+                title={titleSubline}
+              >
+                {titleSubline}
+              </span>
+            )}
             <span className="mt-0.5 block truncate text-[11px] text-text-muted">{subtitle}</span>
             {metaContent ??
               (metaLine ? (

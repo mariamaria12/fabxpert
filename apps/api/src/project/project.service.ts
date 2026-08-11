@@ -160,6 +160,7 @@ function toProjectDto(project: ProjectWithRelations | ProjectListRow, compact = 
   return {
     id: project.id,
     name: project.name,
+    denumireLucrare: project.denumireLucrare,
     code: project.code,
     status: project.status,
     startDate: project.startDate?.toISOString() ?? null,
@@ -184,6 +185,8 @@ function buildProjectOrderBy(
   const tiebreaker: Prisma.ProjectOrderByWithRelationInput = { id: 'asc' };
 
   switch (sortBy) {
+    case 'denumireLucrare':
+      return [{ denumireLucrare: { sort: sortOrder, nulls: 'last' } }, tiebreaker];
     case 'code':
       return [{ code: sortOrder }, tiebreaker];
     case 'company':

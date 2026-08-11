@@ -121,6 +121,7 @@ export function PinnedProjectCard({
       accentColor={project.color}
       title={project.code}
       status={project.status}
+      titleSubline={project.denumireLucrare}
       subtitle={project.company.name}
       metaContent={
         <ProjectVisibleForCardMeta

@@ -19,6 +19,7 @@ export type ProjectStatusGroup = 'in_progress' | 'completed';
 
 export const PROJECT_LIST_SORT_BY_VALUES = [
   'name',
+  'denumireLucrare',
   'code',
   'company',
   'startDate',
@@ -97,6 +98,8 @@ export type ProjectVisibleRoleDto = {
 export type ProjectDto = {
   id: string;
   name: string;
+  /** Work description parsed out of the project name; null until filled in. */
+  denumireLucrare: string | null;
   code: string;
   status: ProjectStatus;
   startDate: string | null;

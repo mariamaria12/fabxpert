@@ -9,6 +9,7 @@ import { PanouProjectCard } from './PanouProjectCard';
 export type ProjectHoursCardProject = {
   id: string;
   name: string;
+  denumireLucrare: string | null;
   code: string;
   color: string | null;
   status: ProjectStatus;
@@ -34,6 +35,7 @@ export function ProjectHoursCard({
       accentColor={project.color}
       title={project.code}
       status={showStatusBadge ? project.status : undefined}
+      titleSubline={project.denumireLucrare}
       subtitle={project.company.name}
       totalMinutes={project.totalMinutes}
       expanded={expanded}

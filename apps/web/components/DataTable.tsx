@@ -12,6 +12,8 @@ export interface DataTableColumn<T> {
   className?: string;
   sortKey?: string;
   hideable?: boolean;
+  /** Start hidden (still selectable from the column menu). Defaults to visible. */
+  defaultVisible?: boolean;
 }
 
 export type DataTableSortOrder = 'asc' | 'desc';
@@ -185,7 +187,7 @@ export function DataTable<T>({
     () =>
       columns.map((column, index) => ({
         id: column.key,
-        visible: true,
+        visible: column.defaultVisible ?? true,
         width: getDefaultWidth(column),
         order: index,
       })),

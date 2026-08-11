@@ -21,6 +21,7 @@ export type BuildProjectSummaryQueryOptions = {
 export type ProjectSummarySqlRow = {
   projectId: string;
   projectName: string;
+  projectDenumireLucrare: string | null;
   projectCode: string;
   projectColor: string | null;
   projectIndexPanou?: number | null;
@@ -80,6 +81,7 @@ export function buildProjectSummaryQuery(
       SELECT
         p.id AS "projectId",
         p.name AS "projectName",
+        p."denumireLucrare" AS "projectDenumireLucrare",
         p.code AS "projectCode",
         p.color AS "projectColor",
         p."indexPanou" AS "projectIndexPanou",
@@ -110,6 +112,7 @@ export function buildProjectSummaryQuery(
       GROUP BY
         p.id,
         p.name,
+        p."denumireLucrare",
         p.code,
         p.color,
         p."indexPanou",
@@ -133,6 +136,7 @@ export function buildProjectSummaryQuery(
     SELECT
       p.id AS "projectId",
       p.name AS "projectName",
+      p."denumireLucrare" AS "projectDenumireLucrare",
       p.code AS "projectCode",
       p.color AS "projectColor",
       p.status AS "projectStatus",
@@ -153,6 +157,7 @@ export function buildProjectSummaryQuery(
     GROUP BY
       p.id,
       p.name,
+      p."denumireLucrare",
       p.code,
       p.color,
       p.status,
@@ -178,6 +183,7 @@ function upsertProjectRow(
     project = {
       id: row.projectId,
       name: row.projectName,
+      denumireLucrare: row.projectDenumireLucrare,
       code: row.projectCode,
       color: row.projectColor,
       status: row.projectStatus as ProjectStatus,
@@ -236,6 +242,7 @@ export function shapePinnedProjectsSummary(
       project = {
         id: row.projectId,
         name: row.projectName,
+        denumireLucrare: row.projectDenumireLucrare,
         code: row.projectCode,
         color: row.projectColor,
         status: row.projectStatus as ProjectStatus,

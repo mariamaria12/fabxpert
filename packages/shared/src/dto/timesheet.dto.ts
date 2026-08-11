@@ -95,6 +95,7 @@ export type ProjectSummaryActivityRow = {
 export type ProjectSummaryProjectRow = {
   id: string;
   name: string;
+  denumireLucrare: string | null;
   code: string;
   color: string | null;
   status: ProjectStatus;
@@ -111,6 +112,7 @@ export type ProjectSummaryResponse = {
 export type PinnedProjectSummaryRow = {
   id: string;
   name: string;
+  denumireLucrare: string | null;
   code: string;
   color: string | null;
   status: ProjectStatus;
