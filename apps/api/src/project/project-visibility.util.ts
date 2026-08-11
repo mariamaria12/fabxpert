@@ -89,6 +89,38 @@ export async function resolveEmployeeProjectVisibility(
   };
 }
 
+/**
+ * Same context, resolved from a Person instead of the caller.
+ * Used by admin-only flows that act on behalf of someone else (impersonation),
+ * where the caller's own visibility is irrelevant.
+ */
+export async function resolvePersonProjectVisibility(
+  prisma: PrismaClient,
+  personId: string,
+): Promise<EmployeeProjectVisibilityContext> {
+  const person = await prisma.person.findUnique({
+    where: { id: personId },
+    select: {
+      employeeRole: {
+        select: { id: true, isActive: true, deletedAt: true },
+      },
+      user: {
+        select: { restrictedProjects: true, deletedAt: true },
+      },
+    },
+  });
+
+  const role = person?.employeeRole;
+  const employeeRoleId =
+    role && role.isActive && !role.deletedAt ? role.id : null;
+  const user = person?.user;
+
+  return {
+    employeeRoleId,
+    restrictedProjects: !!user && !user.deletedAt && user.restrictedProjects,
+  };
+}
+
 /** Active, non-deleted employee-role id for the user's linked person (or null). */
 export async function resolveActiveEmployeeRoleId(
   prisma: PrismaClient,

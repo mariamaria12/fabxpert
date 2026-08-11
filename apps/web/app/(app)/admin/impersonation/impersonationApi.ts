@@ -14,6 +14,7 @@
 import {
   createLeaveRequest as sharedCreateLeaveRequest,
   createTimesheet as sharedCreateTimesheet,
+  listAvailableProjects as sharedListAvailableProjects,
   cancelLeaveRequest,
   deleteTimesheet,
   getLeaveBalance,
@@ -46,6 +47,14 @@ export function createLeaveRequest(input: Omit<CreateLeaveRequestInput, 'personI
 /** GET the impersonated person's leave requests (admin list filtered by personId). */
 export function listMyLeaveRequests(page?: number, pageSize?: number) {
   return listLeaveRequests({ personId: getImpersonationPersonId(), page, pageSize });
+}
+
+/**
+ * GET the projects the impersonated person can log time on — their employee
+ * role and their "Vede doar proiecte alocate specific" flag, not the admin's.
+ */
+export function listAvailableProjects() {
+  return sharedListAvailableProjects(getImpersonationPersonId());
 }
 
 /** GET the impersonated person's leave balance. */

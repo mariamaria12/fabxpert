@@ -8,6 +8,7 @@ import {
   listProjects,
   type ProjectDto,
   type ProjectListSortBy,
+  type ProjectStatus,
   type SortOrder,
 } from '@fabxpert/shared';
 import {
@@ -28,6 +29,8 @@ import {
   TruncatedTableCell,
 } from '@/components/ProjectNameCell';
 import { Pagination } from '@/components/Pagination';
+import { ProjectListFilters } from '@/components/ProjectListFilters';
+import { STATUS_FILTER_OPTIONS } from '@/utils/projectStatusFilter';
 import { replaceById } from '@/utils/replaceById';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { useLazyVisible } from '@/hooks/useLazyVisible';
@@ -42,6 +45,7 @@ import { ProjectPinButton } from './ProjectPinButton';
 import { ProjectVisibleForCell } from './panouProjectVisibility';
 
 const PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 300;
 const DEFAULT_SORT_BY: ProjectListSortBy = 'name';
 const DEFAULT_SORT_ORDER: SortOrder = 'asc';
 
@@ -221,12 +225,29 @@ const ProjectTableSection = forwardRef<
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editPanel, setEditPanel] = useState<EditPanelState>({ open: false });
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [statusFilters, setStatusFilters] = useState<ProjectStatus[]>([]);
+  const [visibilityFilters, setVisibilityFilters] = useState<string[]>([]);
+  // Seeded from the panou toolbar; the local filter takes over once changed.
+  const [readyFilter, setReadyFilter] = useState<boolean | null>(readyForExecution);
   const fetchSeqRef = useRef(0);
+
+  useEffect(() => {
+    setReadyFilter(readyForExecution);
+  }, [readyForExecution]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchInput.trim());
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
 
   // A narrower filter can leave the current page empty.
   useEffect(() => {
     setPage(1);
-  }, [readyForExecution]);
+  }, [readyFilter, debouncedSearch, statusFilters, visibilityFilters]);
 
   const loadProjects = useCallback(async () => {
     const fetchSeq = ++fetchSeqRef.current;
@@ -239,7 +260,13 @@ const ProjectTableSection = forwardRef<
         page,
         pageSize: PAGE_SIZE,
         statusGroup,
-        readyForExecution: readyForExecution ?? undefined,
+        search: debouncedSearch || undefined,
+        status: statusFilters.length > 0 ? statusFilters : undefined,
+        visibleFor:
+          visibilityFilters.length > 0
+            ? (visibilityFilters as Array<'everyone' | string>)
+            : undefined,
+        readyForExecution: readyFilter ?? undefined,
         sortBy,
         sortOrder,
       });
@@ -266,7 +293,16 @@ const ProjectTableSection = forwardRef<
         setLoading(false);
       }
     }
-  }, [page, statusGroup, readyForExecution, sortBy, sortOrder]);
+  }, [
+    page,
+    statusGroup,
+    debouncedSearch,
+    statusFilters,
+    visibilityFilters,
+    readyFilter,
+    sortBy,
+    sortOrder,
+  ]);
 
   useEffect(() => {
     void loadProjects();
@@ -335,16 +371,42 @@ const ProjectTableSection = forwardRef<
     onPinToggled: handlePinToggled,
   });
 
-  const emptyMessage =
-    statusGroup === 'in_progress'
-      ? readyForExecution !== null
-        ? 'Niciun proiect în curs pentru filtrele selectate.'
-        : 'Niciun proiect în curs.'
+  const hasActiveFilters =
+    readyFilter !== null ||
+    statusFilters.length > 0 ||
+    visibilityFilters.length > 0 ||
+    debouncedSearch.length > 0;
+
+  const emptyMessage = hasActiveFilters
+    ? statusGroup === 'in_progress'
+      ? 'Niciun proiect în curs pentru filtrele selectate.'
+      : 'Niciun proiect finalizat pentru filtrele selectate.'
+    : statusGroup === 'in_progress'
+      ? 'Niciun proiect în curs.'
       : 'Niciun proiect finalizat.';
 
   return (
     <div>
       <h3 className="text-sm font-medium text-text-secondary">{title}</h3>
+
+      {/* Search and filters only on the in-progress table. */}
+      {statusGroup === 'in_progress' && (
+        <ProjectListFilters
+          idPrefix={`panou-projects-${statusGroup}`}
+          className="mt-3"
+          statusOptions={STATUS_FILTER_OPTIONS}
+          statusValues={statusFilters}
+          onStatusChange={setStatusFilters}
+          visibilityValues={visibilityFilters}
+          onVisibilityChange={setVisibilityFilters}
+          readyForExecution={readyFilter}
+          onReadyForExecutionChange={setReadyFilter}
+          search={{
+            value: searchInput,
+            onChange: setSearchInput,
+          }}
+        />
+      )}
 
       {error && (
         <div className="mt-3 flex items-center justify-between gap-4 rounded-md border border-border-subtle bg-[var(--color-toast-error-bg)] px-4 py-3">

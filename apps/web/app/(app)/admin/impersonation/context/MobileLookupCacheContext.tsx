@@ -1,9 +1,9 @@
 import {
   ApiError,
   listActivities,
-  listAvailableProjects,
   subscribeToAvailableProjects,
 } from '@fabxpert/shared';
+import { listAvailableProjects } from '../impersonationApi';
 import type { ActivityDto, PaginatedResponse, ProjectOptionDto, TimesheetDto } from '@fabxpert/shared';
 import {
   createContext,

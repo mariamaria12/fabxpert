@@ -110,8 +110,15 @@ export class ProjectController {
   @Get('available')
   @Roles('ADMIN', 'EMPLOYEE')
   @Header('Cache-Control', 'private, no-store, max-age=0, must-revalidate')
-  findAvailable(@CurrentUser() user: AuthenticatedUser) {
-    return this.projectService.findAvailable(user);
+  findAvailable(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('personId') personId?: string,
+  ) {
+    // Impersonation: admins may ask for another person's visible projects.
+    // Employees always get their own, whatever they pass.
+    const onBehalfOf =
+      user.role === 'ADMIN' && personId?.trim() ? personId.trim() : undefined;
+    return this.projectService.findAvailable(user, onBehalfOf);
   }
 
   @Get()

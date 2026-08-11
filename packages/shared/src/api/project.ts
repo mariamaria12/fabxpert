@@ -17,8 +17,13 @@ export type ProjectAvailabilityEvent = {
   type: 'available-projects-changed';
 };
 
-export function listAvailableProjects() {
-  return request<ProjectOptionDto[]>('/projects/available');
+/**
+ * @param personId admin-only: projects visible to that person (impersonation).
+ *   Ignored by the API for non-admin callers.
+ */
+export function listAvailableProjects(personId?: string) {
+  const query = personId ? `?personId=${encodeURIComponent(personId)}` : '';
+  return request<ProjectOptionDto[]>(`/projects/available${query}`);
 }
 
 export interface ListProjectsParams {

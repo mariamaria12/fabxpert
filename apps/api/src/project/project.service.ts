@@ -21,7 +21,10 @@ import { notDeleted } from '../common/prisma/soft-delete.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { ProjectAvailabilityEventsService } from './project-availability-events.service';
-import { resolveEmployeeProjectVisibility } from './project-visibility.util';
+import {
+  resolveEmployeeProjectVisibility,
+  resolvePersonProjectVisibility,
+} from './project-visibility.util';
 
 const projectCompanyInclude = {
   company: {
@@ -275,9 +278,17 @@ export class ProjectService {
     return toProjectDto(project);
   }
 
-  async findAvailable(actor: AuthenticatedUser): Promise<ProjectOptionDto[]> {
-    const { employeeRoleId, restrictedProjects } =
-      await resolveEmployeeProjectVisibility(this.prisma, actor.id);
+  /**
+   * @param onBehalfOfPersonId admin-only: resolve visibility for that person
+   *   (impersonation) instead of for the caller.
+   */
+  async findAvailable(
+    actor: AuthenticatedUser,
+    onBehalfOfPersonId?: string,
+  ): Promise<ProjectOptionDto[]> {
+    const { employeeRoleId, restrictedProjects } = onBehalfOfPersonId
+      ? await resolvePersonProjectVisibility(this.prisma, onBehalfOfPersonId)
+      : await resolveEmployeeProjectVisibility(this.prisma, actor.id);
 
     // Explicit SQL against the M2M join table — avoids any ambiguity with Prisma relation filters.
     // "_EmployeeRoleToProject": A = employee_roles.id, B = projects.id
