@@ -20,6 +20,7 @@ export type ProjectStatusGroup = 'in_progress' | 'completed';
 export const PROJECT_LIST_SORT_BY_VALUES = [
   'name',
   'denumireLucrare',
+  'finisaj',
   'code',
   'company',
   'startDate',
@@ -59,9 +60,14 @@ const denumireLucrareSchema = z
   .union([z.string().trim(), z.null()])
   .transform((value) => (value ? value : null));
 
+const finisajSchema = z
+  .union([z.string().trim().max(100, 'Finisaj must be at most 100 characters'), z.null()])
+  .transform((value) => (value ? value : null));
+
 export const createProjectSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
   denumireLucrare: denumireLucrareSchema.optional(),
+  finisaj: finisajSchema.optional(),
   code: z.string().trim().min(1, 'Code is required'),
   companyId: companyIdSchema,
   status: projectStatusSchema.optional(),
@@ -106,6 +112,8 @@ export type ProjectDto = {
   name: string;
   /** Work description parsed out of the project name; null until filled in. */
   denumireLucrare: string | null;
+  /** Finish (e.g. ZINCARE, RAL9002); null until filled in. */
+  finisaj: string | null;
   code: string;
   status: ProjectStatus;
   startDate: string | null;

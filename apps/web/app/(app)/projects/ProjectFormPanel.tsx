@@ -43,6 +43,7 @@ import { buildStableIndexMap, getRolePaletteColor } from '@/components/roleColor
 interface ProjectFormValues {
   name: string;
   denumireLucrare: string;
+  finisaj: string;
   code: string;
   companyId: string;
   status: ProjectStatus;
@@ -56,6 +57,7 @@ interface ProjectFormValues {
 const EMPTY_FORM: ProjectFormValues = {
   name: '',
   denumireLucrare: '',
+  finisaj: '',
   code: '',
   companyId: '',
   status: 'CIORNA',
@@ -70,6 +72,7 @@ function projectToFormValues(project: ProjectDto): ProjectFormValues {
   return {
     name: project.name,
     denumireLucrare: project.denumireLucrare ?? '',
+    finisaj: project.finisaj ?? '',
     code: project.code,
     companyId: project.companyId,
     status: project.status,
@@ -158,6 +161,7 @@ function buildUpdatePayload(values: ProjectFormValues) {
   return {
     name: values.name,
     denumireLucrare: values.denumireLucrare.trim() || null,
+    finisaj: values.finisaj.trim() || null,
     code: values.code,
     companyId: values.companyId,
     status: values.status,
@@ -700,7 +704,7 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
           disabled={isBusy || employeeRolesLoading || editProjectLoading}
           placeholder="Caută funcție…"
           emptyMessage="Nicio funcție găsită."
-          helperText="Lasă gol pentru a fi vizibil tuturor angajaților."
+          helperText="Lasă gol pentru a fi vizibil tuturor angajaților interni."
           onChange={(visibleForRoleIds) => updateField('visibleForRoleIds', visibleForRoleIds)}
         />
 
@@ -737,6 +741,18 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
           disabled={isBusy}
           onChange={(value) => updateField('denumireLucrare', value)}
         />
+
+        {mode === 'edit' && (
+          <TextField
+            id="finisaj"
+            label="Finisaj"
+            placeholder="ZINCARE"
+            maxLength={100}
+            value={values.finisaj}
+            disabled={isBusy}
+            onChange={(value) => updateField('finisaj', value)}
+          />
+        )}
 
         <TextField
           id="code"

@@ -123,6 +123,15 @@ function useProjectTableColumns(options?: {
           ),
       },
       {
+        key: 'finisaj',
+        header: 'Finisaj',
+        sortKey: 'finisaj',
+        width: '130px',
+        className: 'overflow-hidden text-text-secondary',
+        render: (row) =>
+          row.finisaj ? <TruncatedTableCell text={row.finisaj} /> : nullableCell(null),
+      },
+      {
         // Full template name — key differs from the DTO field so the stored
         // column preferences of existing users pick up the hidden-by-default.
         key: 'projectName',

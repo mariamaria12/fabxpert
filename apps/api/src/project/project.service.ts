@@ -161,6 +161,7 @@ function toProjectDto(project: ProjectWithRelations | ProjectListRow, compact = 
     id: project.id,
     name: project.name,
     denumireLucrare: project.denumireLucrare,
+    finisaj: project.finisaj,
     code: project.code,
     status: project.status,
     startDate: project.startDate?.toISOString() ?? null,
@@ -187,6 +188,8 @@ function buildProjectOrderBy(
   switch (sortBy) {
     case 'denumireLucrare':
       return [{ denumireLucrare: { sort: sortOrder, nulls: 'last' } }, tiebreaker];
+    case 'finisaj':
+      return [{ finisaj: { sort: sortOrder, nulls: 'last' } }, tiebreaker];
     case 'code':
       return [{ code: sortOrder }, tiebreaker];
     case 'company':

@@ -186,6 +186,7 @@ model Project {
   id                String        @id @default(uuid())
   name              String
   denumireLucrare   String?
+  finisaj           String?
   code              String        @unique
   status            ProjectStatus @default(CIORNA)
   startDate         DateTime?

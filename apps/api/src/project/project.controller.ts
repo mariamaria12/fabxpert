@@ -16,6 +16,7 @@ import {
 import {
   createProjectSchema,
   updateProjectSchema,
+  PROJECT_LIST_SORT_BY_VALUES,
   type CreateProjectInput,
   type UpdateProjectInput,
 } from '@fabxpert/shared/dto/project.dto';
@@ -49,7 +50,7 @@ const statusSchema = z.enum([
 const roleIdSchema = z
   .string()
   .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
-const sortBySchema = z.enum(['name', 'code', 'company', 'startDate', 'dueDate']);
+const sortBySchema = z.enum(PROJECT_LIST_SORT_BY_VALUES);
 const sortOrderSchema = z.enum(['asc', 'desc']);
 
 function parseVisibleForQuery(raw: string | undefined): {
