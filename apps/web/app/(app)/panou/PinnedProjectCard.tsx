@@ -125,6 +125,7 @@ export function PinnedProjectCard({
       title={project.code}
       status={project.status}
       titleSubline={project.denumireLucrare}
+      infoLine={project.finisaj}
       hideLeadingIcon={!dragHandleProps && !showPinButton}
       subtitle={project.company.name}
       metaContent={

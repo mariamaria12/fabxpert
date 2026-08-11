@@ -96,6 +96,7 @@ export type ProjectSummaryProjectRow = {
   id: string;
   name: string;
   denumireLucrare: string | null;
+  finisaj: string | null;
   code: string;
   color: string | null;
   status: ProjectStatus;
@@ -113,6 +114,7 @@ export type PinnedProjectSummaryRow = {
   id: string;
   name: string;
   denumireLucrare: string | null;
+  finisaj: string | null;
   code: string;
   color: string | null;
   status: ProjectStatus;

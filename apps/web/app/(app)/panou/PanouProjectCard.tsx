@@ -22,6 +22,7 @@ export function PanouProjectCard({
   status,
   titleSubline,
   hideLeadingIcon,
+  infoLine,
   subtitle,
   metaLine,
   metaContent,
@@ -41,6 +42,8 @@ export function PanouProjectCard({
   titleSubline?: string | null;
   /** Drop the leading icon entirely (no slot, no fallback) to free up width. */
   hideLeadingIcon?: boolean;
+  /** Extra line between the title row and the subtitle (finisaj on pinned cards). */
+  infoLine?: string | null;
   subtitle: string;
   metaLine?: string;
   metaContent?: ReactNode;
@@ -58,6 +61,14 @@ export function PanouProjectCard({
   const handleTitleClick = onTitleClick ?? onToggle;
   // Null or blank leaves the row exactly as it was — no orphan separator.
   const subline = titleSubline?.trim() ? titleSubline.trim() : null;
+  const info = infoLine?.trim() ? infoLine.trim() : null;
+  const meta =
+    metaContent ??
+    (metaLine ? (
+      <span className="block text-[11px] text-text-muted [overflow-wrap:anywhere]">
+        {metaLine}
+      </span>
+    ) : null);
 
   return (
     <div className="overflow-hidden rounded-lg border border-border-subtle bg-surface shadow-sm shadow-black/10">
@@ -67,7 +78,8 @@ export function PanouProjectCard({
           style={{ backgroundColor: color }}
           aria-hidden="true"
         />
-        <div className="flex min-w-0 flex-1 items-start gap-2.5 px-3 py-2.5">
+        <div className="min-w-0 flex-1 px-3 py-2.5">
+          <div className="flex items-start gap-2.5">
           {leadingSlot ??
             (hideLeadingIcon ? null : (
             <span
@@ -114,26 +126,14 @@ export function PanouProjectCard({
                   </span>
                 )}
               </span>
+            {info && (
+              <span className="mt-0.5 block text-[11px] text-text-secondary [overflow-wrap:anywhere] md:truncate">
+                {info}
+              </span>
+            )}
             <span className="mt-0.5 block text-[11px] text-text-muted [overflow-wrap:anywhere] md:truncate">
               {subtitle}
             </span>
-            {metaContent ??
-              (metaLine ? (
-                <span className="mt-0.5 block text-[11px] text-text-muted [overflow-wrap:anywhere] md:truncate">
-                  {metaLine}
-                </span>
-              ) : null)}
-            {timeline && (
-              <span className="mt-1.5 block space-y-0.5">
-                <span
-                  className={`inline-flex items-center gap-1 text-[11px] ${timeline.daysClassName}`}
-                >
-                  <i className="ti ti-calendar text-xs" aria-hidden="true" />
-                  {timeline.daysText}
-                </span>
-                <span className="block text-[10px] text-text-muted">{timeline.dateRange}</span>
-              </span>
-            )}
           </span>
           </button>
 
@@ -165,6 +165,27 @@ export function PanouProjectCard({
               </button>
             </div>
           </div>
+          </div>
+
+          {(meta || timeline) && (
+            /* Full-width footer row: on phones the roles can use the whole card
+               width (including under the hours column); from `md` up "vizibil
+               pentru" and the timeline sit on one line, aligned to each other. */
+            <div className="mt-1.5 flex flex-col gap-1 md:flex-row md:items-start md:justify-between md:gap-4">
+              <div className="min-w-0">{meta}</div>
+              {timeline && (
+                <div className="flex shrink-0 flex-col gap-0.5 md:items-end">
+                  <span
+                    className={`inline-flex items-center gap-1 text-[11px] ${timeline.daysClassName}`}
+                  >
+                    <i className="ti ti-calendar text-xs" aria-hidden="true" />
+                    {timeline.daysText}
+                  </span>
+                  <span className="text-[10px] text-text-muted">{timeline.dateRange}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

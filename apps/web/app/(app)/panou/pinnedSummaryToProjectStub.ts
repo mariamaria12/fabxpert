@@ -6,7 +6,7 @@ export function pinnedSummaryToProjectStub(row: PinnedProjectSummaryRow): Projec
     id: row.id,
     name: row.name,
     denumireLucrare: row.denumireLucrare,
-    finisaj: null,
+    finisaj: row.finisaj,
     code: row.code,
     status: row.status,
     startDate: row.startDate,

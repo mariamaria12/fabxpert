@@ -240,20 +240,19 @@ export function PanouNotLoggedView() {
             );
           })}
 
-          <label className="inline-flex items-start gap-2 text-sm text-text-secondary">
-            <input
-              type="checkbox"
-              checked={includeExternalCollaborators}
-              onChange={(event) => setIncludeExternalCollaborators(event.target.checked)}
-              className="mt-0.5 size-4 rounded border-border accent-accent"
-            />
-            <span>
-              Afișează colaboratori externi
-              <span className="mt-0.5 block text-xs text-text-muted">
-                Îi include și în numărătoarea „nu au pontat”.
+          <div className="flex justify-end">
+            <label className="inline-flex items-start gap-2 text-sm text-text-secondary">
+              <input
+                type="checkbox"
+                checked={includeExternalCollaborators}
+                onChange={(event) => setIncludeExternalCollaborators(event.target.checked)}
+                className="mt-0.5 size-4 rounded border-border accent-accent"
+              />
+              <span>
+                Afișează colaboratori externi
               </span>
-            </span>
-          </label>
+            </label>
+          </div>
         </>
       )}
 
