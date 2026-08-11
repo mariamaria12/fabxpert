@@ -8,6 +8,7 @@ import {
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { UserFormPanel } from './UserFormPanel';
+import { ImpersonationModal } from './impersonation/ImpersonationModal';
 import { PersonAvatar } from '@/components/PersonAvatar';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { Pagination } from '@/components/Pagination';
@@ -52,6 +53,7 @@ export function UsersTab({ active }: UsersTabProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [panel, setPanel] = useState<PanelState>({ open: false });
+  const [impersonatedUser, setImpersonatedUser] = useState<UserDto | null>(null);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -171,10 +173,22 @@ export function UsersTab({ active }: UsersTabProps) {
       {
         key: 'actions',
         header: '',
-        width: '64px',
+        width: '96px',
         className: 'overflow-visible',
         render: (user) => (
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-1">
+            <button
+              type="button"
+              aria-label="Impersonează utilizator"
+              title="Impersonează utilizator"
+              onClick={(event) => {
+                event.stopPropagation();
+                setImpersonatedUser(user);
+              }}
+              className="rounded p-1.5 text-text-muted transition-all hover:bg-surface hover:text-text-primary"
+            >
+              <i className="ti ti-eye text-base" aria-hidden="true" />
+            </button>
             <button
               type="button"
               aria-label="Editează utilizatorul"
@@ -292,6 +306,13 @@ export function UsersTab({ active }: UsersTabProps) {
           user={panel.user}
           onClose={closePanel}
           onSaved={handleSaved}
+        />
+      )}
+
+      {impersonatedUser && (
+        <ImpersonationModal
+          user={impersonatedUser}
+          onClose={() => setImpersonatedUser(null)}
         />
       )}
     </div>
