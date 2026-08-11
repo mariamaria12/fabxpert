@@ -54,8 +54,14 @@ const hexColorSchema = z
 
 const visibleForRoleIdsSchema = z.array(roleIdSchema);
 
+/** Free text; empty is stored as null so "not filled in" stays a single state. */
+const denumireLucrareSchema = z
+  .union([z.string().trim(), z.null()])
+  .transform((value) => (value ? value : null));
+
 export const createProjectSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
+  denumireLucrare: denumireLucrareSchema.optional(),
   code: z.string().trim().min(1, 'Code is required'),
   companyId: companyIdSchema,
   status: projectStatusSchema.optional(),

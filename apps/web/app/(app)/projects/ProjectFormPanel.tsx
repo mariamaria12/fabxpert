@@ -42,6 +42,7 @@ import { buildStableIndexMap, getRolePaletteColor } from '@/components/roleColor
 
 interface ProjectFormValues {
   name: string;
+  denumireLucrare: string;
   code: string;
   companyId: string;
   status: ProjectStatus;
@@ -54,6 +55,7 @@ interface ProjectFormValues {
 
 const EMPTY_FORM: ProjectFormValues = {
   name: '',
+  denumireLucrare: '',
   code: '',
   companyId: '',
   status: 'CIORNA',
@@ -67,6 +69,7 @@ const EMPTY_FORM: ProjectFormValues = {
 function projectToFormValues(project: ProjectDto): ProjectFormValues {
   return {
     name: project.name,
+    denumireLucrare: project.denumireLucrare ?? '',
     code: project.code,
     companyId: project.companyId,
     status: project.status,
@@ -139,6 +142,7 @@ function mapApiValidationErrors(
 function buildCreatePayload(values: ProjectFormValues) {
   return {
     name: values.name,
+    denumireLucrare: values.denumireLucrare.trim() || null,
     code: values.code,
     companyId: values.companyId,
     status: values.status,
@@ -153,6 +157,7 @@ function buildCreatePayload(values: ProjectFormValues) {
 function buildUpdatePayload(values: ProjectFormValues) {
   return {
     name: values.name,
+    denumireLucrare: values.denumireLucrare.trim() || null,
     code: values.code,
     companyId: values.companyId,
     status: values.status,
@@ -723,6 +728,14 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
           error={fieldErrors.name}
           disabled={isBusy}
           onChange={(value) => updateField('name', value)}
+        />
+
+        <TextField
+          id="denumireLucrare"
+          label="Denumire lucrare"
+          value={values.denumireLucrare}
+          disabled={isBusy}
+          onChange={(value) => updateField('denumireLucrare', value)}
         />
 
         <TextField
