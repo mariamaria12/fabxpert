@@ -31,6 +31,7 @@ interface UserFormValues {
   personId: string;
   isActive: boolean;
   restrictedProjects: boolean;
+  isOfficeUser: boolean;
 }
 
 const EMPTY_FORM: UserFormValues = {
@@ -40,6 +41,7 @@ const EMPTY_FORM: UserFormValues = {
   personId: '',
   isActive: true,
   restrictedProjects: false,
+  isOfficeUser: false,
 };
 
 function userToFormValues(user: UserDto): UserFormValues {
@@ -50,6 +52,7 @@ function userToFormValues(user: UserDto): UserFormValues {
     personId: user.personId,
     isActive: user.isActive,
     restrictedProjects: user.restrictedProjects,
+    isOfficeUser: user.isOfficeUser,
   };
 }
 
@@ -70,6 +73,9 @@ function buildUpdatePayload(user: UserDto, values: UserFormValues): UpdateUserIn
   }
   if (values.restrictedProjects !== user.restrictedProjects) {
     payload.restrictedProjects = values.restrictedProjects;
+  }
+  if (values.isOfficeUser !== user.isOfficeUser) {
+    payload.isOfficeUser = values.isOfficeUser;
   }
 
   const trimmedPassword = values.password.trim();
@@ -277,6 +283,7 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
         personId: values.personId,
         isActive: values.isActive,
         restrictedProjects: values.restrictedProjects,
+        isOfficeUser: values.isOfficeUser,
       });
 
       if (!parsed.success) {
@@ -480,6 +487,24 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
             className="size-4 rounded border-border accent-accent"
           />
           Activ
+        </label>
+
+        <label className="inline-flex items-start gap-2 text-sm text-text-secondary">
+          <input
+            type="checkbox"
+            checked={values.role === 'ADMIN' || values.isOfficeUser}
+            disabled={isBusy || values.role === 'ADMIN'}
+            onChange={(event) => updateField('isOfficeUser', event.target.checked)}
+            className="mt-0.5 size-4 rounded border-border accent-accent"
+          />
+          <span>
+            Office
+            <span className="mt-0.5 block text-xs text-text-muted">
+              {values.role === 'ADMIN'
+                ? 'Conturile de administrator sunt automat office.'
+                : 'Apare la „Office” în administrare și nu e numărat la „nu au pontat”.'}
+            </span>
+          </span>
         </label>
 
         <label className="inline-flex items-start gap-2 text-sm text-text-secondary">

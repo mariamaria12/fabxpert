@@ -23,8 +23,8 @@ const accountJoin = Prisma.sql`
  * `distinctPersonCount` (same GROUP BY / HAVING), so the two agree on who
  * counts as having logged.
  *
- * Left out entirely: admin accounts (not expected to log), and persons on
- * approved leave (covered by the separate "în concediu" metric).
+ * Left out entirely: admin and office accounts (not expected to log), and
+ * persons on approved leave (covered by the separate "în concediu" metric).
  */
 function notLoggedPredicate(from: Date | null, to: Date | null) {
   const timesheetPeriod =
@@ -39,7 +39,7 @@ function notLoggedPredicate(from: Date | null, to: Date | null) {
 
   return Prisma.sql`
     pe."deletedAt" IS NULL
-    AND (u.id IS NULL OR u.role <> 'ADMIN')
+    AND (u.id IS NULL OR (u.role <> 'ADMIN' AND NOT u."isOfficeUser"))
     AND pe.id NOT IN (
       SELECT t."personId"
       FROM timesheets t

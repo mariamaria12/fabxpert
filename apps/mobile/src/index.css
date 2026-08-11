@@ -899,6 +899,11 @@ body {
   color: var(--color-text-primary);
 }
 
+.option-row-subtitle {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
 .option-row-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 13px;

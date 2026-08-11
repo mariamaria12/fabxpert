@@ -135,6 +135,8 @@ export type ProjectDto = {
 export type ProjectOptionDto = {
   id: string;
   name: string;
+  denumireLucrare: string | null;
+  finisaj: string | null;
   code: string;
   color: string | null;
   company: {

@@ -205,7 +205,14 @@ export function ProjectSelect({ user, onChoose, onOpenMyTimesheets }: ProjectSel
                 />
                 <span className="option-row-body">
                   <span className="option-row-title">{project.code}</span>
-                  <span className="option-row-code">{project.company.name}</span>
+                  {project.denumireLucrare && (
+                    <span className="option-row-subtitle">{project.denumireLucrare}</span>
+                  )}
+                  <span className="option-row-code">
+                    {project.finisaj
+                      ? `${project.company.name} · ${project.finisaj}`
+                      : project.company.name}
+                  </span>
                 </span>
               </button>
             </li>

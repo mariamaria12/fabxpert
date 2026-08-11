@@ -320,6 +320,8 @@ export class ProjectService {
       Array<{
         id: string;
         name: string;
+        denumireLucrare: string | null;
+        finisaj: string | null;
         code: string;
         color: string | null;
         companyName: string;
@@ -328,6 +330,8 @@ export class ProjectService {
       SELECT
         p.id,
         p.name,
+        p."denumireLucrare",
+        p.finisaj,
         p.code,
         p.color,
         c.name AS "companyName"
@@ -342,6 +346,8 @@ export class ProjectService {
     return rows.map((row) => ({
       id: row.id,
       name: row.name,
+      denumireLucrare: row.denumireLucrare,
+      finisaj: row.finisaj,
       code: row.code,
       color: row.color,
       company: { name: row.companyName },

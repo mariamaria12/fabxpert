@@ -52,13 +52,13 @@ const USER_GROUPS: {
   {
     id: 'office',
     title: 'Office',
-    description: 'conturi cu rol admin',
+    description: 'conturi admin și office',
     emptyMessage: 'Niciun utilizator office.',
   },
 ];
 
 function userGroupOf(user: UserDto): UserGroupId {
-  if (user.role === 'ADMIN') {
+  if (user.role === 'ADMIN' || user.isOfficeUser) {
     return 'office';
   }
   return user.restrictedProjects ? 'externi' : 'angajati';
@@ -220,8 +220,8 @@ export function UsersTab({ active }: UsersTabProps) {
   }
 
   function handleSaved(updated?: UserDto) {
-    // Changing the role or the "proiecte alocate specific" flag moves the row to
-    // another table — grouping is derived on render, so replacing is enough.
+    // Changing the role, the office flag or "proiecte alocate specific" moves the
+    // row to another table — grouping is derived on render, so replacing is enough.
     if (updated) {
       setUsers((current) => replaceById(current, updated));
       return;

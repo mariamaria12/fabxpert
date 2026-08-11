@@ -202,8 +202,8 @@ export function PanouNotLoggedView() {
       {!error && !waitingForCustomRange && (
         <>
           <p className="text-xs text-text-muted">
-            Conturile de administrator și persoanele aflate în concediu aprobat nu sunt
-            incluse.
+            Conturile de administrator, conturile office și persoanele aflate în concediu
+            aprobat nu sunt incluse.
           </p>
 
           {PANOU_PERSON_GROUPS.map(({ group, title }) => {
