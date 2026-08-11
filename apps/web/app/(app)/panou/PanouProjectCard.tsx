@@ -53,6 +53,8 @@ export function PanouProjectCard({
 }) {
   const color = accentColor ?? '#8c8a80';
   const handleTitleClick = onTitleClick ?? onToggle;
+  // Null or blank leaves the row exactly as it was — no orphan separator.
+  const subline = titleSubline?.trim() ? titleSubline.trim() : null;
 
   return (
     <div className="overflow-hidden rounded-lg border border-border-subtle bg-surface shadow-sm shadow-black/10">
@@ -83,26 +85,29 @@ export function PanouProjectCard({
             className="min-w-0 flex-1 text-left transition-colors hover:opacity-90"
           >
             <span className="min-w-0 flex-1">
-              <span className="flex min-w-0 items-center gap-1.5">
-                <span className="truncate text-sm font-medium text-text-primary" title={title}>
+              <span className="flex min-w-0 items-baseline gap-2.5">
+                <span
+                  className="shrink-0 whitespace-nowrap text-sm font-medium text-text-primary"
+                  title={title}
+                >
                   {title}
                 </span>
-              {status && (
-                <span
-                  className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${getProjectStatusBadgeClassName(status)}`}
-                >
-                  {getProjectStatusLabel(status)}
-                </span>
-              )}
-            </span>
-            {titleSubline && (
-              <span
-                className="mt-0.5 block truncate text-xs text-text-secondary"
-                title={titleSubline}
-              >
-                {titleSubline}
+                {subline && (
+                  <span
+                    className="min-w-0 flex-1 truncate text-xs text-text-muted"
+                    title={subline}
+                  >
+                    · {subline}
+                  </span>
+                )}
+                {status && (
+                  <span
+                    className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${getProjectStatusBadgeClassName(status)}`}
+                  >
+                    {getProjectStatusLabel(status)}
+                  </span>
+                )}
               </span>
-            )}
             <span className="mt-0.5 block truncate text-[11px] text-text-muted">{subtitle}</span>
             {metaContent ??
               (metaLine ? (

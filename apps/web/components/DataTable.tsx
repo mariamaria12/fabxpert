@@ -207,14 +207,16 @@ export function DataTable<T>({
     [columnPreferences],
   );
 
+  // Rendered in definition order: there is no reorder UI, so a stored `order`
+  // only goes stale when a table's column set changes and would shuffle columns
+  // (e.g. push the pin column out of first place).
   const visibleColumns = useMemo(() => {
     return columns
       .map((definition) => {
         const preference = preferencesById.get(definition.key);
         return preference ? { definition, preference } : null;
       })
-      .filter((entry): entry is VisibleColumn<T> => entry !== null && entry.preference.visible)
-      .sort((left, right) => left.preference.order - right.preference.order);
+      .filter((entry): entry is VisibleColumn<T> => entry !== null && entry.preference.visible);
   }, [columns, preferencesById]);
 
   const hideableColumns = useMemo(
@@ -233,8 +235,7 @@ export function DataTable<T>({
 
           return { definition, preference };
         })
-        .filter((entry): entry is VisibleColumn<T> => entry !== null)
-        .sort((left, right) => left.preference.order - right.preference.order),
+        .filter((entry): entry is VisibleColumn<T> => entry !== null),
     [columns, preferencesById],
   );
 
