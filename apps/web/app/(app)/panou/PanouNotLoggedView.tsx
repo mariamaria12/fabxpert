@@ -70,7 +70,12 @@ function useNotLoggedColumns(
 }
 
 export function PanouNotLoggedView() {
-  const { period, periodReady } = usePanouDashboard();
+  const {
+    period,
+    periodReady,
+    includeExternalCollaborators,
+    setIncludeExternalCollaborators,
+  } = usePanouDashboard();
   const { refreshAll } = usePanouRefresh();
   const [persons, setPersons] = useState<NotLoggedPersonRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -151,7 +156,7 @@ export function PanouNotLoggedView() {
       setError(null);
 
       try {
-        const response = await getNotLogged(period);
+        const response = await getNotLogged(period, includeExternalCollaborators);
         setPersons(response.persons);
       } catch (caught) {
         setError(apiErrorToastMessage(caught));
@@ -159,7 +164,7 @@ export function PanouNotLoggedView() {
         setLoading(false);
       }
     },
-    [period],
+    [period, includeExternalCollaborators],
   );
 
   useEffect(() => {
@@ -167,7 +172,7 @@ export function PanouNotLoggedView() {
       return;
     }
     void loadNotLogged();
-  }, [loadNotLogged, period, periodReady]);
+  }, [loadNotLogged, period, periodReady, includeExternalCollaborators]);
 
   const refetchNotLogged = useCallback(async () => {
     if (!periodReady) {
@@ -206,7 +211,9 @@ export function PanouNotLoggedView() {
             aprobat nu sunt incluse.
           </p>
 
-          {PANOU_PERSON_GROUPS.map(({ group, title }) => {
+          {PANOU_PERSON_GROUPS.filter(
+            ({ group }) => group !== 'external' || includeExternalCollaborators,
+          ).map(({ group, title }) => {
             const rows = persons.filter((person) => person.group === group);
 
             return (
@@ -232,6 +239,21 @@ export function PanouNotLoggedView() {
               </div>
             );
           })}
+
+          <label className="inline-flex items-start gap-2 text-sm text-text-secondary">
+            <input
+              type="checkbox"
+              checked={includeExternalCollaborators}
+              onChange={(event) => setIncludeExternalCollaborators(event.target.checked)}
+              className="mt-0.5 size-4 rounded border-border accent-accent"
+            />
+            <span>
+              Afișează colaboratori externi
+              <span className="mt-0.5 block text-xs text-text-muted">
+                Îi include și în numărătoarea „nu au pontat”.
+              </span>
+            </span>
+          </label>
         </>
       )}
 

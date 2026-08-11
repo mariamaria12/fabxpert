@@ -2,7 +2,9 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -26,7 +28,23 @@ export type PanouDashboardContextValue = {
    */
   readyForExecution: boolean | null;
   setReadyForExecution: (value: boolean | null) => void;
+  /**
+   * External collaborators are hidden from "nu au pontat" by default. The
+   * checkbox lives under that table but the metric card reads it too, so the
+   * flag belongs here.
+   */
+  includeExternalCollaborators: boolean;
+  setIncludeExternalCollaborators: (value: boolean) => void;
 };
+
+const INCLUDE_EXTERNAL_KEY = 'panou-not-logged-include-external';
+
+function readStoredIncludeExternal(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  return window.localStorage.getItem(INCLUDE_EXTERNAL_KEY) === '1';
+}
 
 const PanouDashboardContext = createContext<PanouDashboardContextValue | null>(null);
 
@@ -35,6 +53,18 @@ export function PanouDashboardProvider({ children }: { children: ReactNode }) {
   const [period, setPeriod] = useState<Period>({ kind: 'today' });
   const [metrics, setMetrics] = useState<DashboardMetricsResponse | null>(null);
   const [readyForExecution, setReadyForExecution] = useState<boolean | null>(null);
+  const [includeExternalCollaborators, setIncludeExternalCollaboratorsState] =
+    useState(false);
+
+  // Read after mount so server and first client render agree.
+  useEffect(() => {
+    setIncludeExternalCollaboratorsState(readStoredIncludeExternal());
+  }, []);
+
+  const setIncludeExternalCollaborators = useCallback((value: boolean) => {
+    setIncludeExternalCollaboratorsState(value);
+    window.localStorage.setItem(INCLUDE_EXTERNAL_KEY, value ? '1' : '0');
+  }, []);
 
   // The metric cards are period-scoped, so the selector is always relevant.
   const periodReady = isPeriodQueryReady(period);
@@ -50,8 +80,18 @@ export function PanouDashboardProvider({ children }: { children: ReactNode }) {
       setMetrics,
       readyForExecution,
       setReadyForExecution,
+      includeExternalCollaborators,
+      setIncludeExternalCollaborators,
     }),
-    [activeView, period, periodReady, metrics, readyForExecution],
+    [
+      activeView,
+      period,
+      periodReady,
+      metrics,
+      readyForExecution,
+      includeExternalCollaborators,
+      setIncludeExternalCollaborators,
+    ],
   );
 
   return (

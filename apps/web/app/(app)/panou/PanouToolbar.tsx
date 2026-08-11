@@ -21,8 +21,9 @@ export function PanouToolbar() {
     <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
       <PeriodFilter value={period} onChange={setPeriod} />
 
+      {/* Hidden on phones — the panou there is view-only, filtering lives on the tables. */}
       {activeView === 'projects' && (
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="hidden flex-wrap items-center gap-1.5 md:flex">
           <span className="text-xs font-medium text-text-secondary">Gata de execuție</span>
           {READY_OPTIONS.map((option) => {
             const selected = readyForExecution === option.value;

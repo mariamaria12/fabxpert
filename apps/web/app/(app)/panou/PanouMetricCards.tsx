@@ -83,7 +83,15 @@ function buildCards(
 }
 
 export function PanouMetricCards() {
-  const { activeView, setActiveView, period, periodReady, metrics, setMetrics } =
+  const {
+    activeView,
+    setActiveView,
+    period,
+    periodReady,
+    metrics,
+    setMetrics,
+    includeExternalCollaborators,
+  } =
     usePanouDashboard();
   const [metricsLoading, setMetricsLoading] = useState(true);
 
@@ -99,14 +107,14 @@ export function PanouMetricCards() {
     }
 
     try {
-      const response = await getDashboardMetrics(period);
+      const response = await getDashboardMetrics(period, includeExternalCollaborators);
       setMetrics(response);
     } catch {
       setMetrics(null);
     } finally {
       setMetricsLoading(false);
     }
-  }, [period, periodReady, setMetrics]);
+  }, [period, periodReady, setMetrics, includeExternalCollaborators]);
 
   useEffect(() => {
     void loadMetrics();

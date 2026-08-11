@@ -308,21 +308,31 @@ export class TimesheetService {
     return shapePersonSummary(rows, resolved.period);
   }
 
-  async getNotLoggedPersons(resolved: ResolvedSummaryPeriod): Promise<NotLoggedResponse> {
+  async getNotLoggedPersons(
+    resolved: ResolvedSummaryPeriod,
+    includeExternal = false,
+  ): Promise<NotLoggedResponse> {
     const rows = await this.prisma.$queryRaw<NotLoggedSqlRow[]>(
-      buildNotLoggedPersonsQuery(resolved.from, resolved.to),
+      buildNotLoggedPersonsQuery(resolved.from, resolved.to, includeExternal),
     );
     return shapeNotLogged(rows, resolved.period);
   }
 
   async getDashboardMetrics(
     resolved: ResolvedSummaryPeriod,
+    includeExternal = false,
   ): Promise<DashboardMetricsResponse> {
     if (resolved.from === null || resolved.to === null) {
       throw new BadRequestException('dashboard-metrics requires a bounded period');
     }
 
-    return queryDashboardMetrics(this.prisma, resolved.period, resolved.from, resolved.to);
+    return queryDashboardMetrics(
+      this.prisma,
+      resolved.period,
+      resolved.from,
+      resolved.to,
+      includeExternal,
+    );
   }
 
   /**

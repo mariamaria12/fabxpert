@@ -112,7 +112,10 @@ export class TimesheetController {
   @Get('dashboard-metrics')
   @Roles('ADMIN')
   dashboardMetrics(@Query() query: Record<string, string>) {
-    return this.timesheetService.getDashboardMetrics(parseSummaryPeriodQuery(query));
+    return this.timesheetService.getDashboardMetrics(
+      parseSummaryPeriodQuery(query),
+      query.includeExternal === 'true',
+    );
   }
 
   @Get('pinned-summary')
@@ -141,7 +144,10 @@ export class TimesheetController {
   @Roles('ADMIN')
   notLogged(@Query() query: Record<string, string>) {
     const resolved = parseSummaryPeriodQuery(query);
-    return this.timesheetService.getNotLoggedPersons(resolved);
+    return this.timesheetService.getNotLoggedPersons(
+      resolved,
+      query.includeExternal === 'true',
+    );
   }
 
   @Get('export.xlsx')

@@ -21,6 +21,7 @@ export function PanouProjectCard({
   title,
   status,
   titleSubline,
+  hideLeadingIcon,
   subtitle,
   metaLine,
   metaContent,
@@ -38,6 +39,8 @@ export function PanouProjectCard({
   status?: ProjectStatus;
   /** Sits between the title and the subtitle; skipped when empty. */
   titleSubline?: string | null;
+  /** Drop the leading icon entirely (no slot, no fallback) to free up width. */
+  hideLeadingIcon?: boolean;
   subtitle: string;
   metaLine?: string;
   metaContent?: ReactNode;
@@ -65,7 +68,8 @@ export function PanouProjectCard({
           aria-hidden="true"
         />
         <div className="flex min-w-0 flex-1 items-start gap-2.5 px-3 py-2.5">
-          {leadingSlot ?? (
+          {leadingSlot ??
+            (hideLeadingIcon ? null : (
             <span
               className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md"
               style={{
@@ -76,7 +80,7 @@ export function PanouProjectCard({
             >
               <i className="ti ti-briefcase text-base" />
             </span>
-          )}
+            ))}
 
           <button
             type="button"
@@ -85,16 +89,18 @@ export function PanouProjectCard({
             className="min-w-0 flex-1 text-left transition-colors hover:opacity-90"
           >
             <span className="min-w-0 flex-1">
-              <span className="flex min-w-0 items-baseline gap-2.5">
+              {/* Phones wrap: code + status on one line, denumire on the next,
+                  nothing clipped. From `md` up it stays a single line. */}
+              <span className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1 md:flex-nowrap">
                 <span
-                  className="shrink-0 whitespace-nowrap text-sm font-medium text-text-primary"
+                  className="text-sm font-medium text-text-primary [overflow-wrap:anywhere] md:shrink-0 md:whitespace-nowrap"
                   title={title}
                 >
                   {title}
                 </span>
                 {subline && (
                   <span
-                    className="min-w-0 flex-1 truncate text-xs text-text-muted"
+                    className="order-2 min-w-0 basis-full text-xs text-text-secondary [overflow-wrap:anywhere] md:order-none md:basis-auto md:flex-1 md:truncate md:text-text-muted"
                     title={subline}
                   >
                     · {subline}
@@ -102,16 +108,20 @@ export function PanouProjectCard({
                 )}
                 {status && (
                   <span
-                    className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${getProjectStatusBadgeClassName(status)}`}
+                    className={`order-1 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium md:order-none ${getProjectStatusBadgeClassName(status)}`}
                   >
                     {getProjectStatusLabel(status)}
                   </span>
                 )}
               </span>
-            <span className="mt-0.5 block truncate text-[11px] text-text-muted">{subtitle}</span>
+            <span className="mt-0.5 block text-[11px] text-text-muted [overflow-wrap:anywhere] md:truncate">
+              {subtitle}
+            </span>
             {metaContent ??
               (metaLine ? (
-                <span className="mt-0.5 block truncate text-[11px] text-text-muted">{metaLine}</span>
+                <span className="mt-0.5 block text-[11px] text-text-muted [overflow-wrap:anywhere] md:truncate">
+                  {metaLine}
+                </span>
               ) : null)}
             {timeline && (
               <span className="mt-1.5 block space-y-0.5">

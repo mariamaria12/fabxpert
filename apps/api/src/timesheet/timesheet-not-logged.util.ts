@@ -23,14 +23,25 @@ const accountJoin = Prisma.sql`
  * `distinctPersonCount` (same GROUP BY / HAVING), so the two agree on who
  * counts as having logged.
  *
- * Left out entirely: admin and office accounts (not expected to log), and
- * persons on approved leave (covered by the separate "în concediu" metric).
+ * Left out entirely: admin and office accounts (not expected to log), external
+ * collaborators unless `includeExternal`, and persons on approved leave
+ * (covered by the separate "în concediu" metric).
  */
-function notLoggedPredicate(from: Date | null, to: Date | null) {
+function notLoggedPredicate(
+  from: Date | null,
+  to: Date | null,
+  includeExternal: boolean,
+) {
   const timesheetPeriod =
     from && to
       ? Prisma.sql`AND t."workDate" >= ${from} AND t."workDate" < ${to}`
       : Prisma.empty;
+
+  // External collaborators ("vede doar proiecte alocate specific") are off by
+  // default — they are not expected to log time like employees.
+  const externalFilter = includeExternal
+    ? Prisma.empty
+    : Prisma.sql`AND (u.id IS NULL OR NOT u."restrictedProjects")`;
 
   const leaveOverlap =
     from && to
@@ -40,6 +51,7 @@ function notLoggedPredicate(from: Date | null, to: Date | null) {
   return Prisma.sql`
     pe."deletedAt" IS NULL
     AND (u.id IS NULL OR (u.role <> 'ADMIN' AND NOT u."isOfficeUser"))
+    ${externalFilter}
     AND pe.id NOT IN (
       SELECT t."personId"
       FROM timesheets t
@@ -60,7 +72,11 @@ function notLoggedPredicate(from: Date | null, to: Date | null) {
   `;
 }
 
-export function buildNotLoggedPersonsQuery(from: Date | null, to: Date | null) {
+export function buildNotLoggedPersonsQuery(
+  from: Date | null,
+  to: Date | null,
+  includeExternal = false,
+) {
   return Prisma.sql`
     SELECT
       pe.id AS "id",
@@ -71,17 +87,21 @@ export function buildNotLoggedPersonsQuery(from: Date | null, to: Date | null) {
     FROM persons pe
     ${accountJoin}
     LEFT JOIN employee_roles er ON er.id = pe."employeeRoleId" AND er."deletedAt" IS NULL
-    WHERE ${notLoggedPredicate(from, to)}
+    WHERE ${notLoggedPredicate(from, to, includeExternal)}
     ORDER BY pe."lastName" ASC, pe."firstName" ASC
   `;
 }
 
-export function buildNotLoggedCountQuery(from: Date | null, to: Date | null) {
+export function buildNotLoggedCountQuery(
+  from: Date | null,
+  to: Date | null,
+  includeExternal = false,
+) {
   return Prisma.sql`
     SELECT COUNT(*)::int AS count
     FROM persons pe
     ${accountJoin}
-    WHERE ${notLoggedPredicate(from, to)}
+    WHERE ${notLoggedPredicate(from, to, includeExternal)}
   `;
 }
 

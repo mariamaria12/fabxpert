@@ -165,15 +165,23 @@ export function getPersonSummary(period: Period = { kind: 'today' }) {
   );
 }
 
-export function getNotLogged(period: Period = { kind: 'today' }) {
+/** @param includeExternal count/list external collaborators too (off by default). */
+export function getNotLogged(period: Period = { kind: 'today' }, includeExternal = false) {
   const searchParams = new URLSearchParams();
   appendPeriodQuery(searchParams, period);
+  if (includeExternal) {
+    searchParams.set('includeExternal', 'true');
+  }
   return request<NotLoggedResponse>(`/timesheets/not-logged?${searchParams.toString()}`);
 }
 
-export function getDashboardMetrics(period: Period = { kind: 'today' }) {
+/** @param includeExternal count external collaborators in `notLoggedPersonCount`. */
+export function getDashboardMetrics(period: Period = { kind: 'today' }, includeExternal = false) {
   const searchParams = new URLSearchParams();
   appendPeriodQuery(searchParams, period);
+  if (includeExternal) {
+    searchParams.set('includeExternal', 'true');
+  }
   return request<DashboardMetricsResponse>(
     `/timesheets/dashboard-metrics?${searchParams.toString()}`,
   );

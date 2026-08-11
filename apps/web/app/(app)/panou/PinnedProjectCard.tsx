@@ -93,6 +93,7 @@ export function PinnedProjectCard({
   onUnpinned,
   onEdit,
   dragHandleProps,
+  showPinButton = true,
 }: {
   project: PinnedProjectSummaryRow;
   expanded: boolean;
@@ -100,6 +101,8 @@ export function PinnedProjectCard({
   onUnpinned: (updated: ProjectDto) => void;
   onEdit: () => void;
   dragHandleProps?: DragHandleProps;
+  /** Off on phones, where the pinned list is view-only. */
+  showPinButton?: boolean;
 }) {
   const timelineDates = getProjectTimelineDates(project.startDate, project.dueDate);
   const timeline = timelineDates
@@ -122,6 +125,7 @@ export function PinnedProjectCard({
       title={project.code}
       status={project.status}
       titleSubline={project.denumireLucrare}
+      hideLeadingIcon={!dragHandleProps && !showPinButton}
       subtitle={project.company.name}
       metaContent={
         <ProjectVisibleForCardMeta
@@ -134,6 +138,7 @@ export function PinnedProjectCard({
       expanded={expanded}
       onToggle={onToggle}
       leadingSlot={
+        !dragHandleProps && !showPinButton ? undefined : (
         <div className="mt-0.5 flex shrink-0 items-center gap-0.5">
           {dragHandleProps && (
             <button
@@ -146,15 +151,18 @@ export function PinnedProjectCard({
               <i className="ti ti-grip-vertical text-base" aria-hidden="true" />
             </button>
           )}
-          <PinnedProjectPinButton
-            project={project}
-            onUnpinned={(updated) => {
-              if (!updated.isPinned) {
-                onUnpinned(updated);
-              }
-            }}
-          />
+          {showPinButton && (
+            <PinnedProjectPinButton
+              project={project}
+              onUnpinned={(updated) => {
+                if (!updated.isPinned) {
+                  onUnpinned(updated);
+                }
+              }}
+            />
+          )}
         </div>
+        )
       }
       durationTopActions={<PinnedProjectEditButton onEdit={onEdit} />}
       expandedContent={
