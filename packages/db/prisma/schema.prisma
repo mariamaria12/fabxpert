@@ -189,6 +189,10 @@ model Project {
   name              String
   denumireLucrare   String?
   finisaj           String?
+  /// Derived in Postgres (GENERATED ALWAYS AS ... STORED) from `status`: rank for the
+  /// default list order — IN_PRODUCTIE first, FINALIZAT last. Never write it from the app;
+  /// keep the generation expression when editing this column (see the 20260811230000 migration).
+  statusRank        Int           @default(0)
   code              String        @unique
   status            ProjectStatus @default(CIORNA)
   startDate         DateTime?

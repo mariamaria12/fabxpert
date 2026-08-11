@@ -18,6 +18,8 @@ export type ProjectStatus = (typeof PROJECT_STATUS_VALUES)[number];
 export type ProjectStatusGroup = 'in_progress' | 'completed';
 
 export const PROJECT_LIST_SORT_BY_VALUES = [
+  /** Default list order: IN_PRODUCTIE first, FINALIZAT last, each by start date. */
+  'statusPriority',
   'name',
   'denumireLucrare',
   'finisaj',

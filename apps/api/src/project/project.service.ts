@@ -189,6 +189,12 @@ function buildProjectOrderBy(
   const tiebreaker: Prisma.ProjectOrderByWithRelationInput = { id: 'asc' };
 
   switch (sortBy) {
+    case 'statusPriority':
+      return [
+        { statusRank: sortOrder },
+        { startDate: { sort: sortOrder, nulls: 'last' } },
+        tiebreaker,
+      ];
     case 'denumireLucrare':
       return [{ denumireLucrare: { sort: sortOrder, nulls: 'last' } }, tiebreaker];
     case 'finisaj':

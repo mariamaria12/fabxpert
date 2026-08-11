@@ -46,7 +46,8 @@ import { ProjectVisibleForCell } from './panouProjectVisibility';
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
-const DEFAULT_SORT_BY: ProjectListSortBy = 'name';
+// IN_PRODUCTIE first, then the rest of the workflow, FINALIZAT last — each by start date.
+const DEFAULT_SORT_BY: ProjectListSortBy = 'statusPriority';
 const DEFAULT_SORT_ORDER: SortOrder = 'asc';
 
 type EditPanelState = { open: false } | { open: true; project: ProjectDto };
