@@ -10,6 +10,15 @@ const LIGHT_TEXT_THRESHOLD = 0.5;
 const NEEDS_BORDER_LIGHT = 0.85;
 const NEEDS_BORDER_DARK = 0.08;
 
+/**
+ * Finishes that have a real-world colour but no RAL code. Keys are the
+ * normalised (uppercase, no diacritics-free needed) labels we match against.
+ */
+const FINISH_FILL_COLORS: Readonly<Record<string, string>> = Object.freeze({
+  // Galvanised steel: cool silvery grey, light enough to carry dark text.
+  ZINCARE: '#BFC5C8',
+});
+
 export type FinisajParts =
   | {
       kind: 'ral';
@@ -25,6 +34,8 @@ export type FinisajParts =
       kind: 'plain';
       /** Display-normalised text, e.g. "Zincare". */
       label: string;
+      /** Fill for known finishes such as zinc plating; null renders an outline. */
+      hex: string | null;
     };
 
 function normalizeSeparators(value: string): string {
@@ -56,9 +67,11 @@ export function parseFinisaj(value: string | null | undefined): FinisajParts | n
   if (!match || !color) {
     // An unknown RAL code keeps the user's exact text; free-form finishes get
     // their capitalisation normalised for display only.
+    const label = match ? normalizeSeparators(value) : formatFinisajLabel(value);
     return {
       kind: 'plain',
-      label: match ? normalizeSeparators(value) : formatFinisajLabel(value),
+      label,
+      hex: FINISH_FILL_COLORS[label.toUpperCase()] ?? null,
     };
   }
 
@@ -90,7 +103,7 @@ export function relativeLuminance(hex: string): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
-export type RalBadgeColors = {
+export type FinisajBadgeColors = {
   background: string;
   /** Near-black or near-white, whichever stays readable on the fill. */
   text: string;
@@ -98,8 +111,8 @@ export type RalBadgeColors = {
   border: string | null;
 };
 
-/** Text and outline for a RAL fill — identical maths on web and mobile. */
-export function ralBadgeColors(hex: string): RalBadgeColors {
+/** Text and outline for any badge fill — identical maths on web and mobile. */
+export function finisajBadgeColors(hex: string): FinisajBadgeColors {
   const luminance = relativeLuminance(hex);
 
   return {

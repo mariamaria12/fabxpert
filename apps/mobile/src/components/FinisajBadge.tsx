@@ -1,4 +1,4 @@
-import { parseFinisaj, ralBadgeColors } from '@fabxpert/shared';
+import { finisajBadgeColors, parseFinisaj } from '@fabxpert/shared';
 
 /**
  * Mobile twin of apps/web/components/FinisajBadge.tsx — same parsing, same
@@ -18,7 +18,7 @@ export function FinisajBadge({
     return null;
   }
 
-  if (parsed.kind === 'plain') {
+  if (parsed.kind === 'plain' && !parsed.hex) {
     return (
       <span className="finisaj-badge finisaj-badge-outline" title={parsed.label}>
         {parsed.label}
@@ -26,7 +26,8 @@ export function FinisajBadge({
     );
   }
 
-  const colors = ralBadgeColors(parsed.hex);
+  // Known finishes (zinc plating) fill the rectangle just like a RAL colour.
+  const colors = finisajBadgeColors(parsed.hex as string);
   const badge = (
     <span
       className="finisaj-badge finisaj-badge-ral"
@@ -41,7 +42,7 @@ export function FinisajBadge({
     </span>
   );
 
-  if (compact || !parsed.action) {
+  if (parsed.kind === 'plain' || compact || !parsed.action) {
     return badge;
   }
 

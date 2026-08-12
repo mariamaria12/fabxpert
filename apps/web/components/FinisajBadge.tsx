@@ -1,6 +1,6 @@
 'use client';
 
-import { parseFinisaj, ralBadgeColors } from '@fabxpert/shared';
+import { finisajBadgeColors, parseFinisaj } from '@fabxpert/shared';
 
 /**
  * Finish badge. A recognised RAL code renders as a rectangle filled with the
@@ -29,7 +29,7 @@ export function FinisajBadge({
   const badgeClass =
     'inline-flex h-5 max-w-[100px] shrink-0 items-center justify-center truncate rounded px-1.5 text-[11px] leading-none';
 
-  if (parsed.kind === 'plain') {
+  if (parsed.kind === 'plain' && !parsed.hex) {
     return (
       <span
         className={`${badgeClass} border border-border text-text-secondary ${className ?? ''}`}
@@ -40,7 +40,8 @@ export function FinisajBadge({
     );
   }
 
-  const colors = ralBadgeColors(parsed.hex);
+  // Known finishes (zinc plating) fill the rectangle just like a RAL colour.
+  const colors = finisajBadgeColors(parsed.hex as string);
   const badge = (
     <span
       className={`${badgeClass} font-medium`}
@@ -54,6 +55,10 @@ export function FinisajBadge({
       {parsed.label}
     </span>
   );
+
+  if (parsed.kind === 'plain') {
+    return className ? <span className={`inline-flex ${className}`}>{badge}</span> : badge;
+  }
 
   if (compact || !parsed.action) {
     return className ? <span className={`inline-flex ${className}`}>{badge}</span> : badge;
