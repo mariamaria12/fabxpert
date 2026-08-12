@@ -33,7 +33,6 @@ import { ProjectListFilters } from '@/components/ProjectListFilters';
 import { STATUS_FILTER_OPTIONS } from '@/utils/projectStatusFilter';
 import { replaceById } from '@/utils/replaceById';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
-import { useIsMobile } from '@/hooks/useIsMobile';
 import { useLazyVisible } from '@/hooks/useLazyVisible';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 import { ProjectFormPanel } from '../projects/ProjectFormPanel';
@@ -233,8 +232,6 @@ const ProjectTableSection = forwardRef<
   const [visibilityFilters, setVisibilityFilters] = useState<string[]>([]);
   // Seeded from the panou toolbar; the local filter takes over once changed.
   const [readyFilter, setReadyFilter] = useState<boolean | null>(readyForExecution);
-  const isMobile = useIsMobile();
-  const [showFilters, setShowFilters] = useState(false);
   const fetchSeqRef = useRef(0);
 
   useEffect(() => {
@@ -393,26 +390,9 @@ const ProjectTableSection = forwardRef<
     <div>
       <h3 className="text-sm font-medium text-text-secondary">{title}</h3>
 
-      {/* Search and filters only on the in-progress table; on phones they start
-          collapsed so the table itself gets the screen. */}
-      {statusGroup === 'in_progress' && isMobile && (
-        <div className="mt-2 flex justify-end">
-          <button
-            type="button"
-            onClick={() => setShowFilters((current) => !current)}
-            aria-expanded={showFilters}
-            className="inline-flex items-center gap-0.5 text-xs font-medium text-accent transition-opacity hover:opacity-80"
-          >
-            {showFilters ? 'Ascunde filtrele' : 'Afișează filtrele'}
-            <i
-              className={`ti ${showFilters ? 'ti-chevron-up' : 'ti-chevron-down'} text-sm`}
-              aria-hidden="true"
-            />
-          </button>
-        </div>
-      )}
-
-      {statusGroup === 'in_progress' && (!isMobile || showFilters) && (
+      {/* Search and filters only on the in-progress table; the component itself
+          keeps them collapsed on phones. */}
+      {statusGroup === 'in_progress' && (
         <ProjectListFilters
           idPrefix={`panou-projects-${statusGroup}`}
           className="mt-3"

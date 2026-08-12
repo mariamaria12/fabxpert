@@ -169,7 +169,7 @@ export default function PeoplePage() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-[22px] font-medium text-text-primary">Persoane</h1>
+        <h1 className="hidden text-[22px] font-medium text-text-primary sm:block">Persoane</h1>
         {!showEmptyState && (
           <button
             type="button"

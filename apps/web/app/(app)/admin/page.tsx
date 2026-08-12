@@ -103,7 +103,7 @@ export default function AdminPage() {
         <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-text-muted">
           FABXPERT · ADMIN
         </p>
-        <h1 className="mt-1 text-[22px] font-medium text-text-primary">Administrare</h1>
+        <h1 className="mt-1 hidden text-[22px] font-medium text-text-primary sm:block">Administrare</h1>
       </div>
 
       <div

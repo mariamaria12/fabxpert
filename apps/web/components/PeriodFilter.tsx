@@ -7,6 +7,7 @@ import {
 } from '@fabxpert/shared';
 import { useEffect, useRef, useState } from 'react';
 import { DateField } from '@/components/DateField';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 type PeriodKind = Period['kind'];
 
@@ -71,6 +72,8 @@ export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) 
   const [draftTo, setDraftTo] = useState('');
   const [customError, setCustomError] = useState<string | null>(null);
   const customRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
+  const [showAllPeriods, setShowAllPeriods] = useState(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -152,6 +155,18 @@ export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) 
     onChange(next);
   }
 
+  // Phones show only "Azi" and "Ieri" (plus whatever is selected); the rest sit
+  // behind the chevron so the row never wraps.
+  const collapsed = isMobile && !showAllPeriods;
+  const visibleCards = collapsed
+    ? PERIOD_CARDS.filter(
+        (card) =>
+          card.kind === 'today' ||
+          card.kind === 'yesterday' ||
+          isCardSelected(value, card.kind, customMode),
+      )
+    : PERIOD_CARDS;
+
   const chipClassName = (selected: boolean) =>
     `inline-flex items-baseline gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors ${
       selected
@@ -162,7 +177,7 @@ export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) 
   return (
     <div className={className}>
       <div className="flex flex-wrap items-center gap-1.5">
-        {PERIOD_CARDS.map((card) => {
+        {visibleCards.map((card) => {
           const selected = isCardSelected(value, card.kind, customMode);
           const chip = (
             <button
@@ -237,6 +252,23 @@ export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) 
             </div>
           );
         })}
+
+        {isMobile && (
+          <button
+            type="button"
+            onClick={() => setShowAllPeriods((current) => !current)}
+            aria-expanded={showAllPeriods}
+            aria-label={
+              showAllPeriods ? 'Ascunde celelalte perioade' : 'Afișează celelalte perioade'
+            }
+            className="inline-flex size-7 items-center justify-center rounded-full border border-border bg-surface text-text-muted transition-colors hover:bg-surface-raised hover:text-text-primary"
+          >
+            <i
+              className={`ti ${showAllPeriods ? 'ti-chevron-up' : 'ti-chevron-down'} text-base`}
+              aria-hidden="true"
+            />
+          </button>
+        )}
       </div>
     </div>
   );

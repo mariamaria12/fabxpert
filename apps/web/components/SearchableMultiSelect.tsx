@@ -33,6 +33,8 @@ export interface SearchableMultiSelectProps {
   helperText?: string;
   disabled?: boolean;
   error?: string;
+  /** Renders a "select every option" action at the top of the dropdown. */
+  selectAllLabel?: string;
 }
 
 export function SearchableMultiSelect({
@@ -46,6 +48,7 @@ export function SearchableMultiSelect({
   helperText,
   disabled = false,
   error,
+  selectAllLabel,
 }: SearchableMultiSelectProps) {
   const listboxId = useId();
   const autofillTrapId = useId();
@@ -144,6 +147,18 @@ export function SearchableMultiSelect({
     setHighlightedId(firstSelectableId);
   }
 
+  function addAllOptions() {
+    const missing = options
+      .filter((option) => !option.disabled && !values.includes(option.id))
+      .map((option) => option.id);
+
+    if (missing.length > 0) {
+      onChange([...values, ...missing]);
+    }
+    closeDropdown();
+    inputRef.current?.blur();
+  }
+
   function addOption(option: SearchableSelectOption) {
     if (option.disabled || values.includes(option.id)) {
       return;
@@ -239,6 +254,19 @@ export function SearchableMultiSelect({
               maxHeight: dropdownStyle.maxHeight,
             }}
           >
+            {selectAllLabel && selectableOptions.length > 0 && (
+              <li>
+                <button
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={addAllOptions}
+                  className="flex w-full items-center gap-2 border-b border-border-subtle px-3 py-2 text-left text-sm font-medium text-accent transition-colors hover:bg-[var(--color-surface-popover-hover)]"
+                >
+                  <i className="ti ti-checks text-base" aria-hidden="true" />
+                  {selectAllLabel}
+                </button>
+              </li>
+            )}
             {selectableOptions.length === 0 ? (
               <li className={FORM_DROPDOWN_EMPTY_CLASS}>{emptyMessage}</li>
             ) : (

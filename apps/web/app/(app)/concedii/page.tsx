@@ -57,7 +57,7 @@ export default function ConcediiPage() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-[22px] font-medium text-text-primary">Concedii</h1>
+        <h1 className="hidden text-[22px] font-medium text-text-primary sm:block">Concedii</h1>
         <div className="flex shrink-0 items-center gap-3">
           {lastUpdated ? (
             <span className="hidden text-xs text-text-muted sm:inline">

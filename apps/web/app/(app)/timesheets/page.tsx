@@ -186,7 +186,7 @@ export default function TimesheetsPage() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-[22px] font-medium text-text-primary">Pontaje</h1>
+        <h1 className="hidden text-[22px] font-medium text-text-primary sm:block">Pontaje</h1>
         <div className="flex shrink-0 items-center gap-2">
           {lastUpdated ? (
             <span className="hidden text-xs text-text-muted sm:inline">

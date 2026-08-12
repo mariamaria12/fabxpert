@@ -119,6 +119,9 @@ export function ProjectVisibleForCell({
   );
 }
 
+/** Above this many roles the chips collapse behind a count on project cards. */
+const VISIBLE_FOR_CHIP_LIMIT = 2;
+
 export function ProjectVisibleForCardMeta({
   roles,
   readyForExecution,
@@ -126,17 +129,42 @@ export function ProjectVisibleForCardMeta({
   roles: ProjectVisibleRoleDto[] | undefined | null;
   readyForExecution?: boolean;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const list = roles ?? [];
   const labelClass =
     readyForExecution === false ? 'text-accent' : 'text-success';
+  // "Nimeni" and "Toți" are single words — only real role lists collapse.
+  const collapsible =
+    readyForExecution !== false && list.length > VISIBLE_FOR_CHIP_LIMIT;
 
   return (
     <span className="mt-0.5 flex flex-wrap items-center gap-1">
-      <span className={`shrink-0 text-[11px] ${labelClass}`}>Vizibil pentru:</span>
-      <ProjectVisibleForRoleChips
-        roles={roles}
-        readyForExecution={readyForExecution}
-        className="min-w-0 flex-1"
-      />
+      <span className={`shrink-0 text-[11px] ${labelClass}`}>
+        Vizibil pentru:{collapsible && !expanded ? ` ${list.length}` : ''}
+      </span>
+
+      {(!collapsible || expanded) && (
+        <ProjectVisibleForRoleChips
+          roles={roles}
+          readyForExecution={readyForExecution}
+          className="min-w-0 flex-1"
+        />
+      )}
+
+      {collapsible && (
+        <button
+          type="button"
+          onClick={() => setExpanded((current) => !current)}
+          aria-expanded={expanded}
+          aria-label={expanded ? 'Ascunde funcțiile' : 'Afișează funcțiile'}
+          className="flex size-5 shrink-0 items-center justify-center rounded text-text-muted transition-colors hover:text-text-secondary"
+        >
+          <i
+            className={`ti ${expanded ? 'ti-chevron-up' : 'ti-chevron-down'} text-sm`}
+            aria-hidden="true"
+          />
+        </button>
+      )}
     </span>
   );
 }

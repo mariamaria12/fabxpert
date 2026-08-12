@@ -727,6 +727,7 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
           disabled={isBusy || employeeRolesLoading || editProjectLoading}
           placeholder="Caută funcție…"
           emptyMessage="Nicio funcție găsită."
+          selectAllLabel="Adaugă-i pe toți"
           helperText="Lasă gol pentru a fi vizibil tuturor angajaților interni."
           onChange={(visibleForRoleIds) => updateField('visibleForRoleIds', visibleForRoleIds)}
         />

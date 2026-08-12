@@ -20,7 +20,9 @@ function DashboardPageContent() {
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-text-primary">Panou</h1>
+          <h1 className="hidden text-xl font-semibold tracking-tight text-text-primary sm:block">
+            Panou
+          </h1>
           <p className="mt-0.5 hidden text-xs text-text-muted md:block">
             Urmărește proiectele și logurile de timp
           </p>

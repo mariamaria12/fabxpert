@@ -2,6 +2,7 @@
 
 import type { ProjectStatus } from '@fabxpert/shared';
 import { useEffect, useState } from 'react';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { SearchableMultiSelect } from '@/components/SearchableMultiSelect';
 import {
   SearchableSelect,
@@ -55,6 +56,8 @@ export function ProjectListFilters({
   className,
 }: ProjectListFiltersProps) {
   const businessAutofill = useBusinessAutofillProps();
+  const isMobile = useIsMobile();
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [visibilityOptions, setVisibilityOptions] = useState<SearchableSelectOption[]>([
     { id: VISIBILITY_EVERYONE_VALUE, label: 'Toți' },
   ]);
@@ -91,12 +94,34 @@ export function ProjectListFilters({
     };
   }, []);
 
+  const showFilterControls = !isMobile || mobileFiltersOpen;
+
   const readyForExecutionValue =
     readyForExecution === null ? null : readyForExecution ? 'true' : 'false';
 
   return (
     <div className={className}>
-      {search && (
+      {/* Phones start collapsed so the list gets the screen; from `md` up the
+          filters are always visible and the toggle never renders. */}
+      {isMobile && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setMobileFiltersOpen((current) => !current)}
+            aria-expanded={mobileFiltersOpen}
+            className="inline-flex items-center gap-1 text-xs font-medium text-accent transition-opacity hover:opacity-80"
+          >
+            <i className="ti ti-filter text-sm" aria-hidden="true" />
+            {mobileFiltersOpen ? 'Ascunde filtrele' : 'Afișează filtrele'}
+            <i
+              className={`ti ${mobileFiltersOpen ? 'ti-chevron-up' : 'ti-chevron-down'} text-sm`}
+              aria-hidden="true"
+            />
+          </button>
+        </div>
+      )}
+
+      {showFilterControls && search && (
         <div className="max-w-md">
           <input
             type="search"
@@ -112,6 +137,7 @@ export function ProjectListFilters({
 
       {/* Phones: one filter per row — three columns squeezed the fields and
           wrapped the labels. Two from `sm`, the original three from `md`. */}
+      {showFilterControls && (
       <div
         className={`grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3${search ? ' mt-3' : ''}`}
       >
@@ -159,6 +185,7 @@ export function ProjectListFilters({
           />
         </div>
       </div>
+      )}
     </div>
   );
 }

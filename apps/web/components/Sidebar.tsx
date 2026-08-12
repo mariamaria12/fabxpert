@@ -6,17 +6,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { InitialsAvatar, PersonAvatar } from '@/components/PersonAvatar';
 import { useLeavePendingCount } from '@/context/LeavePendingCountContext';
+import { NAV_ITEMS } from '@/components/navItems';
 
-// Routes are English; visible labels stay Romanian. /concedii uses Romanian path by product choice.
-const NAV_ITEMS = [
-  { href: '/', icon: 'ti-layout-dashboard', label: 'Panou' },
-  { href: '/projects', icon: 'ti-clipboard-list', label: 'Proiecte' },
-  { href: '/companies', icon: 'ti-building', label: 'Companii' },
-  { href: '/people', icon: 'ti-users', label: 'Persoane' },
-  { href: '/timesheets', icon: 'ti-clock', label: 'Pontaje' },
-  { href: '/concedii', icon: 'ti-calendar-off', label: 'Concedii', badgeKey: 'leavePending' as const },
-  { href: '/admin', icon: 'ti-settings', label: 'Administrare' },
-] as const;
 
 function getEmailInitials(email: string): string {
   return email.slice(0, 2).toUpperCase();
