@@ -24,6 +24,7 @@ export const createUserSchema = z.object({
   isActive: z.boolean().optional(),
   restrictedProjects: z.boolean().optional(),
   isOfficeUser: z.boolean().optional(),
+  angajatExtern: z.boolean().optional(),
 });
 
 export const updateUserSchema = z
@@ -35,6 +36,7 @@ export const updateUserSchema = z
     isActive: z.boolean().optional(),
     restrictedProjects: z.boolean().optional(),
     isOfficeUser: z.boolean().optional(),
+    angajatExtern: z.boolean().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided',
@@ -59,6 +61,8 @@ export type UserDto = {
   restrictedProjects: boolean;
   /** Office staff — grouped under "Office" and never counted as "nu a pontat". */
   isOfficeUser: boolean;
+  /** External employee (colaborator). */
+  angajatExtern: boolean;
   personId: string;
   person: UserPersonDto;
   createdAt: string;

@@ -14,6 +14,8 @@ import {
   personMatchesSearch,
 } from './personSearch';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
+import { FiltersToggle } from '@/components/FiltersToggle';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { Pagination } from '@/components/Pagination';
 import { PersonAvatar } from '@/components/PersonAvatar';
 import { useBusinessAutofillProps } from '@/components/inputAutofill';
@@ -78,6 +80,9 @@ export default function PeoplePage() {
   const businessAutofill = useBusinessAutofillProps();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
+  const isMobile = useIsMobile();
+  // Phones keep the search bar behind the toggle, like the projects list.
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [persons, setPersons] = useState<PersonDto[]>([]);
   const [total, setTotal] = useState(0);
@@ -170,6 +175,12 @@ export default function PeoplePage() {
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between gap-4">
         <h1 className="hidden text-[22px] font-medium text-text-primary sm:block">Persoane</h1>
+        {isMobile && !showEmptyState && (
+          <FiltersToggle
+            open={mobileFiltersOpen}
+            onToggle={() => setMobileFiltersOpen((current) => !current)}
+          />
+        )}
         {!showEmptyState && (
           <button
             type="button"
@@ -194,8 +205,8 @@ export default function PeoplePage() {
         </div>
       )}
 
-      {!showEmptyState && (
-        <div className="mt-4">
+      {!showEmptyState && (!isMobile || mobileFiltersOpen) && (
+        <div className="mt-3 sm:mt-4">
           <input
             type="search"
             value={searchInput}
@@ -228,7 +239,7 @@ export default function PeoplePage() {
       )}
 
       {showDataTable && (
-        <div className="mt-6">
+        <div className="mt-3 sm:mt-6">
           <DataTable
             storageKey="people-list"
             columns={personColumns}

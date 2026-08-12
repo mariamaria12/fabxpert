@@ -1,6 +1,7 @@
 'use client';
 
 import { PanouRefreshProvider, usePanouRefresh } from './PanouRefreshContext';
+import { MobileHeaderAction } from '@/components/MobileHeaderAction';
 import { PanouContentViews } from './panou/PanouContentViews';
 import { PanouDashboardProvider } from './panou/PanouDashboardContext';
 import { PanouMetricCards } from './panou/PanouMetricCards';
@@ -33,19 +34,21 @@ function DashboardPageContent() {
               actualizat {formatUpdatedAt(lastUpdated)}
             </span>
           )}
-          <button
-            type="button"
-            disabled={refreshing}
-            onClick={() => void refreshAll()}
-            aria-label="Împrospătare date"
-            className="inline-flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary disabled:opacity-50 md:px-3 md:py-2 md:text-sm"
-          >
-            <i
-              className={`ti ti-refresh text-sm md:text-base ${refreshing ? 'animate-spin' : ''}`}
-              aria-hidden="true"
-            />
-            <span className="hidden md:inline">Împrospătare date</span>
-          </button>
+          <MobileHeaderAction>
+            <button
+              type="button"
+              disabled={refreshing}
+              onClick={() => void refreshAll()}
+              aria-label="Împrospătare date"
+              className="inline-flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary disabled:opacity-50 md:px-3 md:py-2 md:text-sm"
+            >
+              <i
+                className={`ti ti-refresh text-sm md:text-base ${refreshing ? 'animate-spin' : ''}`}
+                aria-hidden="true"
+              />
+              <span className="hidden md:inline">Împrospătare date</span>
+            </button>
+          </MobileHeaderAction>
         </div>
       </div>
 

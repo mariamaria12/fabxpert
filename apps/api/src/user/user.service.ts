@@ -28,6 +28,7 @@ const userSelect = {
   isActive: true,
   restrictedProjects: true,
   isOfficeUser: true,
+  angajatExtern: true,
   personId: true,
   createdAt: true,
   updatedAt: true,
@@ -53,6 +54,7 @@ function toUserDto(user: UserWithPerson): UserDto {
     isActive: user.isActive,
     restrictedProjects: user.restrictedProjects,
     isOfficeUser: user.isOfficeUser,
+    angajatExtern: user.angajatExtern,
     personId: user.personId,
     person: {
       id: user.person.id,
@@ -173,6 +175,9 @@ export class UserService {
             : {}),
           // Admins are office accounts by definition; the flag is free for the rest.
           isOfficeUser: input.role === 'ADMIN' ? true : (input.isOfficeUser ?? false),
+          ...(input.angajatExtern !== undefined
+            ? { angajatExtern: input.angajatExtern }
+            : {}),
         },
         select: userSelect,
       });
@@ -213,6 +218,9 @@ export class UserService {
     }
     if (input.isOfficeUser !== undefined) {
       data.isOfficeUser = input.isOfficeUser;
+    }
+    if (input.angajatExtern !== undefined) {
+      data.angajatExtern = input.angajatExtern;
     }
     // Admins are office accounts by definition — including after a role change.
     if ((input.role ?? existing.role) === 'ADMIN') {

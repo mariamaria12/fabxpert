@@ -24,7 +24,8 @@ import {
   TruncatedTableCell,
 } from '@/components/ProjectNameCell';
 import { Pagination } from '@/components/Pagination';
-import { ProjectFiltersToggle, ProjectListFilters } from '@/components/ProjectListFilters';
+import { FiltersToggle } from '@/components/FiltersToggle';
+import { ProjectListFilters } from '@/components/ProjectListFilters';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { panouPathFromProjectEditReturn } from '@/utils/projectEditNavigation';
@@ -339,7 +340,7 @@ export default function ProjectsPage() {
       <div className="flex items-center justify-between gap-4">
         <h1 className="hidden text-[22px] font-medium text-text-primary sm:block">Proiecte</h1>
         {isMobile && !showEmptyState && (
-          <ProjectFiltersToggle
+          <FiltersToggle
             open={mobileFiltersOpen}
             onToggle={() => setMobileFiltersOpen((current) => !current)}
           />
@@ -411,7 +412,7 @@ export default function ProjectsPage() {
       )}
 
       {showDataTable && (
-        <div className="mt-6">
+        <div className="mt-3 sm:mt-6">
           <DataTable
             storageKey="projects-list"
             columns={projectColumns}

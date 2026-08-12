@@ -218,15 +218,17 @@ export function PanouNotLoggedView() {
 
             return (
               <div key={group}>
-                <h3 className="mb-1.5 flex items-baseline gap-2 text-sm font-semibold text-text-primary">
-                  {title}
-                  {!loading && (
-                    <span className="text-xs font-normal tabular-nums text-text-muted">
-                      {rows.length}
-                    </span>
-                  )}
-                </h3>
                 <DataTable
+                  title={
+                    <h3 className="flex items-baseline gap-2 text-sm font-semibold text-text-primary">
+                      {title}
+                      {!loading && (
+                        <span className="text-xs font-normal tabular-nums text-text-muted">
+                          {rows.length}
+                        </span>
+                      )}
+                    </h3>
+                  }
                   storageKey={`panou-not-logged-${group}`}
                   columns={columns}
                   data={rows}

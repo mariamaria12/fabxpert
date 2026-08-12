@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { LeaveBalancesTab } from './LeaveBalancesTab';
 import { LeaveFormPanel } from './LeaveFormPanel';
 import { LeaveRequestsTab } from './LeaveRequestsTab';
+import { MobileHeaderAction } from '@/components/MobileHeaderAction';
 import { useLeavePendingCount } from '@/context/LeavePendingCountContext';
 
 const TABS = [
@@ -64,18 +65,22 @@ export default function ConcediiPage() {
               actualizat {formatUpdatedAt(lastUpdated)}
             </span>
           ) : null}
-          <button
-            type="button"
-            disabled={refreshing}
-            onClick={() => void refreshAll()}
-            className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary disabled:opacity-50"
-          >
-            <i
-              className={`ti ti-refresh text-base ${refreshing ? 'animate-spin' : ''}`}
-              aria-hidden="true"
-            />
-            Împrospătare date
-          </button>
+          <MobileHeaderAction>
+            <button
+              type="button"
+              disabled={refreshing}
+              onClick={() => void refreshAll()}
+              aria-label="Împrospătare date"
+              title="Împrospătare date"
+              className="inline-flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary disabled:opacity-50 md:px-3 md:py-2 md:text-sm"
+            >
+              <i
+                className={`ti ti-refresh text-sm md:text-base ${refreshing ? 'animate-spin' : ''}`}
+                aria-hidden="true"
+              />
+              <span className="hidden md:inline">Împrospătare date</span>
+            </button>
+          </MobileHeaderAction>
           <button
             type="button"
             onClick={() => setAddOpen(true)}

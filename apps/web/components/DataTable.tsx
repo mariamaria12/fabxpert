@@ -33,6 +33,8 @@ export interface DataTableProps<T> {
   onSortChange?: (sortBy: string, sortOrder: DataTableSortOrder) => void;
   /** The show/hide-columns button sits in its own row above the table. */
   showColumnMenu?: boolean;
+  /** Table name, rendered on that same row so the two line up. */
+  title?: ReactNode;
 }
 
 const DEFAULT_COLUMN_WIDTH_PX = 180;
@@ -173,6 +175,7 @@ export function DataTable<T>({
   sortOrder = 'asc',
   onSortChange,
   showColumnMenu = true,
+  title,
 }: DataTableProps<T>) {
   const showAccent = rowAccentColor !== undefined;
   const columnMenuRef = useRef<HTMLDivElement>(null);
@@ -311,9 +314,11 @@ export function DataTable<T>({
 
   return (
     <div className="w-full">
-      {showColumnMenu && hideableColumns.length > 0 && (
-        <div className="mb-2 flex justify-end" ref={columnMenuRef}>
-          <div className="relative">
+      {(title || (showColumnMenu && hideableColumns.length > 0)) && (
+        <div className="mb-2 flex min-h-8 items-center justify-between gap-3">
+          <div className="min-w-0">{title}</div>
+          {showColumnMenu && hideableColumns.length > 0 && (
+          <div className="relative" ref={columnMenuRef}>
             <button
               type="button"
               aria-label="Afișează sau ascunde coloane"
@@ -367,6 +372,7 @@ export function DataTable<T>({
               </div>
             )}
           </div>
+          )}
         </div>
       )}
 

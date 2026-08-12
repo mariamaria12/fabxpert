@@ -116,18 +116,17 @@ function UserGroupTable({
   const pageUsers = sortedUsers.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
-    <section className="relative mt-8 first:mt-0">
-      {/* Sits on the table's own column-menu row (that button is right-aligned),
-          so the label stays tight against the table header. */}
-      <div className="absolute left-0 top-0 flex h-8 items-center gap-2">
-        <h2 className="text-sm font-medium text-text-primary">{title}</h2>
-        <span className="text-xs text-text-muted">
-          {loading ? 'se încarcă…' : `${sortedUsers.length} · ${description}`}
-        </span>
-      </div>
-
+    <section className="mt-8 first:mt-0">
       <div>
         <DataTable
+          title={
+            <span className="flex items-baseline gap-2">
+              <h2 className="text-sm font-medium text-text-primary">{title}</h2>
+              <span className="truncate text-xs text-text-muted">
+                {loading ? 'se încarcă…' : `${sortedUsers.length} · ${description}`}
+              </span>
+            </span>
+          }
           storageKey={storageKey}
           columns={columns}
           data={pageUsers}

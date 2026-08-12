@@ -388,8 +388,6 @@ const ProjectTableSection = forwardRef<
 
   return (
     <div>
-      <h3 className="text-sm font-medium text-text-secondary">{title}</h3>
-
       {/* Search and filters only on the in-progress table; the component itself
           keeps them collapsed on phones. */}
       {statusGroup === 'in_progress' && (
@@ -424,14 +422,18 @@ const ProjectTableSection = forwardRef<
       )}
 
       {!loading && !error && total === 0 && (
-        <div className="mt-6 mb-2 flex min-h-[7rem] flex-col items-center justify-center rounded-md border border-dashed border-border-subtle px-4 py-8 text-center">
-          <p className="text-sm text-text-muted">{emptyMessage}</p>
-        </div>
+        <>
+          <h3 className="mt-3 text-sm font-medium text-text-secondary">{title}</h3>
+          <div className="mt-2 mb-2 flex min-h-[7rem] flex-col items-center justify-center rounded-md border border-dashed border-border-subtle px-4 py-8 text-center">
+            <p className="text-sm text-text-muted">{emptyMessage}</p>
+          </div>
+        </>
       )}
 
       {(loading || total > 0) && (
         <div className="mt-3">
           <DataTable
+            title={<h3 className="text-sm font-medium text-text-secondary">{title}</h3>}
             storageKey="panou-projects"
             columns={columnsWithPin}
             data={projects}

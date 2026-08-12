@@ -8,6 +8,7 @@ import {
   type SortOrder,
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
+import { MobileHeaderAction } from '@/components/MobileHeaderAction';
 import { PeriodFilter } from '@/components/PeriodFilter';
 import { TimesheetFormPanel } from './TimesheetFormPanel';
 import { TimesheetExportPanel } from './TimesheetExportPanel';
@@ -193,18 +194,22 @@ export default function TimesheetsPage() {
               actualizat {formatUpdatedAt(lastUpdated)}
             </span>
           ) : null}
-          <button
-            type="button"
-            disabled={refreshing || loading}
-            onClick={() => void refreshAll()}
-            className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary disabled:opacity-50"
-          >
-            <i
-              className={`ti ti-refresh text-base ${refreshing ? 'animate-spin' : ''}`}
-              aria-hidden="true"
-            />
-            Împrospătare date
-          </button>
+          <MobileHeaderAction>
+            <button
+              type="button"
+              disabled={refreshing || loading}
+              onClick={() => void refreshAll()}
+              aria-label="Împrospătare date"
+              title="Împrospătare date"
+              className="inline-flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary disabled:opacity-50 md:px-3 md:py-2 md:text-sm"
+            >
+              <i
+                className={`ti ti-refresh text-sm md:text-base ${refreshing ? 'animate-spin' : ''}`}
+                aria-hidden="true"
+              />
+              <span className="hidden md:inline">Împrospătare date</span>
+            </button>
+          </MobileHeaderAction>
           <button
             type="button"
             onClick={() => setExportOpen(true)}

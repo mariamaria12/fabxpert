@@ -3,6 +3,7 @@
 import type { ProjectStatus } from '@fabxpert/shared';
 import { useEffect, useState } from 'react';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { FiltersToggle } from '@/components/FiltersToggle';
 import { SearchableMultiSelect } from '@/components/SearchableMultiSelect';
 import {
   SearchableSelect,
@@ -23,33 +24,6 @@ const READY_FOR_EXECUTION_OPTIONS: SearchableSelectOption[] = [
   { id: 'true', label: 'Da' },
   { id: 'false', label: 'Nu' },
 ];
-
-/** The mobile show/hide control — exported so a page can place it in its header row. */
-export function ProjectFiltersToggle({
-  open,
-  onToggle,
-  className,
-}: {
-  open: boolean;
-  onToggle: () => void;
-  className?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-expanded={open}
-      className={`inline-flex items-center gap-1 text-xs font-medium text-accent transition-opacity hover:opacity-80 ${className ?? ''}`}
-    >
-      <i className="ti ti-filter text-sm" aria-hidden="true" />
-      {open ? 'Ascunde filtrele' : 'Afișează filtrele'}
-      <i
-        className={`ti ${open ? 'ti-chevron-up' : 'ti-chevron-down'} text-sm`}
-        aria-hidden="true"
-      />
-    </button>
-  );
-}
 
 export type ProjectListFiltersProps = {
   idPrefix: string;
@@ -130,13 +104,19 @@ export function ProjectListFilters({
   const readyForExecutionValue =
     readyForExecution === null ? null : readyForExecution ? 'true' : 'false';
 
+  // Collapsed on a phone with the toggle rendered by the page: nothing to show,
+  // and an empty wrapper would still add its margin above the table.
+  if (!showFilterControls && mobileOpen !== undefined) {
+    return null;
+  }
+
   return (
     <div className={className}>
       {/* Phones start collapsed so the list gets the screen; from `md` up the
           filters are always visible and the toggle never renders. */}
       {isMobile && mobileOpen === undefined && (
         <div className="flex justify-end">
-          <ProjectFiltersToggle
+          <FiltersToggle
             open={mobileFiltersOpen}
             onToggle={() => setMobileFiltersOpen((current) => !current)}
           />

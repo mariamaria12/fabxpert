@@ -135,6 +135,8 @@ model User {
   restrictedProjects Boolean @default(false)
   /// Office staff: listed under "Office" in admin and never counted as "nu a pontat". Always true for ADMIN.
   isOfficeUser Boolean @default(false)
+  /// External employee (colaborator), tracked separately from restrictedProjects.
+  angajatExtern Boolean @default(false)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?

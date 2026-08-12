@@ -5,7 +5,9 @@ import type { MeResponse } from '@fabxpert/shared';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AuthUserProvider } from '@/context/AuthUserContext';
+import { MobileHeaderSlotProvider } from '@/components/MobileHeaderAction';
 import { navLabelForPathname } from '@/components/navItems';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { Sidebar } from './Sidebar';
 import { TimesheetNotificationSlot } from './TimesheetNotificationSlot';
 import { TimesheetEventsProvider } from '@/context/TimesheetEventsContext';
@@ -45,6 +47,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sessionError, setSessionError] = useState(false);
   const [sessionAttempt, setSessionAttempt] = useState(0);
+  // The sticky header exists only below `sm`; pages portal their actions into it.
+  const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
+  const showMobileHeaderSlot = useIsMobile(639);
 
   // Restore the persisted collapse preference; with no stored preference,
   // default to icon-only below Tailwind's `md` breakpoint.
@@ -125,6 +130,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthUserProvider user={user}>
+      <MobileHeaderSlotProvider value={headerSlot}>
       <TimesheetEventsProvider enabled={authReady}>
         <div className="flex min-h-dvh bg-bg">
           {/* Static sidebar — sm and up */}
@@ -168,6 +174,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="min-w-0 truncate text-base font-medium text-text-primary">
                 {navLabelForPathname(pathname)}
               </span>
+              {showMobileHeaderSlot && (
+                <div ref={setHeaderSlot} className="ml-auto flex shrink-0 items-center gap-2" />
+              )}
             </header>
 
             {/* overflow-x-hidden keeps the page itself from sliding sideways —
@@ -179,6 +188,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </TimesheetEventsProvider>
+      </MobileHeaderSlotProvider>
     </AuthUserProvider>
   );
 }
