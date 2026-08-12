@@ -380,6 +380,9 @@ export class ProjectService {
 
     try {
       const panouSlot = isPinned ? await this.getNextPanouSlot() : null;
+      // Never put `statusRank` in this payload: Postgres generates it from `status` and
+      // rejects any explicit value (SQLSTATE 428C9). The Prisma schema marks it
+      // `dbgenerated()` so the client keeps it out of the INSERT.
       const project = await this.prisma.project.create({
         data: {
           ...scalarInput,

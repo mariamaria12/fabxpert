@@ -20,6 +20,18 @@ See the numbered checklist at the bottom of this file, `railway.json`, and `nixp
 
 Seeds are **never** run on deploy.
 
+## Watch Paths — the API depends on `packages/db`
+
+The Prisma client the API runs on is generated at **build** time from
+`packages/db/prisma/schema.prisma`, which lives outside `apps/api`. Two consequences:
+
+- A commit that only touches `packages/db/**` still changes API behaviour. If Railway's
+  *Watch Paths* are scoped to `apps/api/**`, such a push is skipped and production keeps
+  running the previously generated client. Keep `packages/db/**` and `packages/shared/**`
+  in the watch paths, or deploy manually after schema changes.
+- **Restart ≠ redeploy.** Restarting reuses the existing build artifacts, so it cannot pick
+  up a schema change. Only a new build re-runs `db:generate`.
+
 ## CORS — `WEB_APP_URL` format
 
 Comma-separated list of allowed origins (no spaces required, but trimmed):
