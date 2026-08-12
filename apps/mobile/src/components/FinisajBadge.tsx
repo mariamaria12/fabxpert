@@ -7,11 +7,11 @@ import { finisajBadgeColors, parseFinisaj } from '@fabxpert/shared';
  */
 export function FinisajBadge({
   value,
-  compact = false,
+  chips = false,
 }: {
   value: string | null | undefined;
-  /** Tight rows (project cards): colour badge only, no action text. */
-  compact?: boolean;
+  /** Project rows: the rest of the finish gets its own chip next to the colour one. */
+  chips?: boolean;
 }) {
   const parsed = parseFinisaj(value);
   if (!parsed) {
@@ -42,8 +42,19 @@ export function FinisajBadge({
     </span>
   );
 
-  if (parsed.kind === 'plain' || compact || !parsed.action) {
+  if (parsed.kind === 'plain' || !parsed.action) {
     return badge;
+  }
+
+  if (chips) {
+    return (
+      <span className="finisaj-group">
+        {badge}
+        <span className="finisaj-badge finisaj-badge-outline" title={parsed.action}>
+          {parsed.action}
+        </span>
+      </span>
+    );
   }
 
   return (

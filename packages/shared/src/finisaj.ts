@@ -42,11 +42,18 @@ function normalizeSeparators(value: string): string {
   return value.replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-/** "ZINCARE" → "Zincare", "vopsire electrostatica" → "Vopsire electrostatica". */
+/** Letters and spaces only — anything else ("EP+PU", "2K") is a code, not a word. */
+const WORDS_ONLY = /^[\p{L}\s]+$/u;
+
+/**
+ * "ZINCARE" → "Zincare", "vopsire electrostatica" → "Vopsire electrostatica".
+ * Codes and formulas keep the exact casing they were typed with, so "(EP+PU)"
+ * stays "(EP+PU)".
+ */
 export function formatFinisajLabel(value: string): string {
   const cleaned = normalizeSeparators(value);
-  if (!cleaned) {
-    return '';
+  if (!cleaned || !WORDS_ONLY.test(cleaned)) {
+    return cleaned;
   }
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase();
 }

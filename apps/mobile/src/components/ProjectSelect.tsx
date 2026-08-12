@@ -235,7 +235,7 @@ export function ProjectSelect({ user, onChoose, onOpenMyTimesheets }: ProjectSel
                 <span className="option-row-body">
                   <span className="option-row-title-line">
                     <span className="option-row-title">{project.code}</span>
-                    <FinisajBadge value={project.finisaj} compact />
+                    <FinisajBadge value={project.finisaj} chips />
                   </span>
                   {project.denumireLucrare && (
                     <span className="option-row-subtitle">{project.denumireLucrare}</span>

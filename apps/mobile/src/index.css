@@ -981,7 +981,8 @@ body {
   white-space: nowrap;
 }
 
-.option-row-title-line .finisaj-badge {
+.option-row-title-line > .finisaj-badge,
+.option-row-title-line > .finisaj-group {
   margin-left: auto;
 }
 

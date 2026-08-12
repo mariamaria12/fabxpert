@@ -13,12 +13,12 @@ import { finisajBadgeColors, parseFinisaj } from '@fabxpert/shared';
  */
 export function FinisajBadge({
   value,
-  compact = false,
+  chips = false,
   className,
 }: {
   value: string | null | undefined;
-  /** Tight rows: drop the action text and keep only the colour badge. */
-  compact?: boolean;
+  /** Project rows: the rest of the finish gets its own chip next to the colour one. */
+  chips?: boolean;
   className?: string;
 }) {
   const parsed = parseFinisaj(value);
@@ -28,13 +28,11 @@ export function FinisajBadge({
 
   const badgeClass =
     'inline-flex h-5 max-w-[100px] shrink-0 items-center justify-center truncate rounded px-1.5 text-[11px] leading-none';
+  const outlineClass = `${badgeClass} border border-border text-text-secondary`;
 
   if (parsed.kind === 'plain' && !parsed.hex) {
     return (
-      <span
-        className={`${badgeClass} border border-border text-text-secondary ${className ?? ''}`}
-        title={parsed.label}
-      >
+      <span className={`${outlineClass} ${className ?? ''}`} title={parsed.label}>
         {parsed.label}
       </span>
     );
@@ -56,16 +54,25 @@ export function FinisajBadge({
     </span>
   );
 
-  if (parsed.kind === 'plain') {
+  if (parsed.kind === 'plain' || !parsed.action) {
     return className ? <span className={`inline-flex ${className}`}>{badge}</span> : badge;
   }
 
-  if (compact || !parsed.action) {
-    return className ? <span className={`inline-flex ${className}`}>{badge}</span> : badge;
+  const groupClass = `inline-flex min-w-0 items-center gap-1.5 ${className ?? ''}`;
+
+  if (chips) {
+    return (
+      <span className={groupClass}>
+        {badge}
+        <span className={outlineClass} title={parsed.action}>
+          {parsed.action}
+        </span>
+      </span>
+    );
   }
 
   return (
-    <span className={`inline-flex min-w-0 items-center gap-1.5 ${className ?? ''}`}>
+    <span className={groupClass}>
       <span className="truncate text-[11px] text-text-secondary">{parsed.action}</span>
       {badge}
     </span>
