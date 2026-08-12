@@ -24,9 +24,6 @@ function DashboardPageContent() {
           <h1 className="hidden text-xl font-semibold tracking-tight text-text-primary sm:block">
             Panou
           </h1>
-          <p className="mt-0.5 hidden text-xs text-text-muted md:block">
-            Urmărește proiectele și logurile de timp
-          </p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
           {lastUpdated && (
