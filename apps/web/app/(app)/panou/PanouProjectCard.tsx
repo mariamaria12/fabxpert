@@ -24,6 +24,7 @@ export function PanouProjectCard({
   hideLeadingIcon,
   infoLine,
   infoContent,
+  titleHandleProps,
   subtitle,
   metaLine,
   metaContent,
@@ -47,6 +48,8 @@ export function PanouProjectCard({
   infoLine?: string | null;
   /** Same slot, for rich content such as the finish badge. */
   infoContent?: ReactNode;
+  /** Makes the title row itself a drag handle (phones drag by holding the code). */
+  titleHandleProps?: Record<string, unknown>;
   subtitle: string;
   metaLine?: string;
   metaContent?: ReactNode;
@@ -131,6 +134,9 @@ export function PanouProjectCard({
             onClick={handleTitleClick}
             aria-expanded={onTitleClick ? undefined : expanded}
             className="min-w-0 flex-1 text-left transition-colors hover:opacity-90"
+            // Long-press drag needs the browser to keep handling taps/scroll.
+            style={titleHandleProps ? { touchAction: 'manipulation' } : undefined}
+            {...titleHandleProps}
           >
             <span className="min-w-0 flex-1">
               {/* Phones wrap: code + status on one line, denumire on the next,

@@ -11,12 +11,15 @@ export function SortablePinnedProjectCard({
   onToggle,
   onUnpinned,
   onEdit,
+  dragByTitle = false,
 }: {
   project: PinnedProjectSummaryRow;
   expanded: boolean;
   onToggle: () => void;
   onUnpinned: (updated: ProjectDto) => void;
   onEdit: () => void;
+  /** Phones: no grip/pin icons — hold the project code to reorder. */
+  dragByTitle?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: project.id,
@@ -37,7 +40,10 @@ export function SortablePinnedProjectCard({
         onToggle={onToggle}
         onUnpinned={onUnpinned}
         onEdit={onEdit}
-        dragHandleProps={{ attributes, listeners }}
+        showPinButton={!dragByTitle}
+        {...(dragByTitle
+          ? { titleHandleProps: { ...attributes, ...listeners } }
+          : { dragHandleProps: { attributes, listeners } })}
       />
     </div>
   );

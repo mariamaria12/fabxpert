@@ -95,6 +95,7 @@ export function PinnedProjectCard({
   onEdit,
   dragHandleProps,
   showPinButton = true,
+  titleHandleProps,
 }: {
   project: PinnedProjectSummaryRow;
   expanded: boolean;
@@ -102,8 +103,10 @@ export function PinnedProjectCard({
   onUnpinned: (updated: ProjectDto) => void;
   onEdit: () => void;
   dragHandleProps?: DragHandleProps;
-  /** Off on phones, where the pinned list is view-only. */
+  /** Off on phones, where the card has no icons. */
   showPinButton?: boolean;
+  /** Phones drag by holding the project code instead of a grip icon. */
+  titleHandleProps?: Record<string, unknown>;
 }) {
   const timelineDates = getProjectTimelineDates(project.startDate, project.dueDate);
   const timeline = timelineDates
@@ -128,6 +131,7 @@ export function PinnedProjectCard({
       titleSubline={project.denumireLucrare}
       infoContent={<FinisajBadge value={project.finisaj} />}
       hideLeadingIcon={!dragHandleProps && !showPinButton}
+      titleHandleProps={titleHandleProps}
       subtitle={project.company.name}
       metaContent={
         <ProjectVisibleForCardMeta

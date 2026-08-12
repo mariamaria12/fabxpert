@@ -35,7 +35,6 @@ import {
   splitPinnedProjectsByColumn,
   unflattenOneColumnOrderToColumns,
 } from './panouPinnedLayout';
-import { PinnedProjectCard } from './PinnedProjectCard';
 import { SortablePinnedProjectCard } from './SortablePinnedProjectCard';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { PanouPinnedProjectsSkeleton } from './PanouPinnedProjectsSkeleton';
@@ -110,6 +109,7 @@ type PinnedCardOptions = {
 function renderPinnedProjectCards(
   columnProjects: PinnedProjectSummaryRow[],
   options: PinnedCardOptions,
+  dragByTitle = false,
 ) {
   return columnProjects.map((project) => (
     <SortablePinnedProjectCard
@@ -119,24 +119,7 @@ function renderPinnedProjectCards(
       onToggle={() => options.toggleExpanded(project.id)}
       onUnpinned={options.handleUnpinned}
       onEdit={() => options.openEdit(project)}
-    />
-  ));
-}
-
-/** Phones get a plain list: no drag handle, no pin button, no reordering. */
-function renderReadOnlyPinnedProjectCards(
-  columnProjects: PinnedProjectSummaryRow[],
-  options: PinnedCardOptions,
-) {
-  return columnProjects.map((project) => (
-    <PinnedProjectCard
-      key={project.id}
-      project={project}
-      expanded={options.expandedIds.has(project.id)}
-      onToggle={() => options.toggleExpanded(project.id)}
-      onUnpinned={options.handleUnpinned}
-      onEdit={() => options.openEdit(project)}
-      showPinButton={false}
+      dragByTitle={dragByTitle}
     />
   ));
 }
@@ -160,14 +143,20 @@ export const PanouPinnedProjectsSection = forwardRef<
   const [error, setError] = useState<string | null>(null);
   const [editPanel, setEditPanel] = useState<EditPanelState>({ open: false });
   const [viewMode, setViewMode] = useState<PanouPinnedViewMode>(() => readStoredViewMode());
-  // Phones: single-column, view-only list — dragging on touch was unreliable.
+  // Phones: always a single column, and cards without grip/pin icons.
   const isMobile = useIsMobile();
   const effectiveViewMode: PanouPinnedViewMode = isMobile ? 'one-column' : viewMode;
   // Driven by the panou toolbar: the "Gata de execuție" chips and the period.
   const { readyForExecution, period, periodReady } = usePanouDashboard();
   const fetchSeqRef = useRef(0);
+  // Phones: press-and-hold the project code to pick a card up, so a normal tap
+  // still expands it and a swipe still scrolls the list.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(PointerSensor, {
+      activationConstraint: isMobile
+        ? { delay: 350, tolerance: 8 }
+        : { distance: 6 },
+    }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
@@ -417,9 +406,21 @@ export const PanouPinnedProjectsSection = forwardRef<
       )}
 
       {visibleProjects.length > 0 && isMobile && (
-        <div className="mt-3 space-y-2">
-          {renderReadOnlyPinnedProjectCards(oneColumnProjects, cardOptions)}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={(event) => void handleDragEnd(event)}
+        >
+          <SortableContext
+            items={oneColumnProjects.map((project) => project.id)}
+            strategy={verticalListSortingStrategy}
+            disabled={!canReorder}
+          >
+            <div className="mt-3 space-y-2">
+              {renderPinnedProjectCards(oneColumnProjects, cardOptions, true)}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {visibleProjects.length > 0 && !isMobile && (
