@@ -215,8 +215,11 @@ export function ProjectSelect({ user, onChoose, onOpenMyTimesheets }: ProjectSel
             return (
             <li
               key={project.id}
-              className={`option-row-shell${notesOpen ? ' option-row-shell-open' : ''}`}
+              className={`option-row-shell${notes ? ' option-row-shell-has-notes' : ''}${
+                notesOpen ? ' option-row-shell-open' : ''
+              }`}
             >
+              <div className="option-row-card">
               <button
                 type="button"
                 role="option"
@@ -230,14 +233,14 @@ export function ProjectSelect({ user, onChoose, onOpenMyTimesheets }: ProjectSel
                   aria-hidden="true"
                 />
                 <span className="option-row-body">
-                  <span className="option-row-title">{project.code}</span>
+                  <span className="option-row-title-line">
+                    <span className="option-row-title">{project.code}</span>
+                    <FinisajBadge value={project.finisaj} compact />
+                  </span>
                   {project.denumireLucrare && (
                     <span className="option-row-subtitle">{project.denumireLucrare}</span>
                   )}
-                  <span className="option-row-meta">
-                    <span className="option-row-code">{project.company.name}</span>
-                    <FinisajBadge value={project.finisaj} compact />
-                  </span>
+                  <span className="option-row-code">{project.company.name}</span>
                 </span>
               </button>
 
@@ -252,6 +255,7 @@ export function ProjectSelect({ user, onChoose, onOpenMyTimesheets }: ProjectSel
                   <InfoIcon />
                 </button>
               )}
+              </div>
 
               {notes && notesOpen && (
                 <div
