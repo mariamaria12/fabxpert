@@ -69,6 +69,10 @@
       "types": "./dist/workDate.d.ts",
       "default": "./dist/workDate.js"
     },
+    "./timesheetNotes": {
+      "types": "./dist/timesheetNotes.d.ts",
+      "default": "./dist/timesheetNotes.js"
+    },
     "./projectColor": {
       "types": "./dist/projectColor.d.ts",
       "default": "./dist/projectColor.js"

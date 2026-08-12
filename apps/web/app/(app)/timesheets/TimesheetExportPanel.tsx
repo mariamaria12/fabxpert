@@ -2,6 +2,7 @@
 
 import {
   exportTimesheetsXlsx,
+  formatTimesheetNotesCell,
   isPeriodQueryReady,
   listTimesheets,
   type Period,
@@ -66,6 +67,13 @@ const previewColumns: DataTableColumn<TimesheetDto>[] = [
     key: 'worker',
     header: 'Lucrător',
     render: (row) => formatExportWorkerName(row.person),
+  },
+  {
+    key: 'notes',
+    header: 'Detalii',
+    // Same one-line shape the xlsx cell gets, so the preview matches the file.
+    render: (row) =>
+      formatTimesheetNotesCell(row.notes) || <span className="text-text-muted">—</span>,
   },
 ];
 

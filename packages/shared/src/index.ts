@@ -164,6 +164,7 @@ export {
   finisajBadgeColors,
   relativeLuminance,
 } from './finisaj';
+export { formatTimesheetNotesCell } from './timesheetNotes';
 export type { FinisajParts, FinisajBadgeColors } from './finisaj';
 export { RAL_CLASSIC_COLORS } from './ralClassic';
 export type { RalClassicColor } from './ralClassic';

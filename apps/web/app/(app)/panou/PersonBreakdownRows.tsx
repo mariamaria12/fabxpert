@@ -9,17 +9,18 @@ import {
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
 import { PanouActivityProgressBar } from './PanouActivityProgressBar';
 
+/** A full bar is a 9-hour day, so lengths compare across rows and people. */
+const FULL_BAR_MINUTES = 9 * 60;
+
 export function PersonBreakdownRows({
   activities,
 }: {
   activities: PersonSummaryActivityRow[];
 }) {
-  const maxMinutes = Math.max(...activities.map((entry) => entry.minutes), 1);
-
   return (
     <div className="space-y-2.5">
       {activities.map((entry) => {
-        const percent = Math.round((entry.minutes / maxMinutes) * 100);
+        const percent = Math.min(Math.round((entry.minutes / FULL_BAR_MINUTES) * 100), 100);
 
         return (
         <div key={`${entry.projectId}-${entry.activityId ?? 'none'}`} className="space-y-1.5">
@@ -63,7 +64,7 @@ export function PersonBreakdownRows({
             </span>
           </div>
           <PanouActivityProgressBar
-            className="ml-[18px] w-full"
+            className="ml-[18px] mr-4"
             color={entry.activityColor}
             percent={percent}
           />

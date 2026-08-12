@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import { formatTimesheetNotesCell } from '@fabxpert/shared/timesheetNotes';
 import type { ResolvedSummaryPeriod } from './timesheet-summary-period.util';
 
 /** Export row order: workDate asc, person last/first name, project name. */
@@ -39,6 +40,7 @@ function calendarDateOnly(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
 }
 
+
 export async function buildTimesheetExportXlsx(rows: TimesheetExportRow[]): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('Pontaje');
@@ -67,7 +69,7 @@ export async function buildTimesheetExportXlsx(rows: TimesheetExportRow[]): Prom
       hours: row.durationMinutes / 60,
       activity: row.activity?.name ?? '',
       worker: `${row.person.lastName} ${row.person.firstName}`.trim().toUpperCase(),
-      notes: row.notes ?? '',
+      notes: formatTimesheetNotesCell(row.notes),
     });
 
     dataRow.getCell(2).numFmt = '0';
