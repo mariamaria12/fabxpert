@@ -241,17 +241,24 @@ export function PanouNotLoggedView() {
           })}
 
           <div className="flex justify-end">
-            <label className="inline-flex items-start gap-2 text-sm text-text-secondary">
-              <input
-                type="checkbox"
-                checked={includeExternalCollaborators}
-                onChange={(event) => setIncludeExternalCollaborators(event.target.checked)}
-                className="mt-0.5 size-4 rounded border-border accent-accent"
+            <button
+              type="button"
+              onClick={() =>
+                setIncludeExternalCollaborators(!includeExternalCollaborators)
+              }
+              aria-expanded={includeExternalCollaborators}
+              className="inline-flex items-center gap-1 rounded-md py-1 text-sm font-medium text-accent transition-opacity hover:opacity-80"
+            >
+              {includeExternalCollaborators
+                ? 'Ascunde colaboratorii externi'
+                : 'Afișează colaboratori externi'}
+              <i
+                className={`ti ${
+                  includeExternalCollaborators ? 'ti-chevron-up' : 'ti-chevron-down'
+                } text-base`}
+                aria-hidden="true"
               />
-              <span>
-                Afișează colaboratori externi
-              </span>
-            </label>
+            </button>
           </div>
         </>
       )}
