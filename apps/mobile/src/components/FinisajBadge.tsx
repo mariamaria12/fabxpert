@@ -28,14 +28,15 @@ export function FinisajBadge({
 
   // Known finishes (zinc plating) fill the rectangle just like a RAL colour.
   const colors = finisajBadgeColors(parsed.hex as string);
+  const fillStyle = {
+    backgroundColor: colors.background,
+    color: colors.text,
+    borderColor: colors.border ?? 'transparent',
+  };
   const badge = (
     <span
       className="finisaj-badge finisaj-badge-ral"
-      style={{
-        backgroundColor: colors.background,
-        color: colors.text,
-        borderColor: colors.border ?? 'transparent',
-      }}
+      style={fillStyle}
       title={value ?? parsed.label}
     >
       {parsed.label}
@@ -46,13 +47,14 @@ export function FinisajBadge({
     return badge;
   }
 
+  // Both chips carry the RAL colour, the extra info first and the code last.
   if (chips) {
     return (
       <span className="finisaj-group">
-        {badge}
-        <span className="finisaj-badge finisaj-badge-outline" title={parsed.action}>
+        <span className="finisaj-badge finisaj-badge-ral" style={fillStyle} title={parsed.action}>
           {parsed.action}
         </span>
+        {badge}
       </span>
     );
   }
