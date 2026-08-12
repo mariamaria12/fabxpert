@@ -5,6 +5,7 @@ import type { ResolvedSummaryPeriod } from './timesheet-summary-period.util';
 export type TimesheetExportRow = {
   workDate: Date;
   durationMinutes: number;
+  notes: string | null;
   project: { name: string };
   person: { firstName: string; lastName: string };
   activity: { name: string } | null;
@@ -17,6 +18,7 @@ const HEADERS = [
   'Nr. ORE LUCRATE',
   'Tip operație',
   'Lucrător',
+  'Detalii',
 ] as const;
 
 function formatFilenameDate(date: Date): string {
@@ -48,6 +50,7 @@ export async function buildTimesheetExportXlsx(rows: TimesheetExportRow[]): Prom
     { header: HEADERS[3], key: 'hours', width: 16 },
     { header: HEADERS[4], key: 'activity', width: 22 },
     { header: HEADERS[5], key: 'worker', width: 24 },
+    { header: HEADERS[6], key: 'notes', width: 40 },
   ];
 
   const headerRow = sheet.getRow(1);
@@ -64,6 +67,7 @@ export async function buildTimesheetExportXlsx(rows: TimesheetExportRow[]): Prom
       hours: row.durationMinutes / 60,
       activity: row.activity?.name ?? '',
       worker: `${row.person.lastName} ${row.person.firstName}`.trim().toUpperCase(),
+      notes: row.notes ?? '',
     });
 
     dataRow.getCell(2).numFmt = '0';
@@ -80,6 +84,7 @@ export async function buildTimesheetExportXlsx(rows: TimesheetExportRow[]): Prom
       hours: { formula: `SUM(D2:D${lastDataRow})` },
       activity: '',
       worker: 'TOTAL',
+      notes: '',
     });
     totalRow.font = { bold: true };
     totalRow.getCell(4).numFmt = '0.0########';
