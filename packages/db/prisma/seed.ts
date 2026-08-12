@@ -184,6 +184,8 @@ const projectsSeed = [
     status: 'FINALIZAT' as const,
     startDate: new Date('2026-04-01'),
     dueDate: new Date('2026-06-25'),
+    // Completed on the deadline — surfaces in the Rapoarte page for June 2026.
+    completedAt: new Date('2026-06-25'),
     readyForExecution: true,
     color: '#2F6F4E',
   },
@@ -277,6 +279,7 @@ async function seedProjects() {
         status: project.status,
         startDate: project.startDate,
         dueDate: project.dueDate,
+        completedAt: 'completedAt' in project ? project.completedAt : null,
         readyForExecution: project.readyForExecution,
         isPinned: 'isPinned' in project ? project.isPinned : undefined,
         indexPanou: 'indexPanou' in project ? project.indexPanou : undefined,

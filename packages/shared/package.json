@@ -29,6 +29,10 @@
       "types": "./dist/dto/timesheet.dto.d.ts",
       "default": "./dist/dto/timesheet.dto.js"
     },
+    "./dto/report.dto": {
+      "types": "./dist/dto/report.dto.d.ts",
+      "default": "./dist/dto/report.dto.js"
+    },
     "./dto/person.dto": {
       "types": "./dist/dto/person.dto.d.ts",
       "default": "./dist/dto/person.dto.js"

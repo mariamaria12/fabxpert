@@ -387,6 +387,8 @@ export class ProjectService {
         data: {
           ...scalarInput,
           ...(isPinned !== undefined ? { isPinned } : {}),
+          // Stamp the completion date if the project is created already finalized.
+          ...(scalarInput.status === 'FINALIZAT' ? { completedAt: new Date() } : {}),
           color: color ?? pickRandomProjectColor(),
           ...(panouSlot
             ? { indexPanou: panouSlot.indexPanou, panouColumn: panouSlot.panouColumn }
@@ -438,6 +440,17 @@ export class ProjectService {
       panouColumn = null;
     }
 
+    // Track the completion date across status transitions: stamp it when the
+    // project enters FINALIZAT, clear it when it leaves. Editing a project that
+    // is already FINALIZAT leaves the existing date untouched.
+    const nextStatus = scalarInput.status ?? existing.status;
+    let completedAt: Date | null | undefined;
+    if (nextStatus === 'FINALIZAT' && existing.status !== 'FINALIZAT') {
+      completedAt = new Date();
+    } else if (nextStatus !== 'FINALIZAT' && existing.status === 'FINALIZAT') {
+      completedAt = null;
+    }
+
     try {
       const project = await this.prisma.project.update({
         where: { id },
@@ -446,6 +459,7 @@ export class ProjectService {
           ...(isPinned !== undefined ? { isPinned } : {}),
           ...(indexPanou !== undefined ? { indexPanou } : {}),
           ...(panouColumn !== undefined ? { panouColumn } : {}),
+          ...(completedAt !== undefined ? { completedAt } : {}),
           ...(visibleForRoleIds !== undefined
             ? {
                 visibleForRoles: {

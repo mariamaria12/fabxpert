@@ -6,6 +6,24 @@ export { ApiError, configureApiClient, getApiClientBaseUrl } from './api/client'
 export { resolveApiBaseUrl } from './api/resolve-api-base-url';
 export { getMe, login, logout } from './api/auth';
 export type { MeResponse } from './api/auth';
+export { getProductivityReport } from './api/reports';
+export {
+  DEFAULT_REPORT_PERIOD,
+  reportPeriodToQuery,
+  isReportPeriodReady,
+  reportPeriodsEqual,
+} from './reportPeriod';
+export type { ReportPeriod, ReportPeriodQueryParams } from './reportPeriod';
+export { REPORT_PERIOD_KINDS } from './dto/report.dto';
+export type {
+  ReportPeriodKind,
+  ProductivityKpis,
+  ProjectHoursComparisonRow,
+  OnTimeBreakdown,
+  ClientHoursRow,
+  ActivityHoursRow,
+  ProductivityReportResponse,
+} from './dto/report.dto';
 export {
   listCompanies,
   getCompany,

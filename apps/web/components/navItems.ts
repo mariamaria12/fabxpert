@@ -1,6 +1,7 @@
 // Routes are English; visible labels stay Romanian. /concedii uses Romanian path by product choice.
 export const NAV_ITEMS = [
   { href: '/', icon: 'ti-layout-dashboard', label: 'Panou' },
+  { href: '/reports', icon: 'ti-report-analytics', label: 'Rapoarte' },
   { href: '/projects', icon: 'ti-clipboard-list', label: 'Proiecte' },
   { href: '/companies', icon: 'ti-building', label: 'Companii' },
   { href: '/people', icon: 'ti-users', label: 'Persoane' },

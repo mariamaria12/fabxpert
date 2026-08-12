@@ -204,6 +204,10 @@ model Project {
   status            ProjectStatus @default(CIORNA)
   startDate         DateTime?
   dueDate           DateTime?
+  /// Set when the project transitions into FINALIZAT (cleared if it leaves that status).
+  /// Backfilled once from `updatedAt` for projects already FINALIZAT. Drives the
+  /// Rapoarte analytics: a project is in an interval when `completedAt` falls inside it.
+  completedAt       DateTime?
   readyForExecution Boolean       @default(false)
   isPinned          Boolean       @default(false)
   indexPanou          Int?
@@ -223,6 +227,8 @@ model Project {
   @@index([deletedAt, status])
   /// Matches the default list order; created in the 20260811230000 migration.
   @@index([statusRank, startDate])
+  /// Rapoarte analytics: fetch FINALIZAT projects by completion date range.
+  @@index([status, completedAt])
   @@map("projects")
 }
 
@@ -260,6 +266,8 @@ model Timesheet {
   @@index([deletedAt, workDate])
   @@index([personId])
   @@index([projectId])
+  /// Rapoarte analytics: hours grouped by activity.
+  @@index([activityId])
   @@map("timesheets")
 }
 
