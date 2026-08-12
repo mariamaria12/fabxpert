@@ -32,9 +32,12 @@ export default defineConfig({
     VitePWA({
       // Default generated service worker: precaches built assets, auto-updates.
       registerType: 'autoUpdate',
+      includeAssets: ['icon.svg', 'apple-touch-icon-180x180.png'],
       manifest: {
-        name: 'FabXpert',
-        short_name: 'FabXpert',
+        name: 'FabXpert Time',
+        short_name: 'FabXpert Time',
+        description: 'Pontaj muncitori',
+        lang: 'ro',
         // Matches --color-bg from packages/shared/styles/tokens.css.
         theme_color: '#1F1E19',
         background_color: '#1F1E19',
