@@ -196,7 +196,10 @@ model Project {
   /// Derived in Postgres (GENERATED ALWAYS AS ... STORED) from `status`: rank for the
   /// default list order — IN_PRODUCTIE first, FINALIZAT last. Never write it from the app;
   /// keep the generation expression when editing this column (see the 20260811230000 migration).
-  statusRank        Int           @default(0)
+  /// `dbgenerated()` is what keeps Prisma from putting the column in INSERTs — Postgres
+  /// rejects any explicit value for a generated column (SQLSTATE 428C9). The expression
+  /// below mirrors how Prisma introspects the column, so the schema stays drift-free.
+  statusRank        Int           @default(dbgenerated("\nCASE status\n    WHEN 'IN_PRODUCTIE'::\"ProjectStatus\" THEN 0\n    WHEN 'CIORNA'::\"ProjectStatus\" THEN 1\n    WHEN 'IN_OFERTARE'::\"ProjectStatus\" THEN 2\n    WHEN 'CASTIGAT'::\"ProjectStatus\" THEN 3\n    WHEN 'IN_PROIECTARE'::\"ProjectStatus\" THEN 4\n    WHEN 'PREGATIT_LIVRARE'::\"ProjectStatus\" THEN 5\n    WHEN 'LIVRAT'::\"ProjectStatus\" THEN 6\n    WHEN 'SUSPENDAT'::\"ProjectStatus\" THEN 7\n    WHEN 'ANULAT'::\"ProjectStatus\" THEN 8\n    WHEN 'FINALIZAT'::\"ProjectStatus\" THEN 9\n    ELSE 99\nEND"))
   code              String        @unique
   status            ProjectStatus @default(CIORNA)
   startDate         DateTime?
@@ -218,6 +221,8 @@ model Project {
   visibleForRoles EmployeeRole[]
 
   @@index([deletedAt, status])
+  /// Matches the default list order; created in the 20260811230000 migration.
+  @@index([statusRank, startDate])
   @@map("projects")
 }
 
