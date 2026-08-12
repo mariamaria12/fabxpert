@@ -28,6 +28,7 @@ import {
   projectNameTableColumnLayout,
   TruncatedTableCell,
 } from '@/components/ProjectNameCell';
+import { FinisajBadge } from '@/components/FinisajBadge';
 import { Pagination } from '@/components/Pagination';
 import { ProjectListFilters } from '@/components/ProjectListFilters';
 import { STATUS_FILTER_OPTIONS } from '@/utils/projectStatusFilter';
@@ -134,7 +135,7 @@ function useProjectTableColumns(options?: {
         width: '130px',
         className: 'overflow-hidden text-text-secondary',
         render: (row) =>
-          row.finisaj ? <TruncatedTableCell text={row.finisaj} /> : nullableCell(null),
+          row.finisaj ? <FinisajBadge value={row.finisaj} /> : nullableCell(null),
       },
       {
         // Full template name — key differs from the DTO field so the stored

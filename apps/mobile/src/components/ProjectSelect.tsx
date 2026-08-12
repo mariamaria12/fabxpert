@@ -1,3 +1,4 @@
+import { FinisajBadge } from './FinisajBadge';
 import type { MeResponse, ProjectOptionDto } from '@fabxpert/shared';
 import { useMobileLookupCache } from '../context/MobileLookupCacheContext';
 import {
@@ -208,10 +209,9 @@ export function ProjectSelect({ user, onChoose, onOpenMyTimesheets }: ProjectSel
                   {project.denumireLucrare && (
                     <span className="option-row-subtitle">{project.denumireLucrare}</span>
                   )}
-                  <span className="option-row-code">
-                    {project.finisaj
-                      ? `${project.company.name} · ${project.finisaj}`
-                      : project.company.name}
+                  <span className="option-row-meta">
+                    <span className="option-row-code">{project.company.name}</span>
+                    <FinisajBadge value={project.finisaj} compact />
                   </span>
                 </span>
               </button>

@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { FinisajBadge } from '@/components/FinisajBadge';
 import { ActivityBreakdownRows } from './ActivityBreakdownRows';
 import { panouAccentTint } from './panouColors';
 import { PanouProjectCard } from './PanouProjectCard';
@@ -125,7 +126,7 @@ export function PinnedProjectCard({
       title={project.code}
       status={project.status}
       titleSubline={project.denumireLucrare}
-      infoLine={project.finisaj}
+      infoContent={<FinisajBadge value={project.finisaj} />}
       hideLeadingIcon={!dragHandleProps && !showPinButton}
       subtitle={project.company.name}
       metaContent={

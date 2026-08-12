@@ -899,6 +899,53 @@ body {
   color: var(--color-text-primary);
 }
 
+.option-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.finisaj-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  max-width: 100px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.finisaj-badge-outline {
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.finisaj-badge-ral {
+  font-weight: 500;
+}
+
+.finisaj-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.finisaj-action {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .option-row-subtitle {
   font-size: 14px;
   color: var(--color-text-secondary);

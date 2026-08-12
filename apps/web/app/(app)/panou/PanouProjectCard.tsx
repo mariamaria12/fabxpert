@@ -23,6 +23,7 @@ export function PanouProjectCard({
   titleSubline,
   hideLeadingIcon,
   infoLine,
+  infoContent,
   subtitle,
   metaLine,
   metaContent,
@@ -44,6 +45,8 @@ export function PanouProjectCard({
   hideLeadingIcon?: boolean;
   /** Extra line between the title row and the subtitle (finisaj on pinned cards). */
   infoLine?: string | null;
+  /** Same slot, for rich content such as the finish badge. */
+  infoContent?: ReactNode;
   subtitle: string;
   metaLine?: string;
   metaContent?: ReactNode;
@@ -155,11 +158,13 @@ export function PanouProjectCard({
                   </span>
                 )}
               </span>
-            {info && (
+            {infoContent ? (
+              <span className="mt-1 flex min-w-0">{infoContent}</span>
+            ) : info ? (
               <span className="mt-0.5 block text-[11px] text-text-secondary [overflow-wrap:anywhere] md:truncate">
                 {info}
               </span>
-            )}
+            ) : null}
             <span className="mt-0.5 block text-[11px] text-text-muted [overflow-wrap:anywhere] md:truncate">
               {subtitle}
             </span>

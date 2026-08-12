@@ -337,7 +337,7 @@ export function UsersTab({ active }: UsersTabProps) {
           <button
             type="button"
             onClick={openCreate}
-            className="shrink-0 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
+            className="shrink-0 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-contrast sm:px-4 sm:py-2 sm:text-sm transition-opacity hover:opacity-90"
           >
             Utilizator nou
           </button>
@@ -374,7 +374,7 @@ export function UsersTab({ active }: UsersTabProps) {
           <button
             type="button"
             onClick={openCreate}
-            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
+            className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-contrast sm:px-4 sm:py-2 sm:text-sm transition-opacity hover:opacity-90"
           >
             Utilizator nou
           </button>

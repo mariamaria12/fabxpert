@@ -141,6 +141,15 @@ export {
 } from './projectColor';
 export type { ProjectColorPreset } from './projectColor';
 export {
+  formatFinisajLabel,
+  parseFinisaj,
+  ralBadgeColors,
+  relativeLuminance,
+} from './finisaj';
+export type { FinisajParts, RalBadgeColors } from './finisaj';
+export { RAL_CLASSIC_COLORS } from './ralClassic';
+export type { RalClassicColor } from './ralClassic';
+export {
   type Period,
   type PeriodQueryParams,
   periodToQuery,
