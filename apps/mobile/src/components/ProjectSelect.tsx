@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { FinisajBadge } from './FinisajBadge';
 import type { MeResponse, ProjectOptionDto } from '@fabxpert/shared';
 import { useMobileLookupCache } from '../context/MobileLookupCacheContext';
@@ -33,6 +34,21 @@ function ClockIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function InfoIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.75" />
+      <path
+        d="M12 11v5"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="7.75" r="1" fill="currentColor" />
     </svg>
   );
 }
@@ -105,6 +121,9 @@ export function ProjectSelect({ user, onChoose, onOpenMyTimesheets }: ProjectSel
     isFetchingMyTimesheetsPage1,
     refreshMyTimesheetsPage1,
   } = useMobileLookupCache();
+
+  // One notes panel open at a time keeps the list quiet.
+  const [expandedNotesId, setExpandedNotesId] = useState<string | null>(null);
 
   const showProjectsSkeleton = isFetchingProjects && projects.length === 0 && !projectsError;
   const showBannerSkeleton = isFetchingMyTimesheetsPage1 && !myTimesheetsPage1Loaded;
@@ -190,8 +209,14 @@ export function ProjectSelect({ user, onChoose, onOpenMyTimesheets }: ProjectSel
             const tintStyle = projectOptionTintStyle(project.color);
             const hasTint = Boolean(project.color && tintStyle.background);
 
+            const notes = project.notes?.trim() ?? '';
+            const notesOpen = expandedNotesId === project.id;
+
             return (
-            <li key={project.id}>
+            <li
+              key={project.id}
+              className={`option-row-shell${notesOpen ? ' option-row-shell-open' : ''}`}
+            >
               <button
                 type="button"
                 role="option"
@@ -215,6 +240,32 @@ export function ProjectSelect({ user, onChoose, onOpenMyTimesheets }: ProjectSel
                   </span>
                 </span>
               </button>
+
+              {notes && (
+                <button
+                  type="button"
+                  className="option-row-info"
+                  aria-expanded={notesOpen}
+                  aria-label={notesOpen ? 'Ascunde notițele' : 'Afișează notițele'}
+                  onClick={() => setExpandedNotesId(notesOpen ? null : project.id)}
+                >
+                  <InfoIcon />
+                </button>
+              )}
+
+              {notes && notesOpen && (
+                <div
+                  className="option-row-notes"
+                  style={
+                    hasTint
+                      ? { background: tintStyle.background, borderColor: tintStyle.borderColor }
+                      : undefined
+                  }
+                >
+                  <span className="option-row-notes-label">Notițe</span>
+                  <p className="option-row-notes-text">{notes}</p>
+                </div>
+              )}
             </li>
             );
           })}

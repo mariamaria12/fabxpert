@@ -165,6 +165,7 @@ function toProjectDto(project: ProjectWithRelations | ProjectListRow, compact = 
     name: project.name,
     denumireLucrare: project.denumireLucrare,
     finisaj: project.finisaj,
+    notes: project.notes,
     code: project.code,
     status: project.status,
     startDate: project.startDate?.toISOString() ?? null,
@@ -328,6 +329,7 @@ export class ProjectService {
         name: string;
         denumireLucrare: string | null;
         finisaj: string | null;
+        notes: string | null;
         code: string;
         color: string | null;
         companyName: string;
@@ -338,6 +340,7 @@ export class ProjectService {
         p.name,
         p."denumireLucrare",
         p.finisaj,
+        p.notes,
         p.code,
         p.color,
         c.name AS "companyName"
@@ -354,6 +357,7 @@ export class ProjectService {
       name: row.name,
       denumireLucrare: row.denumireLucrare,
       finisaj: row.finisaj,
+      notes: row.notes,
       code: row.code,
       color: row.color,
       company: { name: row.companyName },

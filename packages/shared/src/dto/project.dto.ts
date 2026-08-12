@@ -62,6 +62,11 @@ const denumireLucrareSchema = z
   .union([z.string().trim(), z.null()])
   .transform((value) => (value ? value : null));
 
+/** Free text; empty is stored as null so "no notes" stays a single state. */
+const notesSchema = z
+  .union([z.string().trim(), z.null()])
+  .transform((value) => (value ? value : null));
+
 const finisajSchema = z
   .union([z.string().trim().max(100, 'Finisaj must be at most 100 characters'), z.null()])
   .transform((value) => (value ? value : null));
@@ -70,6 +75,7 @@ export const createProjectSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
   denumireLucrare: denumireLucrareSchema.optional(),
   finisaj: finisajSchema.optional(),
+  notes: notesSchema.optional(),
   code: z.string().trim().min(1, 'Code is required'),
   companyId: companyIdSchema,
   status: projectStatusSchema.optional(),
@@ -116,6 +122,8 @@ export type ProjectDto = {
   denumireLucrare: string | null;
   /** Finish (e.g. ZINCARE, RAL9002); null until filled in. */
   finisaj: string | null;
+  /** Free-text admin notes; null when empty. */
+  notes: string | null;
   code: string;
   status: ProjectStatus;
   startDate: string | null;
@@ -139,6 +147,8 @@ export type ProjectOptionDto = {
   name: string;
   denumireLucrare: string | null;
   finisaj: string | null;
+  /** Free-text admin notes; shown behind the info icon on the project card. */
+  notes: string | null;
   code: string;
   color: string | null;
   company: {

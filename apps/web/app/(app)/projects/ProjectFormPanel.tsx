@@ -52,6 +52,7 @@ interface ProjectFormValues {
   name: string;
   denumireLucrare: string;
   finisaj: string;
+  notes: string;
   code: string;
   companyId: string;
   status: ProjectStatus;
@@ -66,6 +67,7 @@ const EMPTY_FORM: ProjectFormValues = {
   name: '',
   denumireLucrare: '',
   finisaj: '',
+  notes: '',
   code: '',
   companyId: '',
   status: 'CIORNA',
@@ -81,6 +83,7 @@ function projectToFormValues(project: ProjectDto): ProjectFormValues {
     name: project.name,
     denumireLucrare: project.denumireLucrare ?? '',
     finisaj: project.finisaj ?? '',
+    notes: project.notes ?? '',
     code: project.code,
     companyId: project.companyId,
     status: project.status,
@@ -154,6 +157,7 @@ function buildCreatePayload(values: ProjectFormValues) {
   return {
     name: values.name,
     denumireLucrare: values.denumireLucrare.trim() || null,
+    notes: values.notes.trim() || null,
     code: values.code,
     companyId: values.companyId,
     status: values.status,
@@ -170,6 +174,7 @@ function buildUpdatePayload(values: ProjectFormValues) {
     name: values.name,
     denumireLucrare: values.denumireLucrare.trim() || null,
     finisaj: values.finisaj.trim() || null,
+    notes: values.notes.trim() || null,
     code: values.code,
     companyId: values.companyId,
     status: values.status,
@@ -779,6 +784,22 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
             onChange={(value) => updateField('finisaj', value)}
           />
         )}
+
+        <div>
+          <label htmlFor="notes" className="mb-1.5 block text-xs font-medium text-text-secondary">
+            Notițe
+          </label>
+          <textarea
+            id="notes"
+            rows={3}
+            value={values.notes}
+            disabled={isBusy}
+            placeholder="Detalii despre proiect"
+            onChange={(event) => updateField('notes', event.target.value)}
+            className={`${inputClassName} resize-none`}
+            {...businessAutofill}
+          />
+        </div>
 
         <TextField
           id="code"

@@ -899,6 +899,67 @@ body {
   color: var(--color-text-primary);
 }
 
+.option-row-shell {
+  position: relative;
+}
+
+.option-row-info {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.option-row-info:active {
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+}
+
+/* Joined to the card above: shared border, square corners in between. */
+.option-row-shell-open .option-row {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: transparent;
+}
+
+.option-row-notes {
+  margin-top: -1px;
+  padding: 10px 14px 12px 18px;
+  border: 1px solid var(--color-border-subtle);
+  border-top: 0;
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 14px;
+  background: var(--color-surface-raised);
+}
+
+.option-row-notes-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.option-row-notes-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .option-row-meta {
   display: flex;
   align-items: center;
