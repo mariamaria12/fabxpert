@@ -910,13 +910,13 @@ body {
 
 .option-row-info {
   position: absolute;
-  bottom: 10px;
-  right: 10px;
+  bottom: 6px;
+  right: 6px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: 0;
   border-radius: 8px;
@@ -987,7 +987,7 @@ body {
 
 /* Leave room for the notes button in the bottom corner. */
 .option-row-shell-has-notes .option-row-code {
-  padding-right: 34px;
+  padding-right: 46px;
 }
 
 .finisaj-badge {
