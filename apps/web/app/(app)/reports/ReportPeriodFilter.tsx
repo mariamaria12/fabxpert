@@ -131,38 +131,47 @@ export function ReportPeriodFilter({ value, onChange, className }: ReportPeriodF
           </button>
 
           {customMode && (
-            <div className="absolute left-0 top-full z-30 mt-1.5 w-max rounded-lg border border-strong bg-surface-popover p-3 shadow-popover">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                <DateField
-                  id="report-period-from"
-                  label="De la"
-                  value={draftFrom}
-                  className={dateInputClassName}
-                  onChange={(next) => {
-                    setDraftFrom(next);
-                    setCustomError(null);
-                  }}
-                />
-                <DateField
-                  id="report-period-to"
-                  label="Până la"
-                  value={draftTo}
-                  className={dateInputClassName}
-                  onChange={(next) => {
-                    setDraftTo(next);
-                    setCustomError(null);
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={applyCustomRange}
-                  className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
-                >
-                  Aplică
-                </button>
+            <>
+              {/* Phones get a centred dialog over a dimmed page: <main> clips
+                  anything anchored to the chip with overflow-x-hidden. */}
+              <div
+                className="fixed inset-0 z-40 bg-bg/70 sm:hidden"
+                onClick={() => setCustomMode(false)}
+                aria-hidden="true"
+              />
+              <div className="fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-strong bg-surface-popover p-3 shadow-popover sm:absolute sm:left-auto sm:right-0 sm:top-full sm:z-30 sm:mt-1.5 sm:w-max sm:max-w-[calc(100vw-2rem)] sm:translate-x-0 sm:translate-y-0">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                  <DateField
+                    id="report-period-from"
+                    label="De la"
+                    value={draftFrom}
+                    className={dateInputClassName}
+                    onChange={(next) => {
+                      setDraftFrom(next);
+                      setCustomError(null);
+                    }}
+                  />
+                  <DateField
+                    id="report-period-to"
+                    label="Până la"
+                    value={draftTo}
+                    className={dateInputClassName}
+                    onChange={(next) => {
+                      setDraftTo(next);
+                      setCustomError(null);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={applyCustomRange}
+                    className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
+                  >
+                    Aplică
+                  </button>
+                </div>
+                {customError && <p className="mt-2 text-xs text-danger">{customError}</p>}
               </div>
-              {customError && <p className="mt-2 text-xs text-danger">{customError}</p>}
-            </div>
+            </>
           )}
         </div>
       </div>
