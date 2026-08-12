@@ -22,12 +22,12 @@ function periodWording(period: Period): string {
 function MetricCardSkeleton() {
   return (
     <div
-      className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface px-2.5 py-2"
+      className="flex items-center gap-1.5 rounded-lg border border-border-subtle bg-surface px-2 py-1.5 sm:gap-2 sm:px-2.5 sm:py-2"
       aria-hidden="true"
     >
-      <div className="size-7 animate-pulse rounded-md bg-surface-raised" />
+      <div className="size-6 animate-pulse rounded-md bg-surface-raised sm:size-7" />
       <div className="min-w-0 flex-1 space-y-1">
-        <div className="h-2.5 w-24 animate-pulse rounded bg-surface-raised" />
+        <div className="h-2.5 w-full max-w-24 animate-pulse rounded bg-surface-raised" />
         <div className="h-4 w-9 animate-pulse rounded bg-surface-raised" />
       </div>
     </div>
@@ -127,7 +127,7 @@ export function PanouMetricCards() {
   if (metricsLoading) {
     return (
       <div
-        className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+        className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-5"
         aria-busy="true"
         aria-label="Se încarcă metricile panoului"
       >
@@ -148,7 +148,7 @@ export function PanouMetricCards() {
         type="button"
         aria-pressed={isSelected}
         onClick={() => selectView(id)}
-        className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-all ${
+        className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left transition-all sm:gap-2 sm:px-2.5 sm:py-2 ${
           isSelected
             ? 'border-transparent shadow-sm shadow-black/10'
             : 'border-border-subtle bg-surface hover:border-border hover:bg-surface-raised/40'
@@ -163,18 +163,20 @@ export function PanouMetricCards() {
         }
       >
         <span
-          className="flex size-7 shrink-0 items-center justify-center rounded-md"
+          className="flex size-6 shrink-0 items-center justify-center rounded-md sm:size-7"
           style={{
             backgroundColor: panouAccentTint(theme.accent, '22%'),
             color: theme.accent,
           }}
           aria-hidden="true"
         >
-          <i className={`ti ${theme.icon} text-sm`} />
+          <i className={`ti ${theme.icon} text-xs sm:text-sm`} />
         </span>
         <span className="min-w-0">
-          <span className="block text-[11px] leading-snug text-text-secondary">{label}</span>
-          <span className="mt-0.5 block text-base font-semibold tabular-nums leading-tight text-text-primary">
+          <span className="line-clamp-2 text-[10px] leading-snug text-text-secondary sm:text-[11px]">
+            {label}
+          </span>
+          <span className="mt-0.5 block text-sm font-semibold tabular-nums leading-tight text-text-primary sm:text-base">
             {value}
           </span>
         </span>
@@ -183,7 +185,7 @@ export function PanouMetricCards() {
   }
 
   return (
-    <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+    <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-5">
       {cards.map((card) => renderMetricCard(card))}
     </div>
   );
