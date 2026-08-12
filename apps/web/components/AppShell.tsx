@@ -1,6 +1,6 @@
 'use client';
 
-import { getMe, logout } from '@fabxpert/shared';
+import { ApiError, getMe, logout } from '@fabxpert/shared';
 import type { MeResponse } from '@fabxpert/shared';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -11,12 +11,38 @@ import { TimesheetEventsProvider } from '@/context/TimesheetEventsContext';
 
 const SIDEBAR_COLLAPSED_KEY = 'fabxpert.sidebar-collapsed';
 
+const SESSION_RETRY_DELAY_MS = 1500;
+
+/** Only a real rejection by the API means "not logged in". */
+function isAuthFailure(error: unknown): boolean {
+  return error instanceof ApiError && (error.status === 401 || error.status === 403);
+}
+
+/**
+ * Flaky mobile connections (backgrounded tab, weak signal, cold start) make
+ * `getMe` fail with a network error. Retrying once keeps a valid session alive
+ * instead of bouncing the user to the login screen.
+ */
+async function fetchSessionUser(): Promise<MeResponse> {
+  try {
+    return await getMe();
+  } catch (error) {
+    if (isAuthFailure(error)) {
+      throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, SESSION_RETRY_DELAY_MS));
+    return getMe();
+  }
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<MeResponse | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sessionError, setSessionError] = useState(false);
+  const [sessionAttempt, setSessionAttempt] = useState(0);
 
   // Restore the persisted collapse preference; with no stored preference,
   // default to icon-only below Tailwind's `md` breakpoint.
@@ -31,7 +57,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    getMe()
+    setSessionError(false);
+
+    fetchSessionUser()
       .then(async (me) => {
         if (cancelled) {
           return;
@@ -46,15 +74,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         setUser(me);
         setAuthReady(true);
       })
-      .catch(() => {
-        if (!cancelled) {
-          router.replace('/login');
+      .catch((error: unknown) => {
+        if (cancelled) {
+          return;
         }
+
+        if (isAuthFailure(error)) {
+          router.replace('/login');
+          return;
+        }
+
+        // Session is probably fine — the request never reached the API.
+        setSessionError(true);
       });
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, sessionAttempt]);
 
   function toggleCollapsed() {
     const next = !collapsed;
@@ -64,8 +100,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (!authReady) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-bg">
-        <p className="text-sm text-text-muted">Se încarcă…</p>
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-bg px-6 text-center">
+        {sessionError ? (
+          <>
+            <p className="text-sm text-text-secondary">
+              Nu s-a putut contacta serverul. Conexiunea pare întreruptă.
+            </p>
+            <button
+              type="button"
+              onClick={() => setSessionAttempt((current) => current + 1)}
+              className="rounded-md border border-border px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary"
+            >
+              Reîncearcă
+            </button>
+          </>
+        ) : (
+          <p className="text-sm text-text-muted">Se încarcă…</p>
+        )}
       </div>
     );
   }

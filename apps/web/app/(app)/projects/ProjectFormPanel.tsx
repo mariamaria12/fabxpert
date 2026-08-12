@@ -19,11 +19,19 @@ import {
   type ProjectStatus,
   workDateToDayKey,
 } from '@fabxpert/shared';
-import { useEffect, useMemo, useState, type ClipboardEvent, type FormEvent } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type FormEvent,
+} from 'react';
 import { parseExcelProjectPaste } from './parseExcelProjectPaste';
 import { ColorField } from '@/components/ColorField';
 import { DateField } from '@/components/DateField';
 import { useBusinessAutofillProps } from '@/components/inputAutofill';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { SearchableMultiSelect } from '@/components/SearchableMultiSelect';
 import { SearchableSelect, type SearchableSelectOption } from '@/components/SearchableSelect';
 import { TextField } from '@/components/TextField';
@@ -206,6 +214,8 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
   const [employeeRolesLoading, setEmployeeRolesLoading] = useState(false);
   const [editProject, setEditProject] = useState<ProjectDto | null>(null);
   const [editProjectLoading, setEditProjectLoading] = useState(false);
+  const nameFieldRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
   const [excelPasteText, setExcelPasteText] = useState('');
   const [excelPasteError, setExcelPasteError] = useState<string | null>(null);
   const [excelPasteSuccess, setExcelPasteSuccess] = useState<string | null>(null);
@@ -384,6 +394,19 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
 
     return companyOptions.find((option) => option.id === values.companyId)?.label;
   }, [values.companyId, mode, project, companyOptions]);
+
+  // Phones open the edit panel scrolled to the name — the fields above it
+  // (culoare, vizibilitate, gata de execuție) are rarely what you came for.
+  useEffect(() => {
+    if (!open || mode !== 'edit' || !isMobile) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      nameFieldRef.current?.scrollIntoView({ block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [open, mode, isMobile, editProject]);
 
   function updateField<K extends keyof ProjectFormValues>(field: K, value: ProjectFormValues[K]) {
     setValues((current) => ({ ...current, [field]: value }));
@@ -724,15 +747,17 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
           </p>
         </div>
 
-        <TextField
-          id="name"
-          label="Nume"
-          required
-          value={values.name}
-          error={fieldErrors.name}
-          disabled={isBusy}
-          onChange={(value) => updateField('name', value)}
-        />
+        <div ref={nameFieldRef}>
+          <TextField
+            id="name"
+            label="Nume"
+            required
+            value={values.name}
+            error={fieldErrors.name}
+            disabled={isBusy}
+            onChange={(value) => updateField('name', value)}
+          />
+        </div>
 
         <TextField
           id="denumireLucrare"
