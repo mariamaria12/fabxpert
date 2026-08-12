@@ -24,7 +24,8 @@ import {
   TruncatedTableCell,
 } from '@/components/ProjectNameCell';
 import { Pagination } from '@/components/Pagination';
-import { ProjectListFilters } from '@/components/ProjectListFilters';
+import { ProjectFiltersToggle, ProjectListFilters } from '@/components/ProjectListFilters';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { panouPathFromProjectEditReturn } from '@/utils/projectEditNavigation';
 import { STATUS_FILTER_OPTIONS } from '@/utils/projectStatusFilter';
@@ -88,6 +89,9 @@ export default function ProjectsPage() {
   const [statusFilters, setStatusFilters] = useState<ProjectStatus[]>([]);
   const [visibilityFilters, setVisibilityFilters] = useState<string[]>([]);
   const [readyForExecution, setReadyForExecution] = useState<boolean | null>(null);
+  const isMobile = useIsMobile();
+  // Phones show the toggle next to "Proiect nou", so the filter bar is controlled here.
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const deepLinkEditId = searchParams.get('edit');
   const returnTarget = searchParams.get('return');
 
@@ -334,6 +338,12 @@ export default function ProjectsPage() {
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between gap-4">
         <h1 className="hidden text-[22px] font-medium text-text-primary sm:block">Proiecte</h1>
+        {isMobile && !showEmptyState && (
+          <ProjectFiltersToggle
+            open={mobileFiltersOpen}
+            onToggle={() => setMobileFiltersOpen((current) => !current)}
+          />
+        )}
         {!showEmptyState && (
           <button
             type="button"
@@ -362,6 +372,7 @@ export default function ProjectsPage() {
         <ProjectListFilters
           idPrefix="projects"
           className="mt-4"
+          mobileOpen={mobileFiltersOpen}
           statusOptions={STATUS_FILTER_OPTIONS}
           statusValues={statusFilters}
           onStatusChange={setStatusFilters}

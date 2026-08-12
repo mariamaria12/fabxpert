@@ -24,6 +24,33 @@ const READY_FOR_EXECUTION_OPTIONS: SearchableSelectOption[] = [
   { id: 'false', label: 'Nu' },
 ];
 
+/** The mobile show/hide control — exported so a page can place it in its header row. */
+export function ProjectFiltersToggle({
+  open,
+  onToggle,
+  className,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      className={`inline-flex items-center gap-1 text-xs font-medium text-accent transition-opacity hover:opacity-80 ${className ?? ''}`}
+    >
+      <i className="ti ti-filter text-sm" aria-hidden="true" />
+      {open ? 'Ascunde filtrele' : 'Afișează filtrele'}
+      <i
+        className={`ti ${open ? 'ti-chevron-up' : 'ti-chevron-down'} text-sm`}
+        aria-hidden="true"
+      />
+    </button>
+  );
+}
+
 export type ProjectListFiltersProps = {
   idPrefix: string;
   statusOptions: SearchableSelectOption[];
@@ -41,6 +68,8 @@ export type ProjectListFiltersProps = {
     'aria-label'?: string;
   };
   className?: string;
+  /** Controlled mobile open state; when set, the built-in toggle is not rendered. */
+  mobileOpen?: boolean;
 };
 
 export function ProjectListFilters({
@@ -54,6 +83,7 @@ export function ProjectListFilters({
   onReadyForExecutionChange,
   search,
   className,
+  mobileOpen,
 }: ProjectListFiltersProps) {
   const businessAutofill = useBusinessAutofillProps();
   const isMobile = useIsMobile();
@@ -94,7 +124,8 @@ export function ProjectListFilters({
     };
   }, []);
 
-  const showFilterControls = !isMobile || mobileFiltersOpen;
+  const filtersOpen = mobileOpen ?? mobileFiltersOpen;
+  const showFilterControls = !isMobile || filtersOpen;
 
   const readyForExecutionValue =
     readyForExecution === null ? null : readyForExecution ? 'true' : 'false';
@@ -103,21 +134,12 @@ export function ProjectListFilters({
     <div className={className}>
       {/* Phones start collapsed so the list gets the screen; from `md` up the
           filters are always visible and the toggle never renders. */}
-      {isMobile && (
+      {isMobile && mobileOpen === undefined && (
         <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => setMobileFiltersOpen((current) => !current)}
-            aria-expanded={mobileFiltersOpen}
-            className="inline-flex items-center gap-1 text-xs font-medium text-accent transition-opacity hover:opacity-80"
-          >
-            <i className="ti ti-filter text-sm" aria-hidden="true" />
-            {mobileFiltersOpen ? 'Ascunde filtrele' : 'Afișează filtrele'}
-            <i
-              className={`ti ${mobileFiltersOpen ? 'ti-chevron-up' : 'ti-chevron-down'} text-sm`}
-              aria-hidden="true"
-            />
-          </button>
+          <ProjectFiltersToggle
+            open={mobileFiltersOpen}
+            onToggle={() => setMobileFiltersOpen((current) => !current)}
+          />
         </div>
       )}
 

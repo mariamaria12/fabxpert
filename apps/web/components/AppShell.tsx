@@ -170,7 +170,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </span>
             </header>
 
-            <main className="relative flex-1 p-6">
+            {/* overflow-x-hidden keeps the page itself from sliding sideways —
+                wide content (tables) scrolls inside its own container. */}
+            <main className="relative min-w-0 flex-1 overflow-x-hidden px-4 pb-6 pt-3 sm:p-6">
               {children}
               <TimesheetNotificationSlot />
             </main>
