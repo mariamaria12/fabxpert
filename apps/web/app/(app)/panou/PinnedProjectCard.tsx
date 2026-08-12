@@ -145,7 +145,17 @@ export function PinnedProjectCard({
       onToggle={onToggle}
       leadingSlot={
         !dragHandleProps && !showPinButton ? undefined : (
-        <div className="mt-0.5 flex shrink-0 items-center gap-0.5">
+        <div className="mt-0.5 flex shrink-0 flex-col items-center gap-0.5">
+          {showPinButton && (
+            <PinnedProjectPinButton
+              project={project}
+              onUnpinned={(updated) => {
+                if (!updated.isPinned) {
+                  onUnpinned(updated);
+                }
+              }}
+            />
+          )}
           {dragHandleProps && (
             <button
               type="button"
@@ -156,16 +166,6 @@ export function PinnedProjectCard({
             >
               <i className="ti ti-grip-vertical text-base" aria-hidden="true" />
             </button>
-          )}
-          {showPinButton && (
-            <PinnedProjectPinButton
-              project={project}
-              onUnpinned={(updated) => {
-                if (!updated.isPinned) {
-                  onUnpinned(updated);
-                }
-              }}
-            />
           )}
         </div>
         )

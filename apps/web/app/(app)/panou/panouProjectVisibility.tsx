@@ -2,11 +2,7 @@
 
 import type { EmployeeRoleDto, ProjectVisibleRoleDto } from '@fabxpert/shared';
 import { useEffect, useMemo, useState } from 'react';
-import {
-  buildStableIndexMap,
-  contrastTextOnHex,
-  getRolePaletteColor,
-} from '@/components/roleColors';
+import { buildStableIndexMap, getRolePaletteColor } from '@/components/roleColors';
 import { getProjectFormEmployeeRoles } from '@/utils/projectFormLookups';
 
 export function formatProjectVisibleForLabel(
@@ -28,18 +24,13 @@ export function formatProjectVisibleForLabel(
 /** Above this many roles the chips collapse behind a count (cards and tables). */
 const VISIBLE_FOR_CHIP_LIMIT = 2;
 
-function ReadOnlyRoleChip({ name, color }: { name: string; color: string }) {
-  const textColor = contrastTextOnHex(color);
+/** Outline only — the role colour lives in the border and the text. */
+const CHIP_CLASS =
+  'inline-flex max-w-full items-center rounded border px-1 py-px text-[10px] leading-4';
 
+function ReadOnlyRoleChip({ name, color }: { name: string; color: string }) {
   return (
-    <span
-      className="inline-flex max-w-full items-center rounded border px-1 py-px text-[10px] leading-4"
-      style={{
-        backgroundColor: color,
-        borderColor: color,
-        color: textColor,
-      }}
-    >
+    <span className={CHIP_CLASS} style={{ borderColor: color, color }}>
       <span className="truncate">{name}</span>
     </span>
   );
@@ -85,11 +76,11 @@ export function ProjectVisibleForRoleChips({
   const list = roles ?? [];
 
   if (readyForExecution === false) {
-    return <span className="text-accent">Nimeni</span>;
+    return <span className={`${CHIP_CLASS} border-accent text-accent`}>Nimeni</span>;
   }
 
   if (list.length === 0) {
-    return <span className="text-success">Toți</span>;
+    return <span className={`${CHIP_CLASS} border-success text-success`}>Toți</span>;
   }
 
   const label = formatProjectVisibleForLabel(list, readyForExecution);
@@ -172,16 +163,21 @@ export function ProjectVisibleForCardMeta({
 }) {
   const [expanded, setExpanded] = useState(false);
   const list = roles ?? [];
-  const labelClass =
-    readyForExecution === false ? 'text-accent' : 'text-success';
   // "Nimeni" and "Toți" are single words — only real role lists collapse.
   const collapsible =
     readyForExecution !== false && list.length > VISIBLE_FOR_CHIP_LIMIT;
 
   return (
     <span className="mt-0.5 flex flex-wrap items-center gap-1">
-      <span className={`shrink-0 text-[11px] ${labelClass}`}>
-        Vizibil pentru:{collapsible && !expanded ? ` ${list.length}` : ''}
+      {/* Phones show just the eye — the label needs the width more than the card
+          has to spare. Colour lives in the chips next to it. */}
+      <span
+        className="flex shrink-0 items-center gap-1 text-[11px] text-text-secondary"
+        title="Vizibil pentru"
+      >
+        <i className="ti ti-eye text-sm md:hidden" aria-hidden="true" />
+        <span className="sr-only md:not-sr-only">Vizibil pentru:</span>
+        {collapsible && !expanded ? <span>{list.length}</span> : null}
       </span>
 
       {(!collapsible || expanded) && (

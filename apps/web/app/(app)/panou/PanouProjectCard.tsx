@@ -104,6 +104,9 @@ export function PanouProjectCard({
     ) : null);
   // Cards without roles/timeline (the hours view) keep the hours block top right.
   const hasFooter = Boolean(meta || timeline);
+  // Indent the footer meta past the icon column so it lines up with the code,
+  // the finish badge and the company name rather than with the icon.
+  const hasLeadingColumn = Boolean(leadingSlot) || !hideLeadingIcon;
 
   return (
     <div className="overflow-hidden rounded-lg border border-border-subtle bg-surface shadow-sm shadow-black/10">
@@ -143,24 +146,17 @@ export function PanouProjectCard({
                   nothing clipped. From `md` up it stays a single line. */}
               <span className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1 md:flex-nowrap">
                 <span
-                  className="text-sm font-medium text-text-primary [overflow-wrap:anywhere] md:shrink-0 md:whitespace-nowrap"
+                  className="text-[15px] font-medium text-text-primary [overflow-wrap:anywhere] md:shrink-0 md:whitespace-nowrap"
                   title={title}
                 >
                   {title}
                 </span>
                 {subline && (
                   <span
-                    className="order-2 min-w-0 basis-full text-xs text-text-secondary [overflow-wrap:anywhere] md:order-none md:basis-auto md:flex-1 md:truncate md:text-text-muted"
+                    className="min-w-0 basis-full text-xs text-text-secondary [overflow-wrap:anywhere] md:basis-auto md:flex-1 md:truncate md:text-text-muted"
                     title={subline}
                   >
                     · {subline}
-                  </span>
-                )}
-                {status && (
-                  <span
-                    className={`order-1 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium md:order-none ${getProjectStatusBadgeClassName(status)}`}
-                  >
-                    {getProjectStatusLabel(status)}
                   </span>
                 )}
               </span>
@@ -177,8 +173,21 @@ export function PanouProjectCard({
           </span>
           </button>
 
+          {/* Status stays pinned top right, in the same column as the period
+              and the hours below it. */}
           <div className="flex shrink-0 flex-col items-end gap-0.5 self-start">
-            {durationTopActions}
+            {(status || durationTopActions) && (
+              <div className="flex items-center gap-1">
+                {status && (
+                  <span
+                    className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${getProjectStatusBadgeClassName(status)}`}
+                  >
+                    {getProjectStatusLabel(status)}
+                  </span>
+                )}
+                {durationTopActions}
+              </div>
+            )}
             {!hasFooter && totalBlock}
           </div>
           </div>
@@ -188,7 +197,7 @@ export function PanouProjectCard({
                and — bottom right — the hours toggle. On phones the roles get the
                whole width and this stacks. */
             <div className="mt-1.5 flex flex-col gap-1 md:flex-row md:items-end md:justify-between md:gap-4">
-              <div className="min-w-0">{meta}</div>
+              <div className={`min-w-0 ${hasLeadingColumn ? 'pl-[2.625rem]' : ''}`}>{meta}</div>
               <div className="flex shrink-0 items-end justify-between gap-3 md:justify-end">
                 {timeline && (
                   <div className="flex flex-col gap-0.5">
