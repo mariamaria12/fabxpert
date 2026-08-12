@@ -25,6 +25,9 @@ export function formatProjectVisibleForLabel(
   return list.map((role) => role.name).join(', ');
 }
 
+/** Above this many roles the chips collapse behind a count (cards and tables). */
+const VISIBLE_FOR_CHIP_LIMIT = 2;
+
 function ReadOnlyRoleChip({ name, color }: { name: string; color: string }) {
   const textColor = contrastTextOnHex(color);
 
@@ -111,16 +114,54 @@ export function ProjectVisibleForCell({
   roles: ProjectVisibleRoleDto[] | undefined | null;
   readyForExecution?: boolean;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const list = roles ?? [];
+  const collapsible =
+    readyForExecution !== false && list.length > VISIBLE_FOR_CHIP_LIMIT;
+
+  if (!collapsible) {
+    return (
+      <ProjectVisibleForRoleChips
+        roles={roles}
+        readyForExecution={readyForExecution}
+      />
+    );
+  }
+
   return (
-    <ProjectVisibleForRoleChips
-      roles={roles}
-      readyForExecution={readyForExecution}
-    />
+    <span className="flex flex-wrap items-center gap-1">
+      {expanded ? (
+        <ProjectVisibleForRoleChips
+          roles={roles}
+          readyForExecution={readyForExecution}
+          className="min-w-0 flex-1"
+        />
+      ) : (
+        <span
+          className="text-xs text-text-secondary"
+          title={formatProjectVisibleForLabel(list, readyForExecution)}
+        >
+          {list.length}
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          setExpanded((current) => !current);
+        }}
+        aria-expanded={expanded}
+        aria-label={expanded ? 'Ascunde funcțiile' : 'Afișează funcțiile'}
+        className="flex size-5 shrink-0 items-center justify-center rounded text-text-muted transition-colors hover:text-text-secondary"
+      >
+        <i
+          className={`ti ${expanded ? 'ti-chevron-up' : 'ti-chevron-down'} text-sm`}
+          aria-hidden="true"
+        />
+      </button>
+    </span>
   );
 }
-
-/** Above this many roles the chips collapse behind a count on project cards. */
-const VISIBLE_FOR_CHIP_LIMIT = 2;
 
 export function ProjectVisibleForCardMeta({
   roles,
