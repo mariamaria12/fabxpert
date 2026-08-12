@@ -20,6 +20,8 @@ export type PersonSummarySqlRow = {
   activityName: string | null;
   activityColor: string | null;
   minutes: number | bigint;
+  /** Every non-empty note behind this project/activity total, oldest first. */
+  notes: string[];
 };
 
 const NO_ACTIVITY_LABEL = 'Fără activitate';
@@ -44,7 +46,13 @@ export function buildPersonSummaryQuery(from: Date | null, to: Date | null) {
       t."activityId" AS "activityId",
       a.name AS "activityName",
       a.color AS "activityColor",
-      SUM(t."durationMinutes")::int AS minutes
+      SUM(t."durationMinutes")::int AS minutes,
+      -- Blank and whitespace-only notes drop out, so the array is either empty
+      -- or all real text.
+      ARRAY_REMOVE(
+        ARRAY_AGG(NULLIF(BTRIM(t."notes"), '') ORDER BY t."workDate" ASC),
+        NULL
+      ) AS "notes"
     FROM timesheets t
     INNER JOIN persons pe ON pe.id = t."personId" AND pe."deletedAt" IS NULL
     INNER JOIN projects p ON p.id = t."projectId" AND p."deletedAt" IS NULL
@@ -112,6 +120,7 @@ export function shapePersonSummary(
       activityName: row.activityId ? (row.activityName ?? 'Activitate') : NO_ACTIVITY_LABEL,
       activityColor: row.activityColor,
       minutes,
+      notes: row.notes ?? [],
     });
   }
 

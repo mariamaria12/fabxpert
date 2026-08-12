@@ -67,6 +67,21 @@ export function PersonBreakdownRows({
             color={entry.activityColor}
             percent={percent}
           />
+
+          {entry.notes.length > 0 && (
+            <ul className="ml-[18px] space-y-0.5">
+              {entry.notes.map((note, index) => (
+                <li
+                  key={`${entry.projectId}-${entry.activityId ?? 'none'}-${index}`}
+                  className="flex gap-1.5 text-[11px] text-text-muted"
+                >
+                  <i className="ti ti-message-2 mt-0.5 shrink-0 text-xs" aria-hidden="true" />
+                  {/* Keeps the line breaks the worker typed on the pontaj. */}
+                  <span className="whitespace-pre-wrap [overflow-wrap:anywhere]">{note}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         );
       })}

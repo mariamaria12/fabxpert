@@ -143,6 +143,8 @@ export type PersonSummaryActivityRow = {
   activityName: string;
   activityColor: string | null;
   minutes: number;
+  /** Notes typed on the timesheets behind this total; empty when there are none. */
+  notes: string[];
 };
 
 export type PersonSummaryPersonRow = {
