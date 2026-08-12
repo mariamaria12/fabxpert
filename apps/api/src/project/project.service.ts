@@ -349,7 +349,13 @@ export class ProjectService {
       WHERE p."deletedAt" IS NULL
         AND p."readyForExecution" = TRUE
         AND ${visibilitySql}
-      ORDER BY p.name ASC
+      -- Same order the panou shows pinned projects in (row-major across its two
+      -- columns), so the mobile list matches; everything else follows by name.
+      ORDER BY
+        p."isPinned" DESC,
+        CASE WHEN p."isPinned" THEN p."indexPanou" END ASC NULLS LAST,
+        CASE WHEN p."isPinned" THEN p."panouColumn" END ASC NULLS LAST,
+        p.name ASC
     `;
 
     return rows.map((row) => ({
