@@ -35,7 +35,15 @@ export function PersonBreakdownRows({
                   aria-hidden="true"
                 />
                 <span className="truncate text-sm font-medium text-text-primary">
-                  {entry.projectName}
+                  <span className="font-mono">{entry.projectCode}</span>
+                  {entry.projectDenumireLucrare && (
+                    <>
+                      <span className="px-1.5 text-text-muted" aria-hidden="true">
+                        ·
+                      </span>
+                      {entry.projectDenumireLucrare}
+                    </>
+                  )}
                 </span>
                 {PROJECT_TERMINAL_STATUSES.includes(entry.projectStatus) && (
                   <span
@@ -44,9 +52,9 @@ export function PersonBreakdownRows({
                     {getProjectStatusLabel(entry.projectStatus)}
                   </span>
                 )}
-                <span className="shrink-0 font-mono text-xs text-text-muted">
-                  {entry.projectCode}
-                </span>
+              </div>
+              <div className="truncate pl-[18px] text-xs text-text-muted">
+                {entry.companyName}
               </div>
               <div className="flex min-w-0 items-center gap-2 pl-[18px]">
                 <span

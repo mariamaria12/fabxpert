@@ -14,6 +14,8 @@ export type PersonSummarySqlRow = {
   projectId: string;
   projectName: string;
   projectCode: string;
+  projectDenumireLucrare: string | null;
+  companyName: string;
   projectColor: string | null;
   projectStatus: string;
   activityId: string | null;
@@ -41,6 +43,8 @@ export function buildPersonSummaryQuery(from: Date | null, to: Date | null) {
       p.id AS "projectId",
       p.name AS "projectName",
       p.code AS "projectCode",
+      p."denumireLucrare" AS "projectDenumireLucrare",
+      c.name AS "companyName",
       p.color AS "projectColor",
       p.status AS "projectStatus",
       t."activityId" AS "activityId",
@@ -56,6 +60,7 @@ export function buildPersonSummaryQuery(from: Date | null, to: Date | null) {
     FROM timesheets t
     INNER JOIN persons pe ON pe.id = t."personId" AND pe."deletedAt" IS NULL
     INNER JOIN projects p ON p.id = t."projectId" AND p."deletedAt" IS NULL
+    INNER JOIN companies c ON c.id = p."companyId"
     LEFT JOIN users u ON u."personId" = pe.id AND u."deletedAt" IS NULL
     LEFT JOIN activities a ON a.id = t."activityId"
     WHERE t."deletedAt" IS NULL
@@ -68,6 +73,8 @@ export function buildPersonSummaryQuery(from: Date | null, to: Date | null) {
       p.id,
       p.name,
       p.code,
+      p."denumireLucrare",
+      c.name,
       p.color,
       p.status,
       t."activityId",
@@ -114,6 +121,8 @@ export function shapePersonSummary(
       projectId: row.projectId,
       projectName: row.projectName,
       projectCode: row.projectCode,
+      projectDenumireLucrare: row.projectDenumireLucrare,
+      companyName: row.companyName,
       projectColor: row.projectColor,
       projectStatus: row.projectStatus as ProjectStatus,
       activityId: row.activityId,

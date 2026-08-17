@@ -35,7 +35,6 @@ import { STATUS_FILTER_OPTIONS } from '@/utils/projectStatusFilter';
 import { replaceById } from '@/utils/replaceById';
 import { formatProjectWeight } from '@/utils/projectWeight';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
-import { useLazyVisible } from '@/hooks/useLazyVisible';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 import { ProjectFormPanel } from '../projects/ProjectFormPanel';
 import {
@@ -486,7 +485,9 @@ export function PanouProjectsView() {
   const pinnedSectionRef = useRef<PanouPinnedProjectsSectionHandle>(null);
   const inProgressTableRef = useRef<ProjectTableSectionHandle>(null);
   const completedTableRef = useRef<ProjectTableSectionHandle>(null);
-  const completedSection = useLazyVisible({ rootMargin: '400px' });
+  // Collapsed by default: the completed table is the rarely-read one, and while
+  // it's closed it isn't mounted, so it costs no fetch.
+  const [completedOpen, setCompletedOpen] = useState(false);
 
   const handlePinToggled = useCallback((updated: ProjectDto) => {
     if (updated.isPinned) {
@@ -544,8 +545,22 @@ export function PanouProjectsView() {
         onPinToggled={handlePinToggled}
         onProjectUpdated={handleTableProjectUpdated}
       />
-      <div ref={completedSection.ref}>
-        {completedSection.visible ? (
+      <div className="space-y-4">
+        {/* Same look as FiltersToggle, but shown on desktop too. */}
+        <button
+          type="button"
+          onClick={() => setCompletedOpen((open) => !open)}
+          aria-expanded={completedOpen}
+          className="inline-flex items-center gap-1 text-xs font-medium text-accent transition-opacity hover:opacity-80"
+        >
+          <i className="ti ti-checks text-sm" aria-hidden="true" />
+          {completedOpen ? 'Ascunde proiecte finalizate' : 'Afișează proiecte finalizate'}
+          <i
+            className={`ti ${completedOpen ? 'ti-chevron-up' : 'ti-chevron-down'} text-sm`}
+            aria-hidden="true"
+          />
+        </button>
+        {completedOpen && (
           <ProjectTableSection
             ref={completedTableRef}
             title="Proiecte finalizate"
@@ -553,8 +568,6 @@ export function PanouProjectsView() {
             readyForExecution={null}
             onProjectUpdated={handleTableProjectUpdated}
           />
-        ) : (
-          <h3 className="text-sm font-medium text-text-secondary">Proiecte finalizate</h3>
         )}
       </div>
     </section>

@@ -52,6 +52,7 @@ export type TimesheetProjectDto = {
   id: string;
   name: string;
   code: string;
+  denumireLucrare: string | null;
   color: string | null;
   company: {
     name: string;
@@ -137,6 +138,8 @@ export type PersonSummaryActivityRow = {
   projectId: string;
   projectName: string;
   projectCode: string;
+  projectDenumireLucrare: string | null;
+  companyName: string;
   projectColor: string | null;
   projectStatus: ProjectStatus;
   activityId: string | null;

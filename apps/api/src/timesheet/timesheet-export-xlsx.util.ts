@@ -7,13 +7,19 @@ export type TimesheetExportRow = {
   workDate: Date;
   durationMinutes: number;
   notes: string | null;
-  project: { name: string };
+  project: {
+    code: string;
+    denumireLucrare: string | null;
+    company: { name: string };
+  };
   person: { firstName: string; lastName: string };
   activity: { name: string } | null;
 };
 
 const HEADERS = [
-  'PROIECT EVALUAT',
+  'Cod Proiect',
+  'Denumire Lucrare',
+  'Client',
   'Luna',
   'Data',
   'Nr. ORE LUCRATE',
@@ -21,6 +27,12 @@ const HEADERS = [
   'Lucrător',
   'Detalii',
 ] as const;
+
+/** 1-based sheet columns; the numeric formats and the total formula follow these. */
+const HOURS_COLUMN = 6;
+const MONTH_COLUMN = 4;
+const DATE_COLUMN = 5;
+const WORKER_COLUMN = 8;
 
 function formatFilenameDate(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -46,13 +58,15 @@ export async function buildTimesheetExportXlsx(rows: TimesheetExportRow[]): Prom
   const sheet = workbook.addWorksheet('Pontaje');
 
   sheet.columns = [
-    { header: HEADERS[0], key: 'project', width: 28 },
-    { header: HEADERS[1], key: 'month', width: 8 },
-    { header: HEADERS[2], key: 'date', width: 12 },
-    { header: HEADERS[3], key: 'hours', width: 16 },
-    { header: HEADERS[4], key: 'activity', width: 22 },
-    { header: HEADERS[5], key: 'worker', width: 24 },
-    { header: HEADERS[6], key: 'notes', width: 40 },
+    { header: HEADERS[0], key: 'projectCode', width: 20 },
+    { header: HEADERS[1], key: 'denumireLucrare', width: 30 },
+    { header: HEADERS[2], key: 'client', width: 24 },
+    { header: HEADERS[3], key: 'month', width: 8 },
+    { header: HEADERS[4], key: 'date', width: 12 },
+    { header: HEADERS[5], key: 'hours', width: 16 },
+    { header: HEADERS[6], key: 'activity', width: 22 },
+    { header: HEADERS[7], key: 'worker', width: 24 },
+    { header: HEADERS[8], key: 'notes', width: 40 },
   ];
 
   const headerRow = sheet.getRow(1);
@@ -63,7 +77,9 @@ export async function buildTimesheetExportXlsx(rows: TimesheetExportRow[]): Prom
   for (const row of rows) {
     const workDate = calendarDateOnly(row.workDate);
     const dataRow = sheet.addRow({
-      project: row.project.name,
+      projectCode: row.project.code,
+      denumireLucrare: row.project.denumireLucrare ?? '',
+      client: row.project.company.name,
       month: workDate.getMonth() + 1,
       date: workDate,
       hours: row.durationMinutes / 60,
@@ -72,25 +88,21 @@ export async function buildTimesheetExportXlsx(rows: TimesheetExportRow[]): Prom
       notes: formatTimesheetNotesCell(row.notes),
     });
 
-    dataRow.getCell(2).numFmt = '0';
-    dataRow.getCell(3).numFmt = 'dd/MM/yyyy';
-    dataRow.getCell(4).numFmt = '0.0########';
+    dataRow.getCell(MONTH_COLUMN).numFmt = '0';
+    dataRow.getCell(DATE_COLUMN).numFmt = 'dd/MM/yyyy';
+    dataRow.getCell(HOURS_COLUMN).numFmt = '0.0########';
   }
 
   if (rows.length > 0) {
     const lastDataRow = sheet.rowCount;
+    const hoursLetter = sheet.getColumn(HOURS_COLUMN).letter;
     const totalRow = sheet.addRow({
-      project: '',
-      month: '',
-      date: '',
-      hours: { formula: `SUM(D2:D${lastDataRow})` },
-      activity: '',
+      hours: { formula: `SUM(${hoursLetter}2:${hoursLetter}${lastDataRow})` },
       worker: 'TOTAL',
-      notes: '',
     });
     totalRow.font = { bold: true };
-    totalRow.getCell(4).numFmt = '0.0########';
-    totalRow.getCell(6).font = { bold: true };
+    totalRow.getCell(HOURS_COLUMN).numFmt = '0.0########';
+    totalRow.getCell(WORKER_COLUMN).font = { bold: true };
   }
 
   const buffer = await workbook.xlsx.writeBuffer();

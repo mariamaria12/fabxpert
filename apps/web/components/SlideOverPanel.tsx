@@ -10,6 +10,8 @@ export interface SlideOverPanelProps {
   footer?: ReactNode;
   /** When true, backdrop click and Escape are ignored. */
   disableClose?: boolean;
+  /** Overrides the panel width. Defaults to a narrow form-sized panel. */
+  widthClassName?: string;
 }
 
 export function SlideOverPanel({
@@ -19,6 +21,7 @@ export function SlideOverPanel({
   children,
   footer,
   disableClose = false,
+  widthClassName = 'max-w-md',
 }: SlideOverPanelProps) {
   useEffect(() => {
     if (!open || disableClose) {
@@ -65,7 +68,7 @@ export function SlideOverPanel({
         role="dialog"
         aria-modal="true"
         aria-labelledby="slide-over-title"
-        className="relative flex h-dvh w-full max-w-md flex-col border-l border-border-subtle bg-surface shadow-xl"
+        className={`relative flex h-dvh w-full ${widthClassName} flex-col border-l border-border-subtle bg-surface shadow-xl`}
       >
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border-subtle px-5 py-4">
           <h2 id="slide-over-title" className="text-base font-medium text-text-primary">

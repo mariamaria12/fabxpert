@@ -3,7 +3,7 @@
 import { ApiError, getMe, logout } from '@fabxpert/shared';
 import type { MeResponse } from '@fabxpert/shared';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { AuthUserProvider } from '@/context/AuthUserContext';
 import { MobileHeaderSlotProvider } from '@/components/MobileHeaderAction';
 import { navLabelForPathname } from '@/components/navItems';
@@ -132,7 +132,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <AuthUserProvider user={user}>
       <MobileHeaderSlotProvider value={headerSlot}>
       <TimesheetEventsProvider enabled={authReady}>
-        <div className="flex min-h-dvh bg-bg">
+        {/* Exposes the sidebar width so overlays (e.g. SlideOverPanel) can stop at it. */}
+        <div
+          className="flex min-h-dvh bg-bg"
+          style={{ '--sidebar-width': collapsed ? '3.5rem' : '200px' } as CSSProperties}
+        >
           {/* Static sidebar — sm and up */}
           <Sidebar
             className="sticky top-0 hidden h-dvh sm:flex"

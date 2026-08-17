@@ -59,7 +59,9 @@ function PersonHoursCard({
 export function PanouPeopleView() {
   const { period, periodReady } = usePanouDashboard();
   const [persons, setPersons] = useState<PersonSummaryPersonRow[]>([]);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
+  // Tracks the closed ones, not the open ones: cards start expanded, and a
+  // refresh bringing in new people can't silently collapse them.
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
@@ -100,7 +102,7 @@ export function PanouPeopleView() {
   useRegisterPanouRefetch('panou-people', refetchSummary);
 
   function toggleExpanded(personId: string) {
-    setExpandedIds((current) => {
+    setCollapsedIds((current) => {
       const next = new Set(current);
       if (next.has(personId)) {
         next.delete(personId);
@@ -176,7 +178,7 @@ export function PanouPeopleView() {
                       <PersonHoursCard
                         key={person.id}
                         person={person}
-                        expanded={expandedIds.has(person.id)}
+                        expanded={!collapsedIds.has(person.id)}
                         onToggle={() => toggleExpanded(person.id)}
                       />
                     ))}

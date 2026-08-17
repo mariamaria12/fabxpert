@@ -70,6 +70,7 @@ const timesheetInclude = {
       id: true,
       name: true,
       code: true,
+      denumireLucrare: true,
       color: true,
       company: {
         select: {

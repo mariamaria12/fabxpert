@@ -156,9 +156,26 @@ export default function TimesheetsPage() {
       render: (row) => <PersonName person={row.person} nameClassName="font-medium" />,
     },
     {
+      key: 'projectCode',
+      header: 'Cod Proiect',
+      render: (row) => nullableCell(row.project.code),
+    },
+    {
+      key: 'denumireLucrare',
+      header: 'Denumire Lucrare',
+      render: (row) => nullableCell(row.project.denumireLucrare),
+    },
+    {
+      key: 'client',
+      header: 'Client',
+      render: (row) => nullableCell(row.project.company.name),
+    },
+    {
+      // Superseded by the three columns above; still selectable from the column menu.
       key: 'project',
       header: 'Proiect',
       sortKey: 'project',
+      defaultVisible: false,
       render: (row) => nullableCell(formatProjectLabel(row)),
     },
     {

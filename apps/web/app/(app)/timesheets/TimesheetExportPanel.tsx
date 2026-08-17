@@ -31,11 +31,23 @@ interface TimesheetExportPanelProps {
   onClose: () => void;
 }
 
+/** Mirrors the xlsx column order — the preview is meant to match the file. */
 const previewColumns: DataTableColumn<TimesheetDto>[] = [
   {
-    key: 'project',
-    header: 'Proiect',
-    render: (row) => row.project.name,
+    key: 'projectCode',
+    header: 'Cod Proiect',
+    render: (row) => row.project.code,
+  },
+  {
+    key: 'denumireLucrare',
+    header: 'Denumire Lucrare',
+    render: (row) =>
+      row.project.denumireLucrare || <span className="text-text-muted">—</span>,
+  },
+  {
+    key: 'client',
+    header: 'Client',
+    render: (row) => row.project.company.name,
   },
   {
     key: 'month',
@@ -176,13 +188,16 @@ export function TimesheetExportPanel({
       title="Export Excel"
       onClose={onClose}
       disableClose={isExporting}
+      // Full width up to the sidebar, so the preview table fits. Phones have no
+      // static sidebar, so there the panel simply covers the screen.
+      widthClassName="max-w-none sm:max-w-[calc(100vw-var(--sidebar-width,0px))]"
       footer={
-        <div className="flex gap-2">
+        <div className="flex justify-end gap-2">
           <button
             type="button"
             disabled={!canDownload}
             onClick={() => void handleDownload()}
-            className="flex-1 rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-accent-contrast disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-accent-contrast disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isExporting ? 'Se generează…' : 'Descarcă Excel'}
           </button>
