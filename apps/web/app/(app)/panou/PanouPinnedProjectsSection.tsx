@@ -146,8 +146,9 @@ export const PanouPinnedProjectsSection = forwardRef<
   // Phones: always a single column, and cards without grip/pin icons.
   const isMobile = useIsMobile();
   const effectiveViewMode: PanouPinnedViewMode = isMobile ? 'one-column' : viewMode;
-  // Driven by the panou toolbar: the "Gata de execuție" chips and the period.
-  const { readyForExecution, period, periodReady } = usePanouDashboard();
+  // Driven by the panou toolbar's "Gata de execuție" chips. The toolbar period
+  // deliberately doesn't apply here — pinned cards show all-time project totals.
+  const { readyForExecution } = usePanouDashboard();
   const fetchSeqRef = useRef(0);
   // Phones: press-and-hold the project code to pick a card up, so a normal tap
   // still expands it and a swipe still scrolls the list.
@@ -185,7 +186,9 @@ export const PanouPinnedProjectsSection = forwardRef<
     setError(null);
 
     try {
-      const response = await getPinnedProjectsSummary(period);
+      // No period argument: the endpoint then returns all-time totals per project,
+      // broken down by activity the same way.
+      const response = await getPinnedProjectsSummary();
       if (fetchSeq !== fetchSeqRef.current) {
         return;
       }
@@ -219,14 +222,11 @@ export const PanouPinnedProjectsSection = forwardRef<
         setLoading(false);
       }
     }
-  }, [period, showToast]);
+  }, [showToast]);
 
   useEffect(() => {
-    if (!periodReady) {
-      return;
-    }
     void loadPinnedSummary();
-  }, [loadPinnedSummary, periodReady]);
+  }, [loadPinnedSummary]);
 
   function handleViewModeChange(mode: PanouPinnedViewMode) {
     setViewMode(mode);
