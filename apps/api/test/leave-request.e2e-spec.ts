@@ -152,6 +152,19 @@ describe('Leave requests (e2e)', () => {
     expect(res.status).toBe(400);
   });
 
+  it('NEPLATIT can no longer be requested → 400', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/leave-requests')
+      .set(authHeader(employee1Cookie))
+      .send({
+        type: 'NEPLATIT',
+        startDate: leaveDateIso(8, 20),
+        endDate: leaveDateIso(8, 21),
+      });
+
+    expect(res.status).toBe(400);
+  });
+
   it('edit and cancel own PENDING request → ok; edit after APROBAT → blocked', async () => {
     const create = await request(app.getHttpServer())
       .post('/leave-requests')
@@ -191,7 +204,7 @@ describe('Leave requests (e2e)', () => {
       .post('/leave-requests')
       .set(authHeader(employee1Cookie))
       .send({
-        type: 'NEPLATIT',
+        type: 'MEDICAL',
         startDate: leaveDateIso(9, 7),
         endDate: leaveDateIso(9, 8),
       });

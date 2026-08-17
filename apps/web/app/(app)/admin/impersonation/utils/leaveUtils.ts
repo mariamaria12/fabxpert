@@ -3,6 +3,7 @@ import {
   countInclusiveLeaveDays,
   formatLeaveDateRange,
   formatLeaveDayCount,
+  formatLeaveDuration,
   getLeaveStatusLabel,
   getLeaveTypeLabel,
   LEAVE_TYPE_OPTIONS,
@@ -13,6 +14,7 @@ export {
   LEAVE_TYPE_OPTIONS,
   formatLeaveDateRange,
   formatLeaveDayCount,
+  formatLeaveDuration,
   getLeaveStatusLabel,
   getLeaveTypeLabel,
 };

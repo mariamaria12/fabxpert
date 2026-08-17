@@ -1,14 +1,26 @@
-import type { LeaveStatus, LeaveType } from './dto/leave.dto';
+import { REQUESTABLE_LEAVE_TYPE_VALUES } from './dto/leave.dto';
+import { formatOvertimeHours } from './overtime';
+import type { LeaveStatus, LeaveType, RequestableLeaveType } from './dto/leave.dto';
 import { parseWorkDateString } from './workDate';
 
-export const LEAVE_TYPE_OPTIONS: { value: LeaveType; label: string }[] = [
-  { value: 'ODIHNA', label: 'Odihnă' },
-  { value: 'MEDICAL', label: 'Medical' },
-  { value: 'NEPLATIT', label: 'Neplătit' },
-];
+const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
+  ODIHNA: 'Odihnă',
+  MEDICAL: 'Medical',
+  NEPLATIT: 'Neplătit',
+  RECUPERARE: 'Recuperare',
+};
+
+/** Drives the type dropdowns. NEPLATIT is missing on purpose — old rows still label. */
+export const LEAVE_TYPE_OPTIONS: { value: RequestableLeaveType; label: string }[] =
+  REQUESTABLE_LEAVE_TYPE_VALUES.map((value) => ({ value, label: LEAVE_TYPE_LABELS[value] }));
 
 export function getLeaveTypeLabel(type: LeaveType): string {
-  return LEAVE_TYPE_OPTIONS.find((option) => option.value === type)?.label ?? type;
+  return LEAVE_TYPE_LABELS[type] ?? type;
+}
+
+/** False for retired types (NEPLATIT), which only appear on old rows. */
+export function isRequestableLeaveType(type: LeaveType): type is RequestableLeaveType {
+  return REQUESTABLE_LEAVE_TYPE_VALUES.some((value) => value === type);
 }
 
 export function getLeaveStatusLabel(status: LeaveStatus): string {
@@ -22,6 +34,16 @@ export function getLeaveStatusLabel(status: LeaveStatus): string {
     default:
       return status;
   }
+}
+
+/** How long a request is: "2 zile", or "2h 30m" when it was asked for in hours. */
+export function formatLeaveDuration(request: {
+  dayCount: number;
+  durationMinutes: number | null;
+}): string {
+  return request.durationMinutes !== null
+    ? formatOvertimeHours(request.durationMinutes)
+    : formatLeaveDayCount(request.dayCount);
 }
 
 export function formatLeaveDayCount(count: number): string {

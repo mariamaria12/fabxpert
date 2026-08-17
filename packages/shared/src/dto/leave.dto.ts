@@ -1,7 +1,10 @@
 import { z } from 'zod';
+import { DAILY_WORK_MINUTES } from '../overtime';
 import type { TimesheetSummaryPeriod } from './timesheet.dto';
 
-export const LEAVE_TYPE_VALUES = ['ODIHNA', 'MEDICAL', 'NEPLATIT'] as const;
+export const LEAVE_TYPE_VALUES = ['ODIHNA', 'MEDICAL', 'NEPLATIT', 'RECUPERARE'] as const;
+/** What a new request may use. NEPLATIT stays in LEAVE_TYPE_VALUES for old rows only. */
+export const REQUESTABLE_LEAVE_TYPE_VALUES = ['ODIHNA', 'MEDICAL', 'RECUPERARE'] as const;
 export const LEAVE_STATUS_VALUES = [
   'IN_ASTEPTARE',
   'APROBAT',
@@ -9,6 +12,7 @@ export const LEAVE_STATUS_VALUES = [
 ] as const;
 
 export type LeaveType = (typeof LEAVE_TYPE_VALUES)[number];
+export type RequestableLeaveType = (typeof REQUESTABLE_LEAVE_TYPE_VALUES)[number];
 export type LeaveStatus = (typeof LEAVE_STATUS_VALUES)[number];
 
 const leaveDateSchema = z
@@ -23,7 +27,7 @@ const uuidSchema = z
     'Invalid UUID format',
   );
 
-const leaveTypeSchema = z.enum(LEAVE_TYPE_VALUES);
+const leaveTypeSchema = z.enum(REQUESTABLE_LEAVE_TYPE_VALUES);
 const reviewStatusSchema = z.enum(['APROBAT', 'RESPINS']);
 
 function endDateOnOrAfterStartDate(
@@ -42,16 +46,58 @@ function endDateOnOrAfterStartDate(
   }
 }
 
+/** Partial-day RECUPERARE, capped at one working day (9h). */
+const durationMinutesSchema = z
+  .number()
+  .int('durationMinutes must be a whole number of minutes')
+  .min(15, 'durationMinutes must be at least 15')
+  .max(DAILY_WORK_MINUTES, `durationMinutes cannot exceed ${DAILY_WORK_MINUTES}`);
+
+/** Hours off happen on a single day, so the range must not span dates. */
+function partialDayIsSingleDate(
+  data: { durationMinutes?: number; startDate?: string; endDate?: string },
+  ctx: z.RefinementCtx,
+) {
+  if (data.durationMinutes === undefined) {
+    return;
+  }
+  if (data.startDate !== undefined && data.endDate !== undefined && data.startDate !== data.endDate) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'A request in hours must start and end on the same date',
+      path: ['endDate'],
+    });
+  }
+}
+
+/** Only RECUPERARE can be taken in hours; the rest are whole days. */
+function hoursOnlyForRecuperare(
+  data: { durationMinutes?: number; type?: RequestableLeaveType },
+  ctx: z.RefinementCtx,
+) {
+  if (data.durationMinutes !== undefined && data.type !== undefined && data.type !== 'RECUPERARE') {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Only RECUPERARE can be requested in hours',
+      path: ['durationMinutes'],
+    });
+  }
+}
+
 export const createLeaveRequestSchema = z
   .object({
     type: leaveTypeSchema,
     startDate: leaveDateSchema,
     endDate: leaveDateSchema,
     reason: z.string().optional(),
+    /** Hours off instead of whole days. Omit for a normal day-range request. */
+    durationMinutes: durationMinutesSchema.optional(),
     /** Admin only — creates the request on behalf of that person. */
     personId: uuidSchema.optional(),
   })
-  .superRefine(endDateOnOrAfterStartDate);
+  .superRefine(endDateOnOrAfterStartDate)
+  .superRefine(partialDayIsSingleDate)
+  .superRefine(hoursOnlyForRecuperare);
 
 export const updateLeaveRequestSchema = z
   .object({
@@ -59,11 +105,20 @@ export const updateLeaveRequestSchema = z
     startDate: leaveDateSchema.optional(),
     endDate: leaveDateSchema.optional(),
     reason: z.string().optional(),
+    /** Null switches a request back to whole days. */
+    durationMinutes: durationMinutesSchema.nullable().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided',
   })
-  .superRefine(endDateOnOrAfterStartDate);
+  .superRefine(endDateOnOrAfterStartDate)
+  .superRefine((data, ctx) => {
+    if (data.durationMinutes === null) {
+      return;
+    }
+    partialDayIsSingleDate({ ...data, durationMinutes: data.durationMinutes }, ctx);
+    hoursOnlyForRecuperare({ ...data, durationMinutes: data.durationMinutes }, ctx);
+  });
 
 export const reviewLeaveRequestSchema = z.object({
   status: reviewStatusSchema,
@@ -95,6 +150,8 @@ export type LeaveRequestDto = {
   reviewedBy: LeaveRequestReviewerDto | null;
   reviewedAt: string | null;
   dayCount: number;
+  /** Minutes off when the request is in hours; null when it is in whole days. */
+  durationMinutes: number | null;
   createdAt: string;
 };
 

@@ -35,9 +35,10 @@ enum ProjectStatus {
 }
 
 enum LeaveType {
-  ODIHNA   // Annual leave — consumes annualLeaveDays balance when approved
-  MEDICAL  // Medical leave — does not affect balance
-  NEPLATIT // Unpaid leave — does not affect balance
+  ODIHNA     // Annual leave — consumes annualLeaveDays balance when approved
+  MEDICAL    // Medical leave — does not affect balance
+  NEPLATIT   // Unpaid leave — does not affect balance
+  RECUPERARE // Time off in lieu — consumes the overtime balance when approved
 }
 
 enum LeaveStatus {
@@ -126,6 +127,8 @@ model Person {
   timesheets Timesheet[]
 
   leaveRequests LeaveRequest[]
+
+  overtimeAccruals OvertimeAccrual[]
 
   @@map("persons")
 }
@@ -300,6 +303,9 @@ model LeaveRequest {
   endDate   DateTime
   status    LeaveStatus  @default(IN_ASTEPTARE)
   reason    String?
+  /// RECUPERARE taken as hours instead of whole days: minutes off on startDate,
+  /// which then equals endDate. Null everywhere else — that means whole days.
+  durationMinutes Int?
   reviewedAt DateTime?
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
@@ -314,6 +320,32 @@ model LeaveRequest {
   @@index([deletedAt, status, startDate, endDate])
   @@index([personId, type, status, startDate])
   @@map("leave_requests")
+}
+
+// ---------------------------------------------------------------------------
+// OvertimeAccrual
+// One closed month of overtime for one Person. Overtime is earned per day —
+// anything logged past DAILY_WORK_MINUTES — so it is derivable from timesheets,
+// but a closed month is frozen here: editing an old timesheet afterwards must
+// not silently rewrite a balance people already spent. Months with no row are
+// recomputed live, which is what the current month always is.
+// ---------------------------------------------------------------------------
+
+model OvertimeAccrual {
+  id String @id @default(uuid())
+
+  /// First day of the month this row closes, at midnight.
+  month DateTime
+  /// Overtime earned that month, frozen at closing time.
+  earnedMinutes Int
+  closedAt      DateTime @default(now())
+
+  personId String
+  person   Person @relation(fields: [personId], references: [id])
+
+  @@unique([personId, month])
+  @@index([personId])
+  @@map("overtime_accruals")
 }
 
 // ---------------------------------------------------------------------------

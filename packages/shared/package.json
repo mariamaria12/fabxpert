@@ -53,6 +53,14 @@
       "types": "./dist/dto/leave.dto.d.ts",
       "default": "./dist/dto/leave.dto.js"
     },
+    "./dto/overtime.dto": {
+      "types": "./dist/dto/overtime.dto.d.ts",
+      "default": "./dist/dto/overtime.dto.js"
+    },
+    "./overtime": {
+      "types": "./dist/overtime.d.ts",
+      "default": "./dist/overtime.js"
+    },
     "./dto/notification.dto": {
       "types": "./dist/dto/notification.dto.d.ts",
       "default": "./dist/dto/notification.dto.js"

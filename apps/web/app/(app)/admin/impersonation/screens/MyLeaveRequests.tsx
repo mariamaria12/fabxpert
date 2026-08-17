@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { MobileErrorScreen } from './MobileErrorScreen';
 import {
   formatLeaveDateRange,
-  formatLeaveDayCount,
+  formatLeaveDuration,
   getLeaveStatusLabel,
   getLeaveStatusPillClassName,
   getLeaveTypeLabel,
@@ -234,7 +234,7 @@ function LeaveRequestRowBody({ request }: { request: LeaveRequestDto }) {
           {formatLeaveDateRange(request.startDate, request.endDate)}
           <span className="leave-request-day-count">
             {' · '}
-            {formatLeaveDayCount(request.dayCount)}
+            {formatLeaveDuration(request)}
           </span>
         </span>
       </span>

@@ -1587,6 +1587,10 @@ body {
   color: var(--color-accent);
 }
 
+.leave-balance-remaining strong.leave-balance-value-negative {
+  color: var(--color-danger-text);
+}
+
 .leave-balance-secondary {
   margin-top: 4px;
   font-size: 13px;

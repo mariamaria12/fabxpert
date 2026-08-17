@@ -20,6 +20,7 @@ import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { removeById, replaceById } from '@/utils/replaceById';
 import {
   formatLeaveDateRange,
+  formatLeaveDuration,
   formatReviewedAt,
   getLeaveStatusBadgeClassName,
   getLeaveStatusLabel,
@@ -253,10 +254,10 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
     },
     {
       key: 'dayCount',
-      header: 'Zile',
+      header: 'Durată',
       width: '70px',
       className: 'text-text-secondary',
-      render: (row) => row.dayCount,
+      render: (row) => formatLeaveDuration(row),
     },
     {
       key: 'reason',

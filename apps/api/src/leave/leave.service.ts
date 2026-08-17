@@ -27,6 +27,7 @@ import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { PaginationParams } from '../common/pagination/parse-pagination.util';
 import { notDeleted } from '../common/prisma/soft-delete.util';
 import { PrismaService } from '../prisma/prisma.service';
+import { OvertimeService } from '../overtime/overtime.service';
 import {
   buildLeaveRequestExportData,
   buildLeaveRequestExportDocx,
@@ -77,13 +78,17 @@ function toLeaveRequestDto(leaveRequest: LeaveRequestWithRelations): LeaveReques
     reviewedBy: leaveRequest.reviewedBy,
     reviewedAt: leaveRequest.reviewedAt?.toISOString() ?? null,
     dayCount: countInclusiveLeaveDays(leaveRequest.startDate, leaveRequest.endDate),
+    durationMinutes: leaveRequest.durationMinutes,
     createdAt: leaveRequest.createdAt.toISOString(),
   };
 }
 
 @Injectable()
 export class LeaveService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly overtimeService: OvertimeService,
+  ) {}
 
   async create(
     actor: AuthenticatedUser,
@@ -103,6 +108,7 @@ export class LeaveService {
         startDate,
         endDate,
         reason: input.reason,
+        durationMinutes: input.durationMinutes ?? null,
         status: 'IN_ASTEPTARE',
       },
       include: leaveRequestInclude,
@@ -347,6 +353,20 @@ export class LeaveService {
     await this.assertNoOverlappingLeave(personId, nextStartDate, nextEndDate, id);
     this.assertHasWorkingLeaveDays(nextStartDate, nextEndDate);
 
+    // Zod cannot see the stored row, so the merged result is checked here.
+    const nextType = input.type ?? existing.type;
+    const nextDurationMinutes =
+      input.durationMinutes !== undefined ? input.durationMinutes : existing.durationMinutes;
+
+    if (nextDurationMinutes !== null) {
+      if (nextType !== 'RECUPERARE') {
+        throw new BadRequestException('Only RECUPERARE can be requested in hours');
+      }
+      if (nextStartDate.getTime() !== nextEndDate.getTime()) {
+        throw new BadRequestException('A request in hours must start and end on the same date');
+      }
+    }
+
     const leaveRequest = await this.prisma.leaveRequest.update({
       where: { id },
       data: {
@@ -354,6 +374,9 @@ export class LeaveService {
         ...(input.startDate !== undefined ? { startDate: nextStartDate } : {}),
         ...(input.endDate !== undefined ? { endDate: nextEndDate } : {}),
         ...(input.reason !== undefined ? { reason: input.reason } : {}),
+        ...(input.durationMinutes !== undefined
+          ? { durationMinutes: input.durationMinutes }
+          : {}),
       },
       include: leaveRequestInclude,
     });
@@ -415,6 +438,14 @@ export class LeaveService {
         balance.annualLeaveDays - usedWithoutThis - requestDays;
 
       if (remainingAfterApproval < 0) {
+        response.overBalanceWarning = true;
+      }
+    }
+
+    if (input.status === 'APROBAT' && existing.type === 'RECUPERARE') {
+      // The update above already landed, so the balance is the post-approval one.
+      const overtime = await this.overtimeService.computeBalance(existing.personId);
+      if (overtime.remainingMinutes < 0) {
         response.overBalanceWarning = true;
       }
     }

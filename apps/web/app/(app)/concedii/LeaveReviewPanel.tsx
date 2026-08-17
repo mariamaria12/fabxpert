@@ -13,7 +13,7 @@ import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import {
   formatLeaveDateRange,
-  formatLeaveDayCount,
+  formatLeaveDuration,
   getLeaveStatusBadgeClassName,
   getLeaveStatusLabel,
   getLeaveTypeLabel,
@@ -204,7 +204,7 @@ export function LeaveReviewPanel({
           </div>
           <div>
             <p className="text-xs text-text-muted">Zile</p>
-            <p className="mt-1 text-sm text-text-primary">{formatLeaveDayCount(request.dayCount)}</p>
+            <p className="mt-1 text-sm text-text-primary">{formatLeaveDuration(request)}</p>
           </div>
         </div>
 

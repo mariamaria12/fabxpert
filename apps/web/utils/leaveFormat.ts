@@ -3,6 +3,7 @@ import {
   formatDateDisplay,
   formatLeaveDateRange,
   formatLeaveDayCount,
+  formatLeaveDuration,
   getLeaveStatusLabel,
   getLeaveTypeLabel,
 } from '@fabxpert/shared';
@@ -10,6 +11,7 @@ import {
 export {
   formatLeaveDateRange,
   formatLeaveDayCount,
+  formatLeaveDuration,
   getLeaveStatusLabel,
   getLeaveTypeLabel,
 };

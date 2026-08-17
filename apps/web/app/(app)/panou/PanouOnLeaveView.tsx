@@ -5,7 +5,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { PersonName } from '@/components/PersonAvatar';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
-import { formatLeaveDateRange, getLeaveTypeLabel } from '@/utils/leaveFormat';
+import {
+  formatLeaveDateRange,
+  formatLeaveDuration,
+  getLeaveTypeLabel,
+} from '@/utils/leaveFormat';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 import { usePanouDashboard } from './PanouDashboardContext';
 
@@ -31,10 +35,10 @@ function useOnLeaveTableColumns(): DataTableColumn<LeaveRequestDto>[] {
       },
       {
         key: 'dayCount',
-        header: 'Zile',
+        header: 'Durată',
         width: '70px',
         className: 'text-text-secondary tabular-nums',
-        render: (row) => row.dayCount,
+        render: (row) => formatLeaveDuration(row),
       },
     ],
     [],

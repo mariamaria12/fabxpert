@@ -276,8 +276,10 @@ export {
 export {
   LEAVE_TYPE_OPTIONS,
   getLeaveTypeLabel,
+  isRequestableLeaveType,
   getLeaveStatusLabel,
   formatLeaveDayCount,
+  formatLeaveDuration,
   formatLeaveDateRange,
 } from './leaveLabels';
 export {
@@ -301,10 +303,12 @@ export {
   updateLeaveRequestSchema,
   reviewLeaveRequestSchema,
   LEAVE_TYPE_VALUES,
+  REQUESTABLE_LEAVE_TYPE_VALUES,
   LEAVE_STATUS_VALUES,
 } from './dto/leave.dto';
 export type {
   LeaveType,
+  RequestableLeaveType,
   LeaveStatus,
   LeaveRequestDto,
   LeaveRequestPersonDto,
@@ -320,6 +324,22 @@ export type {
   UpdateLeaveRequestInput,
   ReviewLeaveRequestInput,
 } from './dto/leave.dto';
+export {
+  DAILY_WORK_MINUTES,
+  earnedOvertimeMinutes,
+  overtimeDaysAvailable,
+  formatOvertimeHours,
+  formatOvertimeBalance,
+} from './overtime';
+export {
+  getMyOvertimeBalance,
+  getOvertimeBalance,
+  closeOvertimeMonth,
+} from './api/overtime';
+export type {
+  OvertimeBalanceDto,
+  CloseOvertimeMonthResponse,
+} from './dto/overtime.dto';
 export {
   listMyNotifications,
   dismissNotification,
