@@ -67,6 +67,35 @@ pnpm --filter @fabxpert/db db:seed:dev
 
 `/timesheets/stream` and `/projects/available/stream` use NestJS `@Sse()`. No global compression middleware is enabled — SSE should work on Railway's persistent process. Do not add response compression without excluding these routes.
 
+## Push notifications (VAPID)
+
+The "nu uita de pontaj" reminder is sent by hand: an admin opens the "Nu au pontat
+azi" panel and presses "Trimite notificare" on one person. Nothing is scheduled —
+there is no cron, in the API process or anywhere else.
+
+Generate the keypair once and set both halves on Railway:
+
+```bash
+# From apps/api — web-push is a dependency of this workspace, not of the root.
+cd apps/api && node -e "console.log(require('web-push').generateVAPIDKeys())"
+```
+
+Keep the keypair stable. Changing `VAPID_PUBLIC_KEY` invalidates every device
+subscription already stored, and each user has to allow notifications again.
+
+With the keys unset the API still starts and still creates in-app notifications —
+only the phone-level push is skipped, with a warning in the logs.
+
+**Verify after a deploy** (admin session):
+
+```
+POST /notifications/reminders/timesheet/send         # one person: {"personId": "..."}
+```
+
+This is what the panou button calls. It reports `pushDeviceCount`, so you can tell
+"delivered" apart from "that person never allowed notifications". Pressing it twice
+sends twice — nothing deduplicates, by design.
+
 ## Healthcheck
 
 `GET /health` → `{ "status": "ok" }` (no auth). Railway `healthcheckPath`: `/health`.
@@ -188,6 +217,9 @@ DATABASE_URL="postgresql://..." \
 | `JWT_REMEMBER_EXPIRY_EMPLOYEE` | `365d` |
 | `JWT_SESSION_EXPIRY` | `1d` |
 | `WEB_APP_URL` | `https://app.fabxpert.ro,https://mobil.fabxpert.ro` (your real Vercel URLs) |
+| `VAPID_PUBLIC_KEY` | Web Push keypair — see below |
+| `VAPID_PRIVATE_KEY` | Web Push keypair — see below |
+| `VAPID_SUBJECT` | `mailto:admin@fabxpert.ro` |
 | `NODE_ENV` | `production` |
 
 Do **not** set: `TEST_DATABASE_URL`, `TEST_DIRECT_URL`, `TEST_USERS_SEED_PASSWORD`, `EMPLOYEE_SEED_*`, seed passwords on Railway.

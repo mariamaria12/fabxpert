@@ -53,6 +53,10 @@
       "types": "./dist/dto/leave.dto.d.ts",
       "default": "./dist/dto/leave.dto.js"
     },
+    "./dto/notification.dto": {
+      "types": "./dist/dto/notification.dto.d.ts",
+      "default": "./dist/dto/notification.dto.js"
+    },
     "./companyImport": {
       "types": "./dist/companyImport.d.ts",
       "default": "./dist/companyImport.js"

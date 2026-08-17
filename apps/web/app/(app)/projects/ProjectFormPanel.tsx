@@ -39,6 +39,7 @@ import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { equalsSearchText } from '@/utils/searchText';
+import { parseWeightInput } from '@/utils/projectWeight';
 import {
   companyOptionFromProjectCompany,
   getProjectFormCompanies,
@@ -52,6 +53,8 @@ interface ProjectFormValues {
   name: string;
   denumireLucrare: string;
   finisaj: string;
+  /** Kept as raw input text; parsed to a number on submit. */
+  weight: string;
   notes: string;
   code: string;
   companyId: string;
@@ -67,6 +70,7 @@ const EMPTY_FORM: ProjectFormValues = {
   name: '',
   denumireLucrare: '',
   finisaj: '',
+  weight: '',
   notes: '',
   code: '',
   companyId: '',
@@ -83,6 +87,7 @@ function projectToFormValues(project: ProjectDto): ProjectFormValues {
     name: project.name,
     denumireLucrare: project.denumireLucrare ?? '',
     finisaj: project.finisaj ?? '',
+    weight: project.weight === null ? '' : String(project.weight),
     notes: project.notes ?? '',
     code: project.code,
     companyId: project.companyId,
@@ -94,6 +99,8 @@ function projectToFormValues(project: ProjectDto): ProjectFormValues {
     visibleForRoleIds: (project.visibleForRoles ?? []).map((role) => role.id),
   };
 }
+
+const WEIGHT_ERROR_MESSAGE = 'Greutatea trebuie să fie un număr pozitiv.';
 
 function mapApiFormError(message: string): string {
   if (message === 'A project with this code already exists') {
@@ -126,6 +133,9 @@ function mapZodFieldErrors(error: {
   if (flat.color?.[0]) {
     mapped.color = 'Culoarea trebuie să fie un hex valid (#RRGGBB).';
   }
+  if (flat.weight?.[0]) {
+    mapped.weight = WEIGHT_ERROR_MESSAGE;
+  }
 
   return mapped;
 }
@@ -148,15 +158,19 @@ function mapApiValidationErrors(
     if (error.path === 'color' && !mapped.color) {
       mapped.color = 'Culoarea trebuie să fie un hex valid (#RRGGBB).';
     }
+    if (error.path === 'weight' && !mapped.weight) {
+      mapped.weight = WEIGHT_ERROR_MESSAGE;
+    }
   }
 
   return mapped;
 }
 
-function buildCreatePayload(values: ProjectFormValues) {
+function buildCreatePayload(values: ProjectFormValues, weight: number | null) {
   return {
     name: values.name,
     denumireLucrare: values.denumireLucrare.trim() || null,
+    weight,
     notes: values.notes.trim() || null,
     code: values.code,
     companyId: values.companyId,
@@ -169,11 +183,12 @@ function buildCreatePayload(values: ProjectFormValues) {
   };
 }
 
-function buildUpdatePayload(values: ProjectFormValues) {
+function buildUpdatePayload(values: ProjectFormValues, weight: number | null) {
   return {
     name: values.name,
     denumireLucrare: values.denumireLucrare.trim() || null,
     finisaj: values.finisaj.trim() || null,
+    weight,
     notes: values.notes.trim() || null,
     code: values.code,
     companyId: values.companyId,
@@ -531,8 +546,14 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
       return;
     }
 
+    const weight = parseWeightInput(values.weight);
+    if (!weight.ok) {
+      setFieldErrors({ weight: WEIGHT_ERROR_MESSAGE });
+      return;
+    }
+
     if (mode === 'create') {
-      const parsed = createProjectSchema.safeParse(buildCreatePayload(values));
+      const parsed = createProjectSchema.safeParse(buildCreatePayload(values, weight.value));
       if (!parsed.success) {
         setFieldErrors(mapZodFieldErrors(parsed.error));
         return;
@@ -566,7 +587,7 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
       return;
     }
 
-    const parsed = updateProjectSchema.safeParse(buildUpdatePayload(values));
+    const parsed = updateProjectSchema.safeParse(buildUpdatePayload(values, weight.value));
     if (!parsed.success) {
       setFieldErrors(mapZodFieldErrors(parsed.error));
       return;
@@ -784,6 +805,17 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
             onChange={(value) => updateField('finisaj', value)}
           />
         )}
+
+        <TextField
+          id="weight"
+          label="Greutate (kg)"
+          placeholder="1250,5"
+          inputMode="decimal"
+          value={values.weight}
+          error={fieldErrors.weight}
+          disabled={isBusy}
+          onChange={(value) => updateField('weight', value)}
+        />
 
         <div>
           <label htmlFor="notes" className="mb-1.5 block text-xs font-medium text-text-secondary">

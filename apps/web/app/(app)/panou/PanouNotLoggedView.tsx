@@ -5,7 +5,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { PersonName } from '@/components/PersonAvatar';
 import { ImpersonationModal } from '../admin/impersonation/ImpersonationModal';
+import { SendReminderConfirm } from './SendReminderConfirm';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { removeById } from '@/utils/replaceById';
 import { TimesheetFormPanel } from '../timesheets/TimesheetFormPanel';
 import { useRegisterPanouRefetch, usePanouRefresh } from '../PanouRefreshContext';
@@ -22,6 +24,8 @@ function useNotLoggedColumns(
   onAddTimesheet: (person: NotLoggedPersonRow) => void,
   onImpersonate: (person: NotLoggedPersonRow) => void,
   userByPersonId: Map<string, UserDto>,
+  onSendReminder: (person: NotLoggedPersonRow) => void,
+  isMobile: boolean,
 ): DataTableColumn<NotLoggedPersonRow>[] {
   return useMemo(
     (): DataTableColumn<NotLoggedPersonRow>[] => [
@@ -30,42 +34,62 @@ function useNotLoggedColumns(
         header: 'Angajat',
         render: (row) => <PersonName person={row} nameClassName="font-medium" />,
       },
-      {
-        key: 'employeeRoleName',
-        header: 'Rol',
-        className: 'text-text-secondary',
-        render: (row) => row.employeeRoleName ?? '—',
-      },
+      // The table is fixed-width per column, so a phone has to drop "Rol"
+      // outright — hiding the cells in CSS would leave the gap behind.
+      ...(isMobile
+        ? []
+        : [
+            {
+              key: 'employeeRoleName',
+              header: 'Rol',
+              className: 'text-text-secondary',
+              render: (row: NotLoggedPersonRow) => row.employeeRoleName ?? '—',
+            },
+          ]),
       {
         key: 'actions',
         header: '',
-        width: '180px',
+        width: isMobile ? '96px' : '220px',
         className: 'text-right',
         render: (row) => (
           <div className="flex items-center justify-end gap-3">
+            {/* Both need a login account: one to impersonate, one to notify. */}
             {userByPersonId.has(row.id) && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Trimite notificare"
+                  title="Trimite notificare de pontaj"
+                  onClick={() => onSendReminder(row)}
+                  className="rounded p-1.5 text-text-muted transition-all hover:bg-surface hover:text-text-primary"
+                >
+                  <i className="ti ti-bell text-base" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Impersonează utilizator"
+                  title="Impersonează utilizator"
+                  onClick={() => onImpersonate(row)}
+                  className="rounded p-1.5 text-text-muted transition-all hover:bg-surface hover:text-text-primary"
+                >
+                  <i className="ti ti-eye text-base" aria-hidden="true" />
+                </button>
+              </>
+            )}
+            {!isMobile && (
               <button
                 type="button"
-                aria-label="Impersonează utilizator"
-                title="Impersonează utilizator"
-                onClick={() => onImpersonate(row)}
-                className="rounded p-1.5 text-text-muted transition-all hover:bg-surface hover:text-text-primary"
+                onClick={() => onAddTimesheet(row)}
+                className="rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-accent-contrast transition-opacity hover:opacity-90"
               >
-                <i className="ti ti-eye text-base" aria-hidden="true" />
+                Adaugă pontaj
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => onAddTimesheet(row)}
-              className="rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-accent-contrast transition-opacity hover:opacity-90"
-            >
-              Adaugă pontaj
-            </button>
           </div>
         ),
       },
     ],
-    [onAddTimesheet, onImpersonate, userByPersonId],
+    [onAddTimesheet, onImpersonate, userByPersonId, onSendReminder, isMobile],
   );
 }
 
@@ -83,6 +107,12 @@ export function PanouNotLoggedView() {
   const [addForPersonId, setAddForPersonId] = useState<string | null>(null);
   const [userByPersonId, setUserByPersonId] = useState<Map<string, UserDto>>(new Map());
   const [impersonatedUser, setImpersonatedUser] = useState<UserDto | null>(null);
+  const [reminderTarget, setReminderTarget] = useState<NotLoggedPersonRow | null>(null);
+  const isMobile = useIsMobile();
+
+  const openSendReminder = useCallback((person: NotLoggedPersonRow) => {
+    setReminderTarget(person);
+  }, []);
 
   const openAddTimesheet = useCallback((person: NotLoggedPersonRow) => {
     setAddForPersonId(person.id);
@@ -141,7 +171,13 @@ export function PanouNotLoggedView() {
     [refreshAll],
   );
 
-  const columns = useNotLoggedColumns(openAddTimesheet, openImpersonation, userByPersonId);
+  const columns = useNotLoggedColumns(
+    openAddTimesheet,
+    openImpersonation,
+    userByPersonId,
+    openSendReminder,
+    isMobile,
+  );
 
   const createDefaults = useMemo(
     () => ({ personId: addForPersonId ?? '', duration: DEFAULT_DURATION }),
@@ -152,6 +188,9 @@ export function PanouNotLoggedView() {
     async (background = false) => {
       if (!background) {
         setLoading(true);
+        // A foreground reload swaps the whole row set — don't leave a confirm
+        // pinned to someone who may no longer be listed.
+        setReminderTarget(null);
       }
       setError(null);
 
@@ -273,6 +312,13 @@ export function PanouNotLoggedView() {
             // Time may have been logged for this person while impersonating.
             void refreshAll();
           }}
+        />
+      )}
+
+      {reminderTarget && (
+        <SendReminderConfirm
+          person={reminderTarget}
+          onDone={() => setReminderTarget(null)}
         />
       )}
 

@@ -23,6 +23,7 @@ export const PROJECT_LIST_SORT_BY_VALUES = [
   'name',
   'denumireLucrare',
   'finisaj',
+  'weight',
   'code',
   'company',
   'startDate',
@@ -71,10 +72,21 @@ const finisajSchema = z
   .union([z.string().trim().max(100, 'Finisaj must be at most 100 characters'), z.null()])
   .transform((value) => (value ? value : null));
 
+/** Weight in kilograms; empty is stored as null so "not filled in" stays a single state. */
+const weightSchema = z.union([
+  z
+    .number()
+    .finite('Weight must be a number')
+    .nonnegative('Weight cannot be negative')
+    .max(1_000_000, 'Weight must be at most 1000000 kg'),
+  z.null(),
+]);
+
 export const createProjectSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
   denumireLucrare: denumireLucrareSchema.optional(),
   finisaj: finisajSchema.optional(),
+  weight: weightSchema.optional(),
   notes: notesSchema.optional(),
   code: z.string().trim().min(1, 'Code is required'),
   companyId: companyIdSchema,
@@ -122,6 +134,8 @@ export type ProjectDto = {
   denumireLucrare: string | null;
   /** Finish (e.g. ZINCARE, RAL9002); null until filled in. */
   finisaj: string | null;
+  /** Weight in kilograms; null until filled in. */
+  weight: number | null;
   /** Free-text admin notes; null when empty. */
   notes: string | null;
   code: string;

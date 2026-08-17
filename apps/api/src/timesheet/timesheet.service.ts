@@ -55,6 +55,7 @@ import {
   buildTimesheetExportFilename,
   buildTimesheetExportXlsx,
 } from './timesheet-export-xlsx.util';
+import { NotificationService } from '../notification/notification.service';
 
 const timesheetInclude = {
   person: {
@@ -172,6 +173,7 @@ export class TimesheetService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly timesheetEvents: TimesheetEventsService,
+    private readonly notifications: NotificationService,
   ) {}
 
   async create(
@@ -204,6 +206,7 @@ export class TimesheetService {
     });
 
     const dto = toTimesheetDto(timesheet);
+    await this.notifications.dismissTimesheetRemindersForPerson(personId);
     this.timesheetEvents.emit(createdTimesheetEvent(dto.id, dto.person));
     return dto;
   }

@@ -33,6 +33,7 @@ import { Pagination } from '@/components/Pagination';
 import { ProjectListFilters } from '@/components/ProjectListFilters';
 import { STATUS_FILTER_OPTIONS } from '@/utils/projectStatusFilter';
 import { replaceById } from '@/utils/replaceById';
+import { formatProjectWeight } from '@/utils/projectWeight';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { useLazyVisible } from '@/hooks/useLazyVisible';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
@@ -136,6 +137,15 @@ function useProjectTableColumns(options?: {
         className: 'overflow-hidden text-text-secondary',
         render: (row) =>
           row.finisaj ? <FinisajBadge value={row.finisaj} /> : nullableCell(null),
+      },
+      {
+        key: 'weight',
+        header: 'Greutate',
+        sortKey: 'weight',
+        width: '110px',
+        className: 'text-right tabular-nums text-text-secondary',
+        render: (row) =>
+          row.weight === null ? nullableCell(null) : formatProjectWeight(row.weight),
       },
       {
         // Full template name — key differs from the DTO field so the stored

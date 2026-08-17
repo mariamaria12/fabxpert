@@ -14,6 +14,7 @@ import { ProjectModule } from './project/project.module';
 import { ReportsModule } from './reports/reports.module';
 import { TimesheetModule } from './timesheet/timesheet.module';
 import { LeaveModule } from './leave/leave.module';
+import { NotificationModule } from './notification/notification.module';
 import { UserModule } from './user/user.module';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -31,6 +32,7 @@ import { PrismaModule } from './prisma/prisma.module';
     TimesheetModule,
     ReportsModule,
     LeaveModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [

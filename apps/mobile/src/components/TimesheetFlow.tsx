@@ -9,6 +9,9 @@ import { MyTimesheets } from './MyTimesheets';
 import { ProjectSelect } from './ProjectSelect';
 import { TimeEntry } from './TimeEntry';
 import { TimesheetEdit } from './TimesheetEdit';
+import { NotificationBanner } from '../notifications/NotificationBanner';
+import { NotificationPermissionPrompt } from '../notifications/NotificationPermissionPrompt';
+import { useNotificationsContext } from '../notifications/NotificationsContext';
 import type { FlowStep } from '../types/flow';
 
 interface TimesheetFlowProps {
@@ -23,6 +26,7 @@ export function TimesheetFlow({ user, onLogout }: TimesheetFlowProps) {
   const [editingTimesheet, setEditingTimesheet] = useState<TimesheetDto | null>(null);
   const [editingLeaveRequest, setEditingLeaveRequest] = useState<LeaveRequestDto | null>(null);
   const [leaveListRefreshToken, setLeaveListRefreshToken] = useState(0);
+  const { refresh: refreshNotifications } = useNotificationsContext();
 
   const resetToProjectSelect = useCallback(() => {
     setStep('selectProject');
@@ -31,6 +35,12 @@ export function TimesheetFlow({ user, onLogout }: TimesheetFlowProps) {
     setEditingTimesheet(null);
     setEditingLeaveRequest(null);
   }, []);
+
+  /** The server clears the pontaj reminder on create — pick that up right away. */
+  const handleTimesheetSaved = useCallback(() => {
+    resetToProjectSelect();
+    void refreshNotifications();
+  }, [resetToProjectSelect, refreshNotifications]);
 
   const handleWordmarkPress = useCallback(() => {
     if (step === 'selectProject') {
@@ -174,6 +184,8 @@ export function TimesheetFlow({ user, onLogout }: TimesheetFlowProps) {
       ) : null}
 
       <main className="timesheet-main">
+        <NotificationBanner />
+
         {step === 'selectProject' ? (
           <ProjectSelect
             user={user}
@@ -190,7 +202,7 @@ export function TimesheetFlow({ user, onLogout }: TimesheetFlowProps) {
           <TimeEntry
             project={selectedProject}
             activity={selectedActivity}
-            onSaved={resetToProjectSelect}
+            onSaved={handleTimesheetSaved}
           />
         ) : null}
 
@@ -222,6 +234,8 @@ export function TimesheetFlow({ user, onLogout }: TimesheetFlowProps) {
           />
         ) : null}
       </main>
+
+      <NotificationPermissionPrompt />
     </div>
   );
 }

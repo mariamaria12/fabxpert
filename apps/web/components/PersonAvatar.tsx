@@ -3,8 +3,9 @@ export type PersonLike = {
   lastName: string;
 };
 
+/** Shrinks on phones so the name beside it gets the width instead. */
 const avatarClassName =
-  'flex size-8 shrink-0 items-center justify-center rounded-full border border-border-subtle bg-surface-raised text-xs font-medium text-accent';
+  'flex size-6 shrink-0 items-center justify-center rounded-full border border-border-subtle bg-surface-raised text-[10px] font-medium text-accent md:size-8 md:text-xs';
 
 export function formatPersonName(person: PersonLike): string {
   return `${person.firstName} ${person.lastName}`;
@@ -55,7 +56,7 @@ export function PersonName({
   const displayName = uppercase ? name.toUpperCase() : name;
 
   return (
-    <div className={`flex min-w-0 items-center gap-3 ${className}`}>
+    <div className={`flex min-w-0 items-center gap-1.5 md:gap-3 ${className}`}>
       <PersonAvatar person={person} />
       <span className={`truncate ${nameClassName}`}>{displayName}</span>
     </div>

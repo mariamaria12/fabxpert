@@ -33,6 +33,11 @@ export default defineConfig({
       // Default generated service worker: precaches built assets, auto-updates.
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'apple-touch-icon-180x180.png'],
+      workbox: {
+        // Push/notificationclick handlers live in public/push-sw.js so the
+        // generated service worker stays untouched.
+        importScripts: ['/push-sw.js'],
+      },
       manifest: {
         name: 'FabXpert Time',
         short_name: 'FabXpert Time',

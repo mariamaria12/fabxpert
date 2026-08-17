@@ -165,6 +165,7 @@ function toProjectDto(project: ProjectWithRelations | ProjectListRow, compact = 
     name: project.name,
     denumireLucrare: project.denumireLucrare,
     finisaj: project.finisaj,
+    weight: project.weight,
     notes: project.notes,
     code: project.code,
     status: project.status,
@@ -200,6 +201,8 @@ function buildProjectOrderBy(
       return [{ denumireLucrare: { sort: sortOrder, nulls: 'last' } }, tiebreaker];
     case 'finisaj':
       return [{ finisaj: { sort: sortOrder, nulls: 'last' } }, tiebreaker];
+    case 'weight':
+      return [{ weight: { sort: sortOrder, nulls: 'last' } }, tiebreaker];
     case 'code':
       return [{ code: sortOrder }, tiebreaker];
     case 'company':

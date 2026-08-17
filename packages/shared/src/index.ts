@@ -320,3 +320,28 @@ export type {
   UpdateLeaveRequestInput,
   ReviewLeaveRequestInput,
 } from './dto/leave.dto';
+export {
+  listMyNotifications,
+  dismissNotification,
+  getPushPublicKey,
+  subscribeToPush,
+  unsubscribeFromPush,
+  sendTimesheetReminder,
+} from './api/notifications';
+export {
+  pushSubscriptionSchema,
+  unsubscribePushSchema,
+  sendTimesheetReminderSchema,
+  NOTIFICATION_KIND_VALUES,
+  NOTIFICATION_SOURCE_VALUES,
+} from './dto/notification.dto';
+export type {
+  NotificationDto,
+  NotificationKind,
+  NotificationSource,
+  PushPublicKeyResponse,
+  PushSubscriptionInput,
+  UnsubscribePushInput,
+  SendTimesheetReminderInput,
+  SendTimesheetReminderResponse,
+} from './dto/notification.dto';
