@@ -18,6 +18,22 @@ interface MyTimesheetsProps {
   onEditEntry: (entry: TimesheetDto) => void;
 }
 
+/** Code, colour dot and denumire lucrare on one line, the client under it. */
+function EntryProject({ project }: { project: TimesheetDto['project'] }) {
+  return (
+    <>
+      <span className="timesheet-entry-project">
+        <span className="timesheet-entry-code">{project.code}</span>
+        <ActivityDot color={project.color} />
+        <span className="timesheet-entry-work">
+          {project.denumireLucrare ?? project.name}
+        </span>
+      </span>
+      <span className="timesheet-entry-company">{project.company.name}</span>
+    </>
+  );
+}
+
 function ChevronRightIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -151,7 +167,7 @@ export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
                               aria-hidden="true"
                             />
                             <span className="timesheet-entry-body">
-                              <span className="timesheet-entry-project">{entry.project.name}</span>
+                              <EntryProject project={entry.project} />
                               {entry.activity ? (
                                 <span className="timesheet-entry-activity">
                                   <ActivityDot color={entry.activity.color} />
@@ -181,7 +197,7 @@ export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
                             aria-hidden="true"
                           />
                           <span className="timesheet-entry-body">
-                            <span className="timesheet-entry-project">{entry.project.name}</span>
+                            <EntryProject project={entry.project} />
                             {entry.activity ? (
                               <span className="timesheet-entry-activity">
                                 <ActivityDot color={entry.activity.color} />

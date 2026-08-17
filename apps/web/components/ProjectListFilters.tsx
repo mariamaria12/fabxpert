@@ -138,10 +138,12 @@ export function ProjectListFilters({
       )}
 
       {/* Phones: one filter per row — three columns squeezed the fields and
-          wrapped the labels. Two from `sm`, the original three from `md`. */}
+          wrapped the labels. Two from `sm`, the original three from `md`, where
+          the row is capped so the three stay compact instead of stretching
+          across a wide screen. */}
       {showFilterControls && (
       <div
-        className={`grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3${search ? ' mt-3' : ''}`}
+        className={`grid grid-cols-1 gap-3 sm:grid-cols-2 md:max-w-3xl md:grid-cols-3${search ? ' mt-3' : ''}`}
       >
         <div className="min-w-0">
           <SearchableMultiSelect

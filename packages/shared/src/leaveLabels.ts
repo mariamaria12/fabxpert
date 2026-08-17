@@ -1,26 +1,29 @@
-import { REQUESTABLE_LEAVE_TYPE_VALUES } from './dto/leave.dto';
 import { formatOvertimeHours } from './overtime';
-import type { LeaveStatus, LeaveType, RequestableLeaveType } from './dto/leave.dto';
+import type { LeaveStatus, LeaveType } from './dto/leave.dto';
 import { parseWorkDateString } from './workDate';
 
 const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
   ODIHNA: 'Odihnă',
   MEDICAL: 'Medical',
   NEPLATIT: 'Neplătit',
-  RECUPERARE: 'Recuperare',
+  RECUPERARE: 'Liber',
 };
 
-/** Drives the type dropdowns. NEPLATIT is missing on purpose — old rows still label. */
-export const LEAVE_TYPE_OPTIONS: { value: RequestableLeaveType; label: string }[] =
-  REQUESTABLE_LEAVE_TYPE_VALUES.map((value) => ({ value, label: LEAVE_TYPE_LABELS[value] }));
+/** The two everyday types come first; the rest sit behind "+" on mobile. */
+export const COMMON_LEAVE_TYPE_VALUES: LeaveType[] = ['ODIHNA', 'RECUPERARE'];
+
+export const LEAVE_TYPE_OPTIONS: { value: LeaveType; label: string }[] = [
+  'ODIHNA',
+  'RECUPERARE',
+  'MEDICAL',
+  'NEPLATIT',
+].map((value) => ({
+  value: value as LeaveType,
+  label: LEAVE_TYPE_LABELS[value as LeaveType],
+}));
 
 export function getLeaveTypeLabel(type: LeaveType): string {
   return LEAVE_TYPE_LABELS[type] ?? type;
-}
-
-/** False for retired types (NEPLATIT), which only appear on old rows. */
-export function isRequestableLeaveType(type: LeaveType): type is RequestableLeaveType {
-  return REQUESTABLE_LEAVE_TYPE_VALUES.some((value) => value === type);
 }
 
 export function getLeaveStatusLabel(status: LeaveStatus): string {

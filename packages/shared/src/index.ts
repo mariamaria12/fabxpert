@@ -275,8 +275,8 @@ export {
 } from './leaveDays';
 export {
   LEAVE_TYPE_OPTIONS,
+  COMMON_LEAVE_TYPE_VALUES,
   getLeaveTypeLabel,
-  isRequestableLeaveType,
   getLeaveStatusLabel,
   formatLeaveDayCount,
   formatLeaveDuration,
@@ -303,12 +303,10 @@ export {
   updateLeaveRequestSchema,
   reviewLeaveRequestSchema,
   LEAVE_TYPE_VALUES,
-  REQUESTABLE_LEAVE_TYPE_VALUES,
   LEAVE_STATUS_VALUES,
 } from './dto/leave.dto';
 export type {
   LeaveType,
-  RequestableLeaveType,
   LeaveStatus,
   LeaveRequestDto,
   LeaveRequestPersonDto,

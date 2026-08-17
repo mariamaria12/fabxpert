@@ -2,17 +2,13 @@ import {
   cancelLeaveRequest,
   createLeaveRequest,
   getMyLeaveBalance,
-  isRequestableLeaveType,
   todayDateInputValue,
   updateLeaveRequest,
+  COMMON_LEAVE_TYPE_VALUES,
   DAILY_WORK_MINUTES,
   formatOvertimeHours,
 } from '@fabxpert/shared';
-import type {
-  LeaveBalanceDto,
-  LeaveRequestDto,
-  RequestableLeaveType,
-} from '@fabxpert/shared';
+import type { LeaveBalanceDto, LeaveRequestDto, LeaveType } from '@fabxpert/shared';
 import { useEffect, useMemo, useState, useId } from 'react';
 import { DateField } from './DateField';
 import { useToast } from '../context/ToastContext';
@@ -57,10 +53,10 @@ export function LeaveRequestForm({
   );
   const isEditing = editingRequest !== null;
 
-  const [type, setType] = useState<RequestableLeaveType>(
-    editingRequest && isRequestableLeaveType(editingRequest.type)
-      ? editingRequest.type
-      : 'ODIHNA',
+  const [type, setType] = useState<LeaveType>(editingRequest?.type ?? 'ODIHNA');
+  // Odihnă and Liber cover almost every request; the other two hide behind "+".
+  const [showAllTypes, setShowAllTypes] = useState(
+    editingRequest ? !COMMON_LEAVE_TYPE_VALUES.includes(editingRequest.type) : false,
   );
   const [startDate, setStartDate] = useState(
     editingRequest?.startDate ?? todayDateInputValue(),
@@ -194,7 +190,9 @@ export function LeaveRequestForm({
         <fieldset className="leave-type-field">
           <legend className="time-field-label">Tip concediu</legend>
           <div className="leave-type-segmented" role="group" aria-label="Tip concediu">
-            {LEAVE_TYPE_OPTIONS.map((option) => (
+            {LEAVE_TYPE_OPTIONS.filter(
+              (option) => showAllTypes || COMMON_LEAVE_TYPE_VALUES.includes(option.value),
+            ).map((option) => (
               <button
                 key={option.value}
                 type="button"
@@ -205,6 +203,17 @@ export function LeaveRequestForm({
                 {option.label}
               </button>
             ))}
+
+            {!showAllTypes && (
+              <button
+                type="button"
+                className="leave-type-segment leave-type-segment-more"
+                aria-label="Arată și celelalte tipuri"
+                onClick={() => setShowAllTypes(true)}
+              >
+                +
+              </button>
+            )}
           </div>
         </fieldset>
 

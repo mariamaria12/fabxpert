@@ -3,8 +3,6 @@ import { DAILY_WORK_MINUTES } from '../overtime';
 import type { TimesheetSummaryPeriod } from './timesheet.dto';
 
 export const LEAVE_TYPE_VALUES = ['ODIHNA', 'MEDICAL', 'NEPLATIT', 'RECUPERARE'] as const;
-/** What a new request may use. NEPLATIT stays in LEAVE_TYPE_VALUES for old rows only. */
-export const REQUESTABLE_LEAVE_TYPE_VALUES = ['ODIHNA', 'MEDICAL', 'RECUPERARE'] as const;
 export const LEAVE_STATUS_VALUES = [
   'IN_ASTEPTARE',
   'APROBAT',
@@ -12,7 +10,6 @@ export const LEAVE_STATUS_VALUES = [
 ] as const;
 
 export type LeaveType = (typeof LEAVE_TYPE_VALUES)[number];
-export type RequestableLeaveType = (typeof REQUESTABLE_LEAVE_TYPE_VALUES)[number];
 export type LeaveStatus = (typeof LEAVE_STATUS_VALUES)[number];
 
 const leaveDateSchema = z
@@ -27,7 +24,7 @@ const uuidSchema = z
     'Invalid UUID format',
   );
 
-const leaveTypeSchema = z.enum(REQUESTABLE_LEAVE_TYPE_VALUES);
+const leaveTypeSchema = z.enum(LEAVE_TYPE_VALUES);
 const reviewStatusSchema = z.enum(['APROBAT', 'RESPINS']);
 
 function endDateOnOrAfterStartDate(
@@ -72,7 +69,7 @@ function partialDayIsSingleDate(
 
 /** Only RECUPERARE can be taken in hours; the rest are whole days. */
 function hoursOnlyForRecuperare(
-  data: { durationMinutes?: number; type?: RequestableLeaveType },
+  data: { durationMinutes?: number; type?: LeaveType },
   ctx: z.RefinementCtx,
 ) {
   if (data.durationMinutes !== undefined && data.type !== undefined && data.type !== 'RECUPERARE') {
