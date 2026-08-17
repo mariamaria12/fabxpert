@@ -1523,9 +1523,33 @@
 }
 
 .timesheet-entry-project {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   font-size: 14px;
   font-weight: 500;
   color: var(--color-text-primary);
+}
+
+.timesheet-entry-code {
+  flex-shrink: 0;
+}
+
+/* Long work names truncate; the code and the dot always stay readable. */
+.timesheet-entry-work {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timesheet-entry-company {
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .timesheet-entry-activity {
@@ -1750,6 +1774,10 @@
   color: var(--color-accent);
 }
 
+.leave-balance-remaining strong.leave-balance-value-negative {
+  color: var(--color-danger-text);
+}
+
 .leave-balance-secondary {
   margin-top: 4px;
   font-size: 13px;
@@ -1867,12 +1895,14 @@
 
 .leave-type-segmented {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
 }
 
 .leave-type-segment {
   flex: 1;
+  min-width: 5rem;
   min-height: 44px;
   padding: 8px 6px;
   border: 1px solid var(--color-border);
@@ -1888,6 +1918,14 @@
   background: var(--color-accent-tint);
   color: var(--color-accent);
   font-weight: 500;
+}
+
+/* The "+" is an affordance, not a choice — it stays narrow next to the types. */
+.leave-type-segment-more {
+  flex: 0 0 44px;
+  min-width: 0;
+  font-size: 18px;
+  line-height: 1;
 }
 
 .leave-date-range {

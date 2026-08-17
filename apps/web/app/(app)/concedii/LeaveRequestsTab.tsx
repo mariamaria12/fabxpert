@@ -4,8 +4,10 @@ import {
   listLeaveRequests,
   listPersons,
   reviewLeaveRequest,
+  LEAVE_TYPE_OPTIONS,
   type LeaveRequestDto,
   type LeaveStatus,
+  type LeaveType,
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LeaveReviewPanel } from './LeaveReviewPanel';
@@ -32,6 +34,11 @@ import { LeaveRequestExportButton } from './LeaveRequestExportButton';
 const PAGE_SIZE = 20;
 
 type StatusFilter = LeaveStatus | 'ALL';
+
+const LEAVE_TYPE_FILTER_OPTIONS = LEAVE_TYPE_OPTIONS.map((option) => ({
+  id: option.value,
+  label: option.label,
+}));
 
 const STATUS_FILTERS: { id: StatusFilter; label: string }[] = [
   { id: 'IN_ASTEPTARE', label: 'În așteptare' },
@@ -66,6 +73,7 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
   const { showToast } = useToast();
   const { refreshPendingCount } = useLeavePendingCount();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('IN_ASTEPTARE');
+  const [typeFilter, setTypeFilter] = useState<LeaveType | null>(null);
   const [personId, setPersonId] = useState<string | null>(null);
   const [personOptions, setPersonOptions] = useState<{ id: string; label: string }[]>([]);
   const [page, setPage] = useState(1);
@@ -93,7 +101,7 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
 
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, personId]);
+  }, [statusFilter, typeFilter, personId]);
 
   const selectedPersonLabel = useMemo(() => {
     if (!personId) {
@@ -104,7 +112,12 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
   }, [personId, personOptions]);
 
   const loadRequests = useCallback(
-    async (targetPage: number, filter: StatusFilter, filterPersonId: string | null) => {
+    async (
+      targetPage: number,
+      filter: StatusFilter,
+      filterType: LeaveType | null,
+      filterPersonId: string | null,
+    ) => {
       setLoading(true);
       setError(null);
 
@@ -113,6 +126,7 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
           page: targetPage,
           pageSize: PAGE_SIZE,
           ...(filter !== 'ALL' ? { status: filter } : {}),
+          ...(filterType ? { type: filterType } : {}),
           ...(filterPersonId ? { personId: filterPersonId } : {}),
         });
         setRequests(response.data);
@@ -127,8 +141,8 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
   );
 
   useEffect(() => {
-    void loadRequests(page, statusFilter, personId);
-  }, [page, statusFilter, personId, loadRequests, refreshToken]);
+    void loadRequests(page, statusFilter, typeFilter, personId);
+  }, [page, statusFilter, typeFilter, personId, loadRequests, refreshToken]);
 
   function openReview(request: LeaveRequestDto) {
     setPanel({ open: true, request });
@@ -326,7 +340,16 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
         ))}
       </div>
 
-      <div className="mt-4 max-w-md">
+      <div className="mt-4 grid max-w-3xl gap-3 sm:grid-cols-2">
+        <SearchableSelect
+          id="leave-type-filter"
+          label="Tip"
+          placeholder="Toate tipurile"
+          emptyMessage="Niciun tip găsit."
+          value={typeFilter}
+          options={LEAVE_TYPE_FILTER_OPTIONS}
+          onChange={(value) => setTypeFilter(value as LeaveType | null)}
+        />
         <SearchableSelect
           id="leave-person-filter"
           label="Angajat"
@@ -344,7 +367,7 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
           <p className="text-sm text-danger">{error}</p>
           <button
             type="button"
-            onClick={() => void loadRequests(page, statusFilter, personId)}
+            onClick={() => void loadRequests(page, statusFilter, typeFilter, personId)}
             className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary"
           >
             Reîncearcă

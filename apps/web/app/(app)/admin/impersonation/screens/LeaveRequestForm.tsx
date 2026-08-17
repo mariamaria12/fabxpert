@@ -1,4 +1,9 @@
-import { todayDateInputValue } from '@fabxpert/shared';
+import {
+  todayDateInputValue,
+  COMMON_LEAVE_TYPE_VALUES,
+  DAILY_WORK_MINUTES,
+  formatOvertimeHours,
+} from '@fabxpert/shared';
 import type { LeaveBalanceDto, LeaveRequestDto, LeaveType } from '@fabxpert/shared';
 import { useEffect, useMemo, useState, useId } from 'react';
 import { DateField } from './DateField';
@@ -52,11 +57,23 @@ export function LeaveRequestForm({
   const isEditing = editingRequest !== null;
 
   const [type, setType] = useState<LeaveType>(editingRequest?.type ?? 'ODIHNA');
+  // Odihnă and Liber cover almost every request; the other two hide behind "+".
+  const [showAllTypes, setShowAllTypes] = useState(
+    editingRequest ? !COMMON_LEAVE_TYPE_VALUES.includes(editingRequest.type) : false,
+  );
   const [startDate, setStartDate] = useState(
     editingRequest?.startDate ?? todayDateInputValue(),
   );
   const [endDate, setEndDate] = useState(
     editingRequest?.endDate ?? todayDateInputValue(),
+  );
+  const [unit, setUnit] = useState<'days' | 'hours'>(
+    editingRequest?.durationMinutes != null ? 'hours' : 'days',
+  );
+  const [hoursValue, setHoursValue] = useState(
+    editingRequest?.durationMinutes != null
+      ? String(editingRequest.durationMinutes / 60)
+      : '1',
   );
   const [reason, setReason] = useState(editingRequest?.reason ?? '');
   const [balance, setBalance] = useState<LeaveBalanceDto | null>(null);
@@ -72,13 +89,37 @@ export function LeaveRequestForm({
       });
   }, []);
 
+  // Hours off only make sense for RECUPERARE, and always on a single day.
+  const isHours = type === 'RECUPERARE' && unit === 'hours';
+  const effectiveEndDate = isHours ? startDate : endDate;
+
   const dayCount = useMemo(
-    () => countLeaveDaysFromIso(startDate, endDate),
-    [startDate, endDate],
+    () => countLeaveDaysFromIso(startDate, effectiveEndDate),
+    [startDate, effectiveEndDate],
   );
 
-  const datesInvalid = Boolean(startDate && endDate && endDate < startDate);
-  const canSubmit = dayCount !== null && dayCount > 0 && !datesInvalid && !isSaving && !isDeleting;
+  const durationMinutes = useMemo(() => {
+    if (!isHours) {
+      return null;
+    }
+
+    const parsed = Number.parseFloat(hoursValue.replace(',', '.'));
+    if (!Number.isFinite(parsed)) {
+      return null;
+    }
+
+    const minutes = Math.round(parsed * 60);
+    return minutes >= 15 && minutes <= DAILY_WORK_MINUTES ? minutes : null;
+  }, [isHours, hoursValue]);
+
+  const datesInvalid = Boolean(!isHours && startDate && endDate && endDate < startDate);
+  const canSubmit =
+    dayCount !== null &&
+    dayCount > 0 &&
+    !datesInvalid &&
+    (!isHours || durationMinutes !== null) &&
+    !isSaving &&
+    !isDeleting;
 
   const showOverBalanceWarning =
     type === 'ODIHNA' &&
@@ -101,15 +142,22 @@ export function LeaveRequestForm({
       const payload = {
         type,
         startDate,
-        endDate,
+        endDate: effectiveEndDate,
         reason: reason.trim() || undefined,
       };
 
       if (isEditing && editingRequest) {
-        await updateLeaveRequest(editingRequest.id, payload);
+        // null clears the hours and turns it back into a whole-day request.
+        await updateLeaveRequest(editingRequest.id, {
+          ...payload,
+          durationMinutes: isHours ? durationMinutes : null,
+        });
         showToast('Cerere actualizată', 'success');
       } else {
-        await createLeaveRequest(payload);
+        await createLeaveRequest({
+          ...payload,
+          ...(isHours && durationMinutes !== null ? { durationMinutes } : {}),
+        });
         showToast('Cerere trimisă', 'success');
       }
 
@@ -149,7 +197,9 @@ export function LeaveRequestForm({
         <fieldset className="leave-type-field">
           <legend className="time-field-label">Tip concediu</legend>
           <div className="leave-type-segmented" role="group" aria-label="Tip concediu">
-            {LEAVE_TYPE_OPTIONS.map((option) => (
+            {LEAVE_TYPE_OPTIONS.filter(
+              (option) => showAllTypes || COMMON_LEAVE_TYPE_VALUES.includes(option.value),
+            ).map((option) => (
               <button
                 key={option.value}
                 type="button"
@@ -160,28 +210,86 @@ export function LeaveRequestForm({
                 {option.label}
               </button>
             ))}
+
+            {!showAllTypes && (
+              <button
+                type="button"
+                className="leave-type-segment leave-type-segment-more"
+                aria-label="Arată și celelalte tipuri"
+                onClick={() => setShowAllTypes(true)}
+              >
+                +
+              </button>
+            )}
           </div>
         </fieldset>
+
+        {type === 'RECUPERARE' ? (
+          <fieldset className="leave-type-field">
+            <legend className="time-field-label">Cât liber</legend>
+            <div className="leave-type-segmented" role="group" aria-label="Zile sau ore">
+              <button
+                type="button"
+                className={`leave-type-segment${unit === 'days' ? ' leave-type-segment-active' : ''}`}
+                aria-pressed={unit === 'days'}
+                onClick={() => setUnit('days')}
+              >
+                Zile
+              </button>
+              <button
+                type="button"
+                className={`leave-type-segment${unit === 'hours' ? ' leave-type-segment-active' : ''}`}
+                aria-pressed={unit === 'hours'}
+                onClick={() => setUnit('hours')}
+              >
+                Ore
+              </button>
+            </div>
+          </fieldset>
+        ) : null}
 
         <div className="leave-date-range">
           <DateField
             id="leave-start-date"
-            label="De la"
+            label={isHours ? 'Data' : 'De la'}
             value={startDate}
             required
             className="time-input leave-date-input"
             onChange={setStartDate}
           />
 
-          <DateField
-            id="leave-end-date"
-            label="Până la"
-            value={endDate}
-            required
-            className="time-input leave-date-input"
-            onChange={setEndDate}
-          />
+          {isHours ? (
+            <label className="time-field">
+              <span className="time-field-label">Ore</span>
+              <input
+                id="leave-hours"
+                className="time-input leave-date-input"
+                type="number"
+                inputMode="decimal"
+                step="0.5"
+                min="0.25"
+                max={DAILY_WORK_MINUTES / 60}
+                value={hoursValue}
+                onChange={(event) => setHoursValue(event.target.value)}
+              />
+            </label>
+          ) : (
+            <DateField
+              id="leave-end-date"
+              label="Până la"
+              value={endDate}
+              required
+              className="time-input leave-date-input"
+              onChange={setEndDate}
+            />
+          )}
         </div>
+
+        {isHours && durationMinutes === null ? (
+          <p className="flow-inline-error" role="alert">
+            Introdu între 15 minute și {DAILY_WORK_MINUTES / 60} ore
+          </p>
+        ) : null}
 
         {datesInvalid ? (
           <p className="flow-inline-error" role="alert">
@@ -189,7 +297,13 @@ export function LeaveRequestForm({
           </p>
         ) : null}
 
-        {dayCount !== null && !datesInvalid ? (
+        {isHours ? (
+          durationMinutes !== null ? (
+            <p className="duration-chip" aria-live="polite">
+              {formatOvertimeHours(durationMinutes)}
+            </p>
+          ) : null
+        ) : dayCount !== null && !datesInvalid ? (
           <p className="duration-chip" aria-live="polite">
             {formatLeaveDayCount(dayCount)}
           </p>

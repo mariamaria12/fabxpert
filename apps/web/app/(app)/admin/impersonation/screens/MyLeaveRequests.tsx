@@ -1,5 +1,14 @@
-import { exportLeaveRequestDocx, ApiError } from '@fabxpert/shared';
-import type { LeaveBalanceDto, LeaveRequestDto } from '@fabxpert/shared';
+import {
+  exportLeaveRequestDocx,
+  formatOvertimeBalance,
+  formatOvertimeHours,
+  ApiError,
+} from '@fabxpert/shared';
+import type {
+  LeaveBalanceDto,
+  LeaveRequestDto,
+  OvertimeBalanceDto,
+} from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { MobileErrorScreen } from './MobileErrorScreen';
 import {
@@ -9,7 +18,11 @@ import {
   getLeaveStatusPillClassName,
   getLeaveTypeLabel,
 } from '../utils/leaveUtils';
-import { getMyLeaveBalance, listMyLeaveRequests } from '../impersonationApi';
+import {
+  getMyLeaveBalance,
+  getMyOvertimeBalance,
+  listMyLeaveRequests,
+} from '../impersonationApi';
 
 interface MyLeaveRequestsProps {
   refreshToken: number;
@@ -37,6 +50,7 @@ export function MyLeaveRequests({
   onEditRequest,
 }: MyLeaveRequestsProps) {
   const [balance, setBalance] = useState<LeaveBalanceDto | null>(null);
+  const [overtime, setOvertime] = useState<OvertimeBalanceDto | null>(null);
   const [requests, setRequests] = useState<LeaveRequestDto[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -52,12 +66,14 @@ export function MyLeaveRequests({
     setLoadError(null);
 
     try {
-      const [balanceResponse, listResponse] = await Promise.all([
+      const [balanceResponse, overtimeResponse, listResponse] = await Promise.all([
         getMyLeaveBalance(),
+        getMyOvertimeBalance(),
         listMyLeaveRequests(1),
       ]);
 
       setBalance(balanceResponse);
+      setOvertime(overtimeResponse);
       setRequests(listResponse.data);
       setPage(listResponse.meta.page);
       setTotalPages(listResponse.meta.totalPages);
@@ -132,6 +148,31 @@ export function MyLeaveRequests({
           </p>
           <p className="leave-balance-secondary">
             din {balance.annualLeaveDays} zile · {balance.usedDays} folosite
+          </p>
+        </section>
+      ) : isLoading ? (
+        <div className="leave-balance-card leave-balance-card-skeleton" aria-hidden="true">
+          <span className="skeleton-block skeleton-line-title" />
+          <span className="skeleton-block skeleton-line-subtitle" />
+        </div>
+      ) : null}
+
+      {overtime ? (
+        <section className="leave-balance-card" aria-label="Sold ore suplimentare">
+          <p className="leave-balance-label">Ore suplimentare</p>
+          <p className="leave-balance-remaining">
+            Sold:{' '}
+            <strong
+              className={
+                overtime.remainingMinutes < 0 ? 'leave-balance-value-negative' : undefined
+              }
+            >
+              {formatOvertimeBalance(overtime.remainingMinutes)}
+            </strong>
+          </p>
+          <p className="leave-balance-secondary">
+            {formatOvertimeHours(overtime.accruedMinutes + overtime.openPeriodMinutes)}{' '}
+            acumulate · {formatOvertimeHours(overtime.usedMinutes)} folosite
           </p>
         </section>
       ) : isLoading ? (

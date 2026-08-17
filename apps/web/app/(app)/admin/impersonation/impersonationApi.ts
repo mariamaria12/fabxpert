@@ -18,6 +18,7 @@ import {
   cancelLeaveRequest,
   deleteTimesheet,
   getLeaveBalance,
+  getOvertimeBalance,
   listLeaveRequests,
   listTimesheets,
   updateLeaveRequest,
@@ -60,6 +61,11 @@ export function listAvailableProjects() {
 /** GET the impersonated person's leave balance. */
 export function getMyLeaveBalance() {
   return getLeaveBalance(getImpersonationPersonId());
+}
+
+/** GET the impersonated person's overtime balance. */
+export function getMyOvertimeBalance() {
+  return getOvertimeBalance(getImpersonationPersonId());
 }
 
 // Update / delete are admin-capable on the shared endpoints as-is.

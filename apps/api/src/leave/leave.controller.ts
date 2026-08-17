@@ -20,6 +20,7 @@ import {
   updateLeaveRequestSchema,
   reviewLeaveRequestSchema,
   LEAVE_STATUS_VALUES,
+  LEAVE_TYPE_VALUES,
   type CreateLeaveRequestInput,
   type UpdateLeaveRequestInput,
   type ReviewLeaveRequestInput,
@@ -42,12 +43,14 @@ const uuidQuerySchema = z
 
 const listFiltersSchema = z.object({
   status: z.enum(LEAVE_STATUS_VALUES).optional(),
+  type: z.enum(LEAVE_TYPE_VALUES).optional(),
   personId: uuidQuerySchema.optional(),
 });
 
 function parseListFilters(query: Record<string, string>): LeaveRequestListFilters {
   const result = listFiltersSchema.safeParse({
     status: query.status,
+    type: query.type,
     personId: query.personId,
   });
   return result.success ? { ...result.data } : {};

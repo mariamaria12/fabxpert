@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import type {
   CloseOvertimeMonthResponse,
   OvertimeBalanceDto,
+  OvertimeBalancesResponse,
 } from '@fabxpert/shared/dto/overtime.dto';
 import {
   DAILY_WORK_MINUTES,
@@ -42,6 +43,19 @@ export function parseMonthString(value: string): Date {
   }
 
   return new Date(year, month - 1, 1, 0, 0, 0, 0);
+}
+
+/** What one approved RECUPERARE request costs: its hours, or a day per working day. */
+function leaveRequestMinutes(request: {
+  startDate: Date;
+  endDate: Date;
+  durationMinutes: number | null;
+}): number {
+  if (request.durationMinutes !== null) {
+    return request.durationMinutes;
+  }
+
+  return countInclusiveLeaveDays(request.startDate, request.endDate) * DAILY_WORK_MINUTES;
 }
 
 @Injectable()
@@ -96,6 +110,118 @@ export class OvertimeService {
       remainingMinutes,
       remainingDays: overtimeDaysAvailable(Math.max(0, remainingMinutes)),
       closedThroughMonth: lastClosed ? formatMonth(lastClosed.month) : null,
+    };
+  }
+
+  /**
+   * Same balance as computeBalance, for everyone, in four queries instead of
+   * three per person. The live scan is bounded by the earliest month still open
+   * on any person, so a fully closed history keeps it cheap.
+   */
+  async computeAllBalances(): Promise<OvertimeBalancesResponse> {
+    const [persons, accruals, approvedLeave] = await Promise.all([
+      this.prisma.person.findMany({
+        where: notDeleted(),
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          employeeRole: { select: { name: true } },
+        },
+        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      }),
+      this.prisma.overtimeAccrual.findMany({
+        select: { personId: true, month: true, earnedMinutes: true },
+      }),
+      this.prisma.leaveRequest.findMany({
+        where: { type: 'RECUPERARE', status: 'APROBAT', ...notDeleted() },
+        select: { personId: true, startDate: true, endDate: true, durationMinutes: true },
+      }),
+    ]);
+
+    const closedMonthsByPerson = new Map<string, Set<string>>();
+    const accruedByPerson = new Map<string, number>();
+    const lastClosedByPerson = new Map<string, Date>();
+
+    for (const row of accruals) {
+      const months = closedMonthsByPerson.get(row.personId) ?? new Set<string>();
+      months.add(formatMonth(row.month));
+      closedMonthsByPerson.set(row.personId, months);
+      accruedByPerson.set(
+        row.personId,
+        (accruedByPerson.get(row.personId) ?? 0) + row.earnedMinutes,
+      );
+
+      const lastClosed = lastClosedByPerson.get(row.personId);
+      if (!lastClosed || row.month > lastClosed) {
+        lastClosedByPerson.set(row.personId, row.month);
+      }
+    }
+
+    let scanAll = false;
+    let openStart: Date | null = null;
+    for (const person of persons) {
+      const lastClosed = lastClosedByPerson.get(person.id);
+      if (!lastClosed) {
+        scanAll = true;
+        break;
+      }
+
+      const start = startOfNextMonth(lastClosed);
+      if (!openStart || start < openStart) {
+        openStart = start;
+      }
+    }
+
+    const dailyTotals = await this.prisma.timesheet.groupBy({
+      by: ['personId', 'workDate'],
+      where: {
+        ...notDeleted(),
+        ...(!scanAll && openStart ? { workDate: { gte: openStart } } : {}),
+      },
+      _sum: { durationMinutes: true },
+    });
+
+    const openDaysByPerson = new Map<string, number[]>();
+    for (const row of dailyTotals) {
+      if (closedMonthsByPerson.get(row.personId)?.has(formatMonth(row.workDate))) {
+        continue;
+      }
+
+      const days = openDaysByPerson.get(row.personId) ?? [];
+      days.push(row._sum.durationMinutes ?? 0);
+      openDaysByPerson.set(row.personId, days);
+    }
+
+    const usedByPerson = new Map<string, number>();
+    for (const request of approvedLeave) {
+      usedByPerson.set(
+        request.personId,
+        (usedByPerson.get(request.personId) ?? 0) + leaveRequestMinutes(request),
+      );
+    }
+
+    return {
+      rows: persons.map((person) => {
+        const accruedMinutes = accruedByPerson.get(person.id) ?? 0;
+        const openPeriodMinutes = earnedOvertimeMinutes(openDaysByPerson.get(person.id) ?? []);
+        const usedMinutes = usedByPerson.get(person.id) ?? 0;
+        const remainingMinutes = accruedMinutes + openPeriodMinutes - usedMinutes;
+        const lastClosed = lastClosedByPerson.get(person.id);
+
+        return {
+          person,
+          balance: {
+            personId: person.id,
+            accruedMinutes,
+            openPeriodMinutes,
+            usedMinutes,
+            remainingMinutes,
+            remainingDays: overtimeDaysAvailable(Math.max(0, remainingMinutes)),
+            closedThroughMonth: lastClosed ? formatMonth(lastClosed) : null,
+          },
+        };
+      }),
     };
   }
 
@@ -178,15 +304,7 @@ export class OvertimeService {
       select: { startDate: true, endDate: true, durationMinutes: true },
     });
 
-    return approved.reduce((sum, request) => {
-      if (request.durationMinutes !== null) {
-        return sum + request.durationMinutes;
-      }
-
-      return (
-        sum + countInclusiveLeaveDays(request.startDate, request.endDate) * DAILY_WORK_MINUTES
-      );
-    }, 0);
+    return approved.reduce((sum, request) => sum + leaveRequestMinutes(request), 0);
   }
 
   private async resolveActorPersonId(userId: string): Promise<string> {

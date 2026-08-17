@@ -19,6 +19,22 @@ export type OvertimeBalanceDto = {
   closedThroughMonth: string | null;
 };
 
+export type OvertimeBalancePersonDto = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  employeeRole: { name: string } | null;
+};
+
+export type OvertimeBalanceRowDto = {
+  person: OvertimeBalancePersonDto;
+  balance: OvertimeBalanceDto;
+};
+
+export type OvertimeBalancesResponse = {
+  rows: OvertimeBalanceRowDto[];
+};
+
 /** Result of closing one month for everyone. */
 export type CloseOvertimeMonthResponse = {
   /** The month that was closed, as `YYYY-MM`. */

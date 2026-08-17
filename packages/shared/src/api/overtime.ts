@@ -2,6 +2,7 @@ import { request } from './client';
 import type {
   CloseOvertimeMonthResponse,
   OvertimeBalanceDto,
+  OvertimeBalancesResponse,
 } from '../dto/overtime.dto';
 
 export function getMyOvertimeBalance() {
@@ -10,6 +11,11 @@ export function getMyOvertimeBalance() {
 
 export function getOvertimeBalance(personId: string) {
   return request<OvertimeBalanceDto>(`/overtime/balance/${personId}`);
+}
+
+/** Admin only. Overtime balance for every person, in one call. */
+export function listOvertimeBalances() {
+  return request<OvertimeBalancesResponse>('/overtime/balances');
 }
 
 /** Admin only. `month` is `YYYY-MM` and must already be over. */

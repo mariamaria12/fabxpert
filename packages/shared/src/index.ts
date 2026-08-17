@@ -332,10 +332,14 @@ export {
 export {
   getMyOvertimeBalance,
   getOvertimeBalance,
+  listOvertimeBalances,
   closeOvertimeMonth,
 } from './api/overtime';
 export type {
   OvertimeBalanceDto,
+  OvertimeBalancePersonDto,
+  OvertimeBalanceRowDto,
+  OvertimeBalancesResponse,
   CloseOvertimeMonthResponse,
 } from './dto/overtime.dto';
 export {

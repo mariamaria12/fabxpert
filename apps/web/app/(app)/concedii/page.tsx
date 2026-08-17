@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { LeaveBalancesTab } from './LeaveBalancesTab';
 import { LeaveFormPanel } from './LeaveFormPanel';
 import { LeaveRequestsTab } from './LeaveRequestsTab';
+import { OvertimeBalancesTab } from './OvertimeBalancesTab';
 import { MobileHeaderAction } from '@/components/MobileHeaderAction';
 import { useLeavePendingCount } from '@/context/LeavePendingCountContext';
 
 const TABS = [
   { id: 'requests', label: 'Cereri' },
   { id: 'balances', label: 'Solduri' },
+  { id: 'overtime', label: 'Suplimentare' },
 ] as const;
 
 type ConcediiTab = (typeof TABS)[number]['id'];
@@ -115,8 +117,10 @@ export default function ConcediiPage() {
             refreshToken={requestsRefreshToken}
             onBalancesRefresh={refreshBalances}
           />
-        ) : (
+        ) : activeTab === 'balances' ? (
           <LeaveBalancesTab refreshToken={balancesRefreshToken} />
+        ) : (
+          <OvertimeBalancesTab refreshToken={balancesRefreshToken} />
         )}
       </div>
 

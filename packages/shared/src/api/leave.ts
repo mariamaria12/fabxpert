@@ -8,6 +8,7 @@ import type {
   LeaveBalancesResponse,
   LeaveRequestDto,
   LeaveStatus,
+  LeaveType,
   OnLeaveResponse,
   ReviewLeaveRequestInput,
   ReviewLeaveRequestResponse,
@@ -16,6 +17,7 @@ import type {
 
 export type ListLeaveRequestsParams = {
   status?: LeaveStatus;
+  type?: LeaveType;
   personId?: string;
   page?: number;
   pageSize?: number;
@@ -28,6 +30,9 @@ function buildListQuery(params?: ListLeaveRequestsParams): string {
   const searchParams = new URLSearchParams();
   if (params.status !== undefined) {
     searchParams.set('status', params.status);
+  }
+  if (params.type !== undefined) {
+    searchParams.set('type', params.type);
   }
   if (params.personId !== undefined) {
     searchParams.set('personId', params.personId);

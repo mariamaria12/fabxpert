@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { LeaveStatus, Prisma } from '@prisma/client';
+import { LeaveStatus, LeaveType, Prisma } from '@prisma/client';
 import type {
   CreateLeaveRequestInput,
   EmployeeLeaveRequestResponse,
@@ -56,6 +56,7 @@ type LeaveRequestWithRelations = Prisma.LeaveRequestGetPayload<{
 
 export interface LeaveRequestListFilters {
   status?: LeaveStatus;
+  type?: LeaveType;
   personId?: string;
 }
 
@@ -530,6 +531,7 @@ export class LeaveService {
     return {
       ...notDeleted(),
       ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.type ? { type: filters.type } : {}),
       ...(filters.personId ? { personId: filters.personId } : {}),
     };
   }

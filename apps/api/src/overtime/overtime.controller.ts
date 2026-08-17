@@ -29,6 +29,12 @@ export class OvertimeController {
     return this.overtimeService.getMyBalance(req.user);
   }
 
+  @Get('balances')
+  @Roles('ADMIN')
+  listBalances() {
+    return this.overtimeService.computeAllBalances();
+  }
+
   @Get('balance/:personId')
   @Roles('ADMIN')
   getBalance(@Param('personId', new ZodValidationPipe(uuidParamSchema)) personId: string) {
