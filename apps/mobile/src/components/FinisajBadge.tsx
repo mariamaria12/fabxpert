@@ -1,4 +1,4 @@
-import { finisajBadgeColors, parseFinisaj } from '@fabxpert/shared';
+import { finisajBadgeColors, parseFinisaj, splitFinisaj } from '@fabxpert/shared';
 
 /**
  * Mobile twin of apps/web/components/FinisajBadge.tsx — same parsing, same
@@ -6,6 +6,27 @@ import { finisajBadgeColors, parseFinisaj } from '@fabxpert/shared';
  * mobile stylesheet instead of Tailwind.
  */
 export function FinisajBadge({ value }: { value: string | null | undefined }) {
+  const segments = splitFinisaj(value);
+  if (segments.length === 0) {
+    return null;
+  }
+
+  if (segments.length === 1) {
+    return <FinisajSegment value={segments[0]} />;
+  }
+
+  // "Grund AL + zincare" — one badge per finish.
+  return (
+    <span className="finisaj-group">
+      {segments.map((segment, index) => (
+        <FinisajSegment key={`${segment}-${index}`} value={segment} />
+      ))}
+    </span>
+  );
+}
+
+/** One finish: the badge itself, plus the action text when a RAL code carries one. */
+function FinisajSegment({ value }: { value: string }) {
   const parsed = parseFinisaj(value);
   if (!parsed) {
     return null;
@@ -29,7 +50,7 @@ export function FinisajBadge({ value }: { value: string | null | undefined }) {
         color: colors.text,
         borderColor: colors.border ?? 'transparent',
       }}
-      title={value ?? parsed.label}
+      title={value}
     >
       {parsed.label}
     </span>

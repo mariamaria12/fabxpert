@@ -45,17 +45,29 @@ function normalizeSeparators(value: string): string {
 /** Letters and spaces only — anything else ("EP+PU", "2K") is a code, not a word. */
 const WORDS_ONLY = /^[\p{L}\s]+$/u;
 
+/** A short all-caps word is an abbreviation ("AL", "PU"), not a word to lowercase. */
+const ABBREVIATION = /^\p{Lu}{1,3}$/u;
+
 /**
- * "ZINCARE" → "Zincare", "vopsire electrostatica" → "Vopsire electrostatica".
- * Codes and formulas keep the exact casing they were typed with, so "(EP+PU)"
- * stays "(EP+PU)".
+ * "ZINCARE" → "Zincare", "grund AL" → "Grund AL", "vopsire electrostatica" →
+ * "Vopsire electrostatica". Codes and formulas keep the exact casing they were
+ * typed with, so "(EP+PU)" stays "(EP+PU)".
  */
 export function formatFinisajLabel(value: string): string {
   const cleaned = normalizeSeparators(value);
   if (!cleaned || !WORDS_ONLY.test(cleaned)) {
     return cleaned;
   }
-  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase();
+
+  const words = cleaned
+    .split(' ')
+    .map((word) => (ABBREVIATION.test(word) ? word : word.toLowerCase()));
+  const [first] = words;
+  if (!ABBREVIATION.test(first)) {
+    words[0] = first.charAt(0).toUpperCase() + first.slice(1);
+  }
+
+  return words.join(' ');
 }
 
 /**
@@ -93,6 +105,76 @@ export function parseFinisaj(value: string | null | undefined): FinisajParts | n
     hex: color.hex,
     action: action ? formatFinisajLabel(action) : null,
   };
+}
+
+/** Brackets hide a paint formula, where "+" is part of the code: "(EP+PU)". */
+const OPENING_BRACKETS = '([{';
+const CLOSING_BRACKETS = ')]}';
+
+/** Every "+" that sits outside brackets — the only ones that may join two finishes. */
+function topLevelPlusIndexes(value: string): number[] {
+  const indexes: number[] = [];
+  let depth = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (OPENING_BRACKETS.includes(char)) {
+      depth += 1;
+    } else if (CLOSING_BRACKETS.includes(char)) {
+      depth = Math.max(0, depth - 1);
+    } else if (char === '+' && depth === 0) {
+      indexes.push(index);
+    }
+  }
+
+  return indexes;
+}
+
+/** A segment we can colour on its own: a real RAL code or a named finish. */
+function isKnownFinish(segment: string): boolean {
+  const match = RAL_PATTERN.exec(segment);
+  if (match && RAL_CLASSIC_COLORS[match[1]]) {
+    return true;
+  }
+  return FINISH_FILL_COLORS[normalizeSeparators(segment).toUpperCase()] !== undefined;
+}
+
+/**
+ * Splits a finish written as a sum of finishes — "Grund AL + zincare" becomes
+ * ["Grund AL", "zincare"], one badge each. A "+" only counts when it is spelled
+ * out with spaces around it or joins two finishes we recognise, so paint
+ * formulas ("EP+PU", "(EP+PU) RAL 7033") stay a single value. Anything else,
+ * including a stray trailing "+", comes back as one segment.
+ */
+export function splitFinisaj(value: string | null | undefined): string[] {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return [];
+  }
+
+  const plusIndexes = topLevelPlusIndexes(trimmed);
+  if (plusIndexes.length === 0) {
+    return [trimmed];
+  }
+
+  const segments: string[] = [];
+  let start = 0;
+
+  plusIndexes.forEach((index, position) => {
+    const left = trimmed.slice(start, index);
+    const right = trimmed.slice(index + 1, plusIndexes[position + 1] ?? trimmed.length);
+    const spelledOut = /\s$/.test(left) || /^\s/.test(right);
+
+    if (spelledOut || (isKnownFinish(left) && isKnownFinish(right))) {
+      segments.push(left.trim());
+      start = index + 1;
+    }
+  });
+
+  segments.push(trimmed.slice(start).trim());
+
+  // "Zincare +" and friends: nothing useful on one side, so keep the raw value.
+  return segments.length > 1 && segments.every(Boolean) ? segments : [trimmed];
 }
 
 /** WCAG relative luminance, 0 (black) → 1 (white). */

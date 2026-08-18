@@ -161,6 +161,7 @@ export type { ProjectColorPreset } from './projectColor';
 export {
   formatFinisajLabel,
   parseFinisaj,
+  splitFinisaj,
   finisajBadgeColors,
   relativeLuminance,
 } from './finisaj';
