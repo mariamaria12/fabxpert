@@ -1,4 +1,4 @@
-import { normalizeWorkDate } from './workDate';
+import { isWorkingDate, normalizeWorkDate } from './workDate';
 
 /**
  * Leave date convention (API, mobile, web):
@@ -16,8 +16,7 @@ export function countInclusiveLeaveDays(startDate: Date, endDate: Date): number 
   const cursor = new Date(start);
 
   while (cursor.getTime() <= end.getTime()) {
-    const dayOfWeek = cursor.getDay();
-    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+    if (isWorkingDate(cursor)) {
       count += 1;
     }
     cursor.setDate(cursor.getDate() + 1);

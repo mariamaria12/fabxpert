@@ -259,6 +259,7 @@ export {
   todayWorkDate,
   todayDateInputValue,
   workDateToDayKey,
+  isWorkingDate,
   isSameWorkDate,
 } from './workDate';
 export {
@@ -324,11 +325,12 @@ export type {
 } from './dto/leave.dto';
 export {
   DAILY_WORK_MINUTES,
-  earnedOvertimeMinutes,
+  overtimeBalanceMinutes,
   overtimeDaysAvailable,
   formatOvertimeHours,
   formatOvertimeBalance,
 } from './overtime';
+export type { OvertimeDay } from './overtime';
 export {
   getMyOvertimeBalance,
   getOvertimeBalance,

@@ -334,11 +334,11 @@ model LeaveRequest {
 
 // ---------------------------------------------------------------------------
 // OvertimeAccrual
-// One closed month of overtime for one Person. Overtime is earned per day —
-// anything logged past DAILY_WORK_MINUTES — so it is derivable from timesheets,
-// but a closed month is frozen here: editing an old timesheet afterwards must
-// not silently rewrite a balance people already spent. Months with no row are
-// recomputed live, which is what the current month always is.
+// One closed month of overtime for one Person. A working day counts for what it
+// is over or short of DAILY_WORK_MINUTES, so a month can close negative — it is
+// derivable from timesheets, but a closed month is frozen here: editing an old
+// timesheet afterwards must not silently rewrite a balance people already
+// spent. Months with no row are recomputed live, as the current month always is.
 // ---------------------------------------------------------------------------
 
 model OvertimeAccrual {
@@ -346,7 +346,8 @@ model OvertimeAccrual {
 
   /// First day of the month this row closes, at midnight.
   month DateTime
-  /// Overtime earned that month, frozen at closing time.
+  /// Overtime balance for that month, frozen at closing time. Negative when the
+  /// person logged fewer hours than the contractual days they worked.
   earnedMinutes Int
   closedAt      DateTime @default(now())
 

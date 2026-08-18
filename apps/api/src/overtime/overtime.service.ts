@@ -6,10 +6,12 @@ import type {
 } from '@fabxpert/shared/dto/overtime.dto';
 import {
   DAILY_WORK_MINUTES,
-  earnedOvertimeMinutes,
+  overtimeBalanceMinutes,
   overtimeDaysAvailable,
+  type OvertimeDay,
 } from '@fabxpert/shared/overtime';
 import { countInclusiveLeaveDays } from '@fabxpert/shared/leaveDays';
+import { isWorkingDate, normalizeWorkDate, workDateToDayKey } from '@fabxpert/shared/workDate';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { notDeleted } from '../common/prisma/soft-delete.util';
 import { PrismaService } from '../prisma/prisma.service';
@@ -45,18 +47,61 @@ export function parseMonthString(value: string): Date {
   return new Date(year, month - 1, 1, 0, 0, 0, 0);
 }
 
-/** What one approved RECUPERARE request costs: its hours, or a day per working day. */
-function leaveRequestMinutes(request: {
+type ApprovedLeave = {
   startDate: Date;
   endDate: Date;
   durationMinutes: number | null;
-}): number {
+};
+
+/** What one approved RECUPERARE request costs: its hours, or a day per working day. */
+function leaveRequestMinutes(request: ApprovedLeave): number {
   if (request.durationMinutes !== null) {
     return request.durationMinutes;
   }
 
   return countInclusiveLeaveDays(request.startDate, request.endDate) * DAILY_WORK_MINUTES;
 }
+
+/**
+ * Approved leave spread over the days it covers, keyed by day. A day already
+ * paid for by leave must not also read as a short working day.
+ */
+function leaveMinutesByDay(requests: ApprovedLeave[]): Map<string, number> {
+  const byDay = new Map<string, number>();
+
+  const add = (day: Date, minutes: number) => {
+    const key = workDateToDayKey(day);
+    byDay.set(key, (byDay.get(key) ?? 0) + minutes);
+  };
+
+  for (const request of requests) {
+    if (request.durationMinutes !== null) {
+      add(request.startDate, request.durationMinutes);
+      continue;
+    }
+
+    const cursor = normalizeWorkDate(request.startDate);
+    const end = normalizeWorkDate(request.endDate);
+    while (cursor.getTime() <= end.getTime()) {
+      if (isWorkingDate(cursor)) {
+        add(cursor, DAILY_WORK_MINUTES);
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+
+  return byDay;
+}
+
+/** A logged day plus the date it fell on, so callers can filter by month. */
+type DatedOvertimeDay = OvertimeDay & { workDate: Date };
+
+type OvertimeSourceData = {
+  /** Days each person logged time on, ready for the balance rule. */
+  daysByPerson: Map<string, DatedOvertimeDay[]>;
+  /** Approved RECUPERARE per person — what the balance is spent on, all time. */
+  usedByPerson: Map<string, number>;
+};
 
 @Injectable()
 export class OvertimeService {
@@ -86,20 +131,23 @@ export class OvertimeService {
    * skipped costs accuracy on old data, never minutes.
    */
   async computeBalance(personId: string): Promise<OvertimeBalanceDto> {
-    const [accruals, usedMinutes] = await Promise.all([
+    const [accruals, source] = await Promise.all([
       this.prisma.overtimeAccrual.findMany({
         where: { personId },
         select: { month: true, earnedMinutes: true },
         orderBy: { month: 'desc' },
       }),
-      this.usedMinutes(personId),
+      this.loadOvertimeSource({ personId }),
     ]);
 
     const accruedMinutes = accruals.reduce((sum, row) => sum + row.earnedMinutes, 0);
     const closedMonths = new Set(accruals.map((row) => formatMonth(row.month)));
-    const openPeriodMinutes = await this.earnedOutsideClosedMonths(personId, closedMonths);
     const lastClosed = accruals[0] ?? null;
 
+    const openPeriodMinutes = overtimeBalanceMinutes(
+      openDays(source.daysByPerson.get(personId) ?? [], closedMonths),
+    );
+    const usedMinutes = source.usedByPerson.get(personId) ?? 0;
     const remainingMinutes = accruedMinutes + openPeriodMinutes - usedMinutes;
 
     return {
@@ -114,12 +162,12 @@ export class OvertimeService {
   }
 
   /**
-   * Same balance as computeBalance, for everyone, in four queries instead of
-   * three per person. The live scan is bounded by the earliest month still open
-   * on any person, so a fully closed history keeps it cheap.
+   * Same balance as computeBalance, for everyone, without a query per person.
+   * The live scan is bounded by the earliest month still open on any person, so
+   * a fully closed history keeps it cheap.
    */
   async computeAllBalances(): Promise<OvertimeBalancesResponse> {
-    const [persons, accruals, approvedLeave] = await Promise.all([
+    const [persons, accruals] = await Promise.all([
       this.prisma.person.findMany({
         where: notDeleted(),
         select: {
@@ -132,10 +180,6 @@ export class OvertimeService {
       }),
       this.prisma.overtimeAccrual.findMany({
         select: { personId: true, month: true, earnedMinutes: true },
-      }),
-      this.prisma.leaveRequest.findMany({
-        where: { type: 'RECUPERARE', status: 'APROBAT', ...notDeleted() },
-        select: { personId: true, startDate: true, endDate: true, durationMinutes: true },
       }),
     ]);
 
@@ -173,39 +217,20 @@ export class OvertimeService {
       }
     }
 
-    const dailyTotals = await this.prisma.timesheet.groupBy({
-      by: ['personId', 'workDate'],
-      where: {
-        ...notDeleted(),
-        ...(!scanAll && openStart ? { workDate: { gte: openStart } } : {}),
-      },
-      _sum: { durationMinutes: true },
-    });
-
-    const openDaysByPerson = new Map<string, number[]>();
-    for (const row of dailyTotals) {
-      if (closedMonthsByPerson.get(row.personId)?.has(formatMonth(row.workDate))) {
-        continue;
-      }
-
-      const days = openDaysByPerson.get(row.personId) ?? [];
-      days.push(row._sum.durationMinutes ?? 0);
-      openDaysByPerson.set(row.personId, days);
-    }
-
-    const usedByPerson = new Map<string, number>();
-    for (const request of approvedLeave) {
-      usedByPerson.set(
-        request.personId,
-        (usedByPerson.get(request.personId) ?? 0) + leaveRequestMinutes(request),
-      );
-    }
+    const source = await this.loadOvertimeSource(
+      !scanAll && openStart ? { from: openStart } : {},
+    );
 
     return {
       rows: persons.map((person) => {
         const accruedMinutes = accruedByPerson.get(person.id) ?? 0;
-        const openPeriodMinutes = earnedOvertimeMinutes(openDaysByPerson.get(person.id) ?? []);
-        const usedMinutes = usedByPerson.get(person.id) ?? 0;
+        const openPeriodMinutes = overtimeBalanceMinutes(
+          openDays(
+            source.daysByPerson.get(person.id) ?? [],
+            closedMonthsByPerson.get(person.id) ?? new Set(),
+          ),
+        );
+        const usedMinutes = source.usedByPerson.get(person.id) ?? 0;
         const remainingMinutes = accruedMinutes + openPeriodMinutes - usedMinutes;
         const lastClosed = lastClosedByPerson.get(person.id);
 
@@ -238,27 +263,13 @@ export class OvertimeService {
       throw new BadRequestException('Only past months can be closed');
     }
 
-    const dailyTotals = await this.prisma.timesheet.groupBy({
-      by: ['personId', 'workDate'],
-      where: {
-        ...notDeleted(),
-        workDate: { gte: monthStart, lt: monthEnd },
-      },
-      _sum: { durationMinutes: true },
-    });
-
-    const minutesByPerson = new Map<string, number[]>();
-    for (const row of dailyTotals) {
-      const days = minutesByPerson.get(row.personId) ?? [];
-      days.push(row._sum.durationMinutes ?? 0);
-      minutesByPerson.set(row.personId, days);
-    }
+    const source = await this.loadOvertimeSource({ from: monthStart, to: monthEnd });
 
     let personsClosed = 0;
     let totalMinutes = 0;
 
-    for (const [personId, days] of minutesByPerson) {
-      const earnedMinutes = earnedOvertimeMinutes(days);
+    for (const [personId, days] of source.daysByPerson) {
+      const earnedMinutes = overtimeBalanceMinutes(days);
       await this.prisma.overtimeAccrual.upsert({
         where: { personId_month: { personId, month: monthStart } },
         create: { personId, month: monthStart, earnedMinutes },
@@ -271,40 +282,84 @@ export class OvertimeService {
     return { month: formatMonth(monthStart), personsClosed, totalMinutes };
   }
 
-  /** Overtime earned on days that belong to a month with no accrual row yet. */
-  private async earnedOutsideClosedMonths(
-    personId: string,
-    closedMonths: Set<string>,
-  ): Promise<number> {
-    const dailyTotals = await this.prisma.timesheet.groupBy({
-      by: ['workDate'],
-      where: { personId, ...notDeleted() },
-      _sum: { durationMinutes: true },
-    });
-
-    const openDays = dailyTotals
-      .filter((row) => !closedMonths.has(formatMonth(row.workDate)))
-      .map((row) => row._sum.durationMinutes ?? 0);
-
-    return earnedOvertimeMinutes(openDays);
-  }
-
   /**
-   * Approved RECUPERARE leave. A request in hours costs exactly those minutes;
-   * a whole-day one costs a full working day per working day it covers.
+   * The single place timesheets and leave become balance days. One person, one
+   * month, or everyone — every caller reads the same numbers from here, so the
+   * rule can only ever be applied one way.
+   *
+   * `from`/`to` bound the timesheet scan only: leave is always read in full,
+   * because RECUPERARE taken before the window still spends the balance.
    */
-  private async usedMinutes(personId: string): Promise<number> {
-    const approved = await this.prisma.leaveRequest.findMany({
-      where: {
-        personId,
-        type: 'RECUPERARE',
-        status: 'APROBAT',
-        ...notDeleted(),
-      },
-      select: { startDate: true, endDate: true, durationMinutes: true },
-    });
+  private async loadOvertimeSource(scope: {
+    personId?: string;
+    from?: Date;
+    to?: Date;
+  }): Promise<OvertimeSourceData> {
+    const personFilter = scope.personId ? { personId: scope.personId } : {};
+    const workDateFilter =
+      scope.from || scope.to
+        ? {
+            workDate: {
+              ...(scope.from ? { gte: scope.from } : {}),
+              ...(scope.to ? { lt: scope.to } : {}),
+            },
+          }
+        : {};
 
-    return approved.reduce((sum, request) => sum + leaveRequestMinutes(request), 0);
+    const [dailyTotals, approvedLeave] = await Promise.all([
+      this.prisma.timesheet.groupBy({
+        by: ['personId', 'workDate'],
+        where: { ...notDeleted(), ...personFilter, ...workDateFilter },
+        _sum: { durationMinutes: true },
+      }),
+      this.prisma.leaveRequest.findMany({
+        where: { status: 'APROBAT', ...notDeleted(), ...personFilter },
+        select: {
+          personId: true,
+          type: true,
+          startDate: true,
+          endDate: true,
+          durationMinutes: true,
+        },
+      }),
+    ]);
+
+    // Any approved leave covers a day; only RECUPERARE spends the balance.
+    const leaveRequestsByPerson = new Map<string, ApprovedLeave[]>();
+    const usedByPerson = new Map<string, number>();
+    for (const request of approvedLeave) {
+      const requests = leaveRequestsByPerson.get(request.personId) ?? [];
+      requests.push(request);
+      leaveRequestsByPerson.set(request.personId, requests);
+
+      if (request.type === 'RECUPERARE') {
+        usedByPerson.set(
+          request.personId,
+          (usedByPerson.get(request.personId) ?? 0) + leaveRequestMinutes(request),
+        );
+      }
+    }
+
+    const leaveDaysByPerson = new Map<string, Map<string, number>>();
+    for (const [personId, requests] of leaveRequestsByPerson) {
+      leaveDaysByPerson.set(personId, leaveMinutesByDay(requests));
+    }
+
+    const daysByPerson = new Map<string, DatedOvertimeDay[]>();
+    for (const row of dailyTotals) {
+      const leaveByDay = leaveDaysByPerson.get(row.personId);
+      const days = daysByPerson.get(row.personId) ?? [];
+
+      days.push({
+        workDate: row.workDate,
+        loggedMinutes: row._sum.durationMinutes ?? 0,
+        leaveMinutes: leaveByDay?.get(workDateToDayKey(row.workDate)) ?? 0,
+        isWorkingDay: isWorkingDate(row.workDate),
+      });
+      daysByPerson.set(row.personId, days);
+    }
+
+    return { daysByPerson, usedByPerson };
   }
 
   private async resolveActorPersonId(userId: string): Promise<string> {
@@ -322,4 +377,9 @@ export class OvertimeService {
 
     return user.personId;
   }
+}
+
+/** Days in months that have no accrual row yet — the part still recomputed live. */
+function openDays(days: DatedOvertimeDay[], closedMonths: Set<string>): DatedOvertimeDay[] {
+  return days.filter((day) => !closedMonths.has(formatMonth(day.workDate)));
 }

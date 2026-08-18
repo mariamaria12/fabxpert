@@ -38,6 +38,13 @@ export function todayWorkDate(reference = new Date()): Date {
   return normalizeWorkDate(reference);
 }
 
+/** Mon–Fri. Romanian public holidays are not excluded yet. */
+export function isWorkingDate(date: Date | string): boolean {
+  const value = typeof date === 'string' ? new Date(date) : date;
+  const dayOfWeek = value.getDay();
+  return dayOfWeek !== 0 && dayOfWeek !== 6;
+}
+
 export function workDateToDayKey(date: Date | string): string {
   const value = typeof date === 'string' ? new Date(date) : date;
   return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;

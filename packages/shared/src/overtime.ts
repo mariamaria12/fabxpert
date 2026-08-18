@@ -1,15 +1,35 @@
 /** Contractual working day. Anything logged past it accrues as overtime. */
 export const DAILY_WORK_MINUTES = 540; // 9h
 
+/** One day a person logged time on, with everything that day is credited for. */
+export type OvertimeDay = {
+  /** Minutes logged that day. */
+  loggedMinutes: number;
+  /** Approved leave covering that day — a whole day off is DAILY_WORK_MINUTES. */
+  leaveMinutes?: number;
+  /** Weekends can only add overtime; a short Saturday is not a debt. Defaults to true. */
+  isWorkingDay?: boolean;
+};
+
 /**
- * Overtime earned over a set of days, given each day's logged total.
- * Counted per day on purpose: a short day adds nothing, it never cancels a long one.
+ * Running overtime over a set of days: a working day counts for what it is
+ * short of, or over, the contractual day. Ten hours is +1h, eight is −1h.
+ *
+ * Only days the person logged time on are passed in — a day with no timesheet
+ * at all is not a debt, it is simply not counted.
+ *
+ * Leave already covering a day is credited before the comparison, so an hour
+ * of RECUPERARE is charged once (against the balance) and not a second time as
+ * a short day.
  */
-export function earnedOvertimeMinutes(dailyLoggedMinutes: number[]): number {
-  return dailyLoggedMinutes.reduce(
-    (sum, logged) => sum + Math.max(0, logged - DAILY_WORK_MINUTES),
-    0,
-  );
+export function overtimeBalanceMinutes(days: OvertimeDay[]): number {
+  return days.reduce((sum, day) => {
+    if (day.isWorkingDay === false) {
+      return sum + Math.max(0, day.loggedMinutes - DAILY_WORK_MINUTES);
+    }
+
+    return sum + day.loggedMinutes + (day.leaveMinutes ?? 0) - DAILY_WORK_MINUTES;
+  }, 0);
 }
 
 /** Whole days off a balance covers — one day off costs a full working day. */
