@@ -101,11 +101,13 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
+    "test": "tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.ts\""
   },
   "devDependencies": {
     "@types/node": "^20.17.10",
+    "tsx": "^4.19.2",
     "typescript": "^5.5.4"
   },
   "dependencies": {

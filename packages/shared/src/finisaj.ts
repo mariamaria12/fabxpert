@@ -45,13 +45,21 @@ function normalizeSeparators(value: string): string {
 /** Letters and spaces only — anything else ("EP+PU", "2K") is a code, not a word. */
 const WORDS_ONLY = /^[\p{L}\s]+$/u;
 
-/** A short all-caps word is an abbreviation ("AL", "PU"), not a word to lowercase. */
-const ABBREVIATION = /^\p{Lu}{1,3}$/u;
+/**
+ * Words that keep their capitals: materials, resins and alloys people write as
+ * initials. Listed explicitly — "any short word in capitals" would also catch
+ * "ZINCARE LA CALD", where "LA" is just a word someone typed in caps.
+ */
+const ABBREVIATIONS: ReadonlySet<string> = new Set(['AL', 'ZN', 'EP', 'PU', 'PVC']);
+
+function isAbbreviation(word: string): boolean {
+  return ABBREVIATIONS.has(word.toUpperCase()) && word === word.toUpperCase();
+}
 
 /**
- * "ZINCARE" → "Zincare", "grund AL" → "Grund AL", "vopsire electrostatica" →
- * "Vopsire electrostatica". Codes and formulas keep the exact casing they were
- * typed with, so "(EP+PU)" stays "(EP+PU)".
+ * "ZINCARE" → "Zincare", "grund AL" → "Grund AL", "ZINCARE LA CALD" →
+ * "Zincare la cald". Codes and formulas keep the exact casing they were typed
+ * with, so "(EP+PU)" stays "(EP+PU)".
  */
 export function formatFinisajLabel(value: string): string {
   const cleaned = normalizeSeparators(value);
@@ -61,9 +69,9 @@ export function formatFinisajLabel(value: string): string {
 
   const words = cleaned
     .split(' ')
-    .map((word) => (ABBREVIATION.test(word) ? word : word.toLowerCase()));
+    .map((word) => (isAbbreviation(word) ? word : word.toLowerCase()));
   const [first] = words;
-  if (!ABBREVIATION.test(first)) {
+  if (!isAbbreviation(first)) {
     words[0] = first.charAt(0).toUpperCase() + first.slice(1);
   }
 
