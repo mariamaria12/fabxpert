@@ -137,14 +137,16 @@ export function ProjectListFilters({
         </div>
       )}
 
-      {/* Phones: one filter per row — three columns squeezed the fields and
-          wrapped the labels. Two from `sm`; from `md` all three share a line,
-          with "Gata de execuție" only as wide as its label needs. */}
+      {/* Phones: one filter per row — three across squeezed the fields and wrapped
+          the labels. From `md` all three share a line, with "Gata de execuție" only
+          as wide as its label needs. Plain utilities on purpose: an arbitrary
+          grid-cols value glued to the `${}` below never reaches the stylesheet,
+          because Tailwind's scanner stops extracting at the interpolation. */}
       {showFilterControls && (
       <div
-        className={`grid grid-cols-1 gap-3 sm:grid-cols-2 md:max-w-3xl md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_11rem]${search ? ' mt-3' : ''}`}
+        className={`${search ? 'mt-3 ' : ''}flex max-w-3xl flex-col gap-3 sm:flex-row sm:flex-wrap md:flex-nowrap`}
       >
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1 sm:basis-64">
           <SearchableMultiSelect
             id={`${idPrefix}-status-filter`}
             label="Status"
@@ -155,7 +157,7 @@ export function ProjectListFilters({
             onChange={(values) => onStatusChange(values as ProjectStatus[])}
           />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1 sm:basis-64">
           <SearchableMultiSelect
             id={`${idPrefix}-visibility-filter`}
             label="Vizibil pentru"
@@ -166,7 +168,7 @@ export function ProjectListFilters({
             onChange={onVisibilityChange}
           />
         </div>
-        <div className="min-w-0">
+        <div className="w-full shrink-0 sm:w-44">
           <SearchableSelect
             id={`${idPrefix}-ready-for-execution-filter`}
             label="Gata de execuție"
