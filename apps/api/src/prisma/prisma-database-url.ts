@@ -1,4 +1,13 @@
-const DEFAULT_CONNECTION_LIMIT = process.env.NODE_ENV === 'production' ? 5 : 2;
+const DEFAULT_CONNECTION_LIMIT = 5;
+
+/** How many pooled connections the API is allowed against Supabase session mode. */
+export function getPrismaConnectionLimit(): number {
+  const configured = process.env.DATABASE_URL
+    ? new URL(process.env.DATABASE_URL).searchParams.get('connection_limit')
+    : null;
+  const parsed = configured ? Number.parseInt(configured, 10) : Number.NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_CONNECTION_LIMIT;
+}
 
 /**
  * Ensures DATABASE_URL has an explicit Prisma connection_limit so Nest
