@@ -14,11 +14,11 @@ export type ProductivityKpis = {
   /** Completed projects without a deadline — neither on-time nor late. */
   noDueDateCount: number;
   totalWorkedMinutes: number;
-  /** Sum of estimates over projects that have a computable estimate. */
+  /** Sum of the estimates of the projects that have one filled in. */
   totalEstimatedMinutes: number;
   /**
-   * Pooled Σ(estimated) / Σ(worked) × 100 over projects that have both a
-   * computable estimate and logged time. Above 100 = under budget (good),
+   * Pooled Σ(estimated) / Σ(worked) × 100 over projects that have both an
+   * estimate and logged time. Above 100 = under budget (good),
    * below 100 = over budget. `null` when it can't be computed.
    */
   efficiencyPct: number | null;
@@ -32,7 +32,7 @@ export type ProjectHoursComparisonRow = {
   label: string;
   companyName: string;
   workedMinutes: number;
-  /** null when start or deadline is missing, so the estimate can't be computed. */
+  /** From the project's estimated hours; null when that field is empty. */
   estimatedMinutes: number | null;
 };
 

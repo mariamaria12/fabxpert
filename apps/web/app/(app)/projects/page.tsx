@@ -32,6 +32,7 @@ import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { panouPathFromProjectEditReturn } from '@/utils/projectEditNavigation';
 import { STATUS_FILTER_OPTIONS } from '@/utils/projectStatusFilter';
 import { replaceById } from '@/utils/replaceById';
+import { formatProjectEstimatedHours } from '@/utils/projectEstimatedHours';
 import { formatProjectWeight } from '@/utils/projectWeight';
 import { ProjectVisibleForCell } from '../panou/panouProjectVisibility';
 
@@ -173,6 +174,17 @@ export default function ProjectsPage() {
         className: 'text-right tabular-nums text-text-secondary',
         render: (row) =>
           row.weight === null ? nullableCell(null) : formatProjectWeight(row.weight),
+      },
+      {
+        key: 'estimatedHours',
+        header: 'Ore estimate',
+        sortKey: 'estimatedHours',
+        width: '110px',
+        className: 'text-right tabular-nums text-text-secondary',
+        render: (row) =>
+          row.estimatedHours === null
+            ? nullableCell(null)
+            : formatProjectEstimatedHours(row.estimatedHours),
       },
       {
         // Full template name — key differs from the DTO field so the stored

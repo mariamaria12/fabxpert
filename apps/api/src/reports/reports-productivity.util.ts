@@ -6,7 +6,6 @@ import type {
   ProjectHoursComparisonRow,
   ReportPeriodKind,
 } from '@fabxpert/shared/dto/report.dto';
-import { estimateMinutes } from './estimated-hours.util';
 
 const NO_ACTIVITY_LABEL = 'Fără activitate';
 const OTHER_CLIENTS_LABEL = 'Alte companii';
@@ -22,8 +21,8 @@ export type ProjectAggregateRow = {
   code: string;
   name: string;
   denumireLucrare: string | null;
-  startDate: Date | null;
   dueDate: Date | null;
+  estimatedHours: number | null;
   completedAt: Date | null;
   companyId: string;
   companyName: string;
@@ -50,8 +49,8 @@ export function buildProjectAggregateQuery(from: Date, toExclusive: Date): Prism
       p.code AS "code",
       p.name AS "name",
       p."denumireLucrare" AS "denumireLucrare",
-      p."startDate" AS "startDate",
       p."dueDate" AS "dueDate",
+      p."estimatedHours" AS "estimatedHours",
       p."completedAt" AS "completedAt",
       c.id AS "companyId",
       c.name AS "companyName",
@@ -103,6 +102,11 @@ function toMinutes(value: number | bigint): number {
   return typeof value === 'bigint' ? Number(value) : value;
 }
 
+/** The project's own estimate; null while the field is left empty. */
+function estimatedMinutes(estimatedHours: number | null): number | null {
+  return estimatedHours === null ? null : Math.round(estimatedHours * 60);
+}
+
 function dayKey(date: Date): string {
   const year = String(date.getFullYear()).padStart(4, '0');
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -148,7 +152,7 @@ export function shapeProductivityReport(
       lateCount += 1;
     }
 
-    const estimated = estimateMinutes(row.startDate, row.dueDate);
+    const estimated = estimatedMinutes(row.estimatedHours);
     if (estimated !== null) {
       totalEstimatedMinutes += estimated;
       if (worked > 0) {

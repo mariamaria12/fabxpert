@@ -24,6 +24,7 @@ export const PROJECT_LIST_SORT_BY_VALUES = [
   'denumireLucrare',
   'finisaj',
   'weight',
+  'estimatedHours',
   'code',
   'company',
   'startDate',
@@ -82,11 +83,22 @@ const weightSchema = z.union([
   z.null(),
 ]);
 
+/** Estimated work hours; empty is stored as null so "not filled in" stays a single state. */
+const estimatedHoursSchema = z.union([
+  z
+    .number()
+    .finite('Estimated hours must be a number')
+    .nonnegative('Estimated hours cannot be negative')
+    .max(1_000_000, 'Estimated hours must be at most 1000000'),
+  z.null(),
+]);
+
 export const createProjectSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
   denumireLucrare: denumireLucrareSchema.optional(),
   finisaj: finisajSchema.optional(),
   weight: weightSchema.optional(),
+  estimatedHours: estimatedHoursSchema.optional(),
   notes: notesSchema.optional(),
   code: z.string().trim().min(1, 'Code is required'),
   companyId: companyIdSchema,
@@ -136,6 +148,8 @@ export type ProjectDto = {
   finisaj: string | null;
   /** Weight in kilograms; null until filled in. */
   weight: number | null;
+  /** Estimated work hours; null until filled in. */
+  estimatedHours: number | null;
   /** Free-text admin notes; null when empty. */
   notes: string | null;
   code: string;

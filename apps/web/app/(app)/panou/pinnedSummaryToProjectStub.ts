@@ -8,6 +8,7 @@ export function pinnedSummaryToProjectStub(row: PinnedProjectSummaryRow): Projec
     denumireLucrare: row.denumireLucrare,
     finisaj: row.finisaj,
     weight: null,
+    estimatedHours: null,
     notes: null,
     code: row.code,
     status: row.status,

@@ -220,6 +220,8 @@ model Project {
   finisaj           String?
   /// Project weight in kilograms; null until filled in.
   weight            Float?
+  /// Estimated hours of work for the project; null until filled in.
+  estimatedHours    Float?
   /// Free-text admin notes about the project.
   notes             String?
   /// Derived in Postgres (GENERATED ALWAYS AS ... STORED) from `status`: rank for the
