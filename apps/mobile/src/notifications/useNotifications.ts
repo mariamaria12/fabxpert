@@ -40,5 +40,14 @@ export function useNotifications() {
     }
   }, []);
 
-  return { notifications, dismiss, refresh };
+  /**
+   * Drops a poll's notification from the banner without calling the API — the
+   * vote already dismissed it server-side, and waiting for a refetch would
+   * leave "Sondaj nou" on screen after the answer was sent.
+   */
+  const dismissForPoll = useCallback((pollId: string) => {
+    setNotifications((current) => current.filter((item) => item.pollId !== pollId));
+  }, []);
+
+  return { notifications, dismiss, dismissForPoll, refresh };
 }

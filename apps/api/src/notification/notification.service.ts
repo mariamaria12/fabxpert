@@ -32,6 +32,7 @@ function toDto(notification: NotificationWithAuthor): NotificationDto {
     body: notification.body,
     createdAt: notification.createdAt.toISOString(),
     createdByName: person ? `${person.firstName} ${person.lastName}` : null,
+    pollId: notification.pollId,
   };
 }
 

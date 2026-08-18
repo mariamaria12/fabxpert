@@ -13,6 +13,7 @@ import {
   type UpdatePollInput,
 } from '@fabxpert/shared';
 import { useEffect, useState, type FormEvent } from 'react';
+import { pollErrorMessage } from './pollErrors';
 import { DateField } from '@/components/DateField';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { TextField } from '@/components/TextField';
@@ -44,17 +45,6 @@ function pollToFormValues(poll: PollDto): PollFormValues {
     allowMultiple: poll.allowMultiple,
     closesOn: poll.closesOn ?? '',
   };
-}
-
-function mapFormError(message: string): string {
-  switch (message) {
-    case 'Options can only be changed while the poll is a draft':
-      return 'Opțiunile nu mai pot fi schimbate după publicare.';
-    case 'Answer mode can only be changed while the poll is a draft':
-      return 'Modul de răspuns nu mai poate fi schimbat după publicare.';
-    default:
-      return message;
-  }
 }
 
 export interface PollFormPanelProps {
@@ -183,7 +173,7 @@ export function PollFormPanel({ open, mode, poll, onClose, onSaved }: PollFormPa
       onClose();
     } catch (caught) {
       if (caught instanceof ApiError && (caught.status === 400 || caught.status === 409)) {
-        setFormError(mapFormError(caught.message));
+        setFormError(pollErrorMessage(caught));
       } else {
         showToast(apiErrorToastMessage(caught), 'error');
       }

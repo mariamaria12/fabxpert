@@ -23,7 +23,7 @@ function ChartIcon() {
  */
 export function PollBanner() {
   const { polls, refresh, replacePoll } = usePollsContext();
-  const { refresh: refreshNotifications } = useNotificationsContext();
+  const { dismissForPoll } = useNotificationsContext();
   const [openPollId, setOpenPollId] = useState<string | null>(null);
 
   if (polls.length === 0) {
@@ -66,11 +66,12 @@ export function PollBanner() {
           key={openPoll.id}
           poll={openPoll}
           dismissible
-          onDone={(answered) => {
+          onAnswered={(answered) => {
             replacePoll(answered);
+            dismissForPoll(openPoll.id);
             setOpenPollId(null);
-            void refreshNotifications();
           }}
+          onDismiss={() => setOpenPollId(null)}
         />
       ) : null}
     </>

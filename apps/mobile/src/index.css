@@ -1988,7 +1988,9 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 20px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
 }
 
 .poll-option {
@@ -2030,11 +2032,13 @@ body {
   justify-content: center;
   width: 22px;
   height: 22px;
+  border: 1px solid var(--color-border);
   border-radius: 999px;
   color: var(--color-accent);
 }
 
 .poll-option.is-selected .poll-option-mark {
+  border-color: var(--color-accent);
   background: var(--color-accent);
   color: var(--color-accent-contrast);
 }
@@ -2067,7 +2071,9 @@ body {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  margin-top: 20px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
 }
 
 .poll-result-head {

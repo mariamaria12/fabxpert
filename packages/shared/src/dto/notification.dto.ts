@@ -19,6 +19,8 @@ export interface NotificationDto {
   createdAt: string;
   /** Display name of the admin who sent it; null for SYSTEM notifications. */
   createdByName: string | null;
+  /** Set on POLL notifications — lets the app clear this exact one on answer. */
+  pollId: string | null;
 }
 
 /** Browser `PushSubscription` fields the API needs to send a push later. */

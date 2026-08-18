@@ -6,8 +6,10 @@ interface PollScreenProps {
   poll: PollDto;
   /** Opened from the banner, so it can be left without answering. */
   dismissible?: boolean;
-  /** Hands back the freshest version of the poll — voted or untouched. */
-  onDone: (poll: PollDto) => void;
+  /** A vote landed — the poll comes back with the fresh tally. */
+  onAnswered: (poll: PollDto) => void;
+  /** Left without answering. */
+  onDismiss?: () => void;
 }
 
 function CheckIcon() {
@@ -36,7 +38,12 @@ function CloseIcon() {
  * The poll itself: the vote form, or the tally once the user has answered —
  * employees only ever see the counts, never who voted what.
  */
-export function PollScreen({ poll, dismissible = false, onDone }: PollScreenProps) {
+export function PollScreen({
+  poll,
+  dismissible = false,
+  onAnswered,
+  onDismiss,
+}: PollScreenProps) {
   const hasAnswered = poll.myOptionIds.length > 0;
   const [selectedIds, setSelectedIds] = useState<string[]>(poll.myOptionIds);
   // An already-answered poll opens on the tally; sending an answer closes the
@@ -65,7 +72,7 @@ export function PollScreen({ poll, dismissible = false, onDone }: PollScreenProp
     setIsSubmitting(true);
     setError(null);
     try {
-      onDone(await votePoll(poll.id, { optionIds: selectedIds }));
+      onAnswered(await votePoll(poll.id, { optionIds: selectedIds }));
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 409) {
         setError('Sondajul nu mai acceptă răspunsuri.');
@@ -118,7 +125,7 @@ export function PollScreen({ poll, dismissible = false, onDone }: PollScreenProp
             Schimbă răspunsul
           </button>
 
-          <button type="button" className="poll-submit" onClick={() => onDone(poll)}>
+          <button type="button" className="poll-submit" onClick={() => onDismiss?.()}>
             Închide
           </button>
         </div>
@@ -136,7 +143,7 @@ export function PollScreen({ poll, dismissible = false, onDone }: PollScreenProp
               type="button"
               className="poll-close"
               aria-label="Închide sondajul"
-              onClick={() => (hasAnswered ? setShowResults(true) : onDone(poll))}
+              onClick={() => (hasAnswered ? setShowResults(true) : onDismiss?.())}
             >
               <CloseIcon />
             </button>

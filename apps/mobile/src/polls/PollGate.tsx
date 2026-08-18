@@ -10,7 +10,7 @@ import { useNotificationsContext } from '../notifications/NotificationsContext';
  */
 export function PollGate({ children }: { children: ReactNode }) {
   const { polls, replacePoll } = usePollsContext();
-  const { refresh: refreshNotifications } = useNotificationsContext();
+  const { dismissForPoll } = useNotificationsContext();
   const poll = polls.find(isUnanswered);
 
   if (!poll) {
@@ -21,10 +21,11 @@ export function PollGate({ children }: { children: ReactNode }) {
     <PollScreen
       key={poll.id}
       poll={poll}
-      onDone={(answered) => {
+      onAnswered={(answered) => {
         replacePoll(answered);
-        // The server clears the poll notification on vote — pick that up now.
-        void refreshNotifications();
+        // Same render as the screen closing, so the app behind it is already
+        // showing the running-poll banner and nothing else.
+        dismissForPoll(poll.id);
       }}
     />
   );

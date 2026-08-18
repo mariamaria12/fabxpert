@@ -28,6 +28,20 @@ const pollInclude = {
 
 type PollWithRelations = Prisma.PollGetPayload<{ include: typeof pollInclude }>;
 
+/**
+ * Who a poll goes to, and what the answer rate counts against: active employee
+ * accounts minus external collaborators (`angajatExtern`). Externals are not
+ * part of team decisions.
+ */
+function pollAudienceWhere() {
+  return {
+    ...notDeleted(),
+    isActive: true,
+    role: 'EMPLOYEE',
+    angajatExtern: false,
+  } as const;
+}
+
 /** Blank description and no description mean the same thing — store null. */
 function normalizeDescription(value: string | undefined): string | null {
   const trimmed = value?.trim();
@@ -182,7 +196,7 @@ export class PollService {
     });
 
     const recipients = await this.prisma.user.findMany({
-      where: { ...notDeleted(), isActive: true, role: 'EMPLOYEE' },
+      where: pollAudienceWhere(),
       select: { id: true },
     });
 
@@ -205,8 +219,14 @@ export class PollService {
   async close(id: string, currentUserId: string): Promise<PollDto> {
     const poll = await this.loadPoll(id);
 
+    // Closing something already closed is the state the caller asked for — say
+    // yes instead of failing a second click or a stale screen.
+    if (poll.status === 'CLOSED') {
+      return this.findOne(id, currentUserId, true);
+    }
+
     if (poll.status !== 'OPEN') {
-      throw new ConflictException('Only an open poll can be closed');
+      throw new ConflictException('A draft poll cannot be closed');
     }
 
     await this.prisma.poll.update({ where: { id }, data: { status: 'CLOSED' } });
@@ -289,11 +309,8 @@ export class PollService {
     return poll;
   }
 
-  /** Active employees — who a publish reaches, and what the answer rate is out of. */
   private countAudience(): Promise<number> {
-    return this.prisma.user.count({
-      where: { ...notDeleted(), isActive: true, role: 'EMPLOYEE' },
-    });
+    return this.prisma.user.count({ where: pollAudienceWhere() });
   }
 
   /** A closed or deleted poll shouldn't keep nagging from the notification list. */

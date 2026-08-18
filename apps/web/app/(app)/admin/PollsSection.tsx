@@ -11,12 +11,17 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { PollDetailPanel, PollStatusBadge } from './PollDetailPanel';
 import { PollFormPanel } from './PollFormPanel';
+import { isStalePollError, pollErrorMessage } from './pollErrors';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { replaceById } from '@/utils/replaceById';
 
 interface PollsSectionProps {
   active: boolean;
+}
+
+function formatUpdatedAt(date: Date): string {
+  return date.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
 }
 
 type FormState =
@@ -32,6 +37,7 @@ export function PollsSection({ active }: PollsSectionProps) {
   const [form, setForm] = useState<FormState>({ open: false });
   const [openPollId, setOpenPollId] = useState<string | null>(null);
   const [busyPollId, setBusyPollId] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const loadPolls = useCallback(async () => {
     setLoading(true);
@@ -39,6 +45,7 @@ export function PollsSection({ active }: PollsSectionProps) {
 
     try {
       setPolls(await listPolls());
+      setLastUpdated(new Date());
     } catch (caught) {
       setError(apiErrorToastMessage(caught));
     } finally {
@@ -67,7 +74,10 @@ export function PollsSection({ active }: PollsSectionProps) {
       setPolls((current) => replaceById(current, result.poll));
       showToast(`Sondaj publicat · ${result.notifiedCount} persoane notificate`, 'success');
     } catch (caught) {
-      showToast(apiErrorToastMessage(caught), 'error');
+      showToast(pollErrorMessage(caught), 'error');
+      if (isStalePollError(caught)) {
+        void loadPolls();
+      }
     } finally {
       setBusyPollId(null);
     }
@@ -80,7 +90,10 @@ export function PollsSection({ active }: PollsSectionProps) {
       setPolls((current) => replaceById(current, reopened));
       showToast('Sondaj redeschis', 'success');
     } catch (caught) {
-      showToast(apiErrorToastMessage(caught), 'error');
+      showToast(pollErrorMessage(caught), 'error');
+      if (isStalePollError(caught)) {
+        void loadPolls();
+      }
     } finally {
       setBusyPollId(null);
     }
@@ -97,13 +110,34 @@ export function PollsSection({ active }: PollsSectionProps) {
             Întrebări scurte pentru echipă. La publicare, toți angajații primesc o notificare.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setForm({ open: true, mode: 'create', poll: null })}
-          className="shrink-0 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-contrast transition-opacity hover:opacity-90 sm:px-4 sm:py-2 sm:text-sm"
-        >
-          Sondaj nou
-        </button>
+        <div className="flex shrink-0 items-center gap-3">
+          {lastUpdated ? (
+            <span className="hidden text-xs text-text-muted sm:inline">
+              actualizat {formatUpdatedAt(lastUpdated)}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => void loadPolls()}
+            aria-label="Împrospătare date"
+            title="Împrospătare date"
+            className="inline-flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary disabled:opacity-50 md:px-3 md:py-2 md:text-sm"
+          >
+            <i
+              className={`ti ti-refresh text-sm md:text-base ${loading ? 'animate-spin' : ''}`}
+              aria-hidden="true"
+            />
+            <span className="hidden md:inline">Împrospătare date</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setForm({ open: true, mode: 'create', poll: null })}
+            className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-contrast transition-opacity hover:opacity-90 sm:px-4 sm:py-2 sm:text-sm"
+          >
+            Sondaj nou
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -199,6 +233,7 @@ export function PollsSection({ active }: PollsSectionProps) {
             setOpenPollId(null);
             setForm({ open: true, mode: 'edit', poll });
           }}
+          onOutOfDate={() => void loadPolls()}
         />
       )}
     </section>

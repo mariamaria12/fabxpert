@@ -11,9 +11,9 @@ import {
   type PollDto,
 } from '@fabxpert/shared';
 import { useState } from 'react';
+import { isStalePollError, pollErrorMessage } from './pollErrors';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { useToast } from '@/context/ToastContext';
-import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 
 export interface PollDetailPanelProps {
   poll: PollDto;
@@ -21,6 +21,8 @@ export interface PollDetailPanelProps {
   onChanged: (poll: PollDto) => void;
   onDeleted: (pollId: string) => void;
   onEdit: (poll: PollDto) => void;
+  /** Called when the server disagrees with what this panel is showing. */
+  onOutOfDate: () => void;
 }
 
 /** Results of one poll, with who answered what — admins see names, not just counts. */
@@ -30,6 +32,7 @@ export function PollDetailPanel({
   onChanged,
   onDeleted,
   onEdit,
+  onOutOfDate,
 }: PollDetailPanelProps) {
   const { showToast } = useToast();
   const [busyAction, setBusyAction] = useState<'publish' | 'close' | 'reopen' | 'delete' | null>(
@@ -47,7 +50,10 @@ export function PollDetailPanel({
       onChanged(result.poll);
       showToast(`Sondaj publicat · ${result.notifiedCount} persoane notificate`, 'success');
     } catch (caught) {
-      showToast(apiErrorToastMessage(caught), 'error');
+      showToast(pollErrorMessage(caught), 'error');
+      if (isStalePollError(caught)) {
+        onOutOfDate();
+      }
     } finally {
       setBusyAction(null);
     }
@@ -59,7 +65,10 @@ export function PollDetailPanel({
       onChanged(await closePoll(poll.id));
       showToast('Sondaj închis', 'success');
     } catch (caught) {
-      showToast(apiErrorToastMessage(caught), 'error');
+      showToast(pollErrorMessage(caught), 'error');
+      if (isStalePollError(caught)) {
+        onOutOfDate();
+      }
     } finally {
       setBusyAction(null);
     }
@@ -71,7 +80,10 @@ export function PollDetailPanel({
       onChanged(await reopenPoll(poll.id));
       showToast('Sondaj redeschis', 'success');
     } catch (caught) {
-      showToast(apiErrorToastMessage(caught), 'error');
+      showToast(pollErrorMessage(caught), 'error');
+      if (isStalePollError(caught)) {
+        onOutOfDate();
+      }
     } finally {
       setBusyAction(null);
     }
@@ -85,7 +97,10 @@ export function PollDetailPanel({
       onDeleted(poll.id);
       onClose();
     } catch (caught) {
-      showToast(apiErrorToastMessage(caught), 'error');
+      showToast(pollErrorMessage(caught), 'error');
+      if (isStalePollError(caught)) {
+        onOutOfDate();
+      }
     } finally {
       setBusyAction(null);
     }
