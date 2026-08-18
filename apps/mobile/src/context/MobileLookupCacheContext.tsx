@@ -152,6 +152,26 @@ export function MobileLookupCacheProvider({ children }: { children: ReactNode })
     void refreshMyTimesheetsPage1();
   }, [refreshActivities, refreshProjects, refreshMyTimesheetsPage1]);
 
+  /**
+   * Tapping a push notification focuses the window that was already open, so the
+   * app comes back with whatever it had in memory — a pontaj saved since then
+   * would be missing. Refetch on every return to the foreground, silently, so
+   * nothing flashes back to a skeleton.
+   */
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState !== 'visible') {
+        return;
+      }
+
+      void refreshMyTimesheetsPage1({ silent: true, force: true });
+      void refreshProjects({ silent: true });
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [refreshMyTimesheetsPage1, refreshProjects]);
+
   useEffect(() => {
     const unsubscribe = subscribeToAvailableProjects(() => {
       if (projectsDebounceRef.current !== null) {

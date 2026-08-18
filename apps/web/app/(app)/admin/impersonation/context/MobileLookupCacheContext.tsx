@@ -135,6 +135,24 @@ export function MobileLookupCacheProvider({ children }: { children: ReactNode })
     void refreshMyTimesheetsPage1();
   }, [refreshActivities, refreshProjects, refreshMyTimesheetsPage1]);
 
+  /**
+   * Mirrors the mobile app: coming back to the view refetches, so a pontaj saved
+   * elsewhere in the meantime is not missing from the list.
+   */
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState !== 'visible') {
+        return;
+      }
+
+      void refreshMyTimesheetsPage1({ silent: true, force: true });
+      void refreshProjects({ silent: true });
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [refreshMyTimesheetsPage1, refreshProjects]);
+
   useEffect(() => {
     const unsubscribe = subscribeToAvailableProjects(() => {
       if (projectsDebounceRef.current !== null) {

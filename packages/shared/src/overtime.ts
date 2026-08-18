@@ -7,13 +7,17 @@ export type OvertimeDay = {
   loggedMinutes: number;
   /** Approved leave covering that day — a whole day off is DAILY_WORK_MINUTES. */
   leaveMinutes?: number;
-  /** Weekends can only add overtime; a short Saturday is not a debt. Defaults to true. */
+  /** Weekend work is overtime hour for hour, never a debt. Defaults to true. */
   isWorkingDay?: boolean;
 };
 
 /**
- * Running overtime over a set of days: a working day counts for what it is
- * short of, or over, the contractual day. Ten hours is +1h, eight is −1h.
+ * Running overtime over a set of days.
+ *
+ * A working day counts for what it is short of, or over, the contractual day:
+ * ten hours is +1h, eight is −1h. A weekend day has no contractual hours to
+ * meet, so everything logged on it is overtime — four hours on a Saturday is
+ * +4h.
  *
  * Only days the person logged time on are passed in — a day with no timesheet
  * at all is not a debt, it is simply not counted.
@@ -25,7 +29,7 @@ export type OvertimeDay = {
 export function overtimeBalanceMinutes(days: OvertimeDay[]): number {
   return days.reduce((sum, day) => {
     if (day.isWorkingDay === false) {
-      return sum + Math.max(0, day.loggedMinutes - DAILY_WORK_MINUTES);
+      return sum + day.loggedMinutes;
     }
 
     return sum + day.loggedMinutes + (day.leaveMinutes ?? 0) - DAILY_WORK_MINUTES;
