@@ -5,6 +5,8 @@ import { TimesheetFlow } from './components/TimesheetFlow';
 import { LoginScreen } from './LoginScreen';
 import { MobileLookupCacheProvider } from './context/MobileLookupCacheContext';
 import { NotificationsProvider } from './notifications/NotificationsContext';
+import { PollGate } from './polls/PollGate';
+import { PollsProvider } from './polls/PollsContext';
 
 const SESSION_RETRY_DELAY_MS = 1500;
 
@@ -65,7 +67,11 @@ export default function App() {
     return (
       <MobileLookupCacheProvider>
         <NotificationsProvider>
-          <TimesheetFlow user={user} onLogout={() => setUser(null)} />
+          <PollsProvider>
+            <PollGate>
+              <TimesheetFlow user={user} onLogout={() => setUser(null)} />
+            </PollGate>
+          </PollsProvider>
         </NotificationsProvider>
       </MobileLookupCacheProvider>
     );

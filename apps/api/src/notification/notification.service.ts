@@ -18,6 +18,8 @@ export type CreateNotificationParams = {
   body: string;
   source?: NotificationSource;
   createdByUserId?: string;
+  /** Set on POLL notifications so answering can clear this exact nudge. */
+  pollId?: string;
 };
 
 function toDto(notification: NotificationWithAuthor): NotificationDto {
@@ -52,16 +54,50 @@ export class NotificationService {
 
   /** Stores the notification and pushes it to the user's devices. */
   async create(params: CreateNotificationParams): Promise<NotificationDto> {
-    const { userId, kind, title, body, source = 'SYSTEM', createdByUserId } = params;
+    const { userId, kind, title, body, source = 'SYSTEM', createdByUserId, pollId } = params;
 
     const created = await this.prisma.notification.create({
-      data: { userId, kind, title, body, source, createdByUserId },
+      data: { userId, kind, title, body, source, createdByUserId, pollId },
       include: { createdBy: { include: { person: true } } },
     });
 
     await this.push.sendToUser(userId, { title, body, tag: created.id });
 
     return toDto(created);
+  }
+
+  /**
+   * Same notification to many users at once. One insert for the whole batch —
+   * a per-user create would mean one round trip per employee, which is what
+   * made publishing a poll feel stuck.
+   */
+  async createForUsers(
+    params: Omit<CreateNotificationParams, 'userId'> & { userIds: string[] },
+  ): Promise<number> {
+    const { userIds, kind, title, body, source = 'SYSTEM', createdByUserId, pollId } = params;
+    if (userIds.length === 0) {
+      return 0;
+    }
+
+    await this.prisma.notification.createMany({
+      data: userIds.map((userId) => ({
+        userId,
+        kind,
+        title,
+        body,
+        source,
+        createdByUserId,
+        pollId,
+      })),
+    });
+
+    // Push is best effort and never blocks the batch — same tag for everyone,
+    // so a re-send collapses in the tray instead of stacking.
+    await Promise.all(
+      userIds.map((userId) => this.push.sendToUser(userId, { title, body, tag: pollId })),
+    );
+
+    return userIds.length;
   }
 
   /**

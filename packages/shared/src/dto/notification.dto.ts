@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const NOTIFICATION_KIND_VALUES = [
   'TIMESHEET_REMINDER',
   'ANNOUNCEMENT',
+  'POLL',
 ] as const;
 export const NOTIFICATION_SOURCE_VALUES = ['SYSTEM', 'ADMIN'] as const;
 

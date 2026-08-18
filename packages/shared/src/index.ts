@@ -367,3 +367,42 @@ export type {
   SendTimesheetReminderInput,
   SendTimesheetReminderResponse,
 } from './dto/notification.dto';
+export {
+  listPolls,
+  listActivePolls,
+  getPoll,
+  createPoll,
+  updatePoll,
+  publishPoll,
+  closePoll,
+  reopenPoll,
+  deletePoll,
+  votePoll,
+} from './api/poll';
+export {
+  createPollSchema,
+  updatePollSchema,
+  votePollSchema,
+  POLL_STATUS_VALUES,
+  POLL_MIN_OPTIONS,
+  POLL_MAX_OPTIONS,
+  POLL_TITLE_MAX_LENGTH,
+  POLL_DESCRIPTION_MAX_LENGTH,
+  POLL_OPTION_MAX_LENGTH,
+} from './dto/poll.dto';
+export type {
+  PollDto,
+  PollOptionDto,
+  PollVoterDto,
+  PollStatus,
+  CreatePollInput,
+  UpdatePollInput,
+  VotePollInput,
+  PublishPollResponse,
+} from './dto/poll.dto';
+export {
+  getPollStatusLabel,
+  formatPollAnswerCount,
+  formatPollDeadline,
+} from './pollLabels';
+

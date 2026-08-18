@@ -28,6 +28,7 @@ import {
   parseAdminTab,
   type AdminTab,
 } from './adminTabs';
+import { CommunicationTab } from './CommunicationTab';
 import { UsersTab } from './UsersTab';
 import { LookupManager } from '@/components/LookupManager';
 import { getRolePaletteColor } from '@/components/roleColors';
@@ -134,6 +135,12 @@ export default function AdminPage() {
       </div>
 
       <div className="mt-6 min-h-0 flex-1">
+        {activatedTabs.has('communication') && (
+          <div hidden={activeTab !== 'communication'}>
+            <CommunicationTab active={activeTab === 'communication'} />
+          </div>
+        )}
+
         {activatedTabs.has('users') && (
           <div hidden={activeTab !== 'users'}>
             <UsersTab active={activeTab === 'users'} />

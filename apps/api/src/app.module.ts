@@ -16,6 +16,7 @@ import { TimesheetModule } from './timesheet/timesheet.module';
 import { LeaveModule } from './leave/leave.module';
 import { OvertimeModule } from './overtime/overtime.module';
 import { NotificationModule } from './notification/notification.module';
+import { PollModule } from './poll/poll.module';
 import { UserModule } from './user/user.module';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -35,6 +36,7 @@ import { PrismaModule } from './prisma/prisma.module';
     LeaveModule,
     OvertimeModule,
     NotificationModule,
+    PollModule,
   ],
   controllers: [AppController],
   providers: [

@@ -12,6 +12,7 @@ import { TimesheetEdit } from './TimesheetEdit';
 import { NotificationBanner } from '../notifications/NotificationBanner';
 import { NotificationPermissionPrompt } from '../notifications/NotificationPermissionPrompt';
 import { useNotificationsContext } from '../notifications/NotificationsContext';
+import { PollBanner } from '../polls/PollBanner';
 import type { FlowStep } from '../types/flow';
 
 interface TimesheetFlowProps {
@@ -185,6 +186,8 @@ export function TimesheetFlow({ user, onLogout }: TimesheetFlowProps) {
 
       <main className="timesheet-main">
         <NotificationBanner />
+
+        {step === 'selectProject' ? <PollBanner /> : null}
 
         {step === 'selectProject' ? (
           <ProjectSelect

@@ -65,6 +65,10 @@
       "types": "./dist/dto/notification.dto.d.ts",
       "default": "./dist/dto/notification.dto.js"
     },
+    "./dto/poll.dto": {
+      "types": "./dist/dto/poll.dto.d.ts",
+      "default": "./dist/dto/poll.dto.js"
+    },
     "./companyImport": {
       "types": "./dist/companyImport.d.ts",
       "default": "./dist/companyImport.js"
@@ -76,6 +80,10 @@
     "./leaveLabels": {
       "types": "./dist/leaveLabels.d.ts",
       "default": "./dist/leaveLabels.js"
+    },
+    "./pollLabels": {
+      "types": "./dist/pollLabels.d.ts",
+      "default": "./dist/pollLabels.js"
     },
     "./workDate": {
       "types": "./dist/workDate.d.ts",
