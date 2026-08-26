@@ -8,6 +8,7 @@ import { PersonName } from '@/components/PersonAvatar';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 import { PersonBreakdownRows } from './PersonBreakdownRows';
+import { PersonTimesheetDaysPanel } from './PersonTimesheetDaysPanel';
 import { usePanouDashboard } from './PanouDashboardContext';
 import { PANOU_PERSON_GROUPS } from './panouPersonGroups';
 
@@ -15,37 +16,50 @@ function PersonHoursCard({
   person,
   expanded,
   onToggle,
+  onEdit,
 }: {
   person: PersonSummaryPersonRow;
   expanded: boolean;
   onToggle: () => void;
+  onEdit: () => void;
 }) {
   return (
     <div className="overflow-hidden rounded-lg border border-border-subtle bg-surface shadow-sm shadow-black/10">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={expanded}
-        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-surface-raised/60"
-      >
-        <PersonName
-          person={person}
-          className="min-w-0 flex-1"
-          nameClassName="text-sm font-medium text-text-primary"
-        />
-        <div className="flex shrink-0 items-center gap-3">
-          <div className="text-right">
-            <p className="font-mono text-xs font-medium tabular-nums text-text-primary">
-              {formatDurationMinutes(person.totalMinutes)}
-            </p>
-            <p className="text-[10px] text-text-muted">total logat</p>
-          </div>
-          <i
-            className={`ti ${expanded ? 'ti-chevron-up' : 'ti-chevron-down'} text-base text-text-muted`}
-            aria-hidden="true"
+      <div className="flex items-center">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-surface-raised/60"
+        >
+          <PersonName
+            person={person}
+            className="min-w-0 flex-1"
+            nameClassName="text-sm font-medium text-text-primary"
           />
-        </div>
-      </button>
+          <div className="flex shrink-0 items-center gap-3">
+            <div className="text-right">
+              <p className="font-mono text-xs font-medium tabular-nums text-text-primary">
+                {formatDurationMinutes(person.totalMinutes)}
+              </p>
+              <p className="text-[10px] text-text-muted">total logat</p>
+            </div>
+            <i
+              className={`ti ${expanded ? 'ti-chevron-up' : 'ti-chevron-down'} text-base text-text-muted`}
+              aria-hidden="true"
+            />
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={onEdit}
+          aria-label={`Editează pontajele lui ${person.firstName} ${person.lastName}`}
+          title="Editează pontajele"
+          className="mr-2 shrink-0 rounded p-1.5 text-text-muted transition-colors hover:bg-surface-raised hover:text-text-primary"
+        >
+          <i className="ti ti-pencil text-base" aria-hidden="true" />
+        </button>
+      </div>
 
       {expanded && (
         <div className="border-t border-border-subtle px-4 py-3">
@@ -65,6 +79,7 @@ export function PanouPeopleView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [editPerson, setEditPerson] = useState<PersonSummaryPersonRow | null>(null);
 
   const loadSummary = useCallback(
     async (background = false) => {
@@ -180,6 +195,7 @@ export function PanouPeopleView() {
                         person={person}
                         expanded={!collapsedIds.has(person.id)}
                         onToggle={() => toggleExpanded(person.id)}
+                        onEdit={() => setEditPerson(person)}
                       />
                     ))}
                   </div>
@@ -188,6 +204,16 @@ export function PanouPeopleView() {
             );
           })}
         </div>
+      )}
+
+      {editPerson && (
+        <PersonTimesheetDaysPanel
+          personId={editPerson.id}
+          personName={`${editPerson.firstName} ${editPerson.lastName}`}
+          period={period}
+          onClose={() => setEditPerson(null)}
+          onSaved={() => void refetchSummary()}
+        />
       )}
 
       {exportOpen && (

@@ -2,9 +2,14 @@
 
 import {
   deleteTimesheet,
+  listActivities,
+  listProjects,
   updateTimesheet,
+  type ActivityDto,
+  type ProjectDto,
   type TimesheetDayGroupDto,
   type TimesheetDto,
+  type UpdateTimesheetInput,
 } from '@fabxpert/shared';
 import { useEffect, useState, type FormEvent } from 'react';
 import {
@@ -14,27 +19,64 @@ import {
 } from './timesheetFormat';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { DateField } from '@/components/DateField';
+import { SelectField, type SelectFieldOption } from '@/components/SelectField';
 import { TextField } from '@/components/TextField';
+import { FORM_FIELD_CLASS, FORM_LABEL_CLASS } from '@/components/formFieldStyles';
+import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 
 /** Mirrors what parseDurationMinutesInput accepts. */
 const DURATION_PLACEHOLDER = 'ex. 9h, 1h30 sau 45m';
 const DURATION_ERROR_MESSAGE = 'Durata trebuie să fie de forma 9h, 1h30 sau 45m.';
+const NO_ACTIVITY_LABEL = 'Fără activitate';
+const LOOKUP_PAGE_SIZE = 500;
 
-function durationsFromGroup(group: TimesheetDayGroupDto): Record<string, string> {
-  return Object.fromEntries(
-    group.entries.map((entry) => [entry.id, durationMinutesToHoursInput(entry.durationMinutes)]),
+/** The editable fields of one entry. */
+interface EntryDraft {
+  projectId: string;
+  activityId: string;
+  duration: string;
+  notes: string;
+}
+
+function entryToDraft(entry: TimesheetDto): EntryDraft {
+  return {
+    projectId: entry.projectId,
+    activityId: entry.activityId ?? '',
+    duration: durationMinutesToHoursInput(entry.durationMinutes),
+    notes: entry.notes ?? '',
+  };
+}
+
+function draftsFromEntries(entries: TimesheetDto[]): Record<string, EntryDraft> {
+  return Object.fromEntries(entries.map((entry) => [entry.id, entryToDraft(entry)]));
+}
+
+function projectOptionLabel(project: {
+  code: string;
+  name: string;
+  denumireLucrare: string | null;
+  company: { name: string };
+}): string {
+  const head = project.code || project.name;
+  return [head, project.denumireLucrare, project.company.name].filter(Boolean).join(' · ');
+}
+
+/**
+ * The entry's own project and activity may be missing from the lookups (older
+ * projects fall outside the first page), so they are added back — otherwise the
+ * select would look empty on a pontaj nobody touched.
+ */
+function withEntryOptions(
+  options: SelectFieldOption[],
+  entryOptions: SelectFieldOption[],
+): SelectFieldOption[] {
+  const known = new Set(options.map((option) => option.id));
+  const missing = entryOptions.filter(
+    (option) => option.id !== '' && !known.has(option.id),
   );
-}
-
-function entryActivityName(entry: TimesheetDto): string {
-  return entry.activity?.name ?? 'Fără activitate';
-}
-
-function entryProjectLabel(entry: TimesheetDto): string {
-  const parts = [entry.project.code, entry.project.denumireLucrare, entry.project.company.name];
-  return parts.filter(Boolean).join(' · ');
+  return missing.length > 0 ? [...options, ...missing] : options;
 }
 
 export interface TimesheetDayGroupPanelProps {
@@ -45,8 +87,8 @@ export interface TimesheetDayGroupPanelProps {
 }
 
 /**
- * Edits one person-day: the date moves every entry of that day, and each
- * activity keeps its own duration.
+ * Edits one person-day: the date moves every entry of that day, and each pontaj
+ * keeps its own project, activity, duration and notes.
  */
 export function TimesheetDayGroupPanel({
   open,
@@ -55,42 +97,112 @@ export function TimesheetDayGroupPanel({
   onSaved,
 }: TimesheetDayGroupPanelProps) {
   const { showToast } = useToast();
+  const businessAutofill = useBusinessAutofillProps();
   // Deleting an entry drops it from the list without closing the panel, so the
   // day's entries live in state instead of being read straight off the prop.
   const [entries, setEntries] = useState<TimesheetDto[]>(group.entries);
   const [workDate, setWorkDate] = useState(() => isoToDateInput(group.workDate));
-  const [durations, setDurations] = useState<Record<string, string>>(() =>
-    durationsFromGroup(group),
+  const [drafts, setDrafts] = useState<Record<string, EntryDraft>>(() =>
+    draftsFromEntries(group.entries),
   );
   const [durationErrors, setDurationErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [projects, setProjects] = useState<ProjectDto[]>([]);
+  const [activities, setActivities] = useState<ActivityDto[]>([]);
 
   useEffect(() => {
     setEntries(group.entries);
     setWorkDate(isoToDateInput(group.workDate));
-    setDurations(durationsFromGroup(group));
+    setDrafts(draftsFromEntries(group.entries));
     setDurationErrors({});
     setFormError(null);
     setConfirmDeleteId(null);
   }, [group]);
 
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    let cancelled = false;
+
+    Promise.all([
+      listProjects({ page: 1, pageSize: LOOKUP_PAGE_SIZE, compact: true }),
+      listActivities(),
+    ])
+      .then(([projectsResponse, activitiesResponse]) => {
+        if (!cancelled) {
+          setProjects(projectsResponse.data);
+          setActivities(activitiesResponse);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setProjects([]);
+          setActivities([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
   const personName = `${group.person.firstName} ${group.person.lastName}`;
   const dateChanged = workDate !== isoToDateInput(group.workDate);
   const isBusy = isSubmitting || deletingId !== null;
 
-  function updateDuration(entryId: string, value: string) {
-    setDurations((current) => ({ ...current, [entryId]: value }));
-    setDurationErrors((current) => {
-      if (!current[entryId]) {
-        return current;
-      }
-      const next = { ...current };
-      delete next[entryId];
-      return next;
-    });
+  const projectOptions = withEntryOptions(
+    projects.map((project) => ({ id: project.id, label: projectOptionLabel(project) })),
+    entries.map((entry) => ({
+      id: entry.projectId,
+      label: projectOptionLabel(entry.project),
+    })),
+  );
+
+  const activityOptions = withEntryOptions(
+    activities.map((activity) => ({ id: activity.id, label: activity.name })),
+    entries.map((entry) => ({
+      id: entry.activityId ?? '',
+      label: entry.activity?.name ?? NO_ACTIVITY_LABEL,
+    })),
+  );
+
+  function updateDraft(entryId: string, field: keyof EntryDraft, value: string) {
+    setDrafts((current) => ({
+      ...current,
+      [entryId]: { ...current[entryId], [field]: value },
+    }));
+    if (field === 'duration') {
+      setDurationErrors((current) => {
+        if (!current[entryId]) {
+          return current;
+        }
+        const next = { ...current };
+        delete next[entryId];
+        return next;
+      });
+    }
+    setFormError(null);
+  }
+
+  /** Only the fields that actually changed are sent. */
+  function buildEntryPayload(entry: TimesheetDto, minutes: number): UpdateTimesheetInput {
+    const draft = drafts[entry.id];
+    const notes = draft.notes.trim();
+
+    return {
+      ...(dateChanged ? { workDate } : {}),
+      ...(minutes !== entry.durationMinutes ? { durationMinutes: minutes } : {}),
+      ...(draft.projectId !== entry.projectId ? { projectId: draft.projectId } : {}),
+      ...(draft.activityId && draft.activityId !== entry.activityId
+        ? { activityId: draft.activityId }
+        : {}),
+      ...(notes !== (entry.notes ?? '') ? { notes } : {}),
+    };
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -110,7 +222,7 @@ export function TimesheetDayGroupPanel({
     const parsedDurations = new Map<string, number>();
 
     for (const entry of entries) {
-      const minutes = parseDurationMinutesInput(durations[entry.id] ?? '');
+      const minutes = parseDurationMinutesInput(drafts[entry.id].duration);
       if (minutes === null) {
         errors[entry.id] = DURATION_ERROR_MESSAGE;
         continue;
@@ -123,14 +235,8 @@ export function TimesheetDayGroupPanel({
       return;
     }
 
-    // Only the entries that actually changed are sent.
     const updates = entries.flatMap((entry) => {
-      const minutes = parsedDurations.get(entry.id)!;
-      const payload = {
-        ...(dateChanged ? { workDate } : {}),
-        ...(minutes !== entry.durationMinutes ? { durationMinutes: minutes } : {}),
-      };
-
+      const payload = buildEntryPayload(entry, parsedDurations.get(entry.id)!);
       return Object.keys(payload).length > 0 ? [{ id: entry.id, payload }] : [];
     });
 
@@ -168,7 +274,12 @@ export function TimesheetDayGroupPanel({
 
       const remaining = entries.filter((entry) => entry.id !== entryId);
       setEntries(remaining);
-      setDurations((current) => {
+      setDrafts((current) => {
+        const next = { ...current };
+        delete next[entryId];
+        return next;
+      });
+      setDurationErrors((current) => {
         const next = { ...current };
         delete next[entryId];
         return next;
@@ -242,70 +353,120 @@ export function TimesheetDayGroupPanel({
         )}
 
         <div className="flex flex-col gap-3 border-t border-border-subtle pt-4">
-          <p className="text-xs font-medium text-text-secondary">Durată pe activitate</p>
+          <p className="text-xs font-medium text-text-secondary">Detalii pontaje</p>
 
-          {entries.map((entry) => (
-            <div key={entry.id} className="flex flex-col gap-1.5">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm text-text-primary">{entryActivityName(entry)}</p>
-                  <p className="truncate text-xs text-text-muted">{entryProjectLabel(entry)}</p>
+          {entries.map((entry, index) => {
+            const draft = drafts[entry.id];
+
+            if (!draft) {
+              return null;
+            }
+
+            return (
+              <div
+                key={entry.id}
+                className="flex flex-col gap-3 rounded-md border border-border-subtle bg-surface p-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-medium text-text-muted">Pontaj {index + 1}</p>
+                  {confirmDeleteId !== entry.id && (
+                    <button
+                      type="button"
+                      disabled={isBusy}
+                      aria-label={`Șterge pontajul ${index + 1}`}
+                      title="Șterge pontajul"
+                      onClick={() => setConfirmDeleteId(entry.id)}
+                      className="shrink-0 rounded p-1.5 text-text-muted transition-colors hover:bg-surface-raised hover:text-danger disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <i className="ti ti-trash text-base" aria-hidden="true" />
+                    </button>
+                  )}
                 </div>
-                {confirmDeleteId !== entry.id && (
-                  <button
-                    type="button"
-                    disabled={isBusy}
-                    aria-label={`Șterge pontajul ${entryActivityName(entry)}`}
-                    title="Șterge pontajul"
-                    onClick={() => setConfirmDeleteId(entry.id)}
-                    className="shrink-0 rounded p-1.5 text-text-muted transition-colors hover:bg-surface-raised hover:text-danger disabled:cursor-not-allowed disabled:opacity-40"
+
+                {confirmDeleteId === entry.id ? (
+                  <div
+                    role="alertdialog"
+                    aria-labelledby={`delete-entry-${entry.id}`}
+                    className="rounded-md border border-border-subtle bg-surface-raised p-3"
                   >
-                    <i className="ti ti-trash text-base" aria-hidden="true" />
-                  </button>
+                    <p id={`delete-entry-${entry.id}`} className="text-sm text-text-secondary">
+                      Sigur ștergi acest pontaj?
+                    </p>
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => void handleDeleteEntry(entry.id)}
+                        className="flex-1 rounded-md bg-[var(--color-timer-stop)] px-4 py-2 text-sm font-medium text-[var(--color-timer-stop-text)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {deletingId === entry.id ? 'Se șterge…' : 'Șterge'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="flex-1 rounded-md border border-border px-4 py-2 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Anulează
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <SelectField
+                      id={`project-${entry.id}`}
+                      label="Proiect"
+                      value={draft.projectId}
+                      disabled={isBusy}
+                      required
+                      options={projectOptions}
+                      onChange={(value) => updateDraft(entry.id, 'projectId', value)}
+                    />
+
+                    {/* A pontaj that already has an activity can't go back to
+                        having none — the API has no way to unset it. */}
+                    <SelectField
+                      id={`activity-${entry.id}`}
+                      label="Activitate"
+                      value={draft.activityId}
+                      disabled={isBusy}
+                      required={entry.activityId !== null}
+                      allowEmpty={entry.activityId === null}
+                      placeholder={NO_ACTIVITY_LABEL}
+                      options={activityOptions}
+                      onChange={(value) => updateDraft(entry.id, 'activityId', value)}
+                    />
+
+                    <TextField
+                      id={`duration-${entry.id}`}
+                      label="Durată"
+                      value={draft.duration}
+                      error={durationErrors[entry.id]}
+                      disabled={isBusy}
+                      required
+                      placeholder={DURATION_PLACEHOLDER}
+                      onChange={(value) => updateDraft(entry.id, 'duration', value)}
+                    />
+
+                    <div>
+                      <label htmlFor={`notes-${entry.id}`} className={FORM_LABEL_CLASS}>
+                        Notițe
+                      </label>
+                      <textarea
+                        id={`notes-${entry.id}`}
+                        rows={2}
+                        value={draft.notes}
+                        disabled={isBusy}
+                        onChange={(event) => updateDraft(entry.id, 'notes', event.target.value)}
+                        className={`${FORM_FIELD_CLASS} resize-none`}
+                        {...businessAutofill}
+                      />
+                    </div>
+                  </>
                 )}
               </div>
-
-              {confirmDeleteId === entry.id ? (
-                <div
-                  role="alertdialog"
-                  aria-labelledby={`delete-entry-${entry.id}`}
-                  className="rounded-md border border-border-subtle bg-surface p-3"
-                >
-                  <p id={`delete-entry-${entry.id}`} className="text-sm text-text-secondary">
-                    Sigur ștergi acest pontaj?
-                  </p>
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      type="button"
-                      disabled={isBusy}
-                      onClick={() => void handleDeleteEntry(entry.id)}
-                      className="flex-1 rounded-md bg-[var(--color-timer-stop)] px-4 py-2 text-sm font-medium text-[var(--color-timer-stop-text)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {deletingId === entry.id ? 'Se șterge…' : 'Șterge'}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isBusy}
-                      onClick={() => setConfirmDeleteId(null)}
-                      className="flex-1 rounded-md border border-border px-4 py-2 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Anulează
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <TextField
-                  id={`duration-${entry.id}`}
-                  label=""
-                  value={durations[entry.id] ?? ''}
-                  error={durationErrors[entry.id]}
-                  disabled={isBusy}
-                  placeholder={DURATION_PLACEHOLDER}
-                  onChange={(value) => updateDuration(entry.id, value)}
-                />
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {formError && (

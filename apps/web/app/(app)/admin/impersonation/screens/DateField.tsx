@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes } from 'react';
+import { useRef, type InputHTMLAttributes } from 'react';
 
 interface DateFieldProps {
   id: string;
@@ -23,6 +23,14 @@ export function DateField({
   inputProps,
   onChange,
 }: DateFieldProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // The flow shell is a fixed 100dvh box, so the native picker can cover a field
+  // sitting low on screen. Centring it in the scroller first keeps both visible.
+  function scrollIntoView() {
+    inputRef.current?.scrollIntoView({ block: 'center' });
+  }
+
   return (
     <label className="time-field" htmlFor={id}>
       <span className="time-field-label">
@@ -30,6 +38,7 @@ export function DateField({
         {required ? ' *' : ''}
       </span>
       <input
+        ref={inputRef}
         id={id}
         type="date"
         lang="ro-RO"
@@ -38,6 +47,8 @@ export function DateField({
         disabled={disabled}
         required={required}
         className={className}
+        onFocus={scrollIntoView}
+        onClick={scrollIntoView}
         onChange={(event) => onChange(event.target.value)}
         {...inputProps}
       />
