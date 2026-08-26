@@ -48,6 +48,16 @@ async function bootstrap() {
   app.enableShutdownHooks();
   app.use(cookieParser());
 
+  // Everything here is per-user authenticated data, and Express sends an ETag
+  // but no freshness header — which leaves a list free to be served from the
+  // browser cache after an edit. Say it once, for every route.
+  app.use(
+    (_req: unknown, res: { setHeader(name: string, value: string): void }, next: () => void) => {
+      res.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
+      next();
+    },
+  );
+
   // Credentialed CORS requires explicit origins — wildcard is not allowed.
   // WEB_APP_URL accepts a comma-separated list (prod: web + mobile Vercel URLs).
   // MOBILE_APP_URL is optional; kept for local dev convenience (localhost:3001).

@@ -19,6 +19,7 @@ import { z } from 'zod';
 import {
   createTimesheetSchema,
   updateTimesheetSchema,
+  TIMESHEET_GROUP_SORT_BY_VALUES,
   type CreateTimesheetInput,
   type UpdateTimesheetInput,
 } from '@fabxpert/shared/dto/timesheet.dto';
@@ -32,6 +33,7 @@ import { parseSummaryPeriodQuery } from './timesheet-summary-period.util';
 
 const idParamSchema = z.string().trim().min(1);
 const sortBySchema = z.enum(['person', 'project', 'activity', 'date']);
+const groupSortBySchema = z.enum(TIMESHEET_GROUP_SORT_BY_VALUES);
 const sortOrderSchema = z.enum(['asc', 'desc']);
 
 const uuidQuerySchema = z
@@ -72,6 +74,28 @@ function parseListFilters(query: Record<string, string>) {
   }
 
   return filters;
+}
+
+function parseGroupSortParams(query: Record<string, string>) {
+  let sortBy: z.infer<typeof groupSortBySchema> = 'date';
+  if (query.sortBy !== undefined && query.sortBy !== '') {
+    const parsed = groupSortBySchema.safeParse(query.sortBy);
+    if (!parsed.success) {
+      throw new BadRequestException('Invalid sortBy');
+    }
+    sortBy = parsed.data;
+  }
+
+  let sortOrder: z.infer<typeof sortOrderSchema> = 'desc';
+  if (query.sortOrder !== undefined && query.sortOrder !== '') {
+    const parsed = sortOrderSchema.safeParse(query.sortOrder);
+    if (!parsed.success) {
+      throw new BadRequestException('Invalid sortOrder');
+    }
+    sortOrder = parsed.data;
+  }
+
+  return { sortBy, sortOrder };
 }
 
 function parseSortParams(query: Record<string, string>) {
@@ -182,6 +206,18 @@ export class TimesheetController {
   findAll(@Query() query: Record<string, string>) {
     const { sortBy, sortOrder } = parseSortParams(query);
     return this.timesheetService.findAll(
+      parsePagination(query),
+      parseListFilters(query),
+      sortBy,
+      sortOrder,
+    );
+  }
+
+  @Get('grouped')
+  @Roles('ADMIN')
+  findAllGrouped(@Query() query: Record<string, string>) {
+    const { sortBy, sortOrder } = parseGroupSortParams(query);
+    return this.timesheetService.findAllGrouped(
       parsePagination(query),
       parseListFilters(query),
       sortBy,

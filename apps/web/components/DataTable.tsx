@@ -1,6 +1,15 @@
 'use client';
 
-import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  Fragment,
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useColumnPreferences } from '@/hooks/useColumnPreferences';
 import type { ColumnPreference } from '@/utils/columnStorage';
 
@@ -35,6 +44,12 @@ export interface DataTableProps<T> {
   showColumnMenu?: boolean;
   /** Table name, rendered on that same row so the two line up. */
   title?: ReactNode;
+  /**
+   * Turns rows into expandable ones: clicking a row opens this underneath it.
+   * Takes over the row click, so `onRowClick` is ignored when it is set — put
+   * per-row actions in a trailing column instead.
+   */
+  renderExpandedRow?: (row: T) => ReactNode;
 }
 
 const DEFAULT_COLUMN_WIDTH_PX = 180;
@@ -106,49 +121,73 @@ const DataTableRows = memo(function DataTableRows<T>({
   columns,
   rowAccentColor,
   onRowClick,
+  renderExpandedRow,
+  expandedKeys,
+  onToggleExpanded,
 }: {
   data: T[];
   rowKey: (row: T) => string | number;
   columns: VisibleColumn<T>[];
   rowAccentColor?: (row: T) => string | undefined;
   onRowClick?: (row: T) => void;
+  renderExpandedRow?: (row: T) => ReactNode;
+  expandedKeys: ReadonlySet<string | number>;
+  onToggleExpanded: (key: string | number) => void;
 }) {
   const showAccent = rowAccentColor !== undefined;
-  const interactive = onRowClick !== undefined;
+  const expandable = renderExpandedRow !== undefined;
+  const interactive = expandable || onRowClick !== undefined;
+  const colSpan = columns.length + (showAccent ? 1 : 0);
 
   return (
     <>
       {data.map((row) => {
         const accent = showAccent ? rowAccentColor(row) : undefined;
+        const key = rowKey(row);
+        const expanded = expandable && expandedKeys.has(key);
         return (
-          <tr
-            key={rowKey(row)}
-            onClick={interactive ? () => onRowClick(row) : undefined}
-            className={`border-b border-border-subtle transition-colors last:border-b-0 hover:bg-surface-raised${
-              interactive ? ' cursor-pointer' : ''
-            }`}
-          >
-            {showAccent && (
-              <td className="w-1.5 p-0" aria-hidden="true">
-                {accent && (
-                  <div className="h-full min-h-[40px] w-1.5" style={{ backgroundColor: accent }} />
-                )}
-              </td>
-            )}
-            {columns.map(({ definition }) => {
-              const cellOverflowVisible = definition.className?.includes('overflow-visible');
-              return (
-                <td
-                  key={definition.key}
-                  className={`px-3 py-2 text-text-primary ${definition.className ?? ''} ${
-                    cellOverflowVisible ? 'overflow-visible' : 'overflow-hidden'
-                  }`}
-                >
-                  {definition.render ? definition.render(row) : getCellValue(row, definition.key)}
+          <Fragment key={key}>
+            <tr
+              onClick={
+                expandable ? () => onToggleExpanded(key) : onRowClick && (() => onRowClick(row))
+              }
+              aria-expanded={expandable ? expanded : undefined}
+              className={`border-b border-border-subtle transition-colors last:border-b-0 hover:bg-surface-raised${
+                interactive ? ' cursor-pointer' : ''
+              }`}
+            >
+              {showAccent && (
+                <td className="w-1.5 p-0" aria-hidden="true">
+                  {accent && (
+                    <div
+                      className="h-full min-h-[40px] w-1.5"
+                      style={{ backgroundColor: accent }}
+                    />
+                  )}
                 </td>
-              );
-            })}
-          </tr>
+              )}
+              {columns.map(({ definition }) => {
+                const cellOverflowVisible = definition.className?.includes('overflow-visible');
+                return (
+                  <td
+                    key={definition.key}
+                    className={`px-3 py-2 text-text-primary ${definition.className ?? ''} ${
+                      cellOverflowVisible ? 'overflow-visible' : 'overflow-hidden'
+                    }`}
+                  >
+                    {definition.render ? definition.render(row) : getCellValue(row, definition.key)}
+                  </td>
+                );
+              })}
+            </tr>
+            {expanded && (
+              <tr className="border-b border-border-subtle bg-surface/40 last:border-b-0">
+                <td colSpan={colSpan} className="p-0">
+                  {renderExpandedRow(row)}
+                </td>
+              </tr>
+            )}
+          </Fragment>
         );
       })}
     </>
@@ -159,6 +198,9 @@ const DataTableRows = memo(function DataTableRows<T>({
   columns: VisibleColumn<T>[];
   rowAccentColor?: (row: T) => string | undefined;
   onRowClick?: (row: T) => void;
+  renderExpandedRow?: (row: T) => ReactNode;
+  expandedKeys: ReadonlySet<string | number>;
+  onToggleExpanded: (key: string | number) => void;
 }) => ReactNode;
 
 export function DataTable<T>({
@@ -176,8 +218,20 @@ export function DataTable<T>({
   onSortChange,
   showColumnMenu = true,
   title,
+  renderExpandedRow,
 }: DataTableProps<T>) {
   const showAccent = rowAccentColor !== undefined;
+  const [expandedKeys, setExpandedKeys] = useState<ReadonlySet<string | number>>(new Set());
+
+  const toggleExpanded = useCallback((key: string | number) => {
+    setExpandedKeys((current) => {
+      const next = new Set(current);
+      if (!next.delete(key)) {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
   const columnMenuRef = useRef<HTMLDivElement>(null);
   const resizeStateRef = useRef<{
     columnId: string;
@@ -318,60 +372,62 @@ export function DataTable<T>({
         <div className="mb-2 flex min-h-8 items-center justify-between gap-3">
           <div className="min-w-0">{title}</div>
           {showColumnMenu && hideableColumns.length > 0 && (
-          <div className="relative" ref={columnMenuRef}>
-            <button
-              type="button"
-              aria-label="Afișează sau ascunde coloane"
-              aria-haspopup="menu"
-              aria-expanded={columnMenuOpen}
-              onClick={() => setColumnMenuOpen((current) => !current)}
-              className="inline-flex size-8 items-center justify-center rounded-md border border-border bg-surface text-text-muted transition-colors hover:bg-surface-raised hover:text-text-primary"
-            >
-              <i className="ti ti-columns-3 text-base" aria-hidden="true" />
-            </button>
-
-            {columnMenuOpen && (
-              <div
-                role="menu"
-                aria-label="Coloane tabel"
-                className="absolute right-0 top-10 z-20 min-w-52 rounded-lg border border-strong bg-surface-popover p-1.5 shadow-popover"
+            <div className="relative" ref={columnMenuRef}>
+              <button
+                type="button"
+                aria-label="Afișează sau ascunde coloane"
+                aria-haspopup="menu"
+                aria-expanded={columnMenuOpen}
+                onClick={() => setColumnMenuOpen((current) => !current)}
+                className="inline-flex size-8 items-center justify-center rounded-md border border-border bg-surface text-text-muted transition-colors hover:bg-surface-raised hover:text-text-primary"
               >
-                {hideableColumns.map(({ definition, preference }) => {
-                  const isVisible = preference.visible;
-                  const disableHide = isVisible && visibleCount <= 1;
+                <i className="ti ti-columns-3 text-base" aria-hidden="true" />
+              </button>
 
-                  return (
-                    <label
-                      key={definition.key}
-                      className={`flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-[var(--color-surface-popover-hover)] ${
-                        disableHide ? 'opacity-60' : ''
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isVisible}
-                        disabled={disableHide}
-                        onChange={(event) => setColumnVisible(definition.key, event.target.checked)}
-                        className="size-4 rounded border-border accent-accent"
-                      />
-                      <span className="text-text-primary">{definition.header}</span>
-                    </label>
-                  );
-                })}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    resetColumns();
-                    setColumnMenuOpen(false);
-                  }}
-                  className="mt-1 flex w-full items-center justify-start rounded-md px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-[var(--color-surface-popover-hover)] hover:text-text-primary"
+              {columnMenuOpen && (
+                <div
+                  role="menu"
+                  aria-label="Coloane tabel"
+                  className="absolute right-0 top-10 z-20 min-w-52 rounded-lg border border-strong bg-surface-popover p-1.5 shadow-popover"
                 >
-                  Resetează coloanele
-                </button>
-              </div>
-            )}
-          </div>
+                  {hideableColumns.map(({ definition, preference }) => {
+                    const isVisible = preference.visible;
+                    const disableHide = isVisible && visibleCount <= 1;
+
+                    return (
+                      <label
+                        key={definition.key}
+                        className={`flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-[var(--color-surface-popover-hover)] ${
+                          disableHide ? 'opacity-60' : ''
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isVisible}
+                          disabled={disableHide}
+                          onChange={(event) =>
+                            setColumnVisible(definition.key, event.target.checked)
+                          }
+                          className="size-4 rounded border-border accent-accent"
+                        />
+                        <span className="text-text-primary">{definition.header}</span>
+                      </label>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetColumns();
+                      setColumnMenuOpen(false);
+                    }}
+                    className="mt-1 flex w-full items-center justify-start rounded-md px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-[var(--color-surface-popover-hover)] hover:text-text-primary"
+                  >
+                    Resetează coloanele
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -450,7 +506,10 @@ export function DataTable<T>({
           <tbody>
             {loading ? (
               Array.from({ length: loadingRowCount }, (_, index) => (
-                <tr key={`skeleton-${index}`} className="border-b border-border-subtle last:border-b-0">
+                <tr
+                  key={`skeleton-${index}`}
+                  className="border-b border-border-subtle last:border-b-0"
+                >
                   {showAccent && <td className="w-1.5 p-0" aria-hidden="true" />}
                   {visibleColumns.map(({ definition }) => (
                     <td key={definition.key} className="px-3 py-2.5">
@@ -472,6 +531,9 @@ export function DataTable<T>({
                 columns={visibleColumns}
                 rowAccentColor={rowAccentColor}
                 onRowClick={onRowClick}
+                renderExpandedRow={renderExpandedRow}
+                expandedKeys={expandedKeys}
+                onToggleExpanded={toggleExpanded}
               />
             )}
           </tbody>

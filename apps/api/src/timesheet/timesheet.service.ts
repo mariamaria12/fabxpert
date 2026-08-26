@@ -12,12 +12,15 @@ import type {
   PersonSummaryResponse,
   NotLoggedResponse,
   DashboardMetricsResponse,
+  TimesheetDayGroupDto,
   TimesheetDto,
+  TimesheetGroupSortBy,
   TimesheetListSortBy,
   UpdateTimesheetInput,
 } from '@fabxpert/shared/dto/timesheet.dto';
 import type { SortOrder } from '@fabxpert/shared/dto/project.dto';
 import { parseWorkDateString, todayWorkDate } from '@fabxpert/shared/workDate';
+import { dayGroupKey, shapeDayGroup } from './timesheet-day-group.util';
 import type { ResolvedSummaryPeriod } from './timesheet-summary-period.util';
 import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
@@ -169,6 +172,53 @@ function buildTimesheetOrderBy(
   }
 }
 
+type DayGroupAggregate = {
+  personId: string;
+  workDate: Date;
+  _count: { _all: number };
+  _sum: { durationMinutes: number | null };
+};
+
+function sortDayGroups(
+  groups: DayGroupAggregate[],
+  sortBy: TimesheetGroupSortBy,
+  sortOrder: SortOrder,
+  personNames: Map<string, { firstName: string; lastName: string }>,
+): DayGroupAggregate[] {
+  const direction = sortOrder === 'desc' ? -1 : 1;
+
+  function compare(left: DayGroupAggregate, right: DayGroupAggregate): number {
+    switch (sortBy) {
+      case 'person': {
+        const leftPerson = personNames.get(left.personId);
+        const rightPerson = personNames.get(right.personId);
+        const byName = `${leftPerson?.firstName ?? ''} ${leftPerson?.lastName ?? ''}`.localeCompare(
+          `${rightPerson?.firstName ?? ''} ${rightPerson?.lastName ?? ''}`,
+          'ro',
+        );
+        return byName !== 0 ? byName : right.workDate.getTime() - left.workDate.getTime();
+      }
+      case 'entries':
+        return left._count._all - right._count._all;
+      case 'duration':
+        return (left._sum.durationMinutes ?? 0) - (right._sum.durationMinutes ?? 0);
+      case 'date':
+      default:
+        return left.workDate.getTime() - right.workDate.getTime();
+    }
+  }
+
+  // Newest day first within equal keys, then a stable id tiebreaker.
+  return [...groups].sort((left, right) => {
+    const primary = compare(left, right) * direction;
+    if (primary !== 0) {
+      return primary;
+    }
+    const byDate = right.workDate.getTime() - left.workDate.getTime();
+    return byDate !== 0 ? byDate : left.personId.localeCompare(right.personId);
+  });
+}
+
 @Injectable()
 export class TimesheetService {
   constructor(
@@ -241,6 +291,96 @@ export class TimesheetService {
       data: rows.map(toTimesheetDto),
       meta: { page, pageSize, total, totalPages },
     };
+  }
+
+  /**
+   * The Pontaje list: one row per person per day. Pagination counts days, so the
+   * aggregate runs first and only the current page's entries are then loaded.
+   */
+  async findAllGrouped(
+    pagination: PaginationParams,
+    filters: TimesheetListFilters,
+    sortBy: TimesheetGroupSortBy = 'date',
+    sortOrder: SortOrder = 'desc',
+  ): Promise<PaginatedResponse<TimesheetDayGroupDto>> {
+    const { page, pageSize } = pagination;
+    const where = this.buildListWhere(filters);
+
+    const groups = await this.prisma.timesheet.groupBy({
+      by: ['personId', 'workDate'],
+      where,
+      _count: { _all: true },
+      _sum: { durationMinutes: true },
+    });
+
+    const total = groups.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    // Sorting by person needs names the aggregate does not carry, and the group
+    // set is bounded by the period filter, so ordering happens here.
+    const personNames = await this.getPersonNames(groups.map((group) => group.personId));
+    const sorted = sortDayGroups(groups, sortBy, sortOrder, personNames);
+    const pageGroups = sorted.slice((page - 1) * pageSize, page * pageSize);
+
+    if (pageGroups.length === 0) {
+      return { data: [], meta: { page, pageSize, total, totalPages } };
+    }
+
+    const rows = await this.prisma.timesheet.findMany({
+      where: {
+        AND: [
+          where,
+          {
+            OR: pageGroups.map((group) => ({
+              personId: group.personId,
+              workDate: group.workDate,
+            })),
+          },
+        ],
+      },
+      include: timesheetInclude,
+      orderBy: [{ workDate: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+    });
+
+    const entriesByGroup = new Map<string, TimesheetDto[]>();
+    for (const row of rows) {
+      const dto = toTimesheetDto(row);
+      const key = dayGroupKey(dto.personId, dto.workDate);
+      const bucket = entriesByGroup.get(key);
+      if (bucket) {
+        bucket.push(dto);
+      } else {
+        entriesByGroup.set(key, [dto]);
+      }
+    }
+
+    const data = pageGroups
+      .map((group) => entriesByGroup.get(dayGroupKey(group.personId, group.workDate)))
+      .filter((entries): entries is TimesheetDto[] => entries !== undefined)
+      .map(shapeDayGroup);
+
+    return { data, meta: { page, pageSize, total, totalPages } };
+  }
+
+  private async getPersonNames(
+    personIds: string[],
+  ): Promise<Map<string, { firstName: string; lastName: string }>> {
+    const unique = [...new Set(personIds)];
+    if (unique.length === 0) {
+      return new Map();
+    }
+
+    const persons = await this.prisma.person.findMany({
+      where: { id: { in: unique } },
+      select: { id: true, firstName: true, lastName: true },
+    });
+
+    return new Map(
+      persons.map((person) => [
+        person.id,
+        { firstName: person.firstName, lastName: person.lastName },
+      ]),
+    );
   }
 
   async getProjectSummary(resolved: ResolvedSummaryPeriod): Promise<ProjectSummaryResponse> {
@@ -461,7 +601,12 @@ export class TimesheetService {
     });
 
     const dto = toTimesheetDto(timesheet);
-    this.timesheetEvents.emit(updatedTimesheetEvent(dto.id, dto.person));
+    // The live banner exists to tell admins an employee touched a timesheet.
+    // An admin editing one already knows, and the event names the person the
+    // entry belongs to — which would read as if that employee had changed it.
+    if (actor.role !== 'ADMIN') {
+      this.timesheetEvents.emit(updatedTimesheetEvent(dto.id, dto.person));
+    }
     return dto;
   }
 

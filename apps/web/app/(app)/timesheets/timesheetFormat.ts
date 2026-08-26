@@ -2,10 +2,7 @@ import type { TimesheetDto } from '@fabxpert/shared';
 import { formatDateDisplay, workDateToDayKey } from '@fabxpert/shared';
 
 /** Payroll export format: NUME PRENUME (uppercase). */
-export function formatExportWorkerName(person: {
-  firstName: string;
-  lastName: string;
-}): string {
+export function formatExportWorkerName(person: { firstName: string; lastName: string }): string {
   return `${person.lastName} ${person.firstName}`.trim().toUpperCase();
 }
 
@@ -24,8 +21,16 @@ export function formatProjectLabel(timesheet: TimesheetDto): string | null {
   return name || code;
 }
 
+const PLAIN_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * workDate is stored at server-local midnight and sent as a UTC timestamp, so
+ * the date part of the ISO string can be the day before. Read the local
+ * calendar day — the one the grouping and the edit form already use.
+ */
 export function formatRomanianDate(iso: string): string {
-  return formatDateDisplay(iso);
+  const trimmed = iso.trim();
+  return formatDateDisplay(PLAIN_DATE_PATTERN.test(trimmed) ? trimmed : workDateToDayKey(trimmed));
 }
 
 export function formatDurationMinutes(totalMinutes: number): string {
@@ -93,9 +98,7 @@ export function parseDurationMinutesInput(value: string): number | null {
   const hoursMinutesMatch = /^(\d+)\s*h\s*(?:(\d+)\s*m?)?$/.exec(trimmed);
   if (hoursMinutesMatch) {
     const hours = Number.parseInt(hoursMinutesMatch[1], 10);
-    const minutes = hoursMinutesMatch[2]
-      ? Number.parseInt(hoursMinutesMatch[2], 10)
-      : 0;
+    const minutes = hoursMinutesMatch[2] ? Number.parseInt(hoursMinutesMatch[2], 10) : 0;
 
     if (minutes < 0 || minutes >= 60 || (hours === 0 && minutes === 0)) {
       return null;

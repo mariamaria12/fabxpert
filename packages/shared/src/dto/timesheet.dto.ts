@@ -81,6 +81,37 @@ export type TimesheetDto = {
   updatedAt: string;
 };
 
+/** Per-activity total inside one person-day group. */
+export type TimesheetDayGroupActivityDto = {
+  activityId: string | null;
+  activityName: string;
+  activityColor: string | null;
+  minutes: number;
+};
+
+/** Everything one person logged on one day — the row shape of the Pontaje list. */
+export type TimesheetDayGroupDto = {
+  /** `${personId}:${yyyy-mm-dd}`, stable across refetches. */
+  id: string;
+  workDate: string;
+  person: TimesheetPersonDto;
+  entryCount: number;
+  totalMinutes: number;
+  /** The day's entries, oldest first. */
+  entries: TimesheetDto[];
+  /** Longest first. */
+  activityTotals: TimesheetDayGroupActivityDto[];
+};
+
+export const TIMESHEET_GROUP_SORT_BY_VALUES = [
+  'date',
+  'person',
+  'entries',
+  'duration',
+] as const;
+
+export type TimesheetGroupSortBy = (typeof TIMESHEET_GROUP_SORT_BY_VALUES)[number];
+
 export type TimesheetSummaryPeriod = 'today' | 'yesterday' | 'week' | 'month' | 'all' | 'custom';
 
 /** @deprecated Use TimesheetSummaryPeriod — kept as alias for project-summary responses */

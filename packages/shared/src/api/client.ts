@@ -61,7 +61,10 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
       ...options,
       headers,
       credentials: 'include',
-    });
+      // A refetch right after a write must see the write, never a cached body.
+      // `cache` is browser-only, and this package compiles against Node's fetch types.
+      cache: 'no-store',
+    } as RequestInit & { cache: 'no-store' });
   } catch {
     throw new ApiError(0, 'Network request failed');
   }
@@ -126,10 +129,7 @@ export type BlobDownload = {
 /**
  * Binary download helper — preserves auth cookies; use for export endpoints.
  */
-export async function requestBlob(
-  path: string,
-  options: RequestInit = {},
-): Promise<BlobDownload> {
+export async function requestBlob(path: string, options: RequestInit = {}): Promise<BlobDownload> {
   if (baseUrl === null) {
     throw new Error(
       'API client is not configured. Call configureApiClient(baseUrl) once at app startup.',

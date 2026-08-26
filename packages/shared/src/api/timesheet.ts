@@ -5,7 +5,9 @@ import type {
   NotLoggedResponse,
   PersonSummaryResponse,
   ProjectSummaryResponse,
+  TimesheetDayGroupDto,
   TimesheetDto,
+  TimesheetGroupSortBy,
   TimesheetListSortBy,
   PinnedProjectsSummaryResponse,
   UpdateTimesheetInput,
@@ -105,6 +107,50 @@ export function listTimesheets(params: ListTimesheetsParams = {}) {
   }
   const query = searchParams.toString();
   return request<PaginatedResponse<TimesheetDto>>(`/timesheets${query ? `?${query}` : ''}`);
+}
+
+export interface ListTimesheetDayGroupsParams {
+  page?: number;
+  pageSize?: number;
+  personId?: string;
+  projectId?: string;
+  search?: string;
+  period?: Period;
+  sortBy?: TimesheetGroupSortBy;
+  sortOrder?: SortOrder;
+}
+
+/** One row per person per day, paginated over the groups rather than the entries. */
+export function listTimesheetDayGroups(params: ListTimesheetDayGroupsParams = {}) {
+  const searchParams = new URLSearchParams();
+  if (params.page !== undefined) {
+    searchParams.set('page', String(params.page));
+  }
+  if (params.pageSize !== undefined) {
+    searchParams.set('pageSize', String(params.pageSize));
+  }
+  if (params.personId !== undefined) {
+    searchParams.set('personId', params.personId);
+  }
+  if (params.projectId !== undefined) {
+    searchParams.set('projectId', params.projectId);
+  }
+  if (params.search?.trim()) {
+    searchParams.set('search', params.search.trim());
+  }
+  if (params.period !== undefined && isPeriodQueryReady(params.period)) {
+    appendPeriodQuery(searchParams, params.period);
+  }
+  if (params.sortBy) {
+    searchParams.set('sortBy', params.sortBy);
+  }
+  if (params.sortOrder) {
+    searchParams.set('sortOrder', params.sortOrder);
+  }
+  const query = searchParams.toString();
+  return request<PaginatedResponse<TimesheetDayGroupDto>>(
+    `/timesheets/grouped${query ? `?${query}` : ''}`,
+  );
 }
 
 export function listMyTimesheets(page?: number, pageSize?: number) {

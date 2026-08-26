@@ -1,5 +1,4 @@
 import {
-  exportLeaveRequestDocx,
   formatOvertimeBalance,
   formatOvertimeHours,
   ApiError,
@@ -58,7 +57,6 @@ export function MyLeaveRequests({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [connectionError, setConnectionError] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [exportingId, setExportingId] = useState<string | null>(null);
 
   const loadInitial = useCallback(async () => {
     setIsLoading(true);
@@ -109,28 +107,6 @@ export function MyLeaveRequests({
       setLoadError('A apărut o eroare la încărcare.');
     } finally {
       setIsLoadingMore(false);
-    }
-  }
-
-  async function handleExport(request: LeaveRequestDto) {
-    if (exportingId || request.status !== 'APROBAT' || request.type !== 'ODIHNA') {
-      return;
-    }
-
-    setExportingId(request.id);
-
-    try {
-      const { blob, filename } = await exportLeaveRequestDocx(request.id);
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = filename ?? 'Cerere_CO.docx';
-      anchor.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      setLoadError('Nu s-a putut genera documentul.');
-    } finally {
-      setExportingId(null);
     }
   }
 
@@ -234,17 +210,6 @@ export function MyLeaveRequests({
               <li key={request.id}>
                 <div className="leave-request-row">
                   <LeaveRequestRowBody request={request} />
-                  {request.status === 'APROBAT' && request.type === 'ODIHNA' ? (
-                    <button
-                      type="button"
-                      className="leave-request-export-button"
-                      aria-label="Exportă cererea de concediu"
-                      disabled={exportingId === request.id}
-                      onClick={() => void handleExport(request)}
-                    >
-                      {exportingId === request.id ? '…' : 'Export'}
-                    </button>
-                  ) : null}
                 </div>
               </li>
             );

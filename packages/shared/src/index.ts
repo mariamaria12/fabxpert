@@ -208,6 +208,7 @@ export type {
 export {
   createTimesheet,
   listTimesheets,
+  listTimesheetDayGroups,
   listMyTimesheets,
   getTimesheet,
   updateTimesheet,
@@ -222,6 +223,7 @@ export {
 } from './api/timesheet';
 export type {
   ListTimesheetsParams,
+  ListTimesheetDayGroupsParams,
   ExportTimesheetsParams,
   TimesheetEvent,
   TimesheetEventType,
@@ -229,6 +231,7 @@ export type {
 export {
   createTimesheetSchema,
   updateTimesheetSchema,
+  TIMESHEET_GROUP_SORT_BY_VALUES,
 } from './dto/timesheet.dto';
 export type {
   TimesheetDto,
@@ -236,6 +239,9 @@ export type {
   TimesheetProjectDto,
   TimesheetActivityDto,
   TimesheetListSortBy,
+  TimesheetDayGroupDto,
+  TimesheetDayGroupActivityDto,
+  TimesheetGroupSortBy,
   TimesheetSummaryPeriod,
   TimesheetSummaryParams,
   ProjectSummaryPeriod,

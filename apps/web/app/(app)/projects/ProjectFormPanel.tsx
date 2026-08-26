@@ -186,6 +186,7 @@ function buildCreatePayload(
   return {
     name: values.name,
     denumireLucrare: values.denumireLucrare.trim() || null,
+    finisaj: values.finisaj.trim() || null,
     weight,
     estimatedHours,
     notes: values.notes.trim() || null,
@@ -826,17 +827,15 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
           onChange={(value) => updateField('denumireLucrare', value)}
         />
 
-        {mode === 'edit' && (
-          <TextField
-            id="finisaj"
-            label="Finisaj"
-            placeholder="ZINCARE"
-            maxLength={100}
-            value={values.finisaj}
-            disabled={isBusy}
-            onChange={(value) => updateField('finisaj', value)}
-          />
-        )}
+        <TextField
+          id="finisaj"
+          label="Finisaj"
+          placeholder="ZINCARE"
+          maxLength={100}
+          value={values.finisaj}
+          disabled={isBusy}
+          onChange={(value) => updateField('finisaj', value)}
+        />
 
         <TextField
           id="weight"
