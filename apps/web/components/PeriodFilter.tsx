@@ -7,6 +7,10 @@ import {
 } from '@fabxpert/shared';
 import { useEffect, useRef, useState } from 'react';
 import { DateField } from '@/components/DateField';
+import {
+  filterChipClassName,
+  FILTER_CHIP_TOGGLE_CLASS,
+} from '@/components/filterChipStyles';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
 type PeriodKind = Period['kind'];
@@ -167,13 +171,6 @@ export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) 
       )
     : PERIOD_CARDS;
 
-  const chipClassName = (selected: boolean) =>
-    `inline-flex items-baseline gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors ${
-      selected
-        ? 'border-accent/40 bg-accent/10 text-accent'
-        : 'border-border bg-surface text-text-secondary hover:bg-surface-raised hover:text-text-primary'
-    }`;
-
   return (
     <div className={className}>
       <div className="flex flex-wrap items-center gap-1.5">
@@ -195,7 +192,7 @@ export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) 
                 }
                 selectPreset(card.kind);
               }}
-              className={chipClassName(selected)}
+              className={filterChipClassName(selected)}
             >
               <span className="font-medium">{card.label}</span>
               <span className={selected ? 'text-accent/80' : 'text-text-muted'}>
@@ -261,7 +258,7 @@ export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) 
             aria-label={
               showAllPeriods ? 'Ascunde celelalte perioade' : 'Afișează celelalte perioade'
             }
-            className="inline-flex size-7 items-center justify-center rounded-full border border-border bg-surface text-text-muted transition-colors hover:bg-surface-raised hover:text-text-primary"
+            className={FILTER_CHIP_TOGGLE_CLASS}
           >
             <i
               className={`ti ${showAllPeriods ? 'ti-chevron-up' : 'ti-chevron-down'} text-base`}

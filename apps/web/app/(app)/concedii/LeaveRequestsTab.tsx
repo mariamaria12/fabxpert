@@ -15,9 +15,14 @@ import { LeaveReviewPanel } from './LeaveReviewPanel';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { Pagination } from '@/components/Pagination';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import {
+  filterChipClassName,
+  FILTER_CHIP_TOGGLE_CLASS,
+} from '@/components/filterChipStyles';
 import { PersonName } from '@/components/PersonAvatar';
 import { useLeavePendingCount } from '@/context/LeavePendingCountContext';
 import { useToast } from '@/context/ToastContext';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { loadAllPages } from '@/utils/loadAllPages';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { removeById, replaceById } from '@/utils/replaceById';
@@ -73,6 +78,8 @@ interface LeaveRequestsTabProps {
 export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveRequestsTabProps) {
   const { showToast } = useToast();
   const { refreshPendingCount } = useLeavePendingCount();
+  const isMobile = useIsMobile();
+  const [showAllStatuses, setShowAllStatuses] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('IN_ASTEPTARE');
   const [typeFilter, setTypeFilter] = useState<LeaveType | null>(null);
   const [personId, setPersonId] = useState<string | null>(null);
@@ -280,6 +287,13 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
     );
   }
 
+  // Phones show only the first two chips (plus whatever is selected); the rest
+  // sit behind the chevron so the row never wraps.
+  const visibleStatusFilters =
+    isMobile && !showAllStatuses
+      ? STATUS_FILTERS.filter((filter, index) => index < 2 || filter.id === statusFilter)
+      : STATUS_FILTERS;
+
   const columns: DataTableColumn<LeaveRequestDto>[] = [
     {
       key: 'person',
@@ -355,21 +369,39 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
 
   return (
     <div>
-      <div className="flex flex-wrap gap-2">
-        {STATUS_FILTERS.map((filter) => (
+      <div className="flex flex-wrap items-center gap-1.5">
+        {visibleStatusFilters.map((filter) => {
+          const selected = statusFilter === filter.id;
+
+          return (
+            <button
+              key={filter.id}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => setStatusFilter(filter.id)}
+              className={filterChipClassName(selected)}
+            >
+              <span className="font-medium">{filter.label}</span>
+            </button>
+          );
+        })}
+
+        {isMobile && (
           <button
-            key={filter.id}
             type="button"
-            onClick={() => setStatusFilter(filter.id)}
-            className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
-              statusFilter === filter.id
-                ? 'bg-accent/15 text-accent'
-                : 'border border-border text-text-secondary hover:bg-surface-raised hover:text-text-primary'
-            }`}
+            onClick={() => setShowAllStatuses((current) => !current)}
+            aria-expanded={showAllStatuses}
+            aria-label={
+              showAllStatuses ? 'Ascunde celelalte filtre' : 'Afișează celelalte filtre'
+            }
+            className={FILTER_CHIP_TOGGLE_CLASS}
           >
-            {filter.label}
+            <i
+              className={`ti ${showAllStatuses ? 'ti-chevron-up' : 'ti-chevron-down'} text-base`}
+              aria-hidden="true"
+            />
           </button>
-        ))}
+        )}
       </div>
 
       <div className="mt-4 grid max-w-3xl gap-3 sm:grid-cols-2">

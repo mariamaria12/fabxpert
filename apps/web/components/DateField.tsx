@@ -9,6 +9,9 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { FORM_FIELD_CLASS, FORM_LABEL_CLASS } from './formFieldStyles';
 import { getBusinessInputAutofillProps } from './inputAutofill';
 
+/** Roughly how tall a native date picker is, used to check it still fits below. */
+const PICKER_HEIGHT_PX = 320;
+
 export interface DateFieldProps {
   id: string;
   label: string;
@@ -32,6 +35,7 @@ export function DateField({
 }: DateFieldProps) {
   const autofillTrapId = useId();
   const autofillProps = getBusinessInputAutofillProps(autofillTrapId);
+  const fieldRef = useRef<HTMLDivElement>(null);
   const pickerInputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState(() => isoToDateDisplay(value));
   const [localError, setLocalError] = useState<string | undefined>();
@@ -86,6 +90,17 @@ export function DateField({
       return;
     }
 
+    // The picker opens anchored to the field, so one sitting low inside a
+    // slide-over lands past the bottom of the screen. Pulling it up first keeps
+    // the calendar on screen and tappable.
+    const field = fieldRef.current;
+    if (field) {
+      const rect = field.getBoundingClientRect();
+      if (window.innerHeight - rect.bottom < PICKER_HEIGHT_PX) {
+        field.scrollIntoView({ block: 'center' });
+      }
+    }
+
     const pickerWithShow = picker as HTMLInputElement & {
       showPicker?: () => void;
     };
@@ -106,7 +121,7 @@ export function DateField({
         {label}
         {required && <span className="text-danger"> *</span>}
       </label>
-      <div className="relative">
+      <div ref={fieldRef} className="relative">
         <input
           id={id}
           type="text"
@@ -134,7 +149,7 @@ export function DateField({
             setDraft(isoToDateDisplay(event.target.value));
             setLocalError(undefined);
           }}
-          className="pointer-events-none absolute bottom-0 right-0 h-0 w-0 opacity-0"
+          className="pointer-events-none absolute inset-0 opacity-0"
         />
         <button
           type="button"

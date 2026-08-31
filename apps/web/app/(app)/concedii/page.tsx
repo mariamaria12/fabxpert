@@ -59,7 +59,7 @@ export default function ConcediiPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-end gap-4 sm:justify-between">
         <h1 className="hidden text-[22px] font-medium text-text-primary sm:block">Concedii</h1>
         <div className="flex shrink-0 items-center gap-3">
           {lastUpdated ? (
@@ -88,7 +88,6 @@ export default function ConcediiPage() {
             onClick={() => setAddOpen(true)}
             className="inline-flex items-center gap-2 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-contrast sm:px-4 sm:py-2 sm:text-sm transition-opacity hover:opacity-90"
           >
-            <i className="ti ti-plus text-base" aria-hidden="true" />
             Adaugă concediu
           </button>
         </div>
