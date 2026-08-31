@@ -8,6 +8,7 @@ import {
 import { useEffect, useId, useRef, useState } from 'react';
 import { FORM_FIELD_CLASS, FORM_LABEL_CLASS } from './formFieldStyles';
 import { getBusinessInputAutofillProps } from './inputAutofill';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 /** Roughly how tall a native date picker is, used to check it still fits below. */
 const PICKER_HEIGHT_PX = 320;
@@ -33,6 +34,7 @@ export function DateField({
   className,
   onChange,
 }: DateFieldProps) {
+  const isMobile = useIsMobile();
   const autofillTrapId = useId();
   const autofillProps = getBusinessInputAutofillProps(autofillTrapId);
   const fieldRef = useRef<HTMLDivElement>(null);
@@ -114,6 +116,38 @@ export function DateField({
   }
 
   const shownError = error ?? localError;
+
+  // Phones get a plain native date input: tapping it opens the picker as a
+  // sheet the browser positions itself. Driving a hidden input with
+  // showPicker() — what the typed field below does — is unreliable there.
+  if (isMobile) {
+    return (
+      <div>
+        <label htmlFor={id} className={FORM_LABEL_CLASS}>
+          {label}
+          {required && <span className="text-danger"> *</span>}
+        </label>
+        <input
+          id={id}
+          type="date"
+          value={value}
+          disabled={disabled}
+          required={required}
+          onChange={(event) => {
+            onChange(event.target.value);
+            setLocalError(undefined);
+          }}
+          className={className ?? FORM_FIELD_CLASS}
+          autoComplete="off"
+        />
+        {shownError && (
+          <p role="alert" className="mt-1 text-xs text-danger">
+            {shownError}
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div>
