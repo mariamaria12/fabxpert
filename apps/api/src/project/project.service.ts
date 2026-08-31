@@ -263,6 +263,7 @@ export class ProjectService {
       this.prisma.project.count({ where }),
       this.prisma.project.findMany({
         where,
+        relationLoadStrategy: 'join',
         include,
         orderBy,
         skip: (page - 1) * pageSize,

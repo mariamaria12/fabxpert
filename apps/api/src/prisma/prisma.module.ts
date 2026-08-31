@@ -50,12 +50,34 @@ export class PrismaModule implements OnModuleInit, OnModuleDestroy {
       this.logger.log(
         `Connection pool warm: ${poolSize} connections in ${Date.now() - startedAt}ms`,
       );
+      await this.logDatabaseRoundTrip(client);
     } catch (error) {
       // Never block startup on this — a cold pool is slow, not broken.
       this.logger.warn(
         `Could not warm the connection pool: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
+  }
+
+  /**
+   * One number worth watching: how long a trivial query takes end to end. Single
+   * digits means the database is next door; ~100ms means the API and the
+   * database are in different regions, and every endpoint pays that per query.
+   */
+  private async logDatabaseRoundTrip(client: PrismaClient): Promise<void> {
+    const samples: number[] = [];
+    // The first query on a connection carries setup cost — take the best of a few.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const startedAt = Date.now();
+      await client.$queryRaw`SELECT 1`;
+      samples.push(Date.now() - startedAt);
+    }
+
+    const region =
+      process.env.RAILWAY_REPLICA_REGION ?? process.env.RAILWAY_REGION ?? 'unknown';
+    this.logger.log(
+      `Database round trip: ${Math.min(...samples)}ms (api region: ${region})`,
+    );
   }
 
   async onModuleDestroy(): Promise<void> {

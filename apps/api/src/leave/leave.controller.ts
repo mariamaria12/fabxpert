@@ -104,6 +104,13 @@ export class LeaveController {
     return this.leaveService.findOnLeave(resolved.period, resolved.from, resolved.to);
   }
 
+  /** Sidebar badge — a count only, so it never loads request rows. */
+  @Get('pending-count')
+  @Roles('ADMIN')
+  countPending() {
+    return this.leaveService.countPending();
+  }
+
   @Get()
   @Roles('ADMIN')
   findAll(@Query() query: Record<string, string>) {

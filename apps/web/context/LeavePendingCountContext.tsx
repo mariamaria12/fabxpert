@@ -1,6 +1,6 @@
 'use client';
 
-import { listLeaveRequests } from '@fabxpert/shared';
+import { getPendingLeaveCount } from '@fabxpert/shared';
 import {
   createContext,
   useCallback,
@@ -23,12 +23,8 @@ export function LeavePendingCountProvider({ children }: { children: ReactNode })
 
   const refreshPendingCount = useCallback(async () => {
     try {
-      const response = await listLeaveRequests({
-        status: 'IN_ASTEPTARE',
-        page: 1,
-        pageSize: 1,
-      });
-      setPendingCount(response.meta.total);
+      const response = await getPendingLeaveCount();
+      setPendingCount(response.count);
     } catch {
       // Badge is best-effort — leave count at last known value on failure.
     }

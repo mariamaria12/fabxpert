@@ -4,6 +4,7 @@ import { ApiError, getMe, login, logout } from '@fabxpert/shared';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getCredentialInputAutofillProps } from '@/components/inputAutofill';
+import { clearCachedSessionUser } from '@/utils/sessionUserCache';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -59,6 +60,7 @@ export default function LoginPage() {
       }
 
       // EMPLOYEE accounts are mobile-only (architecture.md, Authorization) — clear the session.
+      clearCachedSessionUser();
       await logout();
       setError('Acest cont este pentru aplicația mobilă.');
     } catch (caught) {

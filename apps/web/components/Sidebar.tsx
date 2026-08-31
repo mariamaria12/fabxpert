@@ -5,6 +5,7 @@ import type { MeResponse } from '@fabxpert/shared';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { InitialsAvatar, PersonAvatar } from '@/components/PersonAvatar';
+import { clearCachedSessionUser } from '@/utils/sessionUserCache';
 import { useLeavePendingCount } from '@/context/LeavePendingCountContext';
 import { NAV_ITEMS } from '@/components/navItems';
 
@@ -35,6 +36,7 @@ export function Sidebar({
   const { pendingCount } = useLeavePendingCount();
 
   async function handleLogout() {
+    clearCachedSessionUser();
     await logout();
     router.replace('/login');
   }

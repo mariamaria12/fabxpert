@@ -53,7 +53,6 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
   if (options.body !== undefined && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
-  headers.set('Cache-Control', 'no-store');
 
   let response: Response;
   try {
@@ -63,6 +62,8 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
       credentials: 'include',
       // A refetch right after a write must see the write, never a cached body.
       // `cache` is browser-only, and this package compiles against Node's fetch types.
+      // Deliberately not a `Cache-Control` request header: that one is not
+      // CORS-safelisted, so it would make every plain GET preflight.
       cache: 'no-store',
     } as RequestInit & { cache: 'no-store' });
   } catch {
@@ -139,7 +140,6 @@ export async function requestBlob(path: string, options: RequestInit = {}): Prom
   let response: Response;
   try {
     const headers = new Headers(options.headers);
-    headers.set('Cache-Control', 'no-store');
     response = await fetch(`${baseUrl}${path}`, {
       ...options,
       headers,

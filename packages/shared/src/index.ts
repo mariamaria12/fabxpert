@@ -297,6 +297,7 @@ export {
   updateLeaveRequest,
   cancelLeaveRequest,
   listLeaveRequests,
+  getPendingLeaveCount,
   getOnLeave,
   getOnLeaveToday,
   getLeaveRequest,

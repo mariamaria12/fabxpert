@@ -37,6 +37,17 @@ export function loadEnvFile(filePath: string): void {
   }
 }
 
+/** Caps the Prisma pool for an app under test at a single connection. */
+function withTestConnectionLimit(databaseUrl: string): string {
+  try {
+    const url = new URL(databaseUrl);
+    url.searchParams.set('connection_limit', '1');
+    return url.toString();
+  } catch {
+    return databaseUrl;
+  }
+}
+
 /**
  * Validates TEST_DATABASE_URL and maps it onto DATABASE_URL / DIRECT_URL for the test run.
  * Fails loudly if misconfigured to prevent wiping dev data.
@@ -62,7 +73,10 @@ export function configureTestEnvironment(): void {
     );
   }
 
-  process.env.DATABASE_URL = testDatabaseUrl;
+  // Each spec boots its own Nest app, and the app opens its whole pool at
+  // startup. Against a 15-slot session pooler that runs out long before the
+  // suite does, so a test app takes one connection.
+  process.env.DATABASE_URL = withTestConnectionLimit(testDatabaseUrl);
   process.env.DIRECT_URL = process.env.TEST_DIRECT_URL ?? testDatabaseUrl;
 
   process.env.JWT_SECRET ??=

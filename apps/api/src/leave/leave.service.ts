@@ -210,6 +210,7 @@ export class LeaveService {
       this.prisma.leaveRequest.count({ where }),
       this.prisma.leaveRequest.findMany({
         where,
+        relationLoadStrategy: 'join',
         include: leaveRequestInclude,
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
@@ -225,6 +226,14 @@ export class LeaveService {
     };
   }
 
+  /** Pending requests, as a bare number for the sidebar badge. */
+  async countPending(): Promise<{ count: number }> {
+    const count = await this.prisma.leaveRequest.count({
+      where: this.buildListWhere({ status: 'IN_ASTEPTARE' }),
+    });
+    return { count };
+  }
+
   async findOnLeave(
     period: TimesheetSummaryPeriod,
     from: Date,
@@ -237,6 +246,7 @@ export class LeaveService {
         startDate: { lt: to },
         endDate: { gte: from },
       },
+      relationLoadStrategy: 'join',
       include: leaveRequestInclude,
       orderBy: [
         { person: { lastName: 'asc' } },

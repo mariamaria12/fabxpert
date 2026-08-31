@@ -112,6 +112,7 @@ export class AuthService {
   async getMe(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
+      relationLoadStrategy: 'join',
       select: {
         id: true,
         email: true,

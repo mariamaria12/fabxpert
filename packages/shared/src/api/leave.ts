@@ -89,6 +89,11 @@ export function listLeaveRequests(params?: ListLeaveRequestsParams) {
   );
 }
 
+/** Sidebar badge: the pending count alone, without loading any request rows. */
+export function getPendingLeaveCount() {
+  return request<{ count: number }>('/leave-requests/pending-count');
+}
+
 export function getOnLeave(period: Period = { kind: 'today' }) {
   const searchParams = new URLSearchParams();
   const query = periodToQuery(period);

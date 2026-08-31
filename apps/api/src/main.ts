@@ -72,6 +72,11 @@ async function bootstrap() {
       callback(null, false);
     },
     credentials: true,
+    // Writes still preflight (JSON content type). Without this the browser
+    // re-asks every few seconds, doubling the round trips on a cross-origin
+    // client — the mobile PWA in local dev, and any client not behind the
+    // same-origin /api proxy.
+    maxAge: 86400,
   });
 
   const port = process.env.PORT ?? 4000;

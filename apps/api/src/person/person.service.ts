@@ -68,6 +68,7 @@ export class PersonService {
       this.prisma.person.count({ where }),
       this.prisma.person.findMany({
         where,
+        relationLoadStrategy: 'join',
         include: personInclude,
         orderBy: buildPersonOrderBy(sortBy, sortOrder),
         skip: (page - 1) * pageSize,

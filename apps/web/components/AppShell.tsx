@@ -5,6 +5,11 @@ import type { MeResponse } from '@fabxpert/shared';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type CSSProperties } from 'react';
 import { AuthUserProvider } from '@/context/AuthUserContext';
+import {
+  clearCachedSessionUser,
+  readCachedSessionUser,
+  writeCachedSessionUser,
+} from '@/utils/sessionUserCache';
 import { MobileHeaderSlotProvider } from '@/components/MobileHeaderAction';
 import { navLabelForPathname } from '@/components/navItems';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -51,6 +56,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
   const showMobileHeaderSlot = useIsMobile(639);
 
+  // Render from the last known session so the page below can start its own
+  // requests immediately; `/auth/me` still runs and still has the last word.
+  useEffect(() => {
+    const cached = readCachedSessionUser();
+    if (cached) {
+      setUser(cached);
+      setAuthReady(true);
+    }
+  }, []);
+
   // Restore the persisted collapse preference; with no stored preference,
   // default to icon-only below Tailwind's `md` breakpoint.
   useEffect(() => {
@@ -73,11 +88,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         }
 
         if (me.role !== 'ADMIN') {
+          clearCachedSessionUser();
           await logout();
           router.replace('/login');
           return;
         }
 
+        writeCachedSessionUser(me);
         setUser(me);
         setAuthReady(true);
       })
@@ -87,6 +104,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         }
 
         if (isAuthFailure(error)) {
+          clearCachedSessionUser();
           router.replace('/login');
           return;
         }

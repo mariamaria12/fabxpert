@@ -253,6 +253,7 @@ export class TimesheetService {
         workDate,
         durationMinutes: input.durationMinutes,
       },
+      relationLoadStrategy: 'join',
       include: timesheetInclude,
     });
 
@@ -278,6 +279,7 @@ export class TimesheetService {
       this.prisma.timesheet.count({ where }),
       this.prisma.timesheet.findMany({
         where,
+        relationLoadStrategy: 'join',
         include: timesheetInclude,
         orderBy: buildTimesheetOrderBy(sortBy, sortOrder, orderByCreatedAt),
         skip: (page - 1) * pageSize,
@@ -338,6 +340,7 @@ export class TimesheetService {
           },
         ],
       },
+      relationLoadStrategy: 'join',
       include: timesheetInclude,
       orderBy: [{ workDate: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
     });
@@ -495,6 +498,7 @@ export class TimesheetService {
 
     const rows = await this.prisma.timesheet.findMany({
       where,
+      relationLoadStrategy: 'join',
       include: timesheetInclude,
       orderBy: [
         { workDate: 'asc' },
@@ -524,6 +528,7 @@ export class TimesheetService {
       this.prisma.timesheet.count({ where }),
       this.prisma.timesheet.findMany({
         where,
+        relationLoadStrategy: 'join',
         include: timesheetInclude,
         orderBy: [{ workDate: 'desc' }, { createdAt: 'desc' }],
         skip: (page - 1) * pageSize,
@@ -597,6 +602,7 @@ export class TimesheetService {
           ? { personId: input.personId }
           : {}),
       },
+      relationLoadStrategy: 'join',
       include: timesheetInclude,
     });
 
@@ -709,6 +715,7 @@ export class TimesheetService {
   private async getTimesheetOrThrow(id: string): Promise<TimesheetWithRelations> {
     const timesheet = await this.prisma.timesheet.findFirst({
       where: { id, ...visibleTimesheetWhere() },
+      relationLoadStrategy: 'join',
       include: timesheetInclude,
     });
 

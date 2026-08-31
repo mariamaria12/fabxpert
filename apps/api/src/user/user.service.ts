@@ -16,6 +16,7 @@ import type { SortOrder } from '@fabxpert/shared/dto/project.dto';
 import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
 import { PaginationParams } from '../common/pagination/parse-pagination.util';
 import { notDeleted } from '../common/prisma/soft-delete.util';
+import { AuthUserCache } from '../auth/auth-user-cache.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProjectAvailabilityEventsService } from '../project/project-availability-events.service';
 
@@ -113,6 +114,7 @@ export class UserService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly availabilityEvents: ProjectAvailabilityEventsService,
+    private readonly authUserCache: AuthUserCache,
   ) {}
 
   async findAll(
@@ -131,6 +133,7 @@ export class UserService {
       this.prisma.user.count({ where }),
       this.prisma.user.findMany({
         where,
+        relationLoadStrategy: 'join',
         select: userSelect,
         orderBy: buildUserOrderBy(sortBy, sortOrder),
         skip: (page - 1) * pageSize,
@@ -239,6 +242,8 @@ export class UserService {
         data,
         select: userSelect,
       });
+      // Role or isActive may have changed — the guard must not trust its copy.
+      this.authUserCache.invalidate(id);
       if (restrictedProjectsChanged) {
         this.availabilityEvents.emitChanged();
       }
@@ -259,6 +264,7 @@ export class UserService {
       where: { id },
       data: { deletedAt: new Date() },
     });
+    this.authUserCache.invalidate(id);
   }
 
   private assertSelfProtectionOnUpdate(

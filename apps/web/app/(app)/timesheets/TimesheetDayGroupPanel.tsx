@@ -247,9 +247,9 @@ export function TimesheetDayGroupPanel({
 
     setIsSubmitting(true);
     try {
-      for (const update of updates) {
-        await updateTimesheet(update.id, update.payload);
-      }
+      // Independent entries — sending them one after another would make the
+      // save take as long as the sum of the round trips.
+      await Promise.all(updates.map((update) => updateTimesheet(update.id, update.payload)));
       showToast('Pontaje actualizate', 'success');
       onSaved();
       onClose();

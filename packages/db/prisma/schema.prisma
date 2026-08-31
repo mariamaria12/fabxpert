@@ -4,6 +4,11 @@
 
 generator client {
   provider = "prisma-client-js"
+  // relationJoins lets a query opt into `relationLoadStrategy: "join"`, which
+  // loads includes in the same statement instead of one round trip per
+  // relation. The database is a hop away from the API, so those round trips
+  // dominate list endpoints.
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {
