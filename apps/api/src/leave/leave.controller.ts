@@ -154,7 +154,7 @@ export class LeaveController {
     @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
     @Body(new ZodValidationPipe(updateLeaveRequestSchema)) input: UpdateLeaveRequestInput,
   ) {
-    return this.leaveService.updateOwn(req.user, id, input);
+    return this.leaveService.update(req.user, id, input);
   }
 
   @Delete(':id')
@@ -164,7 +164,7 @@ export class LeaveController {
     @Req() req: Request & { user: AuthenticatedUser },
     @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
   ) {
-    await this.leaveService.softDeleteOwn(req.user, id);
+    await this.leaveService.softDelete(req.user, id);
   }
 
   @Post(':id/review')

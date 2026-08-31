@@ -296,6 +296,7 @@ export {
   getMyLeaveBalance,
   updateLeaveRequest,
   cancelLeaveRequest,
+  deleteLeaveRequest,
   listLeaveRequests,
   getPendingLeaveCount,
   getOnLeave,

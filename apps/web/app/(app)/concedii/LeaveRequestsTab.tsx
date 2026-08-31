@@ -10,6 +10,7 @@ import {
   type LeaveType,
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { LeaveFormPanel } from './LeaveFormPanel';
 import { LeaveReviewPanel } from './LeaveReviewPanel';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { Pagination } from '@/components/Pagination';
@@ -82,6 +83,7 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [panel, setPanel] = useState<PanelState>({ open: false });
+  const [editRequest, setEditRequest] = useState<LeaveRequestDto | null>(null);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -177,6 +179,26 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
     applyReviewedRequest(updated);
   }
 
+  function openEdit(request: LeaveRequestDto) {
+    setPanel({ open: false });
+    setEditRequest(request);
+  }
+
+  // An edit can move the row out of the active type or person filter, so the
+  // page is reloaded instead of patched in place.
+  function handleEdited() {
+    void loadRequests(page, statusFilter, typeFilter, personId);
+    void refreshPendingCount();
+    onBalancesRefresh?.();
+  }
+
+  function handleDeleted(deletedId: string) {
+    setRequests((current) => removeById(current, deletedId).items);
+    setTotal((current) => Math.max(0, current - 1));
+    void refreshPendingCount();
+    onBalancesRefresh?.();
+  }
+
   async function handleQuickReview(
     request: LeaveRequestDto,
     status: 'APROBAT' | 'RESPINS',
@@ -220,6 +242,16 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
           request={row}
           className={`${iconButtonClass} text-text-secondary hover:text-text-primary`}
         />
+        <button
+          type="button"
+          disabled={isBusy}
+          aria-label="Editează"
+          title="Editează"
+          className={`${iconButtonClass} text-text-secondary hover:text-text-primary`}
+          onClick={() => openEdit(row)}
+        >
+          <i className="ti ti-pencil text-base" aria-hidden="true" />
+        </button>
         {showApprove ? (
           <button
             type="button"
@@ -315,7 +347,7 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
     {
       key: 'actions',
       header: '',
-      width: '140px',
+      width: '170px',
       className: 'overflow-visible text-right',
       render: (row) => renderRowActions(row),
     },
@@ -401,6 +433,18 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
           request={panel.request}
           onClose={closePanel}
           onReviewed={handleReviewed}
+          onEdit={openEdit}
+        />
+      ) : null}
+
+      {editRequest ? (
+        <LeaveFormPanel
+          open
+          mode="edit"
+          request={editRequest}
+          onClose={() => setEditRequest(null)}
+          onSaved={handleEdited}
+          onDeleted={handleDeleted}
         />
       ) : null}
     </div>

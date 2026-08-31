@@ -334,19 +334,15 @@ export class LeaveService {
     };
   }
 
-  async updateOwn(
+  async update(
     actor: AuthenticatedUser,
     id: string,
     input: UpdateLeaveRequestInput,
   ): Promise<EmployeeLeaveRequestResponse> {
     const existing = await this.getLeaveRequestOrThrow(id);
-    const personId = await this.resolveActorPersonId(actor.id);
+    await this.assertCanModify(actor, existing);
 
-    if (existing.personId !== personId) {
-      throw new ForbiddenException('You do not have access to this leave request');
-    }
-
-    this.assertPendingForEdit(existing.status);
+    const personId = existing.personId;
 
     const nextStartDate =
       input.startDate !== undefined
@@ -399,15 +395,9 @@ export class LeaveService {
     };
   }
 
-  async softDeleteOwn(actor: AuthenticatedUser, id: string): Promise<void> {
+  async softDelete(actor: AuthenticatedUser, id: string): Promise<void> {
     const existing = await this.getLeaveRequestOrThrow(id);
-    const personId = await this.resolveActorPersonId(actor.id);
-
-    if (existing.personId !== personId) {
-      throw new ForbiddenException('You do not have access to this leave request');
-    }
-
-    this.assertPendingForEdit(existing.status);
+    await this.assertCanModify(actor, existing);
 
     await this.prisma.leaveRequest.update({
       where: { id },
@@ -577,6 +567,26 @@ export class LeaveService {
         'Există deja o cerere de concediu pentru această perioadă',
       );
     }
+  }
+
+  /**
+   * Admins may correct or remove any request, including reviewed ones.
+   * Everyone else only touches their own, and only while it is pending.
+   */
+  private async assertCanModify(
+    actor: AuthenticatedUser,
+    existing: LeaveRequestWithRelations,
+  ): Promise<void> {
+    if (actor.role === 'ADMIN') {
+      return;
+    }
+
+    const personId = await this.resolveActorPersonId(actor.id);
+    if (existing.personId !== personId) {
+      throw new ForbiddenException('You do not have access to this leave request');
+    }
+
+    this.assertPendingForEdit(existing.status);
   }
 
   private assertPendingForEdit(status: LeaveStatus): void {

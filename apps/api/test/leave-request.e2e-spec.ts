@@ -40,6 +40,7 @@ describe('Leave requests (e2e)', () => {
   let app: INestApplication;
   let adminCookie: string;
   let employee1Cookie: string;
+  let employee2Cookie: string;
 
   beforeAll(async () => {
     app = await createTestApp();
@@ -48,6 +49,9 @@ describe('Leave requests (e2e)', () => {
     ).cookieHeader;
     employee1Cookie = (
       await login(app, FIXTURES.users.employee1.email, E2E_PASSWORD)
+    ).cookieHeader;
+    employee2Cookie = (
+      await login(app, FIXTURES.users.employee2.email, E2E_PASSWORD)
     ).cookieHeader;
   });
 
@@ -210,6 +214,61 @@ describe('Leave requests (e2e)', () => {
       .set(authHeader(employee1Cookie));
 
     expect(mine.body.data.some((row: { id: string }) => row.id === pendingId)).toBe(false);
+  });
+
+  it('ADMIN edits and deletes any request, including an approved one', async () => {
+    const create = await request(app.getHttpServer())
+      .post('/leave-requests')
+      .set(authHeader(employee1Cookie))
+      .send({
+        type: 'ODIHNA',
+        startDate: leaveDateIso(6, 1),
+        endDate: leaveDateIso(6, 5),
+      });
+
+    expect(create.status).toBe(201);
+    const id = create.body.leaveRequest.id;
+
+    const approve = await request(app.getHttpServer())
+      .post(`/leave-requests/${id}/review`)
+      .set(authHeader(adminCookie))
+      .send({ status: 'APROBAT' });
+
+    expect(approve.status).toBe(200);
+
+    const employeePatch = await request(app.getHttpServer())
+      .patch(`/leave-requests/${id}`)
+      .set(authHeader(employee2Cookie))
+      .send({ reason: 'Not mine' });
+
+    expect(employeePatch.status).toBe(403);
+
+    const patch = await request(app.getHttpServer())
+      .patch(`/leave-requests/${id}`)
+      .set(authHeader(adminCookie))
+      .send({
+        startDate: leaveDateIso(6, 15),
+        endDate: leaveDateIso(6, 19),
+        reason: 'Reprogramat de admin',
+      });
+
+    expect(patch.status).toBe(200);
+    expect(patch.body.leaveRequest.startDate).toBe(leaveDateIso(6, 15));
+    expect(patch.body.leaveRequest.endDate).toBe(leaveDateIso(6, 19));
+    expect(patch.body.leaveRequest.reason).toBe('Reprogramat de admin');
+    expect(patch.body.leaveRequest.status).toBe('APROBAT');
+
+    const remove = await request(app.getHttpServer())
+      .delete(`/leave-requests/${id}`)
+      .set(authHeader(adminCookie));
+
+    expect(remove.status).toBe(204);
+
+    const list = await request(app.getHttpServer())
+      .get('/leave-requests?pageSize=100')
+      .set(authHeader(adminCookie));
+
+    expect(list.body.data.some((row: { id: string }) => row.id === id)).toBe(false);
   });
 
   it('admin approve ODIHNA increases usedDays; MEDICAL approval leaves balance unchanged', async () => {

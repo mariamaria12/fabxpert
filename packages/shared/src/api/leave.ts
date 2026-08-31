@@ -83,6 +83,11 @@ export function cancelLeaveRequest(id: string) {
   return request<void>(`/leave-requests/${id}`, { method: 'DELETE' });
 }
 
+/** Admin removal of someone else's request — same endpoint as the employee cancel. */
+export function deleteLeaveRequest(id: string) {
+  return request<void>(`/leave-requests/${id}`, { method: 'DELETE' });
+}
+
 export function listLeaveRequests(params?: ListLeaveRequestsParams) {
   return request<PaginatedResponse<LeaveRequestDto>>(
     `/leave-requests${buildListQuery(params)}`,

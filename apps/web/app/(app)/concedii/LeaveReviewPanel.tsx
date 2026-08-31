@@ -29,6 +29,7 @@ interface LeaveReviewPanelProps {
   request: LeaveRequestDto;
   onClose: () => void;
   onReviewed: (updated: LeaveRequestDto) => void;
+  onEdit?: (request: LeaveRequestDto) => void;
 }
 
 export function LeaveReviewPanel({
@@ -36,6 +37,7 @@ export function LeaveReviewPanel({
   request,
   onClose,
   onReviewed,
+  onEdit,
 }: LeaveReviewPanelProps) {
   const { showToast } = useToast();
   const [balance, setBalance] = useState<LeaveBalanceDto | null>(null);
@@ -170,6 +172,17 @@ export function LeaveReviewPanel({
           {isSubmitting ? 'Se procesează…' : 'Schimbă în Aprobat'}
         </button>
       )}
+      {onEdit ? (
+        <button
+          type="button"
+          className="flex w-full items-center justify-center gap-2 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-surface-raised disabled:opacity-50"
+          disabled={isSubmitting || isExporting}
+          onClick={() => onEdit(request)}
+        >
+          <i className="ti ti-pencil text-base" aria-hidden="true" />
+          Editează
+        </button>
+      ) : null}
       <button
         type="button"
         className="w-full rounded-md border border-border px-4 py-2.5 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary disabled:opacity-50"

@@ -5,6 +5,7 @@ import {
   countInclusiveLeaveDays,
   createLeaveRequest,
   createLeaveRequestSchema,
+  deleteLeaveRequest,
   formatLeaveDayCount,
   getLeaveBalance,
   getLeaveTypeLabel,
@@ -12,6 +13,8 @@ import {
   parseDateDisplay,
   parseWorkDateString,
   todayDateInputValue,
+  updateLeaveRequest,
+  updateLeaveRequestSchema,
   LEAVE_TYPE_VALUES,
   type LeaveBalanceDto,
   type LeaveRequestDto,
@@ -49,13 +52,37 @@ function createEmptyForm(): LeaveFormValues {
   };
 }
 
-function buildPayload(values: LeaveFormValues) {
+function requestToFormValues(request: LeaveRequestDto): LeaveFormValues {
+  return {
+    personId: request.person.id,
+    type: request.type,
+    startDate: request.startDate,
+    endDate: request.endDate,
+    reason: request.reason ?? '',
+  };
+}
+
+function buildCreatePayload(values: LeaveFormValues) {
   return {
     personId: values.personId,
     type: values.type,
     startDate: values.startDate,
     endDate: values.endDate,
     reason: values.reason.trim() || undefined,
+  };
+}
+
+function buildUpdatePayload(values: LeaveFormValues, request: LeaveRequestDto) {
+  return {
+    type: values.type,
+    startDate: values.startDate,
+    endDate: values.endDate,
+    reason: values.reason.trim(),
+    // Hours off only exist on RECUPERARE, so switching type turns the request
+    // back into whole days.
+    ...(request.durationMinutes !== null && values.type !== 'RECUPERARE'
+      ? { durationMinutes: null }
+      : {}),
   };
 }
 
@@ -96,11 +123,21 @@ function countWorkingDays(values: LeaveFormValues): number | null {
 
 export interface LeaveFormPanelProps {
   open: boolean;
+  mode?: 'create' | 'edit';
+  request?: LeaveRequestDto | null;
   onClose: () => void;
-  onSaved: (created: LeaveRequestDto) => void;
+  onSaved: (saved?: LeaveRequestDto) => void;
+  onDeleted?: (deletedId: string) => void;
 }
 
-export function LeaveFormPanel({ open, onClose, onSaved }: LeaveFormPanelProps) {
+export function LeaveFormPanel({
+  open,
+  mode = 'create',
+  request = null,
+  onClose,
+  onSaved,
+  onDeleted,
+}: LeaveFormPanelProps) {
   const { showToast } = useToast();
   const businessAutofill = useBusinessAutofillProps();
   const [values, setValues] = useState<LeaveFormValues>(createEmptyForm);
@@ -109,9 +146,14 @@ export function LeaveFormPanel({ open, onClose, onSaved }: LeaveFormPanelProps) 
   >({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [personOptions, setPersonOptions] = useState<{ id: string; label: string }[]>([]);
   const [balance, setBalance] = useState<LeaveBalanceDto | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
+
+  const isEdit = mode === 'edit' && request !== null;
+  const isBusy = isSubmitting || isDeleting;
 
   const typeOptions = useMemo(
     () =>
@@ -123,10 +165,18 @@ export function LeaveFormPanel({ open, onClose, onSaved }: LeaveFormPanelProps) 
   );
 
   const workingDays = countWorkingDays(values);
-  const remainingAfterRequest = (balance?.remainingDays ?? 0) - (workingDays ?? 0);
+  // An approved ODIHNA already counts against the balance, so its own days are
+  // taken back out before showing what the edited request would leave.
+  const daysAlreadyCounted =
+    isEdit && request.status === 'APROBAT' && request.type === 'ODIHNA'
+      ? request.dayCount
+      : 0;
+  const remainingBefore = (balance?.remainingDays ?? 0) + daysAlreadyCounted;
+  const usedBefore = (balance?.usedDays ?? 0) - daysAlreadyCounted;
+  const remainingAfterRequest = remainingBefore - (workingDays ?? 0);
 
   useEffect(() => {
-    if (!open) {
+    if (!open || isEdit) {
       return;
     }
 
@@ -152,21 +202,23 @@ export function LeaveFormPanel({ open, onClose, onSaved }: LeaveFormPanelProps) 
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [open, isEdit]);
 
   useEffect(() => {
     if (!open) {
       return;
     }
 
-    setValues(createEmptyForm());
+    setValues(isEdit ? requestToFormValues(request) : createEmptyForm());
     setFieldErrors({});
     setFormError(null);
+    setConfirmDelete(false);
     setIsSubmitting(false);
-  }, [open]);
+    setIsDeleting(false);
+  }, [open, isEdit, request]);
 
   // Balance for the selected person, so the admin sees how many days are left
-  // before filing the request.
+  // before filing or changing the request.
   useEffect(() => {
     if (!values.personId) {
       setBalance(null);
@@ -217,7 +269,7 @@ export function LeaveFormPanel({ open, onClose, onSaved }: LeaveFormPanelProps) 
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isSubmitting) {
+    if (isBusy) {
       return;
     }
 
@@ -225,7 +277,7 @@ export function LeaveFormPanel({ open, onClose, onSaved }: LeaveFormPanelProps) 
     setFieldErrors({});
 
     const nextErrors: Partial<Record<keyof LeaveFormValues, string>> = {};
-    if (!values.personId) {
+    if (!isEdit && !values.personId) {
       nextErrors.personId = 'Angajatul este obligatoriu.';
     }
     if (!values.startDate || !parseDateDisplay(values.startDate)) {
@@ -239,7 +291,30 @@ export function LeaveFormPanel({ open, onClose, onSaved }: LeaveFormPanelProps) 
       return;
     }
 
-    const parsed = createLeaveRequestSchema.safeParse(buildPayload(values));
+    if (isEdit) {
+      const parsed = updateLeaveRequestSchema.safeParse(
+        buildUpdatePayload(values, request),
+      );
+      if (!parsed.success) {
+        setFieldErrors(mapZodFieldErrors(parsed.error));
+        return;
+      }
+
+      setIsSubmitting(true);
+      try {
+        const response = await updateLeaveRequest(request.id, parsed.data);
+        showToast('Concediu actualizat', 'success');
+        onSaved(response.leaveRequest);
+        onClose();
+      } catch (caught) {
+        reportSubmitError(caught);
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    const parsed = createLeaveRequestSchema.safeParse(buildCreatePayload(values));
     if (!parsed.success) {
       setFieldErrors(mapZodFieldErrors(parsed.error));
       return;
@@ -252,29 +327,77 @@ export function LeaveFormPanel({ open, onClose, onSaved }: LeaveFormPanelProps) 
       onSaved(response.leaveRequest);
       onClose();
     } catch (caught) {
-      if (caught instanceof ApiError && (caught.status === 400 || caught.status === 409)) {
-        setFormError(caught.message);
-      } else {
-        showToast(apiErrorToastMessage(caught), 'error');
-      }
+      reportSubmitError(caught);
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  const footer = (
+  /** Overlaps and merged-field rules come back from the API, so they show inline. */
+  function reportSubmitError(caught: unknown) {
+    if (caught instanceof ApiError && (caught.status === 400 || caught.status === 409)) {
+      setFormError(caught.message);
+    } else {
+      showToast(apiErrorToastMessage(caught), 'error');
+    }
+  }
+
+  async function handleDelete() {
+    if (!isEdit || isBusy) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await deleteLeaveRequest(request.id);
+      showToast('Concediu șters', 'success');
+      onDeleted?.(request.id);
+      onClose();
+    } catch (caught) {
+      showToast(apiErrorToastMessage(caught), 'error');
+    } finally {
+      setIsDeleting(false);
+      setConfirmDelete(false);
+    }
+  }
+
+  const footer = confirmDelete ? (
+    <div role="alertdialog" aria-labelledby="leave-delete-title">
+      <p id="leave-delete-title" className="text-sm text-text-secondary">
+        Sigur ștergi această cerere de concediu?
+      </p>
+      <div className="mt-3 flex gap-2">
+        <button
+          type="button"
+          disabled={isDeleting}
+          onClick={() => void handleDelete()}
+          className="flex-1 rounded-md bg-[var(--color-timer-stop)] px-4 py-2.5 text-sm font-medium text-[var(--color-timer-stop-text)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isDeleting ? 'Se șterge…' : 'Șterge'}
+        </button>
+        <button
+          type="button"
+          disabled={isDeleting}
+          onClick={() => setConfirmDelete(false)}
+          className="flex-1 rounded-md border border-border px-4 py-2.5 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Anulează
+        </button>
+      </div>
+    </div>
+  ) : (
     <div className="flex gap-2">
       <button
         type="submit"
         form="leave-form"
-        disabled={isSubmitting}
+        disabled={isBusy}
         className="flex-1 rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-accent-contrast disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isSubmitting ? 'Se salvează…' : 'Adaugă'}
+        {isSubmitting ? 'Se salvează…' : isEdit ? 'Salvează' : 'Adaugă'}
       </button>
       <button
         type="button"
-        disabled={isSubmitting}
+        disabled={isBusy}
         onClick={onClose}
         className="rounded-md border border-border px-4 py-2.5 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
       >
@@ -286,9 +409,9 @@ export function LeaveFormPanel({ open, onClose, onSaved }: LeaveFormPanelProps) 
   return (
     <SlideOverPanel
       open={open}
-      title="Concediu nou"
+      title={isEdit ? 'Editează concediul' : 'Concediu nou'}
       onClose={onClose}
-      disableClose={isSubmitting}
+      disableClose={isBusy}
       footer={footer}
     >
       <form
@@ -296,18 +419,27 @@ export function LeaveFormPanel({ open, onClose, onSaved }: LeaveFormPanelProps) 
         onSubmit={(event) => void handleSubmit(event)}
         className="flex flex-col gap-4"
       >
-        <SelectField
-          id="leave-personId"
-          label="Angajat"
-          value={values.personId}
-          error={fieldErrors.personId}
-          disabled={isSubmitting}
-          required
-          allowEmpty
-          placeholder="Selectează angajatul"
-          options={personOptions}
-          onChange={(value) => updateField('personId', value)}
-        />
+        {isEdit ? (
+          <div>
+            <p className="text-xs text-text-secondary">Angajat</p>
+            <p className="mt-1.5 text-sm text-text-primary">
+              {request.person.firstName} {request.person.lastName}
+            </p>
+          </div>
+        ) : (
+          <SelectField
+            id="leave-personId"
+            label="Angajat"
+            value={values.personId}
+            error={fieldErrors.personId}
+            disabled={isBusy}
+            required
+            allowEmpty
+            placeholder="Selectează angajatul"
+            options={personOptions}
+            onChange={(value) => updateField('personId', value)}
+          />
+        )}
 
         {values.personId && (
           <div className="rounded-md border border-border-subtle bg-surface-raised px-3 py-2.5">
@@ -319,8 +451,8 @@ export function LeaveFormPanel({ open, onClose, onSaved }: LeaveFormPanelProps) 
             ) : balance ? (
               <div className="mt-1 space-y-0.5 text-sm text-text-secondary">
                 <p>
-                  <strong className="text-text-primary">{balance.remainingDays}</strong> din{' '}
-                  {balance.annualLeaveDays} zile ({balance.usedDays} folosite)
+                  <strong className="text-text-primary">{remainingBefore}</strong> din{' '}
+                  {balance.annualLeaveDays} zile ({usedBefore} folosite)
                 </p>
                 {values.type === 'ODIHNA' && workingDays !== null && workingDays > 0 && (
                   <p className={remainingAfterRequest < 0 ? 'text-danger' : undefined}>
@@ -342,7 +474,7 @@ export function LeaveFormPanel({ open, onClose, onSaved }: LeaveFormPanelProps) 
           id="leave-type"
           label="Tip concediu"
           value={values.type}
-          disabled={isSubmitting}
+          disabled={isBusy}
           required
           options={typeOptions}
           onChange={(value) => updateField('type', value as LeaveType)}
@@ -353,7 +485,7 @@ export function LeaveFormPanel({ open, onClose, onSaved }: LeaveFormPanelProps) 
           label="Data de început"
           value={values.startDate}
           error={fieldErrors.startDate}
-          disabled={isSubmitting}
+          disabled={isBusy}
           required
           onChange={(value) => updateField('startDate', value)}
         />
@@ -363,7 +495,7 @@ export function LeaveFormPanel({ open, onClose, onSaved }: LeaveFormPanelProps) 
           label="Data de sfârșit"
           value={values.endDate}
           error={fieldErrors.endDate}
-          disabled={isSubmitting}
+          disabled={isBusy}
           required
           onChange={(value) => updateField('endDate', value)}
         />
@@ -376,6 +508,12 @@ export function LeaveFormPanel({ open, onClose, onSaved }: LeaveFormPanelProps) 
           </p>
         )}
 
+        {isEdit && request.durationMinutes !== null && values.type === 'RECUPERARE' && (
+          <p className="text-xs text-text-muted">
+            Cerere în ore — durata se editează din aplicația angajatului.
+          </p>
+        )}
+
         <div>
           <label htmlFor="leave-reason" className="mb-1.5 block text-xs text-text-secondary">
             Motiv
@@ -384,7 +522,7 @@ export function LeaveFormPanel({ open, onClose, onSaved }: LeaveFormPanelProps) 
             id="leave-reason"
             rows={3}
             value={values.reason}
-            disabled={isSubmitting}
+            disabled={isBusy}
             onChange={(event) => updateField('reason', event.target.value)}
             className={`${FORM_FIELD_CLASS} resize-none`}
             {...businessAutofill}
@@ -395,6 +533,20 @@ export function LeaveFormPanel({ open, onClose, onSaved }: LeaveFormPanelProps) 
           <p role="alert" className="text-sm text-danger">
             {formError}
           </p>
+        )}
+
+        {isEdit && !confirmDelete && (
+          <div className="mt-2 border-t border-border-subtle pt-4">
+            <button
+              type="button"
+              disabled={isBusy}
+              onClick={() => setConfirmDelete(true)}
+              className="inline-flex items-center gap-2 text-sm text-danger transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <i className="ti ti-trash text-base" aria-hidden="true" />
+              <span>Șterge concediul</span>
+            </button>
+          </div>
         )}
       </form>
     </SlideOverPanel>
