@@ -50,6 +50,11 @@ const previewColumns: DataTableColumn<TimesheetDto>[] = [
     render: (row) => row.project.company.name,
   },
   {
+    key: 'projectName',
+    header: 'Nume',
+    render: (row) => row.project.name,
+  },
+  {
     key: 'month',
     header: 'Lună',
     width: '52px',
@@ -246,7 +251,9 @@ export function TimesheetExportPanel({
         )}
 
         <DataTable
-          storageKey="timesheet-export-preview"
+          // -v2 since the "Nume" column was inserted: saved orders from the old
+          // key would otherwise place it after "Lună" instead of before it.
+          storageKey="timesheet-export-preview-v2"
           columns={previewColumns}
           data={previewRows}
           rowKey={(row) => row.id}

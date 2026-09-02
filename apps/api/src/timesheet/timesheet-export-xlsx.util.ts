@@ -10,6 +10,7 @@ export type TimesheetExportRow = {
   project: {
     code: string;
     denumireLucrare: string | null;
+    name: string;
     company: { name: string };
   };
   person: { firstName: string; lastName: string };
@@ -20,6 +21,7 @@ const HEADERS = [
   'Cod Proiect',
   'Denumire Lucrare',
   'Client',
+  'Nume',
   'Luna',
   'Data',
   'Nr. ORE LUCRATE',
@@ -29,10 +31,10 @@ const HEADERS = [
 ] as const;
 
 /** 1-based sheet columns; the numeric formats and the total formula follow these. */
-const HOURS_COLUMN = 6;
-const MONTH_COLUMN = 4;
-const DATE_COLUMN = 5;
-const WORKER_COLUMN = 8;
+const HOURS_COLUMN = 7;
+const MONTH_COLUMN = 5;
+const DATE_COLUMN = 6;
+const WORKER_COLUMN = 9;
 
 function formatFilenameDate(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -61,12 +63,13 @@ export async function buildTimesheetExportXlsx(rows: TimesheetExportRow[]): Prom
     { header: HEADERS[0], key: 'projectCode', width: 20 },
     { header: HEADERS[1], key: 'denumireLucrare', width: 30 },
     { header: HEADERS[2], key: 'client', width: 24 },
-    { header: HEADERS[3], key: 'month', width: 8 },
-    { header: HEADERS[4], key: 'date', width: 12 },
-    { header: HEADERS[5], key: 'hours', width: 16 },
-    { header: HEADERS[6], key: 'activity', width: 22 },
-    { header: HEADERS[7], key: 'worker', width: 24 },
-    { header: HEADERS[8], key: 'notes', width: 40 },
+    { header: HEADERS[3], key: 'projectName', width: 56 },
+    { header: HEADERS[4], key: 'month', width: 8 },
+    { header: HEADERS[5], key: 'date', width: 12 },
+    { header: HEADERS[6], key: 'hours', width: 16 },
+    { header: HEADERS[7], key: 'activity', width: 22 },
+    { header: HEADERS[8], key: 'worker', width: 24 },
+    { header: HEADERS[9], key: 'notes', width: 40 },
   ];
 
   const headerRow = sheet.getRow(1);
@@ -80,6 +83,7 @@ export async function buildTimesheetExportXlsx(rows: TimesheetExportRow[]): Prom
       projectCode: row.project.code,
       denumireLucrare: row.project.denumireLucrare ?? '',
       client: row.project.company.name,
+      projectName: row.project.name,
       month: workDate.getMonth() + 1,
       date: workDate,
       hours: row.durationMinutes / 60,
