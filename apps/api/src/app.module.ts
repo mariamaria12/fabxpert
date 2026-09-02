@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ActivityModule } from './activity/activity.module';
+import { AssemblyModule } from './assembly/assembly.module';
 import { AuthModule } from './auth/auth.module';
 import { AuthGuard } from './auth/guards/auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
@@ -27,6 +28,7 @@ import { PrismaModule } from './prisma/prisma.module';
     AuthModule,
     CompanyModule,
     ActivityModule,
+    AssemblyModule,
     EmployeeRoleModule,
     PersonModule,
     ProjectModule,

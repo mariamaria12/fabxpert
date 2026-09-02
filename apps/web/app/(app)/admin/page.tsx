@@ -65,6 +65,14 @@ const ACTIVITY_COPY = {
   nameRequiredError: 'Numele este obligatoriu.',
 } as const;
 
+const ACTIVITY_ASSEMBLY_FLAG = {
+  label: 'Ansamble',
+  hint: 'La pontajul pe această activitate se poate alege ce ansamble s-au făcut.',
+  badgeLabel: 'Ansamble',
+  badgeIcon: 'ti-stack-2',
+  read: (item: ActivityDto) => item.tracksAssemblies,
+} as const;
+
 export default function AdminPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -186,15 +194,18 @@ export default function AdminPage() {
               buildCreateInput={(values) => ({
                 name: values.name.trim(),
                 isActive: values.isActive,
+                tracksAssemblies: values.flag,
                 ...(values.color ? { color: values.color } : {}),
               })}
               buildUpdateInput={(values) => ({
                 name: values.name.trim(),
                 isActive: values.isActive,
+                tracksAssemblies: values.flag,
                 ...(values.color ? { color: values.color } : {}),
               })}
               copy={ACTIVITY_COPY}
               getDotColor={(item) => item.color ?? 'var(--color-border-subtle)'}
+              flag={ACTIVITY_ASSEMBLY_FLAG}
             />
           </div>
         )}

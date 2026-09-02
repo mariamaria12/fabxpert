@@ -8,6 +8,7 @@ export const createActivitySchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
   isActive: z.boolean().optional(),
   color: hexColorSchema.optional(),
+  tracksAssemblies: z.boolean().optional(),
 });
 
 export const updateActivitySchema = createActivitySchema.partial().refine(
@@ -24,6 +25,8 @@ export type ActivityDto = {
   name: string;
   color: string | null;
   isActive: boolean;
+  /** Logging this activity asks which assemblies were worked on. */
+  tracksAssemblies: boolean;
   createdAt: string;
   updatedAt: string;
 };

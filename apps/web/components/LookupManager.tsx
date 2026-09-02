@@ -26,13 +26,33 @@ interface InlineFormValues {
   name: string;
   isActive: boolean;
   color: string | null;
+  /** The optional extra flag; false for lookups that do not declare one. */
+  flag: boolean;
 }
 
 const EMPTY_FORM: InlineFormValues = {
   name: '',
   isActive: true,
   color: null,
+  flag: false,
 };
+
+/**
+ * One extra yes/no property a lookup can carry beyond name, colour and active
+ * — "Ansamble" on activities. Rows that have it on show a badge, so the list
+ * answers "which ones is this on for?" without opening anything.
+ */
+export interface LookupManagerFlag<TItem> {
+  /** Checkbox label in the editor. */
+  label: string;
+  /** One line under the checkbox saying what turning it on does. */
+  hint?: string;
+  /** Badge text on rows that have it on. */
+  badgeLabel: string;
+  /** Tabler icon name for the badge, e.g. "ti-stack-2". */
+  badgeIcon: string;
+  read: (item: TItem) => boolean;
+}
 
 export interface LookupManagerCopy {
   addLabel: string;
@@ -73,6 +93,8 @@ export interface LookupManagerProps<TItem extends LookupItem, TCreate, TUpdate> 
   active: boolean;
   /** Return a dot color to render, or null to omit the dot. */
   getDotColor?: (item: TItem, stableIndex: number) => string | null;
+  /** Omit for lookups with no extra flag — roles have none. */
+  flag?: LookupManagerFlag<TItem>;
 }
 
 const inputClassName =
@@ -148,6 +170,7 @@ export function LookupManager<TItem extends LookupItem, TCreate, TUpdate>({
   copy,
   active,
   getDotColor,
+  flag,
 }: LookupManagerProps<TItem, TCreate, TUpdate>) {
   const { showToast } = useToast();
   const businessAutofill = useBusinessAutofillProps();
@@ -224,6 +247,7 @@ export function LookupManager<TItem extends LookupItem, TCreate, TUpdate>({
       name: item.name,
       isActive: item.isActive,
       color: getItemColor(item),
+      flag: flag ? flag.read(item) : false,
     });
     setFormError(null);
     setColorDraftInvalid(false);
@@ -349,6 +373,24 @@ export function LookupManager<TItem extends LookupItem, TCreate, TUpdate>({
           {copy.activeLabel}
         </label>
 
+        {flag && (
+          <div className="flex flex-col gap-1">
+            <label className="inline-flex items-center gap-2 text-sm text-text-secondary">
+              <input
+                type="checkbox"
+                checked={formValues.flag}
+                disabled={isSubmitting}
+                onChange={(event) =>
+                  setFormValues((current) => ({ ...current, flag: event.target.checked }))
+                }
+                className="size-4 rounded border-border accent-accent"
+              />
+              {flag.label}
+            </label>
+            {flag.hint && <p className="pl-6 text-xs text-text-muted">{flag.hint}</p>}
+          </div>
+        )}
+
         {formError && (
           <p role="alert" className="text-xs text-danger">
             {formError}
@@ -435,6 +477,13 @@ export function LookupManager<TItem extends LookupItem, TCreate, TUpdate>({
         )}
 
         <span className="min-w-0 flex-1 truncate text-[13px] text-text-primary">{item.name}</span>
+
+        {flag?.read(item) && (
+          <span className="inline-flex shrink-0 items-center gap-1 rounded bg-accent/10 px-1.5 py-0.5 text-[11px] font-medium text-accent">
+            <i className={`ti ${flag.badgeIcon} text-[12px]`} aria-hidden="true" />
+            {flag.badgeLabel}
+          </span>
+        )}
 
         {!item.isActive && (
           <span className="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium text-text-muted">

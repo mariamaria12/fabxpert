@@ -11,11 +11,13 @@ export const employeeRoles = [
   'Operator CNC',
 ] as const;
 
+// tracksAssemblies: the activities done assembly by assembly, where the worker
+// says which marks were covered. Admin-editable afterwards.
 export const activities = [
   { name: 'Debitare (inclusiv CNC intern)', color: '#3B7EA1' },
-  { name: 'Asamblare', color: '#7A8450' },
-  { name: 'Sudare', color: '#B5533C' },
-  { name: 'Vopsire', color: '#8E5FA8' },
+  { name: 'Asamblare', color: '#7A8450', tracksAssemblies: true },
+  { name: 'Sudare', color: '#B5533C', tracksAssemblies: true },
+  { name: 'Vopsire', color: '#8E5FA8', tracksAssemblies: true },
   { name: 'Rectificare', color: '#6B6B6B' },
   { name: 'Premontaj/Montaj', color: '#C9A227' },
   { name: 'Administrativ', color: '#8A8A8A' },
@@ -39,11 +41,13 @@ export async function seedEmployeeRoles(prisma: PrismaClient): Promise<void> {
 
 export async function seedActivities(prisma: PrismaClient): Promise<void> {
   console.log('Seeding Activity rows...');
-  for (const { name, color } of activities) {
+  for (const entry of activities) {
+    const { name, color } = entry;
+    const tracksAssemblies = 'tracksAssemblies' in entry ? entry.tracksAssemblies : false;
     const activity = await prisma.activity.upsert({
       where: { name },
-      update: { color },
-      create: { name, color },
+      update: { color, tracksAssemblies },
+      create: { name, color, tracksAssemblies },
     });
     console.log(`  ✓ ${activity.name} (${activity.id})`);
   }

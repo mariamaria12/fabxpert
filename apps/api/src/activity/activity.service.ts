@@ -19,6 +19,7 @@ function toActivityDto(activity: Activity): ActivityDto {
     name: activity.name,
     color: activity.color,
     isActive: activity.isActive,
+    tracksAssemblies: activity.tracksAssemblies,
     createdAt: activity.createdAt.toISOString(),
     updatedAt: activity.updatedAt.toISOString(),
   };

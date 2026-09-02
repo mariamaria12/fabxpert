@@ -38,6 +38,7 @@ import { formatProjectWeight } from '@/utils/projectWeight';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 import { ProjectFormPanel } from '../projects/ProjectFormPanel';
+import { ProjectAssemblyCountCell } from '../projects/ProjectAssemblyCountCell';
 import {
   PanouPinnedProjectsSection,
   type PanouPinnedProjectsSectionHandle,
@@ -201,6 +202,13 @@ function useProjectTableColumns(options?: {
         header: 'Status',
         width: '150px',
         render: (row) => <ProjectStatusBadge status={row.status} />,
+      },
+      {
+        key: 'assemblyCount',
+        header: 'Ansamble',
+        width: '110px',
+        className: 'text-center',
+        render: (row) => <ProjectAssemblyCountCell project={row} />,
       },
       {
         key: 'visibleForRoles',

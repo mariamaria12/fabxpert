@@ -17,6 +17,17 @@ const workDateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'workDate must be YYYY-MM-DD');
 
+/**
+ * Which assemblies this entry covered, and how many pieces of each. Only
+ * meaningful together with an activity — progress is reported per activity.
+ */
+export const timesheetAssemblyInputSchema = z.object({
+  assemblyId: uuidSchema,
+  quantityDone: z.number().int().positive(),
+});
+
+const assembliesSchema = z.array(timesheetAssemblyInputSchema);
+
 export const createTimesheetSchema = z.object({
   projectId: uuidSchema,
   activityId: uuidSchema.optional(),
@@ -24,6 +35,7 @@ export const createTimesheetSchema = z.object({
   durationMinutes: durationMinutesSchema,
   notes: optionalNotes,
   personId: uuidSchema.optional(),
+  assemblies: assembliesSchema.optional(),
 });
 
 export const updateTimesheetSchema = z
@@ -34,6 +46,8 @@ export const updateTimesheetSchema = z
     durationMinutes: durationMinutesSchema.optional(),
     notes: optionalNotes,
     personId: uuidSchema.optional(),
+    /** Replaces the whole set for this entry; [] clears it. */
+    assemblies: assembliesSchema.optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided',
@@ -41,6 +55,7 @@ export const updateTimesheetSchema = z
 
 export type CreateTimesheetInput = z.infer<typeof createTimesheetSchema>;
 export type UpdateTimesheetInput = z.infer<typeof updateTimesheetSchema>;
+export type TimesheetAssemblyInput = z.infer<typeof timesheetAssemblyInputSchema>;
 
 export type TimesheetPersonDto = {
   id: string;
@@ -65,6 +80,13 @@ export type TimesheetActivityDto = {
   color: string | null;
 };
 
+/** One assembly this entry covered, with the pieces reported against it. */
+export type TimesheetAssemblyDto = {
+  assemblyId: string;
+  name: string;
+  quantityDone: number;
+};
+
 export type TimesheetDto = {
   id: string;
   workDate: string;
@@ -77,6 +99,8 @@ export type TimesheetDto = {
   person: TimesheetPersonDto;
   project: TimesheetProjectDto;
   activity: TimesheetActivityDto | null;
+  /** Empty when the entry's activity does not track assemblies. */
+  assemblies: TimesheetAssemblyDto[];
   createdAt: string;
   updatedAt: string;
 };

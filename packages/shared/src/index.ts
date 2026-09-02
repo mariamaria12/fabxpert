@@ -417,3 +417,58 @@ export {
   formatPollDeadline,
 } from './pollLabels';
 
+export {
+  listProjectAssemblies,
+  createProjectAssembly,
+  importProjectAssemblies,
+  updateProjectAssembly,
+  deleteProjectAssembly,
+  previewAssembliesFromText,
+  previewAssembliesFromFile,
+} from './api/assembly';
+export type { ListProjectAssembliesParams } from './api/assembly';
+export {
+  createProjectAssemblySchema,
+  updateProjectAssemblySchema,
+  importProjectAssembliesSchema,
+  ASSEMBLY_LIST_STATUS_VALUES,
+  ASSEMBLY_IMPORT_ISSUE_CODES,
+} from './dto/assembly.dto';
+export {
+  assemblyImportRowSchema,
+} from './dto/assembly.dto';
+export type {
+  ProjectAssemblyDto,
+  AssemblyProgressDto,
+  AssemblyImportRowDto,
+  AssemblyPreviewDto,
+
+  AssemblyListStatus,
+  AssemblyImportIssue,
+  AssemblyImportIssueCode,
+  AssemblyImportResult,
+  CreateProjectAssemblyInput,
+  UpdateProjectAssemblyInput,
+  ImportProjectAssembliesInput,
+} from './dto/assembly.dto';
+export {
+  parseAssemblyImport,
+  parseAssemblyRows,
+  parseAssemblyNumber,
+  parseAssemblyQuantity,
+} from './assemblyImport';
+export type {
+  ParsedAssemblyRow,
+  ParseAssemblyImportResult,
+  AssemblyImportColumnMap,
+} from './assemblyImport';
+export {
+  assemblyDoneForActivity,
+  assemblyRemainingForActivity,
+  isAssemblyOverDone,
+  assemblyHasOverDoneActivity,
+} from './assemblyProgress';
+export { normalizeProfileKey, toProfileKey } from './steelProfile';
+export { parseTsvRows } from './tsv';
+export type { TimesheetAssemblyDto, TimesheetAssemblyInput } from './dto/timesheet.dto';
+export { timesheetAssemblyInputSchema } from './dto/timesheet.dto';

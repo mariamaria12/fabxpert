@@ -102,11 +102,17 @@ model Activity {
   name      String    @unique
   color     String?
   isActive  Boolean   @default(true)
+  /// When true, logging this activity asks which assemblies were worked on.
+  /// A flag rather than a hardcoded name list, because activity rows are
+  /// renamed at runtime and the feature must not switch off silently.
+  tracksAssemblies Boolean @default(false)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   timesheets Timesheet[]
+
+  assemblyLinks TimesheetAssembly[]
 
   @@map("activities")
 }
@@ -258,6 +264,8 @@ model Project {
 
   timesheets Timesheet[]
 
+  assemblies ProjectAssembly[]
+
   visibleForRoles EmployeeRole[]
 
   @@index([deletedAt, status])
@@ -298,6 +306,8 @@ model Timesheet {
 
   activityId String?
   activity   Activity? @relation(fields: [activityId], references: [id])
+
+  assemblies TimesheetAssembly[]
 
   @@index([deletedAt, workDate])
   @@index([personId])
@@ -489,4 +499,107 @@ model PollVote {
   @@unique([optionId, userId])
   @@index([pollId, userId])
   @@map("poll_votes")
+}
+
+// ---------------------------------------------------------------------------
+// SteelProfile
+// Catalogue of profiles seen across assembly lists, keyed by the normalized
+// spelling. Rows are created on demand by the import — never a gate, so a new
+// plate size can never block a list from coming in. `kgPerMeter` is the hook
+// for computing piece weight later; the drawing lists compute it today.
+// ---------------------------------------------------------------------------
+
+model SteelProfile {
+  /// Normalized spelling — see normalizeProfileKey in @fabxpert/shared.
+  key String @id
+  /// First spelling seen for this profile, kept for display.
+  label String
+  /// Mass per metre in kg; null until the catalogue is filled in.
+  kgPerMeter Float?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  assemblies ProjectAssembly[]
+
+  @@map("steel_profiles")
+}
+
+// ---------------------------------------------------------------------------
+// ProjectAssembly
+// One line of a project's assembly list, as it appears on the drawing: a mark
+// ("GBAL/25"), how many pieces it covers, its profile and length.
+//
+// Deliberately carries NO progress column. How much of it is done is derived
+// from the timesheets that covered it (see TimesheetAssembly) — the same rule
+// the leave balance follows. A stored counter would drift the moment someone
+// corrects an old timesheet, and nobody "spends" a finished assembly the way
+// OvertimeAccrual's frozen months are spent.
+// ---------------------------------------------------------------------------
+
+model ProjectAssembly {
+  id String @id @default(uuid())
+  /// Assembly mark from the drawing, e.g. "GBAL/25".
+  name String
+  /// Pieces this line covers — the number of tick boxes on the paper list.
+  quantity Int
+  /// Profile exactly as imported, e.g. "CFCHS48.3*3.6"; shown as-is so it
+  /// matches what the worker reads on the drawing.
+  profile String?
+  /// `profile` normalized, for grouping and the SteelProfile join.
+  profileKey String?
+  /// Piece length in millimetres. Not whole numbers: drawing lists carry values
+  /// like 2981.6, which the sheet only rounds for display.
+  length Float?
+  /// Kilograms for one piece, as the drawing list states it. Not derived from
+  /// the profile — the list already did that sum and is the reference.
+  weightPerPiece Float?
+  /// Import order, so the list keeps the drawing's sequence.
+  position  Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  steelProfile SteelProfile? @relation(fields: [profileKey], references: [key])
+
+  timesheetLinks TimesheetAssembly[]
+
+  /// Re-importing a revised list updates rows instead of duplicating them.
+  @@unique([projectId, name])
+  @@index([projectId, deletedAt, position])
+  @@index([profileKey])
+  @@map("project_assemblies")
+}
+
+// ---------------------------------------------------------------------------
+// TimesheetAssembly
+// "This timesheet covered N pieces of that assembly." The only place assembly
+// progress is written; totals are grouped from here.
+// ---------------------------------------------------------------------------
+
+model TimesheetAssembly {
+  id String @id @default(uuid())
+  /// Pieces of the assembly this timesheet covered.
+  quantityDone Int
+  createdAt    DateTime @default(now())
+
+  timesheetId String
+  timesheet   Timesheet @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
+
+  assemblyId String
+  assembly   ProjectAssembly @relation(fields: [assemblyId], references: [id], onDelete: Cascade)
+
+  /// Copied from the timesheet. Progress is reported per activity ("3 of 7
+  /// welded"), and Prisma cannot group by a field reached through a relation —
+  /// so the key lives here too. It is a copied foreign key, not an aggregate:
+  /// rewritten in the same transaction whenever the timesheet's activity moves.
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id])
+
+  @@unique([timesheetId, assemblyId])
+  /// Backs the grouped progress query.
+  @@index([assemblyId, activityId])
+  @@map("timesheet_assemblies")
 }

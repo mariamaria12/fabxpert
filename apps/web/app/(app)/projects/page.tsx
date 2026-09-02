@@ -24,6 +24,7 @@ import {
   TruncatedTableCell,
 } from '@/components/ProjectNameCell';
 import { FinisajBadge } from '@/components/FinisajBadge';
+import { ProjectAssemblyCountCell } from './ProjectAssemblyCountCell';
 import { Pagination } from '@/components/Pagination';
 import { FiltersToggle } from '@/components/FiltersToggle';
 import { ProjectListFilters } from '@/components/ProjectListFilters';
@@ -243,6 +244,13 @@ export default function ProjectsPage() {
           ) : (
             nullableCell(null)
           ),
+      },
+      {
+        key: 'assemblyCount',
+        header: 'Ansamble',
+        width: '110px',
+        className: 'text-center',
+        render: (row) => <ProjectAssemblyCountCell project={row} />,
       },
       {
         key: 'visibleForRoles',

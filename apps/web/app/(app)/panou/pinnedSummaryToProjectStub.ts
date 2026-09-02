@@ -22,6 +22,7 @@ export function pinnedSummaryToProjectStub(row: PinnedProjectSummaryRow): Projec
     companyId: row.company.id,
     company: row.company,
     visibleForRoles: row.visibleForRoles ?? [],
+    assemblyCount: 0,
     createdAt: '',
     updatedAt: '',
   };

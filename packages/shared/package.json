@@ -97,6 +97,26 @@
       "types": "./dist/projectColor.d.ts",
       "default": "./dist/projectColor.js"
     },
+    "./dto/assembly.dto": {
+      "types": "./dist/dto/assembly.dto.d.ts",
+      "default": "./dist/dto/assembly.dto.js"
+    },
+    "./assemblyImport": {
+      "types": "./dist/assemblyImport.d.ts",
+      "default": "./dist/assemblyImport.js"
+    },
+    "./assemblyProgress": {
+      "types": "./dist/assemblyProgress.d.ts",
+      "default": "./dist/assemblyProgress.js"
+    },
+    "./steelProfile": {
+      "types": "./dist/steelProfile.d.ts",
+      "default": "./dist/steelProfile.js"
+    },
+    "./tsv": {
+      "types": "./dist/tsv.d.ts",
+      "default": "./dist/tsv.js"
+    },
     "./styles/tokens.css": "./styles/tokens.css"
   },
   "scripts": {

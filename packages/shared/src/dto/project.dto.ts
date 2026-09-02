@@ -165,6 +165,8 @@ export type ProjectDto = {
   company: ProjectCompanyDto;
   /** Empty = visible to all employees with readyForExecution. */
   visibleForRoles: ProjectVisibleRoleDto[];
+  /** Lines on the project's assembly list; 0 when no list was imported yet. */
+  assemblyCount: number;
   createdAt: string;
   updatedAt: string;
 };

@@ -13,6 +13,7 @@ import type {
   NotLoggedResponse,
   DashboardMetricsResponse,
   TimesheetDayGroupDto,
+  TimesheetAssemblyInput,
   TimesheetDto,
   TimesheetGroupSortBy,
   TimesheetListSortBy,
@@ -89,6 +90,14 @@ const timesheetInclude = {
       color: true,
     },
   },
+  assemblies: {
+    select: {
+      assemblyId: true,
+      quantityDone: true,
+      assembly: { select: { name: true } },
+    },
+    orderBy: { assembly: { position: 'asc' } },
+  },
 } satisfies Prisma.TimesheetInclude;
 
 type TimesheetWithRelations = Prisma.TimesheetGetPayload<{
@@ -125,6 +134,20 @@ function buildPersonSearchWhere(search: string): Prisma.PersonWhereInput {
   };
 }
 
+/**
+ * The same assembly sent twice in one entry is one line, not a unique-key
+ * violation — the counts add up.
+ */
+function mergeAssemblyLinks(links: TimesheetAssemblyInput[]): TimesheetAssemblyInput[] {
+  const byAssembly = new Map<string, number>();
+
+  for (const link of links) {
+    byAssembly.set(link.assemblyId, (byAssembly.get(link.assemblyId) ?? 0) + link.quantityDone);
+  }
+
+  return [...byAssembly].map(([assemblyId, quantityDone]) => ({ assemblyId, quantityDone }));
+}
+
 function toTimesheetDto(timesheet: TimesheetWithRelations): TimesheetDto {
   return {
     id: timesheet.id,
@@ -138,6 +161,11 @@ function toTimesheetDto(timesheet: TimesheetWithRelations): TimesheetDto {
     person: timesheet.person,
     project: timesheet.project,
     activity: timesheet.activity,
+    assemblies: timesheet.assemblies.map((link) => ({
+      assemblyId: link.assemblyId,
+      name: link.assembly.name,
+      quantityDone: link.quantityDone,
+    })),
     createdAt: timesheet.createdAt.toISOString(),
     updatedAt: timesheet.updatedAt.toISOString(),
   };
@@ -243,6 +271,15 @@ export class TimesheetService {
       ? parseWorkDateString(input.workDate)
       : todayWorkDate();
 
+    const assemblies = mergeAssemblyLinks(input.assemblies ?? []);
+    if (assemblies.length > 0) {
+      await this.assertAssembliesBelongToProject(input.projectId, assemblies);
+    }
+    const assemblyActivityId = this.resolveAssemblyActivityId(
+      assemblies.length,
+      input.activityId ?? null,
+    );
+
     const timesheet = await this.prisma.timesheet.create({
       data: {
         personId,
@@ -252,6 +289,17 @@ export class TimesheetService {
         notes: input.notes,
         workDate,
         durationMinutes: input.durationMinutes,
+        ...(assemblyActivityId
+          ? {
+              assemblies: {
+                create: assemblies.map((link) => ({
+                  assemblyId: link.assemblyId,
+                  quantityDone: link.quantityDone,
+                  activityId: assemblyActivityId,
+                })),
+              },
+            }
+          : {}),
       },
       relationLoadStrategy: 'join',
       include: timesheetInclude,
@@ -586,24 +634,66 @@ export class TimesheetService {
       await this.assertActivityExists(nextActivityId);
     }
 
-    const timesheet = await this.prisma.timesheet.update({
-      where: { id },
-      data: {
-        ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
-        ...(input.activityId !== undefined ? { activityId: input.activityId } : {}),
-        ...(input.workDate !== undefined
-          ? { workDate: parseWorkDateString(input.workDate) }
-          : {}),
-        ...(input.durationMinutes !== undefined
-          ? { durationMinutes: input.durationMinutes }
-          : {}),
-        ...(input.notes !== undefined ? { notes: input.notes } : {}),
-        ...(actor.role === 'ADMIN' && input.personId !== undefined
-          ? { personId: input.personId }
-          : {}),
-      },
-      relationLoadStrategy: 'join',
-      include: timesheetInclude,
+    const nextAssemblies =
+      input.assemblies === undefined ? undefined : mergeAssemblyLinks(input.assemblies);
+    if (nextAssemblies !== undefined && nextAssemblies.length > 0) {
+      await this.assertAssembliesBelongToProject(nextProjectId, nextAssemblies);
+    }
+    const assemblyActivityId = this.resolveAssemblyActivityId(
+      nextAssemblies?.length ?? 0,
+      nextActivityId,
+    );
+
+    const timesheet = await this.prisma.$transaction(async (tx) => {
+      await tx.timesheet.update({
+        where: { id },
+        data: {
+          ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
+          ...(input.activityId !== undefined ? { activityId: input.activityId } : {}),
+          ...(input.workDate !== undefined
+            ? { workDate: parseWorkDateString(input.workDate) }
+            : {}),
+          ...(input.durationMinutes !== undefined
+            ? { durationMinutes: input.durationMinutes }
+            : {}),
+          ...(input.notes !== undefined ? { notes: input.notes } : {}),
+          ...(actor.role === 'ADMIN' && input.personId !== undefined
+            ? { personId: input.personId }
+            : {}),
+        },
+      });
+
+      if (nextAssemblies !== undefined) {
+        await tx.timesheetAssembly.deleteMany({ where: { timesheetId: id } });
+        if (nextAssemblies.length > 0 && assemblyActivityId) {
+          await tx.timesheetAssembly.createMany({
+            data: nextAssemblies.map((link) => ({
+              timesheetId: id,
+              assemblyId: link.assemblyId,
+              quantityDone: link.quantityDone,
+              activityId: assemblyActivityId,
+            })),
+          });
+        }
+      } else if (input.projectId !== undefined && input.projectId !== existing.projectId) {
+        // Marks belong to one project's drawing, so links cannot follow the
+        // entry to another project — they are dropped rather than left
+        // pointing at assemblies this entry no longer has anything to do with.
+        await tx.timesheetAssembly.deleteMany({ where: { timesheetId: id } });
+      } else if (input.activityId !== undefined && nextActivityId !== null) {
+        // The entry moved to another activity; its assembly links carry a copy
+        // of that key and have to move with it, in the same transaction.
+        await tx.timesheetAssembly.updateMany({
+          where: { timesheetId: id },
+          data: { activityId: nextActivityId },
+        });
+      }
+
+      return tx.timesheet.findUniqueOrThrow({
+        where: { id },
+        relationLoadStrategy: 'join',
+        include: timesheetInclude,
+      });
     });
 
     const dto = toTimesheetDto(timesheet);
@@ -771,6 +861,49 @@ export class TimesheetService {
         'activityId does not reference an existing active activity',
       );
     }
+  }
+
+  /**
+   * Assemblies must be on the project the entry is against — anything else is a
+   * client bug, not something the workshop can be right about.
+   *
+   * There is deliberately no check that the pieces fit within what the list
+   * says is left. The picker caps what can be chosen, but a stale cache or two
+   * people on the same assembly can still push the total over, and refusing
+   * then would throw away work someone already did. It is recorded and flagged
+   * instead (see assemblyHasOverDoneActivity).
+   */
+  private async assertAssembliesBelongToProject(
+    projectId: string,
+    links: TimesheetAssemblyInput[],
+  ): Promise<void> {
+    const assemblyIds = links.map((link) => link.assemblyId);
+
+    const found = await this.prisma.projectAssembly.count({
+      where: { id: { in: assemblyIds }, projectId, ...notDeleted() },
+    });
+
+    if (found !== assemblyIds.length) {
+      throw new BadRequestException(
+        'assemblies must reference existing assemblies of the same project',
+      );
+    }
+  }
+
+  /** Progress is reported per activity, so links without one have nowhere to go. */
+  private resolveAssemblyActivityId(
+    linkCount: number,
+    activityId: string | null,
+  ): string | null {
+    if (linkCount === 0) {
+      return null;
+    }
+
+    if (!activityId) {
+      throw new BadRequestException('assemblies require an activityId');
+    }
+
+    return activityId;
   }
 
   private async assertPersonExists(personId: string): Promise<void> {

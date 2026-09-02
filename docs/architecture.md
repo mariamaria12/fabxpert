@@ -47,6 +47,7 @@ Only the following modules will be implemented:
 - Timesheets
 - EmployeeRole (admin-managed lookup)
 - Activity (admin-managed lookup)
+- Assemblies (per-project assembly lists; progress derived from timesheets)
 
 No additional business modules should be implemented until the MVP is complete.
 
@@ -55,7 +56,6 @@ The following modules are explicitly out of scope:
 - Production
 - Inventory
 - Drawings
-- Assemblies
 - Parts
 - CNC / NC Files
 - Shipping
@@ -419,7 +419,6 @@ After the MVP is stable, future modules may include:
 
 - Production
 - Production Workflows
-- Assemblies
 - Parts
 - Drawings
 - CNC Files

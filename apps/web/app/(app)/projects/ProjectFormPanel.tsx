@@ -8,11 +8,13 @@ import {
   createProjectSchema,
   deleteProject,
   getProject,
+  importProjectAssemblies,
   PROJECT_STATUS_META,
   PROJECT_STATUS_VALUES,
   pickRandomProjectColor,
   updateProject,
   updateProjectSchema,
+  type AssemblyImportRowDto,
   type CompanyDto,
   type EmployeeRoleDto,
   type ProjectDto,
@@ -27,6 +29,8 @@ import {
   type ClipboardEvent,
   type FormEvent,
 } from 'react';
+import { AssemblyImportScreen } from './AssemblyImportScreen';
+import { AssemblyListScreen } from './AssemblyListScreen';
 import { parseExcelProjectPaste } from './parseExcelProjectPaste';
 import { ColorField } from '@/components/ColorField';
 import { DateField } from '@/components/DateField';
@@ -49,6 +53,7 @@ import {
   withProjectCompanyOption,
 } from '@/utils/projectFormLookups';
 import { buildStableIndexMap, getRolePaletteColor } from '@/components/roleColors';
+import { FORM_LABEL_CLASS } from '@/components/formFieldStyles';
 
 interface ProjectFormValues {
   name: string;
@@ -250,6 +255,10 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [assemblyRows, setAssemblyRows] = useState<AssemblyImportRowDto[]>([]);
+  const [assemblyScreenOpen, setAssemblyScreenOpen] = useState(false);
+  const [assemblyListOpen, setAssemblyListOpen] = useState(false);
+  const [assemblyEditOpen, setAssemblyEditOpen] = useState(false);
   const [colorDraftInvalid, setColorDraftInvalid] = useState(false);
   const [companies, setCompanies] = useState<CompanyDto[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(false);
@@ -269,6 +278,9 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
 
   const isBusy = isSubmitting || isDeleting;
   const title = mode === 'create' ? 'Proiect nou' : 'Editează proiectul';
+  // The panel refetches the project when it opens, so that count wins over the
+  // row that opened it — a pinned card hands over a stub with none.
+  const savedAssemblyCount = editProject?.assemblyCount ?? project?.assemblyCount ?? 0;
 
   useEffect(() => {
     if (!open) {
@@ -321,6 +333,10 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
     setFormError(null);
     setConfirmDelete(false);
     setIsSubmitting(false);
+    setAssemblyRows([]);
+    setAssemblyScreenOpen(false);
+    setAssemblyListOpen(false);
+    setAssemblyEditOpen(false);
     setIsDeleting(false);
     setEditProject(null);
 
@@ -592,8 +608,9 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
 
       setIsSubmitting(true);
       try {
-        await createProject(parsed.data);
+        const created = await createProject(parsed.data);
         showToast('Proiect adăugat', 'success');
+        await saveAssemblies(created.id);
         onSaved();
         onClose();
       } catch (caught) {
@@ -630,7 +647,10 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
     try {
       const saved = await updateProject(project.id, parsed.data);
       showToast('Proiect actualizat', 'success');
-      onSaved(saved);
+      const imported = await saveAssemblies(saved.id);
+      // The import moved the assembly count past what the update returned, and
+      // the row upstream is replaced with whatever is handed back here.
+      onSaved(imported ? await getProject(saved.id).catch(() => saved) : saved);
       onClose();
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 409) {
@@ -668,6 +688,41 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
     }
   }
 
+  /**
+   * Held in the form until the project is saved: a project being created has no
+   * id to hang assemblies off yet, so the list waits here and is written once
+   * the project exists. Returns whether the list actually made it in.
+   */
+  async function saveAssemblies(projectId: string): Promise<boolean> {
+    if (assemblyRows.length === 0) {
+      return false;
+    }
+
+    try {
+      const result = await importProjectAssemblies(projectId, { rows: assemblyRows });
+      const saved = result.created + result.updated;
+      showToast(`${saved} ${saved === 1 ? 'ansamblu adăugat' : 'ansamble adăugate'}`, 'success');
+      return true;
+    } catch (caught) {
+      // The project itself is already saved — say what failed, don't lose it.
+      showToast(`Proiectul s-a salvat, dar ansamblele nu: ${apiErrorToastMessage(caught)}`, 'error');
+      return false;
+    }
+  }
+
+  /** The assembly screen writes straight to the server; re-read what it left. */
+  async function refreshEditProject() {
+    if (!project) {
+      return;
+    }
+
+    try {
+      setEditProject(await getProject(project.id));
+    } catch {
+      // Only the count on screen goes stale — not worth interrupting the edit.
+    }
+  }
+
   const footer = confirmDelete ? (
     <div role="alertdialog" aria-labelledby="project-delete-title">
       <p id="project-delete-title" className="text-sm text-text-secondary">
@@ -693,7 +748,24 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
       </div>
     </div>
   ) : (
-    <div className="flex gap-2">
+    <div className="flex flex-col gap-2">
+      <button
+        type="button"
+        disabled={isBusy}
+        onClick={() =>
+          savedAssemblyCount > 0 ? setAssemblyEditOpen(true) : setAssemblyScreenOpen(true)
+        }
+        className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border px-4 py-2.5 text-sm text-text-secondary transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <i className="ti ti-stack-2 text-base" aria-hidden="true" />
+        {assemblyRows.length > 0
+          ? `${assemblyRows.length} ${assemblyRows.length === 1 ? 'ansamblu pregătit' : 'ansamble pregătite'}`
+          : savedAssemblyCount > 0
+            ? 'Editare ansamble'
+            : 'Adaugă ansamble'}
+      </button>
+
+      <div className="flex gap-2">
       <button
         type="submit"
         form="project-form"
@@ -710,10 +782,12 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
       >
         Anulează
       </button>
+      </div>
     </div>
   );
 
   return (
+    <>
     <SlideOverPanel
       open={open}
       title={title}
@@ -957,6 +1031,30 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
           onChange={(value) => updateField('dueDate', value)}
         />
 
+        {mode === 'edit' && (
+          <div>
+            <span className={FORM_LABEL_CLASS}>Ansamble</span>
+            <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface-raised px-3 py-2">
+              <span className="text-sm text-text-primary">
+                {editProjectLoading
+                  ? '…'
+                  : savedAssemblyCount === 0
+                    ? 'Niciun ansamblu'
+                    : `${savedAssemblyCount} ${savedAssemblyCount === 1 ? 'ansamblu' : 'ansamble'}`}
+              </span>
+              <button
+                type="button"
+                disabled={savedAssemblyCount === 0 || editProjectLoading}
+                onClick={() => setAssemblyListOpen(true)}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-text-secondary transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <i className="ti ti-eye text-sm" aria-hidden="true" />
+                Vizualizează
+              </button>
+            </div>
+          </div>
+        )}
+
         {formError && (
           <p role="alert" className="text-sm text-danger">
             {formError}
@@ -978,5 +1076,31 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
         )}
       </form>
     </SlideOverPanel>
+
+    {project && (assemblyListOpen || assemblyEditOpen) && (
+      <AssemblyListScreen
+        open
+        projectId={project.id}
+        projectName={values.name}
+        startInEdit={assemblyEditOpen}
+        allowOverwrite={assemblyEditOpen}
+        onChanged={() => void refreshEditProject()}
+        onClose={() => {
+          setAssemblyListOpen(false);
+          setAssemblyEditOpen(false);
+        }}
+      />
+    )}
+
+    <AssemblyImportScreen
+      open={assemblyScreenOpen}
+      projectName={values.name}
+      onClose={() => setAssemblyScreenOpen(false)}
+      onConfirm={(rows) => {
+        setAssemblyRows(rows);
+        setAssemblyScreenOpen(false);
+      }}
+    />
+    </>
   );
 }

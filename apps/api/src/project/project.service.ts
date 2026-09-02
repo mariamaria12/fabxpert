@@ -33,6 +33,13 @@ const projectCompanyInclude = {
       name: true,
     },
   },
+  // Every project shape carries the assembly count, so the lists can show
+  // where a list has already been imported without a second query.
+  _count: {
+    select: {
+      assemblies: { where: notDeleted() },
+    },
+  },
 } satisfies Prisma.ProjectInclude;
 
 const projectInclude = {
@@ -180,6 +187,7 @@ function toProjectDto(project: ProjectWithRelations | ProjectListRow, compact = 
     companyId: project.companyId,
     company: project.company,
     visibleForRoles: compact ? [] : (project as ProjectWithRelations).visibleForRoles,
+    assemblyCount: project._count.assemblies,
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString(),
   };
