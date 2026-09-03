@@ -112,7 +112,7 @@ export function PanouProjectCard({
     <div className="overflow-hidden rounded-lg border border-border-subtle bg-surface shadow-card">
       <div className="flex items-stretch">
         <span
-          className="w-0.5 shrink-0 self-stretch"
+          className="w-[3px] shrink-0 self-stretch"
           style={{ backgroundColor: color }}
           aria-hidden="true"
         />

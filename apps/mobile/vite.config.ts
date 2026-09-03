@@ -34,7 +34,7 @@ export default defineConfig({
     {
       // index.html cannot import the palette, so the theme-color meta is filled in here.
       name: 'theme-color-meta',
-      transformIndexHtml: (html) => html.replaceAll('{{THEME_COLOR}}', THEME_COLORS.bg),
+      transformIndexHtml: (html) => html.replaceAll('{{THEME_COLOR}}', THEME_COLORS.goldBg),
     },
     VitePWA({
       // Default generated service worker: precaches built assets, auto-updates.
@@ -50,8 +50,8 @@ export default defineConfig({
         short_name: 'FabXpert Time',
         description: 'Pontaj muncitori',
         lang: 'ro',
-        theme_color: THEME_COLORS.bg,
-        background_color: THEME_COLORS.bg,
+        theme_color: THEME_COLORS.goldBg,
+        background_color: THEME_COLORS.goldBg,
         display: 'standalone',
         icons: [
           {

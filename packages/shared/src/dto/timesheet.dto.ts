@@ -194,6 +194,8 @@ export type PinnedProjectSummaryRow = {
   readyForExecution: boolean;
   company: { id: string; name: string };
   visibleForRoles: ProjectVisibleRoleDto[];
+  /** Lines on the project's assembly list; 0 when none was imported. */
+  assemblyCount: number;
   totalMinutes: number;
   activities: ProjectSummaryActivityRow[];
 };

@@ -8,7 +8,8 @@ import { InitialsAvatar, PersonAvatar } from '@/components/PersonAvatar';
 import { clearCachedSessionUser } from '@/utils/sessionUserCache';
 import { useLeavePendingCount } from '@/context/LeavePendingCountContext';
 import { NAV_ITEMS } from '@/components/navItems';
-
+import { useTheme } from '@/hooks/useTheme';
+import { nextTheme, THEMES } from '@/utils/theme';
 
 function getEmailInitials(email: string): string {
   return email.slice(0, 2).toUpperCase();
@@ -34,6 +35,8 @@ export function Sidebar({
   const pathname = usePathname();
   const router = useRouter();
   const { pendingCount } = useLeavePendingCount();
+  const { theme, setTheme } = useTheme();
+  const themeMeta = THEMES.find((item) => item.id === theme) ?? THEMES[0];
 
   async function handleLogout() {
     clearCachedSessionUser();
@@ -43,7 +46,7 @@ export function Sidebar({
 
   return (
     <aside
-      className={`${className} flex-col overflow-hidden border-r border-border-subtle bg-surface transition-[width] duration-150 ${
+      className={`${className} flex-col overflow-hidden border-r border-border-subtle bg-sidebar transition-[width] duration-150 ${
         collapsed ? 'w-14' : 'w-[200px]'
       }`}
     >
@@ -103,12 +106,15 @@ export function Sidebar({
                 collapsed ? 'justify-center px-0' : 'px-2.5'
               } ${
                 isActive
-                  ? 'bg-accent/10 text-accent'
-                  : 'text-text-muted hover:bg-surface-raised hover:text-text-secondary'
+                  ? 'bg-surface-active text-primary-hover'
+                  : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
               }`}
             >
               <span className="relative shrink-0">
-                <i className={`ti ${item.icon} text-lg`} aria-hidden="true" />
+                <i
+                  className={`ti ${item.icon} text-lg ${isActive ? 'text-primary' : 'text-text-muted'}`}
+                  aria-hidden="true"
+                />
                 {collapsed && badge !== null ? (
                   <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-accent text-[10px] font-semibold text-accent-contrast">
                     {badge > 9 ? '9+' : badge}
@@ -130,9 +136,30 @@ export function Sidebar({
         })}
       </nav>
 
+      {/* Theme switch — cycles through THEMES */}
+      <div className={`mt-auto px-2 pb-2 ${collapsed ? 'flex justify-center' : ''}`}>
+        <button
+          type="button"
+          onClick={() => setTheme(nextTheme(theme))}
+          title={`Temă: ${themeMeta.label}. Schimbă tema`}
+          aria-label={`Temă: ${themeMeta.label}. Schimbă tema`}
+          className={`flex items-center gap-2.5 rounded-md py-2 text-sm text-text-muted hover:bg-surface-raised hover:text-text-secondary ${
+            collapsed ? 'justify-center px-2' : 'w-full px-2.5'
+          }`}
+        >
+          <i className={`ti ${themeMeta.icon} text-lg`} aria-hidden="true" />
+          {!collapsed && (
+            <span className="flex min-w-0 flex-1 items-center justify-between">
+              <span>Temă</span>
+              <span className="text-xs text-text-muted">{themeMeta.label}</span>
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* User chip */}
       <div
-        className={`mt-auto flex border-t border-border-subtle p-3 ${
+        className={`flex border-t border-border-subtle p-3 ${
           collapsed ? 'flex-col items-center gap-2' : 'items-center gap-2'
         }`}
       >

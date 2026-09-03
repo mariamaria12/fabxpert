@@ -444,14 +444,20 @@ export class TimesheetService {
 
   /**
    * How far the assembly-tracked activities have got on each project's list.
-   * Only the projects whose breakdown actually has such an activity are asked
-   * about, so a panou with none costs nothing.
+   * By default only the projects whose breakdown actually has such an activity
+   * are asked about, so a panou with none costs nothing. The pinned cards ask
+   * for every project: they also show whether a list exists at all.
    */
   private async loadProjectAssemblyProgress(
     rows: ProjectSummarySqlRow[],
+    scope: 'tracked' | 'all' = 'tracked',
   ): Promise<ProjectAssemblyProgressIndex | undefined> {
     const projectIds = [
-      ...new Set(rows.filter((row) => row.activityTracksAssemblies).map((row) => row.projectId)),
+      ...new Set(
+        rows
+          .filter((row) => scope === 'all' || row.activityTracksAssemblies)
+          .map((row) => row.projectId),
+      ),
     ];
     if (projectIds.length === 0) {
       return undefined;
@@ -488,7 +494,7 @@ export class TimesheetService {
         to: resolved.to,
       }),
     );
-    const assemblyIndex = await this.loadProjectAssemblyProgress(rows);
+    const assemblyIndex = await this.loadProjectAssemblyProgress(rows, 'all');
     const summary = shapePinnedProjectsSummary(rows, assemblyIndex);
 
     if (summary.projects.length === 0) {

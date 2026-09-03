@@ -10,43 +10,43 @@ export type ProjectStatusMeta = {
 export const PROJECT_STATUS_META: Record<ProjectStatus, ProjectStatusMeta> = {
   CIORNA: {
     label: 'Ciornă',
-    badgeClassName: 'bg-status-ciorna-bg text-status-ciorna-text',
+    badgeClassName: 'border border-status-ciorna-border bg-status-ciorna-bg text-status-ciorna-text',
   },
   IN_OFERTARE: {
     label: 'În ofertare',
-    badgeClassName: 'bg-status-in-ofertare-bg text-status-in-ofertare-text',
+    badgeClassName: 'border border-status-in-ofertare-border bg-status-in-ofertare-bg text-status-in-ofertare-text',
   },
   CASTIGAT: {
     label: 'Câștigat',
-    badgeClassName: 'bg-status-castigat-bg text-status-castigat-text',
+    badgeClassName: 'border border-status-castigat-border bg-status-castigat-bg text-status-castigat-text',
   },
   IN_PROIECTARE: {
     label: 'În proiectare',
-    badgeClassName: 'bg-status-in-proiectare-bg text-status-in-proiectare-text',
+    badgeClassName: 'border border-status-in-proiectare-border bg-status-in-proiectare-bg text-status-in-proiectare-text',
   },
   IN_PRODUCTIE: {
     label: 'În producție',
-    badgeClassName: 'bg-status-in-productie-bg text-status-in-productie-text',
+    badgeClassName: 'border border-status-in-productie-border bg-status-in-productie-bg text-status-in-productie-text',
   },
   PREGATIT_LIVRARE: {
     label: 'Pregătit livrare',
-    badgeClassName: 'bg-status-pregatit-livrare-bg text-status-pregatit-livrare-text',
+    badgeClassName: 'border border-status-pregatit-livrare-border bg-status-pregatit-livrare-bg text-status-pregatit-livrare-text',
   },
   LIVRAT: {
     label: 'Livrat',
-    badgeClassName: 'bg-status-livrat-bg text-status-livrat-text',
+    badgeClassName: 'border border-status-livrat-border bg-status-livrat-bg text-status-livrat-text',
   },
   FINALIZAT: {
     label: 'Finalizat',
-    badgeClassName: 'bg-status-finalizat-bg text-status-finalizat-text',
+    badgeClassName: 'border border-status-finalizat-border bg-status-finalizat-bg text-status-finalizat-text',
   },
   SUSPENDAT: {
     label: 'Suspendat',
-    badgeClassName: 'bg-status-suspendat-bg text-status-suspendat-text',
+    badgeClassName: 'border border-status-suspendat-border bg-status-suspendat-bg text-status-suspendat-text',
   },
   ANULAT: {
     label: 'Anulat',
-    badgeClassName: 'bg-status-anulat-bg text-status-anulat-text',
+    badgeClassName: 'border border-status-anulat-border bg-status-anulat-bg text-status-anulat-text',
   },
 };
 

@@ -98,7 +98,6 @@
   border-radius: 28px;
   background: var(--color-bg);
   color: var(--color-text-primary);
-  color-scheme: dark;
   box-shadow: var(--shadow-modal);
   font-family:
     system-ui,
@@ -491,6 +490,27 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-header-theme {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .app-header-menu-wrap {

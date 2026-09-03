@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { MobileLookupCacheProvider } from './context/MobileLookupCacheContext';
 import { ToastProvider } from './context/ToastContext';
 import { TimesheetFlow } from './screens/TimesheetFlow';
+import { DEFAULT_THEME } from './utils/theme';
 import {
   IMPERSONATION_CONFIRM_MESSAGES,
   setImpersonationConfirmHandler,
@@ -120,7 +121,7 @@ export function ImpersonationModal({ user, onClose }: ImpersonationModalProps) {
           </button>
         </div>
 
-        <div className="imp-phone-frame">
+        <div className="imp-phone-frame" data-theme={DEFAULT_THEME}>
           {ready ? (
             <ToastProvider>
               <MobileLookupCacheProvider>

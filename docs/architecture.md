@@ -125,7 +125,7 @@ Responsibilities:
 
 **Styling:** Tailwind CSS, configured to consume the color tokens defined in `packages/shared/styles/tokens.css` (see Shared Packages below) rather than hardcoded hex values. Every theme color — surfaces, text, feedback, shadows, scrims, chart hues, the loader illustration — is a token there, so a light theme is an override block in that file, not a change to components. The only literals outside CSS are in `packages/shared/src/themeColors.ts`, for the places CSS cannot reach (PWA manifests, `<meta theme-color>`, the native color input). Entity colors — project colors, role swatches, RAL/finish colors — are data, not theme, and stay as hex values.
 
-**Visual direction:** industrial/technical, dark-mode-first, data-dense. See the design tokens in `packages/shared/styles/tokens.css` for the concrete palette (background, surface, text, accent, and per-status colors for `ProjectStatus`).
+**Visual direction:** calm, flat, enterprise, data-dense — blue primary, green/amber/red/cyan for meaning, no neon and no pure black. Two themes, dark (default) and light, live in `packages/shared/styles/tokens.css`; the sidebar theme button persists the choice in `localStorage` and `app/layout.tsx` applies it before paint. Type is Inter (self-hosted via `next/font`), corners are 6/8/12px for badges/controls/cards.
 
 ---
 

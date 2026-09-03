@@ -2,94 +2,120 @@
  * FabXpert design tokens — the single source of truth for every UI color.
  * Loaded once by apps/web (layout.tsx) and apps/mobile (main.tsx).
  *
- * Every visual color comes from here: components use the Tailwind utilities
- * mapped in apps/web/tailwind.config.ts or var(--...) directly, never a raw
- * hex/rgba value. The only literals outside this file are the ones CSS cannot
- * reach (PWA manifests, <meta theme-color>, native color inputs); those live in
+ * Two themes share one vocabulary: the dark palette lives on :root (the mobile
+ * app and a fresh admin session get it with no attribute), the light palette
+ * overrides it under [data-theme='light'], the original gold palette under
+ * [data-theme='gold']. The attribute usually sits on <html>, but any element
+ * can carry one — the impersonation phone frame switches themes on its own. Components reference tokens only —
+ * the Tailwind utilities in apps/web/tailwind.config.ts or var(--...) — never
+ * a raw hex/rgba value, so switching themes needs no component overrides.
+ *
+ * The only literals outside this file are the ones CSS cannot reach (PWA
+ * manifests, <meta theme-color>, native color inputs); those live in
  * packages/shared/src/themeColors.ts and must match the values below.
  *
  * Not theme tokens: project colors, role swatches, RAL/finish colors. They are
  * data about an entity (a project, a paint code) and stay the same in any theme.
  *
- * Adding a theme is an override block; consuming code does not change:
- *
- *   :root[data-theme='light'] {
- *     color-scheme: light;
- *     --color-bg: ...;
- *   }
+ * Direction: calm, flat, enterprise. No pure black grounds, no pure white text
+ * on dark, no neon; color carries meaning (green = success, amber = warning /
+ * production, red = danger / delay, purple and cyan = secondary categories).
  */
 
-:root {
+:root,
+[data-theme='dark'] {
   color-scheme: dark;
 
   /* Surfaces */
-  --color-bg: #1f1e19;
-  --color-surface: #26251e;
-  --color-surface-raised: rgba(255, 255, 255, 0.045);
+  --color-bg: #111827;
+  --color-sidebar: #0f172a;
+  --color-surface: #18212f;
+  --color-surface-hover: #1e293b;
+  --color-surface-active: #172554;
+  --color-surface-raised: #1e293b;
   --color-surface-subtle: rgba(255, 255, 255, 0.035);
-  --color-surface-sunken: rgba(0, 0, 0, 0.18);
-  --color-surface-popover: #35342c;
-  --color-surface-popover-hover: rgba(255, 255, 255, 0.08);
-  --color-scrim: rgba(0, 0, 0, 0.6);
+  --color-surface-sunken: rgba(2, 6, 23, 0.35);
+  --color-surface-popover: #1e293b;
+  --color-surface-popover-hover: rgba(255, 255, 255, 0.07);
+  --color-scrim: rgba(2, 6, 23, 0.65);
 
   /* Borders */
-  --color-border: rgba(255, 255, 255, 0.12);
-  --color-border-subtle: rgba(255, 255, 255, 0.07);
-  --color-border-strong: rgba(255, 255, 255, 0.24);
+  --color-border: #334155;
+  --color-border-subtle: #1e293b;
+  --color-border-strong: #475569;
+  --color-divider: #1e293b;
 
   /* Text */
-  --color-text-primary: #f0eee6;
-  --color-text-secondary: #b8b6ac;
-  --color-text-muted: #8c8a80;
-  --color-text-on-light: #2b2107;
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #94a3b8;
+  --color-text-disabled: #64748b;
+  --color-text-on-light: #0f172a;
+  --color-text-on-primary: #f8fafc;
 
-  /* Accent */
-  --color-accent: #d9a441;
-  --color-accent-contrast: #2b2107;
-  --color-accent-tint: rgba(217, 164, 65, 0.12);
-  --color-accent-tint-strong: rgba(217, 164, 65, 0.28);
-  --color-accent-border: rgba(217, 164, 65, 0.45);
+  /* Primary brand / action */
+  --color-primary: #3b82f6;
+  --color-primary-hover: #60a5fa;
+  --color-primary-active: #2563eb;
+  --color-primary-bg: #172554;
+  --color-primary-border: #1e40af;
 
-  /* Feedback */
-  --color-success-icon: #97c459;
-  --color-success-tint: rgba(151, 196, 89, 0.14);
-  --color-success-border: rgba(151, 196, 89, 0.4);
-  --color-danger-text: #f09595;
-  --color-danger-border: rgba(240, 149, 149, 0.35);
-  --color-info: #60a5fa;
-  --color-toast-success-bg: rgba(151, 196, 89, 0.16);
-  --color-toast-error-bg: rgba(181, 83, 60, 0.2);
-  --color-timer-stop: #b5533c;
-  --color-timer-stop-text: #f5e8e4;
+  /* Semantic */
+  --color-success: #22c55e;
+  --color-success-bg: #052e16;
+  --color-success-border: #166534;
+  --color-success-text: #86efac;
+  --color-warning: #f59e0b;
+  --color-warning-bg: #451a03;
+  --color-warning-border: #92400e;
+  --color-warning-text: #fcd34d;
+  --color-danger: #ef4444;
+  --color-danger-bg: #450a0a;
+  --color-danger-border: #991b1b;
+  --color-danger-text: #fca5a5;
+  --color-info: #06b6d4;
+  --color-info-bg: #083344;
+  --color-info-border: #155e75;
+  --color-info-text: #67e8f9;
 
-  /* Elevation */
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-  --shadow-raised: 0 8px 24px rgba(0, 0, 0, 0.35);
-  --shadow-modal: 0 16px 40px rgba(0, 0, 0, 0.45);
-  --shadow-popover: 0 12px 32px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+  /* Secondary accents */
+  --color-purple: #a855f7;
+  --color-purple-bg: #2e1065;
+  --color-purple-border: #6b21a8;
+  --color-purple-text: #d8b4fe;
+  --color-cyan: #06b6d4;
+  --color-cyan-bg: #083344;
+  --color-cyan-border: #155e75;
+  --color-cyan-text: #67e8f9;
 
-  /* Panou metric cards */
-  --color-metric-projects: #a78bfa;
-  --color-metric-hours: var(--color-info);
-  --color-metric-people: #86efac;
-  --color-metric-on-leave: #fbbf24;
-  --color-metric-not-logged: #f87171;
+  /* Elevation — dark mode separates by surface and border, not by shadow */
+  --shadow-card: none;
+  --shadow-raised: 0 4px 12px rgba(2, 6, 23, 0.35);
+  --shadow-modal: 0 16px 40px rgba(2, 6, 23, 0.5);
+  --shadow-popover: 0 8px 24px rgba(2, 6, 23, 0.45);
+
+  /* Panou metric cards — icon tint only; the figure stays primary text */
+  --color-metric-projects: var(--color-primary);
+  --color-metric-hours: var(--color-cyan);
+  --color-metric-people: var(--color-success);
+  --color-metric-on-leave: var(--color-warning);
+  --color-metric-not-logged: var(--color-danger);
 
   /* Report charts — hues cycled for series without a color of their own */
-  --chart-1: var(--color-accent);
-  --chart-2: var(--color-info);
-  --chart-3: #86efac;
-  --chart-4: #c084fc;
-  --chart-5: #f0a868;
-  --chart-6: #5ed0c5;
-  --chart-7: #f472b6;
-  --chart-8: #a3e635;
+  --chart-1: var(--color-primary);
+  --chart-2: var(--color-cyan);
+  --chart-3: var(--color-success);
+  --chart-4: var(--color-purple);
+  --chart-5: var(--color-warning);
+  --chart-6: var(--color-danger);
+  --chart-7: #818cf8;
+  --chart-8: #2dd4bf;
 
   /* Welding loader. The bead, glow and sparks are hot metal — keep them warm
      in every theme; only the seam and torch are "material" greys. */
-  --loader-seam: #4a4a45;
-  --loader-torch: #6f6e66;
-  --loader-torch-tip: #c9c7bd;
+  --loader-seam: #334155;
+  --loader-torch: #475569;
+  --loader-torch-tip: #cbd5e1;
   --loader-bead-start: #8a4a12;
   --loader-bead-mid: #e8912a;
   --loader-bead-end: #ffd27a;
@@ -98,25 +124,275 @@
   --loader-arc: #fff3d0;
   --loader-spark: #ffcf6b;
 
-  /* Project status badges */
+  /* Project status badges: neutral → cyan → blue → purple → amber → indigo →
+     teal → green, with red for cancelled. */
+  --status-ciorna-bg: #1e293b;
+  --status-ciorna-text: #cbd5e1;
+  --status-ciorna-border: #334155;
+  --status-in-ofertare-bg: #083344;
+  --status-in-ofertare-text: #67e8f9;
+  --status-in-ofertare-border: #155e75;
+  --status-castigat-bg: #172554;
+  --status-castigat-text: #93c5fd;
+  --status-castigat-border: #1e40af;
+  --status-in-proiectare-bg: #2e1065;
+  --status-in-proiectare-text: #d8b4fe;
+  --status-in-proiectare-border: #6b21a8;
+  --status-in-productie-bg: #451a03;
+  --status-in-productie-text: #fcd34d;
+  --status-in-productie-border: #92400e;
+  --status-pregatit-livrare-bg: #1e1b4b;
+  --status-pregatit-livrare-text: #a5b4fc;
+  --status-pregatit-livrare-border: #3730a3;
+  --status-livrat-bg: #042f2e;
+  --status-livrat-text: #5eead4;
+  --status-livrat-border: #115e59;
+  --status-finalizat-bg: #052e16;
+  --status-finalizat-text: #86efac;
+  --status-finalizat-border: #166534;
+  --status-suspendat-bg: #1e293b;
+  --status-suspendat-text: #94a3b8;
+  --status-suspendat-border: #475569;
+  --status-anulat-bg: #450a0a;
+  --status-anulat-text: #fca5a5;
+  --status-anulat-border: #991b1b;
+
+  /* Aliases kept for existing rules (mobile CSS, Tailwind map). New code uses
+     the semantic names above. */
+  --color-accent: var(--color-primary);
+  --color-accent-contrast: var(--color-text-on-primary);
+  --color-accent-tint: var(--color-primary-bg);
+  --color-accent-tint-strong: #1e3a8a;
+  --color-accent-border: var(--color-primary-border);
+  --color-success-icon: var(--color-success);
+  --color-success-tint: var(--color-success-bg);
+  --color-toast-success-bg: var(--color-success-bg);
+  --color-toast-error-bg: var(--color-danger-bg);
+  --color-timer-stop: var(--color-danger);
+  --color-timer-stop-text: var(--color-text-on-primary);
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+
+  --color-bg: #f8fafc;
+  --color-sidebar: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f1f5f9;
+  --color-surface-active: #eff6ff;
+  --color-surface-raised: #f1f5f9;
+  --color-surface-subtle: rgba(15, 23, 42, 0.03);
+  --color-surface-sunken: rgba(15, 23, 42, 0.05);
+  --color-surface-popover: #ffffff;
+  --color-surface-popover-hover: #f1f5f9;
+  --color-scrim: rgba(15, 23, 42, 0.4);
+
+  --color-border: #e2e8f0;
+  --color-border-subtle: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+  --color-divider: #e2e8f0;
+
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
+  --color-text-disabled: #94a3b8;
+  --color-text-on-light: #0f172a;
+  --color-text-on-primary: #ffffff;
+
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-active: #1e40af;
+  --color-primary-bg: #eff6ff;
+  --color-primary-border: #bfdbfe;
+
+  --color-success: #16a34a;
+  --color-success-bg: #f0fdf4;
+  --color-success-border: #bbf7d0;
+  --color-success-text: #166534;
+  --color-warning: #d97706;
+  --color-warning-bg: #fffbeb;
+  --color-warning-border: #fde68a;
+  --color-warning-text: #92400e;
+  --color-danger: #dc2626;
+  --color-danger-bg: #fef2f2;
+  --color-danger-border: #fecaca;
+  --color-danger-text: #991b1b;
+  --color-info: #0891b2;
+  --color-info-bg: #ecfeff;
+  --color-info-border: #a5f3fc;
+  --color-info-text: #155e75;
+
+  --color-purple: #9333ea;
+  --color-purple-bg: #faf5ff;
+  --color-purple-border: #e9d5ff;
+  --color-purple-text: #6b21a8;
+  --color-cyan: #0891b2;
+  --color-cyan-bg: #ecfeff;
+  --color-cyan-border: #a5f3fc;
+  --color-cyan-text: #155e75;
+
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-raised: 0 4px 12px rgba(15, 23, 42, 0.06);
+  --shadow-modal: 0 16px 40px rgba(15, 23, 42, 0.12);
+  --shadow-popover: 0 4px 12px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+
+  --chart-7: #4f46e5;
+  --chart-8: #0d9488;
+
+  --loader-seam: #cbd5e1;
+  --loader-torch: #94a3b8;
+  --loader-torch-tip: #475569;
+
+  --status-ciorna-bg: #f1f5f9;
+  --status-ciorna-text: #475569;
+  --status-ciorna-border: #e2e8f0;
+  --status-in-ofertare-bg: #ecfeff;
+  --status-in-ofertare-text: #155e75;
+  --status-in-ofertare-border: #a5f3fc;
+  --status-castigat-bg: #eff6ff;
+  --status-castigat-text: #1e40af;
+  --status-castigat-border: #bfdbfe;
+  --status-in-proiectare-bg: #faf5ff;
+  --status-in-proiectare-text: #6b21a8;
+  --status-in-proiectare-border: #e9d5ff;
+  --status-in-productie-bg: #fffbeb;
+  --status-in-productie-text: #92400e;
+  --status-in-productie-border: #fde68a;
+  --status-pregatit-livrare-bg: #eef2ff;
+  --status-pregatit-livrare-text: #3730a3;
+  --status-pregatit-livrare-border: #c7d2fe;
+  --status-livrat-bg: #f0fdfa;
+  --status-livrat-text: #115e59;
+  --status-livrat-border: #99f6e4;
+  --status-finalizat-bg: #f0fdf4;
+  --status-finalizat-text: #166534;
+  --status-finalizat-border: #bbf7d0;
+  --status-suspendat-bg: #f1f5f9;
+  --status-suspendat-text: #64748b;
+  --status-suspendat-border: #cbd5e1;
+  --status-anulat-bg: #fef2f2;
+  --status-anulat-text: #991b1b;
+  --status-anulat-border: #fecaca;
+
+  --color-accent-tint-strong: #dbeafe;
+}
+
+/* Gold theme — the original FabXpert palette (warm charcoal ground, amber
+   accent), kept as a third option. Status badges have no visible border here,
+   as they never had one. */
+[data-theme='gold'] {
+  color-scheme: dark;
+
+  --color-bg: #1f1e19;
+  --color-sidebar: #26251e;
+  --color-surface: #26251e;
+  --color-surface-hover: rgba(255, 255, 255, 0.045);
+  --color-surface-active: rgba(217, 164, 65, 0.12);
+  --color-surface-raised: rgba(255, 255, 255, 0.045);
+  --color-surface-subtle: rgba(255, 255, 255, 0.035);
+  --color-surface-sunken: rgba(0, 0, 0, 0.18);
+  --color-surface-popover: #35342c;
+  --color-surface-popover-hover: rgba(255, 255, 255, 0.08);
+  --color-scrim: rgba(0, 0, 0, 0.6);
+
+  --color-border: rgba(255, 255, 255, 0.12);
+  --color-border-subtle: rgba(255, 255, 255, 0.07);
+  --color-border-strong: rgba(255, 255, 255, 0.24);
+  --color-divider: rgba(255, 255, 255, 0.07);
+
+  --color-text-primary: #f0eee6;
+  --color-text-secondary: #b8b6ac;
+  --color-text-muted: #8c8a80;
+  --color-text-disabled: #6b6a62;
+  --color-text-on-light: #2b2107;
+  --color-text-on-primary: #2b2107;
+
+  --color-primary: #d9a441;
+  --color-primary-hover: #e2b45c;
+  --color-primary-active: #c8933a;
+  --color-primary-bg: rgba(217, 164, 65, 0.12);
+  --color-primary-border: rgba(217, 164, 65, 0.45);
+
+  --color-success: #97c459;
+  --color-success-bg: rgba(151, 196, 89, 0.16);
+  --color-success-border: rgba(151, 196, 89, 0.4);
+  --color-success-text: #c0dd97;
+  --color-warning: #e8912a;
+  --color-warning-bg: #633806;
+  --color-warning-border: #8a5a1a;
+  --color-warning-text: #fac775;
+  --color-danger: #b5533c;
+  --color-danger-bg: rgba(181, 83, 60, 0.2);
+  --color-danger-border: rgba(240, 149, 149, 0.35);
+  --color-danger-text: #f09595;
+  --color-info: #60a5fa;
+  --color-info-bg: rgba(96, 165, 250, 0.14);
+  --color-info-border: rgba(96, 165, 250, 0.4);
+  --color-info-text: #b5d4f4;
+
+  --color-purple: #a78bfa;
+  --color-purple-bg: #3c3489;
+  --color-purple-border: #5a51b8;
+  --color-purple-text: #cecbf6;
+  --color-cyan: #5ed0c5;
+  --color-cyan-bg: #1a4a52;
+  --color-cyan-border: #2a6b75;
+  --color-cyan-text: #a8d8e0;
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-raised: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-modal: 0 16px 40px rgba(0, 0, 0, 0.45);
+  --shadow-popover: 0 12px 32px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+
+  --color-metric-projects: #a78bfa;
+  --color-metric-hours: #60a5fa;
+  --color-metric-people: #86efac;
+  --color-metric-on-leave: #fbbf24;
+  --color-metric-not-logged: #f87171;
+
+  --chart-1: #d9a441;
+  --chart-2: #60a5fa;
+  --chart-3: #86efac;
+  --chart-4: #c084fc;
+  --chart-5: #f0a868;
+  --chart-6: #5ed0c5;
+  --chart-7: #f472b6;
+  --chart-8: #a3e635;
+
+  --loader-seam: #4a4a45;
+  --loader-torch: #6f6e66;
+  --loader-torch-tip: #c9c7bd;
+
   --status-ciorna-bg: #444441;
   --status-ciorna-text: #d3d1c7;
+  --status-ciorna-border: transparent;
   --status-in-ofertare-bg: #0c447c;
   --status-in-ofertare-text: #b5d4f4;
+  --status-in-ofertare-border: transparent;
   --status-castigat-bg: #085041;
   --status-castigat-text: #9fe1cb;
+  --status-castigat-border: transparent;
   --status-in-proiectare-bg: #3c3489;
   --status-in-proiectare-text: #cecbf6;
+  --status-in-proiectare-border: transparent;
   --status-in-productie-bg: #633806;
   --status-in-productie-text: #fac775;
+  --status-in-productie-border: transparent;
   --status-pregatit-livrare-bg: #712b13;
   --status-pregatit-livrare-text: #f5c4b3;
+  --status-pregatit-livrare-border: transparent;
   --status-livrat-bg: #27500a;
   --status-livrat-text: #c0dd97;
+  --status-livrat-border: transparent;
   --status-finalizat-bg: #1a4a52;
   --status-finalizat-text: #a8d8e0;
+  --status-finalizat-border: transparent;
   --status-suspendat-bg: #444441;
   --status-suspendat-text: #d3d1c7;
+  --status-suspendat-border: transparent;
   --status-anulat-bg: #791f1f;
   --status-anulat-text: #f7c1c1;
+  --status-anulat-border: transparent;
+
+  --color-accent-tint-strong: rgba(217, 164, 65, 0.28);
 }

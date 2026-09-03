@@ -129,7 +129,19 @@ export function PinnedProjectCard({
       title={project.code}
       status={project.status}
       titleSubline={project.denumireLucrare}
-      infoContent={<FinisajBadge value={project.finisaj} />}
+      infoContent={
+        <span className="flex min-w-0 items-center gap-1.5">
+          <FinisajBadge value={project.finisaj} />
+          {project.assemblyCount > 0 && (
+            <i
+              className="ti ti-stack-2 text-sm leading-none text-text-muted"
+              role="img"
+              aria-label="Are listă de ansamble"
+              title="Are listă de ansamble"
+            />
+          )}
+        </span>
+      }
       hideLeadingIcon={!dragHandleProps && !showPinButton}
       titleHandleProps={titleHandleProps}
       subtitle={project.company.name}

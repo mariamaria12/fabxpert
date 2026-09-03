@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="{{THEME_COLOR}}" />
+    <!-- Applies the saved theme before paint. Mirrors readStoredTheme() in src/utils/theme.ts. -->
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem('fabxpert-mobile-theme');
+          if (theme !== 'gold' && theme !== 'dark' && theme !== 'light') theme = 'gold';
+          if (theme !== 'dark') document.documentElement.dataset.theme = theme;
+        } catch (e) {}
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png" />
     <meta name="description" content="Pontaj muncitori" />

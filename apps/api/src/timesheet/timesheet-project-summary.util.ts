@@ -191,6 +191,8 @@ export type ProjectSummaryAssemblyDoneSqlRow = {
 export type ProjectSummaryAssemblyTotalSqlRow = {
   projectId: string;
   piecesTotal: number | bigint;
+  /** Lines on the list, regardless of quantity. */
+  assemblyCount: number | bigint;
 };
 
 /**
@@ -220,7 +222,8 @@ export function buildProjectSummaryAssemblyTotalQuery(projectIds: string[]) {
   return Prisma.sql`
     SELECT
       pa."projectId" AS "projectId",
-      SUM(pa.quantity)::int AS "piecesTotal"
+      SUM(pa.quantity)::int AS "piecesTotal",
+      COUNT(*)::int AS "assemblyCount"
     FROM project_assemblies pa
     WHERE pa."deletedAt" IS NULL
       AND pa."projectId" IN (${Prisma.join(projectIds)})
@@ -228,10 +231,11 @@ export function buildProjectSummaryAssemblyTotalQuery(projectIds: string[]) {
   `;
 }
 
-/** Done and total, keyed for the shaping pass. */
+/** Done, total and list length, keyed for the shaping pass. */
 export type ProjectAssemblyProgressIndex = {
   doneByProjectActivity: Map<string, number>;
   totalByProject: Map<string, number>;
+  assemblyCountByProject: Map<string, number>;
 };
 
 function assemblyKey(projectId: string, activityId: string): string {
@@ -251,11 +255,13 @@ export function indexProjectAssemblyProgress(
   }
 
   const totalByProject = new Map<string, number>();
+  const assemblyCountByProject = new Map<string, number>();
   for (const row of totalRows) {
     totalByProject.set(row.projectId, toMinutes(row.piecesTotal));
+    assemblyCountByProject.set(row.projectId, toMinutes(row.assemblyCount));
   }
 
-  return { doneByProjectActivity, totalByProject };
+  return { doneByProjectActivity, totalByProject, assemblyCountByProject };
 }
 
 /**
@@ -366,6 +372,7 @@ export function shapePinnedProjectsSummary(
         readyForExecution: false,
         company: { id: row.companyId, name: row.companyName },
         visibleForRoles: [],
+        assemblyCount: assemblyIndex?.assemblyCountByProject.get(row.projectId) ?? 0,
         totalMinutes: 0,
         activities: [],
       };

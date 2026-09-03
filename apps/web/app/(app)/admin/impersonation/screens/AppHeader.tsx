@@ -1,5 +1,7 @@
 import type { MeResponse } from '@fabxpert/shared';
 import { useEffect, useRef, useState } from 'react';
+import { useTheme } from '../hooks/useTheme';
+import { nextTheme, THEMES, type ThemeIcon } from '../utils/theme';
 import { getUserDisplayName, getUserInitials } from '../utils/userDisplay';
 
 interface AppHeaderProps {
@@ -21,6 +23,8 @@ export function AppHeader({
 }: AppHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { theme, setTheme } = useTheme();
+  const themeMeta = THEMES.find((item) => item.id === theme) ?? THEMES[0];
 
   useEffect(() => {
     if (!menuOpen) {
@@ -86,6 +90,17 @@ export function AppHeader({
         </h1>
       )}
 
+      <div className="app-header-actions">
+        <button
+          type="button"
+          className="app-header-theme"
+          aria-label={`Temă: ${themeMeta.label}. Schimbă tema`}
+          title={`Temă: ${themeMeta.label}. Schimbă tema`}
+          onClick={() => setTheme(nextTheme(theme))}
+        >
+          <ThemeIconGlyph icon={themeMeta.icon} />
+        </button>
+
       <div className="app-header-menu-wrap" ref={menuRef}>
         <button
           type="button"
@@ -128,7 +143,46 @@ export function AppHeader({
           </div>
         )}
       </div>
+      </div>
     </header>
+  );
+}
+
+/** Tabler moon / sun / palette outlines — the same glyphs the admin sidebar shows. */
+function ThemeIconGlyph({ icon }: { icon: ThemeIcon }) {
+  const common = {
+    stroke: 'currentColor',
+    strokeWidth: 1.75,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+  };
+
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {icon === 'moon' && (
+        <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" {...common} />
+      )}
+      {icon === 'sun' && (
+        <>
+          <circle cx="12" cy="12" r="4" {...common} />
+          <path
+            d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7"
+            {...common}
+          />
+        </>
+      )}
+      {icon === 'palette' && (
+        <>
+          <path
+            d="M12 21a9 9 0 0 1 0 -18c4.97 0 9 3.582 9 8c0 1.06 -.474 2.078 -1.318 2.828c-.844 .75 -1.989 1.172 -3.182 1.172h-2.5a2 2 0 0 0 -1 3.75a1.3 1.3 0 0 1 -1 2.25"
+            {...common}
+          />
+          <circle cx="8.5" cy="10.5" r="1" {...common} />
+          <circle cx="12.5" cy="7.5" r="1" {...common} />
+          <circle cx="16.5" cy="10.5" r="1" {...common} />
+        </>
+      )}
+    </svg>
   );
 }
 
