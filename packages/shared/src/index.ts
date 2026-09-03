@@ -248,6 +248,7 @@ export type {
   TimesheetSummaryParams,
   ProjectSummaryPeriod,
   ProjectSummaryActivityRow,
+  ProjectSummaryAssemblyProgress,
   ProjectSummaryProjectRow,
   ProjectSummaryResponse,
   PinnedProjectSummaryRow,

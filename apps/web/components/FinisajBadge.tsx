@@ -45,7 +45,7 @@ function FinisajSegment({ value, className }: { value: string; className?: strin
   }
 
   const badgeClass =
-    'inline-flex h-5 max-w-[100px] shrink-0 items-center justify-center truncate rounded px-1.5 text-[11px] leading-none';
+    'finisaj-text inline-flex h-5 max-w-[100px] shrink-0 items-center justify-center truncate rounded px-1.5 text-[11px] leading-none';
   const outlineClass = `${badgeClass} border border-border text-text-secondary`;
 
   if (parsed.kind === 'plain' && !parsed.hex) {
@@ -79,7 +79,9 @@ function FinisajSegment({ value, className }: { value: string; className?: strin
   // The rest of the finish stays plain text; only the RAL code carries colour.
   return (
     <span className={`inline-flex min-w-0 items-center gap-1.5 ${className ?? ''}`}>
-      <span className="truncate text-[11px] text-text-secondary">{parsed.action}</span>
+      <span className="finisaj-text truncate text-[11px] text-text-secondary">
+        {parsed.action}
+      </span>
       {badge}
     </span>
   );

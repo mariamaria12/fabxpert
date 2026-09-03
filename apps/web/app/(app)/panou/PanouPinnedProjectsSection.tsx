@@ -369,6 +369,9 @@ export const PanouPinnedProjectsSection = forwardRef<
 
   return (
     <section className="mt-4">
+      {/* Double-size type for the pinned cards; the edit panel below stays out
+          of the wrapper so it keeps the app's normal sizing. */}
+      <div className="panou-pinned-large">
       <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
         <h2 className="text-sm font-semibold text-text-primary">Proiecte</h2>
         {!isMobile && (
@@ -463,6 +466,8 @@ export const PanouPinnedProjectsSection = forwardRef<
           )}
         </DndContext>
       )}
+
+      </div>
 
       {editPanel.open ? (
         <ProjectFormPanel

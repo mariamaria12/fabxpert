@@ -20,6 +20,65 @@ html {
   color-scheme: dark;
 }
 
+/* Panou → Proiecte, pinned cards at enlarged type.
+   Scoped here rather than in the components because the cards are built from
+   parts the hours view shares (PanouProjectCard, ActivityBreakdownRows, the
+   finish and status badges) — those have to keep their normal size elsewhere.
+
+   The project code (text-[15px]) is deliberately left alone, and `:not(.ti)`
+   keeps the Tabler icon glyphs at their current size so the icon buttons keep
+   their geometry. */
+.panou-pinned-large .text-\[10px\]:not(.ti) {
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.panou-pinned-large .text-\[11px\]:not(.ti) {
+  font-size: 22px;
+  line-height: 1.35;
+}
+
+.panou-pinned-large .text-xs:not(.ti) {
+  font-size: 22px;
+  line-height: 1.35;
+}
+
+.panou-pinned-large .text-sm:not(.ti) {
+  font-size: 1.75rem;
+  line-height: 1.35;
+}
+
+.panou-pinned-large .text-base:not(.ti) {
+  font-size: 2rem;
+  line-height: 1.35;
+}
+
+/* Status, deadline, finish and the visible-for chips stay small — they read as
+   labels next to the enlarged project text. `:not(.ti)` matches the specificity
+   of the size rules above, and these come later, so they win. */
+.panou-pinned-large .panou-card-status:not(.ti),
+.panou-pinned-large .panou-card-timeline:not(.ti),
+.panou-pinned-large .finisaj-text:not(.ti),
+.panou-pinned-large .project-visible-text:not(.ti) {
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+/* The finish badge is built around 11px type; let it grow instead of clipping. */
+.panou-pinned-large .h-5 {
+  height: auto;
+}
+
+.panou-pinned-large .max-w-\[100px\] {
+  max-width: 200px;
+}
+
+/* The breakdown's numeric columns are sized for 11px; "100%" and
+   "120 / 200 buc." need roughly twice the room at this type size. */
+.panou-pinned-large .panou-breakdown-grid {
+  grid-template-columns: minmax(0, 1fr) 4.5rem 7rem auto auto;
+}
+
 /* Welding loader — the torch runs the seam, the bead follows it, sparks fly.
    Spark direction comes from --sx/--sy set per spark in WeldingLoader. */
 @keyframes weld-travel {

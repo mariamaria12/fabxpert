@@ -3,6 +3,7 @@ import type { ProjectStatus } from '@fabxpert/shared/dto/project.dto';
 import type {
   PinnedProjectSummaryRow,
   PinnedProjectsSummaryResponse,
+  ProjectSummaryAssemblyProgress,
   ProjectSummaryProjectRow,
   ProjectSummaryResponse,
   TimesheetSummaryPeriod,
@@ -32,6 +33,8 @@ export type ProjectSummarySqlRow = {
   activityId: string | null;
   activityName: string | null;
   activityColor: string | null;
+  /** Null when the entry has no activity at all. */
+  activityTracksAssemblies?: boolean | null;
   minutes: number | bigint;
   projectStatus?: string;
   projectStartDate?: Date | null;
@@ -96,6 +99,7 @@ export function buildProjectSummaryQuery(
         t."activityId" AS "activityId",
         a.name AS "activityName",
         a.color AS "activityColor",
+        a."tracksAssemblies" AS "activityTracksAssemblies",
         COALESCE(SUM(t."durationMinutes"), 0)::int AS minutes
       FROM projects p
       INNER JOIN companies c ON c.id = p."companyId"
@@ -127,7 +131,8 @@ export function buildProjectSummaryQuery(
         c.name,
         t."activityId",
         a.name,
-        a.color
+        a.color,
+        a."tracksAssemblies"
       ORDER BY p."panouColumn" ASC NULLS LAST, p."indexPanou" ASC NULLS LAST, p.name ASC, minutes DESC
     `;
   }
@@ -149,6 +154,7 @@ export function buildProjectSummaryQuery(
       t."activityId" AS "activityId",
       a.name AS "activityName",
       a.color AS "activityColor",
+      a."tracksAssemblies" AS "activityTracksAssemblies",
       SUM(t."durationMinutes")::int AS minutes
     FROM timesheets t
     INNER JOIN persons pe ON pe.id = t."personId" AND pe."deletedAt" IS NULL
@@ -170,9 +176,106 @@ export function buildProjectSummaryQuery(
       c.name,
       t."activityId",
       a.name,
-      a.color
+      a.color,
+      a."tracksAssemblies"
     ORDER BY p.id ASC, minutes DESC
   `;
+}
+
+export type ProjectSummaryAssemblyDoneSqlRow = {
+  projectId: string;
+  activityId: string;
+  piecesDone: number | bigint;
+};
+
+export type ProjectSummaryAssemblyTotalSqlRow = {
+  projectId: string;
+  piecesTotal: number | bigint;
+};
+
+/**
+ * Pieces closed per project per activity, over every timesheet there is.
+ * The summary's period deliberately does not apply here: this is how far the
+ * project has got on its list, which a "today" filter must not shrink.
+ */
+export function buildProjectSummaryAssemblyDoneQuery(projectIds: string[]) {
+  return Prisma.sql`
+    SELECT
+      t."projectId" AS "projectId",
+      ta."activityId" AS "activityId",
+      SUM(ta."quantityDone")::int AS "piecesDone"
+    FROM timesheet_assemblies ta
+    INNER JOIN timesheets t ON t.id = ta."timesheetId" AND t."deletedAt" IS NULL
+    INNER JOIN project_assemblies pa ON pa.id = ta."assemblyId" AND pa."deletedAt" IS NULL
+    WHERE t."projectId" IN (${Prisma.join(projectIds)})
+    GROUP BY t."projectId", ta."activityId"
+  `;
+}
+
+/**
+ * Pieces the imported list holds, per project — the denominator. Counts the
+ * list itself, so it is the same for every activity on the project.
+ */
+export function buildProjectSummaryAssemblyTotalQuery(projectIds: string[]) {
+  return Prisma.sql`
+    SELECT
+      pa."projectId" AS "projectId",
+      SUM(pa.quantity)::int AS "piecesTotal"
+    FROM project_assemblies pa
+    WHERE pa."deletedAt" IS NULL
+      AND pa."projectId" IN (${Prisma.join(projectIds)})
+    GROUP BY pa."projectId"
+  `;
+}
+
+/** Done and total, keyed for the shaping pass. */
+export type ProjectAssemblyProgressIndex = {
+  doneByProjectActivity: Map<string, number>;
+  totalByProject: Map<string, number>;
+};
+
+function assemblyKey(projectId: string, activityId: string): string {
+  return `${projectId}|${activityId}`;
+}
+
+export function indexProjectAssemblyProgress(
+  doneRows: ProjectSummaryAssemblyDoneSqlRow[],
+  totalRows: ProjectSummaryAssemblyTotalSqlRow[],
+): ProjectAssemblyProgressIndex {
+  const doneByProjectActivity = new Map<string, number>();
+  for (const row of doneRows) {
+    doneByProjectActivity.set(
+      assemblyKey(row.projectId, row.activityId),
+      toMinutes(row.piecesDone),
+    );
+  }
+
+  const totalByProject = new Map<string, number>();
+  for (const row of totalRows) {
+    totalByProject.set(row.projectId, toMinutes(row.piecesTotal));
+  }
+
+  return { doneByProjectActivity, totalByProject };
+}
+
+/**
+ * Progress for one breakdown row, or null when the activity is not tracked
+ * assembly by assembly. A tracked activity with nothing reported yet still
+ * gets a row — "0 / 200" is the honest answer, and hiding it would read as
+ * "not tracked".
+ */
+function assemblyProgressFor(
+  index: ProjectAssemblyProgressIndex | undefined,
+  row: ProjectSummarySqlRow,
+): ProjectSummaryAssemblyProgress | null {
+  if (!index || !row.activityId || !row.activityTracksAssemblies) {
+    return null;
+  }
+
+  return {
+    piecesDone: index.doneByProjectActivity.get(assemblyKey(row.projectId, row.activityId)) ?? 0,
+    piecesTotal: index.totalByProject.get(row.projectId) ?? 0,
+  };
 }
 
 function toMinutes(value: number | bigint): number {
@@ -205,6 +308,7 @@ function upsertProjectRow(
 export function shapeProjectSummary(
   rows: ProjectSummarySqlRow[],
   period: TimesheetSummaryPeriod,
+  assemblyIndex?: ProjectAssemblyProgressIndex,
 ): ProjectSummaryResponse {
   const byProject = new Map<string, ProjectSummaryProjectRow>();
 
@@ -221,6 +325,7 @@ export function shapeProjectSummary(
       activityName: row.activityId ? (row.activityName ?? 'Activitate') : NO_ACTIVITY_LABEL,
       activityColor: row.activityColor,
       minutes,
+      assemblyProgress: assemblyProgressFor(assemblyIndex, row),
     });
   }
 
@@ -237,6 +342,7 @@ export function shapeProjectSummary(
 
 export function shapePinnedProjectsSummary(
   rows: ProjectSummarySqlRow[],
+  assemblyIndex?: ProjectAssemblyProgressIndex,
 ): PinnedProjectsSummaryResponse {
   const byProject = new Map<string, PinnedProjectSummaryRow>();
 
@@ -273,6 +379,7 @@ export function shapePinnedProjectsSummary(
         activityName: row.activityId ? (row.activityName ?? 'Activitate') : NO_ACTIVITY_LABEL,
         activityColor: row.activityColor,
         minutes,
+        assemblyProgress: assemblyProgressFor(assemblyIndex, row),
       });
     }
   }

@@ -141,11 +141,24 @@ export type TimesheetSummaryPeriod = 'today' | 'yesterday' | 'week' | 'month' | 
 /** @deprecated Use TimesheetSummaryPeriod — kept as alias for project-summary responses */
 export type ProjectSummaryPeriod = TimesheetSummaryPeriod;
 
+/**
+ * Where an assembly-tracked activity stands on the project's list. Counted
+ * over every timesheet, not just the summary's period: the hours beside it
+ * answer "what was worked this week", this answers "how far along is it".
+ */
+export type ProjectSummaryAssemblyProgress = {
+  piecesDone: number;
+  /** Pieces the assembly list holds. Zero when nothing has been imported yet. */
+  piecesTotal: number;
+};
+
 export type ProjectSummaryActivityRow = {
   activityId: string | null;
   activityName: string;
   activityColor: string | null;
   minutes: number;
+  /** Null for activities that are not tracked assembly by assembly. */
+  assemblyProgress: ProjectSummaryAssemblyProgress | null;
 };
 
 export type ProjectSummaryProjectRow = {

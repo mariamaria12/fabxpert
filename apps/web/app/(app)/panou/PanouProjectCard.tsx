@@ -180,7 +180,7 @@ export function PanouProjectCard({
               <div className="flex items-center gap-1">
                 {status && (
                   <span
-                    className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${getProjectStatusBadgeClassName(status)}`}
+                    className={`panou-card-status shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${getProjectStatusBadgeClassName(status)}`}
                   >
                     {getProjectStatusLabel(status)}
                   </span>
@@ -202,12 +202,14 @@ export function PanouProjectCard({
                 {timeline && (
                   <div className="flex flex-col gap-0.5">
                     <span
-                      className={`inline-flex items-center gap-1 text-[11px] ${timeline.daysClassName}`}
+                      className={`panou-card-timeline inline-flex items-center gap-1 text-[11px] ${timeline.daysClassName}`}
                     >
                       <i className="ti ti-calendar text-xs" aria-hidden="true" />
                       {timeline.daysText}
                     </span>
-                    <span className="text-[10px] text-text-muted">{timeline.dateRange}</span>
+                    <span className="panou-card-timeline text-[10px] text-text-muted">
+                      {timeline.dateRange}
+                    </span>
                   </div>
                 )}
                 {totalBlock}

@@ -26,7 +26,7 @@ const VISIBLE_FOR_CHIP_LIMIT = 2;
 
 /** Outline only — the role colour lives in the border and the text. */
 const CHIP_CLASS =
-  'inline-flex max-w-full items-center rounded border px-1 py-px text-[10px] leading-4';
+  'project-visible-text inline-flex max-w-full items-center rounded border px-1 py-px text-[10px] leading-4';
 
 function ReadOnlyRoleChip({ name, color }: { name: string; color: string }) {
   return (
@@ -169,14 +169,14 @@ export function ProjectVisibleForCardMeta({
 
   return (
     <span className="mt-0.5 flex flex-wrap items-center gap-1">
-      {/* Phones show just the eye — the label needs the width more than the card
-          has to spare. Colour lives in the chips next to it. */}
       <span
-        className="flex shrink-0 items-center gap-1 text-[11px] text-text-secondary"
+        className="project-visible-text flex shrink-0 items-center gap-1 text-[11px] text-text-secondary"
         title="Vizibil pentru"
       >
-        <i className="ti ti-eye text-sm md:hidden" aria-hidden="true" />
-        <span className="sr-only md:not-sr-only">Vizibil pentru:</span>
+        {/* The eye carries the meaning on its own; the words stay for screen
+            readers and in the tooltip. Colour lives in the chips next to it. */}
+        <i className="ti ti-eye text-sm" aria-hidden="true" />
+        <span className="sr-only">Vizibil pentru:</span>
         {collapsible && !expanded ? <span>{list.length}</span> : null}
       </span>
 

@@ -39,9 +39,15 @@ import {
   updatedTimesheetEvent,
 } from './timesheet-events.util';
 import {
+  buildProjectSummaryAssemblyDoneQuery,
+  buildProjectSummaryAssemblyTotalQuery,
   buildProjectSummaryQuery,
+  indexProjectAssemblyProgress,
   shapePinnedProjectsSummary,
   shapeProjectSummary,
+  type ProjectAssemblyProgressIndex,
+  type ProjectSummaryAssemblyDoneSqlRow,
+  type ProjectSummaryAssemblyTotalSqlRow,
   type ProjectSummarySqlRow,
 } from './timesheet-project-summary.util';
 import {
@@ -436,11 +442,39 @@ export class TimesheetService {
     );
   }
 
+  /**
+   * How far the assembly-tracked activities have got on each project's list.
+   * Only the projects whose breakdown actually has such an activity are asked
+   * about, so a panou with none costs nothing.
+   */
+  private async loadProjectAssemblyProgress(
+    rows: ProjectSummarySqlRow[],
+  ): Promise<ProjectAssemblyProgressIndex | undefined> {
+    const projectIds = [
+      ...new Set(rows.filter((row) => row.activityTracksAssemblies).map((row) => row.projectId)),
+    ];
+    if (projectIds.length === 0) {
+      return undefined;
+    }
+
+    const [doneRows, totalRows] = await Promise.all([
+      this.prisma.$queryRaw<ProjectSummaryAssemblyDoneSqlRow[]>(
+        buildProjectSummaryAssemblyDoneQuery(projectIds),
+      ),
+      this.prisma.$queryRaw<ProjectSummaryAssemblyTotalSqlRow[]>(
+        buildProjectSummaryAssemblyTotalQuery(projectIds),
+      ),
+    ]);
+
+    return indexProjectAssemblyProgress(doneRows, totalRows);
+  }
+
   async getProjectSummary(resolved: ResolvedSummaryPeriod): Promise<ProjectSummaryResponse> {
     const rows = await this.prisma.$queryRaw<ProjectSummarySqlRow[]>(
       buildProjectSummaryQuery(resolved.from, resolved.to),
     );
-    return shapeProjectSummary(rows, resolved.period);
+    const assemblyIndex = await this.loadProjectAssemblyProgress(rows);
+    return shapeProjectSummary(rows, resolved.period, assemblyIndex);
   }
 
   async getPinnedProjectsSummary(
@@ -454,7 +488,8 @@ export class TimesheetService {
         to: resolved.to,
       }),
     );
-    const summary = shapePinnedProjectsSummary(rows);
+    const assemblyIndex = await this.loadProjectAssemblyProgress(rows);
+    const summary = shapePinnedProjectsSummary(rows, assemblyIndex);
 
     if (summary.projects.length === 0) {
       return summary;
