@@ -45,8 +45,10 @@ import {
   type ProjectSummarySqlRow,
 } from './timesheet-project-summary.util';
 import {
+  buildPersonSummaryAssemblyQuery,
   buildPersonSummaryQuery,
   shapePersonSummary,
+  type PersonSummaryAssemblySqlRow,
   type PersonSummarySqlRow,
 } from './timesheet-person-summary.util';
 import {
@@ -497,10 +499,15 @@ export class TimesheetService {
   }
 
   async getPersonSummary(resolved: ResolvedSummaryPeriod): Promise<PersonSummaryResponse> {
-    const rows = await this.prisma.$queryRaw<PersonSummarySqlRow[]>(
-      buildPersonSummaryQuery(resolved.from, resolved.to),
-    );
-    return shapePersonSummary(rows, resolved.period);
+    const [rows, assemblyRows] = await Promise.all([
+      this.prisma.$queryRaw<PersonSummarySqlRow[]>(
+        buildPersonSummaryQuery(resolved.from, resolved.to),
+      ),
+      this.prisma.$queryRaw<PersonSummaryAssemblySqlRow[]>(
+        buildPersonSummaryAssemblyQuery(resolved.from, resolved.to),
+      ),
+    ]);
+    return shapePersonSummary(rows, assemblyRows, resolved.period);
   }
 
   async getNotLoggedPersons(

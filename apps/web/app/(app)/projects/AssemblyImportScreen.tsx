@@ -57,6 +57,7 @@ export function AssemblyImportScreen({
   const [isDragging, setIsDragging] = useState(false);
   const [preview, setPreview] = useState<AssemblyPreviewDto | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showSheetPicker, setShowSheetPicker] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -90,6 +91,7 @@ export function AssemblyImportScreen({
   async function runPreview(sheet?: string) {
     setIsLoading(true);
     setError(null);
+    setShowSheetPicker(false);
 
     try {
       // The file wins when both are filled: it carries the real cell values,
@@ -138,7 +140,27 @@ export function AssemblyImportScreen({
     setError(null);
   }
 
-  const needsSheetChoice = preview !== null && preview.sheetName === null && preview.sheets.length > 0;
+  const needsSheetChoice =
+    preview !== null && preview.sheetName === null && preview.sheets.length > 0;
+
+  // Only rendered when the workbook has no ANSAMBLE sheet, or when the admin
+  // asks for the list. Showing twenty-odd tab names next to a list that was
+  // found correctly is noise, not a choice.
+  const sheetButtons = preview?.sheets.map((sheet) => (
+    <button
+      key={sheet}
+      type="button"
+      disabled={isLoading}
+      onClick={() => void runPreview(sheet)}
+      className={`rounded-md border px-2.5 py-1 text-xs transition-colors disabled:opacity-40 ${
+        sheet === preview.sheetName
+          ? 'border-accent bg-accent/10 text-accent'
+          : 'border-border text-text-secondary hover:border-border-strong hover:text-text-primary'
+      }`}
+    >
+      {sheet}
+    </button>
+  ));
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4">
@@ -250,39 +272,35 @@ export function AssemblyImportScreen({
             </div>
           ) : (
             <div className="flex flex-col gap-4">
-              {preview.sheets.length > 0 && (
+              {needsSheetChoice ? (
                 <div className="flex flex-col gap-2">
-                  <span className="text-sm text-text-secondary">
-                    {needsSheetChoice
-                      ? 'Fișierul nu are o foaie numită „ANSAMBLE”. Alege foaia cu lista:'
-                      : 'Foaie:'}
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {preview.sheets.map((sheet) => (
-                      <button
-                        key={sheet}
-                        type="button"
-                        disabled={isLoading}
-                        onClick={() => void runPreview(sheet)}
-                        className={`rounded-md border px-2.5 py-1 text-xs transition-colors disabled:opacity-40 ${
-                          sheet === preview.sheetName
-                            ? 'border-accent bg-accent/10 text-accent'
-                            : 'border-border text-text-secondary hover:border-border-strong hover:text-text-primary'
-                        }`}
-                      >
-                        {sheet}
-                      </button>
-                    ))}
-                  </div>
+                  <p className="text-sm text-text-secondary">
+                    Fișierul nu are o foaie numită „ANSAMBLE”. Alege foaia cu lista:
+                  </p>
+                  <div className="flex flex-wrap gap-2">{sheetButtons}</div>
                 </div>
-              )}
-
-              {!needsSheetChoice && (
-              <p className="text-sm text-text-secondary">
-                <span className="font-medium text-text-primary">{preview.rows.length}</span>{' '}
-                {preview.rows.length === 1 ? 'ansamblu' : 'ansamble'}
-                {preview.sheetName && <> din foaia „{preview.sheetName}”</>}
-              </p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm text-text-secondary">
+                    <span className="font-medium text-text-primary">{preview.rows.length}</span>{' '}
+                    {preview.rows.length === 1 ? 'ansamblu' : 'ansamble'}
+                    {preview.sheetName && <> din foaia „{preview.sheetName}”</>}
+                    {preview.sheets.length > 1 && (
+                      <>
+                        {' · '}
+                        <button
+                          type="button"
+                          disabled={isLoading}
+                          onClick={() => setShowSheetPicker((open) => !open)}
+                          className="text-text-muted underline underline-offset-2 hover:text-text-primary disabled:opacity-40"
+                        >
+                          {showSheetPicker ? 'ascunde foile' : 'alege altă foaie'}
+                        </button>
+                      </>
+                    )}
+                  </p>
+                  {showSheetPicker && <div className="flex flex-wrap gap-2">{sheetButtons}</div>}
+                </div>
               )}
 
               {preview.issues.length > 0 && (

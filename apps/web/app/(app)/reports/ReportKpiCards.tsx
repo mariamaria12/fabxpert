@@ -23,7 +23,7 @@ function buildKpis(kpis: ProductivityKpis): Kpi[] {
 
   return [
     {
-      label: 'Proiecte finalizate',
+      label: 'Proiecte livrate și finalizate',
       value: String(kpis.completedCount),
       color: 'var(--color-text-primary)',
     },

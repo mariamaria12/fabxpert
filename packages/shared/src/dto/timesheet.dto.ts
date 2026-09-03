@@ -203,6 +203,8 @@ export type PersonSummaryActivityRow = {
   minutes: number;
   /** Notes typed on the timesheets behind this total; empty when there are none. */
   notes: string[];
+  /** Marks closed behind this total, summed per mark; empty when there are none. */
+  assemblies: TimesheetAssemblyDto[];
 };
 
 export type PersonSummaryPersonRow = {

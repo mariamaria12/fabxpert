@@ -6,7 +6,10 @@ import {
   getProjectStatusLabel,
   PROJECT_TERMINAL_STATUSES,
 } from '@fabxpert/shared';
-import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
+import {
+  formatAssemblyChip,
+  formatDurationMinutes,
+} from '@/app/(app)/timesheets/timesheetFormat';
 import { PanouActivityProgressBar } from './PanouActivityProgressBar';
 
 /** A full bar is a 9-hour day, so lengths compare across rows and people. */
@@ -76,6 +79,19 @@ export function PersonBreakdownRows({
             color={entry.activityColor}
             percent={percent}
           />
+
+          {entry.assemblies.length > 0 && (
+            <div className="ml-[18px] flex flex-wrap gap-1.5">
+              {entry.assemblies.map((link) => (
+                <span
+                  key={link.assemblyId}
+                  className="rounded-full border border-border-subtle bg-surface-raised px-2 py-0.5 font-mono text-[11px] text-text-secondary"
+                >
+                  {formatAssemblyChip(link)}
+                </span>
+              ))}
+            </div>
+          )}
 
           {entry.notes.length > 0 && (
             <ul className="ml-[18px] space-y-0.5">

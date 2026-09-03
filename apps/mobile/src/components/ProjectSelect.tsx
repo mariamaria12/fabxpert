@@ -166,7 +166,7 @@ export function ProjectSelect({ user, onChoose, onOpenMyTimesheets }: ProjectSel
         </button>
       )}
 
-      <p className="flow-step-label">PASUL 1 DIN 2</p>
+      <p className="flow-step-label">PASUL 1</p>
       <div className="flow-heading-row">
         <h2 className="flow-heading">Alege proiectul</h2>
         <button

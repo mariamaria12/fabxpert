@@ -27,7 +27,7 @@ function EmptyState() {
     <div className="mt-3 flex flex-col items-center justify-center gap-2 rounded-lg border border-border-subtle bg-surface py-16 text-center">
       <i className="ti ti-chart-bar-off text-3xl text-text-muted" aria-hidden="true" />
       <p className="text-sm text-text-secondary">
-        Niciun proiect finalizat în intervalul selectat.
+        Niciun proiect livrat sau finalizat în intervalul selectat.
       </p>
       <p className="text-xs text-text-muted">Alege alt interval din selectorul de mai sus.</p>
     </div>

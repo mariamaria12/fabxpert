@@ -57,6 +57,24 @@ export const PROJECT_TERMINAL_STATUSES: readonly ProjectStatus[] = [
   'ANULAT',
 ] as const;
 
+/**
+ * Statuses that count as finished work, and the ones the Rapoarte analytics
+ * cover. `completedAt` is stamped when a project enters this set and cleared
+ * when it leaves; reaching FINALIZAT always rewrites it, because that is the
+ * date the work was actually finished. Shipping is an external step that can
+ * sit for days, so a LIVRAT date is only a stand-in until then.
+ *
+ * ANULAT is terminal but not finished: cancelled work was never completed.
+ */
+export const PROJECT_COMPLETED_STATUSES: readonly ProjectStatus[] = [
+  'FINALIZAT',
+  'LIVRAT',
+] as const;
+
+export function isProjectCompletedStatus(status: ProjectStatus): boolean {
+  return PROJECT_COMPLETED_STATUSES.includes(status);
+}
+
 export function getProjectStatusLabel(status: ProjectStatus): string {
   return PROJECT_STATUS_META[status].label;
 }

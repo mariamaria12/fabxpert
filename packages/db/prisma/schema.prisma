@@ -246,9 +246,11 @@ model Project {
   status            ProjectStatus @default(CIORNA)
   startDate         DateTime?
   dueDate           DateTime?
-  /// Set when the project transitions into FINALIZAT (cleared if it leaves that status).
-  /// Backfilled once from `updatedAt` for projects already FINALIZAT. Drives the
-  /// Rapoarte analytics: a project is in an interval when `completedAt` falls inside it.
+  /// Set when the project enters LIVRAT or FINALIZAT, and cleared if it leaves
+  /// both. Reaching FINALIZAT always rewrites it — that is the date the work
+  /// was finished, while a LIVRAT date only stands in until then. Backfilled
+  /// once from `updatedAt`. Drives the Rapoarte analytics: a project is in an
+  /// interval when `completedAt` falls inside it.
   completedAt       DateTime?
   readyForExecution Boolean       @default(false)
   isPinned          Boolean       @default(false)

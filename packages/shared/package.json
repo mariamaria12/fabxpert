@@ -117,6 +117,10 @@
       "types": "./dist/tsv.d.ts",
       "default": "./dist/tsv.js"
     },
+    "./projectStatus": {
+      "types": "./dist/projectStatus.d.ts",
+      "default": "./dist/projectStatus.js"
+    },
     "./styles/tokens.css": "./styles/tokens.css"
   },
   "scripts": {

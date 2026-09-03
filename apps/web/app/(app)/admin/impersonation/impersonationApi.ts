@@ -68,5 +68,8 @@ export function getMyOvertimeBalance() {
   return getOvertimeBalance(getImpersonationPersonId());
 }
 
+// Project assemblies are project-scoped, so there is no person to inject.
+export { listProjectAssemblies } from '@fabxpert/shared';
+
 // Update / delete are admin-capable on the shared endpoints as-is.
 export { updateTimesheet, deleteTimesheet, updateLeaveRequest, cancelLeaveRequest };

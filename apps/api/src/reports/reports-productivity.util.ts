@@ -6,6 +6,7 @@ import type {
   ProjectHoursComparisonRow,
   ReportPeriodKind,
 } from '@fabxpert/shared/dto/report.dto';
+import { PROJECT_COMPLETED_STATUSES } from '@fabxpert/shared/projectStatus';
 
 const NO_ACTIVITY_LABEL = 'Fără activitate';
 const OTHER_CLIENTS_LABEL = 'Alte companii';
@@ -38,7 +39,16 @@ export type ActivityAggregateRow = {
 };
 
 /**
- * One row per FINALIZAT project completed inside [from, toExclusive), with its
+ * The statuses the analytics count as delivered work, as SQL literals. Built
+ * from the shared list so the report and the completedAt stamping can never
+ * drift apart.
+ */
+const completedStatuses = Prisma.join(
+  PROJECT_COMPLETED_STATUSES.map((status) => Prisma.sql`${status}::"ProjectStatus"`),
+);
+
+/**
+ * One row per delivered project completed inside [from, toExclusive), with its
  * total logged minutes (active persons, non-deleted entries). Drives the KPIs,
  * the worked-vs-estimated chart, the on-time donut and the per-client totals.
  */
@@ -65,7 +75,7 @@ export function buildProjectAggregateQuery(from: Date, toExclusive: Date): Prism
         WHERE pe.id = t."personId" AND pe."deletedAt" IS NULL
       )
     WHERE p."deletedAt" IS NULL
-      AND p.status = 'FINALIZAT'
+      AND p.status IN (${completedStatuses})
       AND p."completedAt" >= ${from}
       AND p."completedAt" < ${toExclusive}
     GROUP BY p.id, c.id, c.name, c.color
@@ -88,7 +98,7 @@ export function buildActivityAggregateQuery(from: Date, toExclusive: Date): Pris
     INNER JOIN persons pe ON pe.id = t."personId" AND pe."deletedAt" IS NULL
     INNER JOIN projects p ON p.id = t."projectId"
       AND p."deletedAt" IS NULL
-      AND p.status = 'FINALIZAT'
+      AND p.status IN (${completedStatuses})
       AND p."completedAt" >= ${from}
       AND p."completedAt" < ${toExclusive}
     LEFT JOIN activities a ON a.id = t."activityId"

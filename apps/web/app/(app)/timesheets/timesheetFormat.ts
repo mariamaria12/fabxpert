@@ -33,6 +33,29 @@ export function formatRomanianDate(iso: string): string {
   return formatDateDisplay(PLAIN_DATE_PATTERN.test(trimmed) ? trimmed : workDateToDayKey(trimmed));
 }
 
+/** One mark and the pieces it carries on a pontaj: "GBAL/25 ×2". */
+export function formatAssemblyChip(link: { name: string; quantityDone: number }): string {
+  return `${link.name} ×${link.quantityDone}`;
+}
+
+/** Pieces and distinct marks a day's entries closed. */
+export function summarizeDayAssemblies(entries: TimesheetDto[]): {
+  pieces: number;
+  marks: number;
+} {
+  const marks = new Set<string>();
+  let pieces = 0;
+
+  for (const entry of entries) {
+    for (const link of entry.assemblies) {
+      marks.add(link.assemblyId);
+      pieces += link.quantityDone;
+    }
+  }
+
+  return { pieces, marks: marks.size };
+}
+
 export function formatDurationMinutes(totalMinutes: number): string {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;

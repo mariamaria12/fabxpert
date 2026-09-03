@@ -146,6 +146,8 @@ export type {
 export {
   PROJECT_STATUS_META,
   PROJECT_TERMINAL_STATUSES,
+  PROJECT_COMPLETED_STATUSES,
+  isProjectCompletedStatus,
   formatProjectDueDate,
   getProjectStatusBadgeClassName,
   getProjectStatusLabel,

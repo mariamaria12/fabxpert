@@ -34,6 +34,36 @@ function EntryProject({ project }: { project: TimesheetDto['project'] }) {
   );
 }
 
+/**
+ * The marks this entry closed. On an activity that tracks assemblies, an entry
+ * without any is a normal state — someone helping out — so it says so.
+ */
+function EntryAssemblies({
+  entry,
+  tracksAssemblies,
+}: {
+  entry: TimesheetDto;
+  tracksAssemblies: boolean;
+}) {
+  if (entry.assemblies.length > 0) {
+    return (
+      <span className="assembly-chip-row timesheet-entry-assemblies">
+        {entry.assemblies.map((link) => (
+          <span key={link.assemblyId} className="assembly-chip assembly-chip-mark">
+            {link.name} ×{link.quantityDone}
+          </span>
+        ))}
+      </span>
+    );
+  }
+
+  if (!tracksAssemblies) {
+    return null;
+  }
+
+  return <span className="timesheet-entry-no-assemblies">Fără ansamble</span>;
+}
+
 function ChevronRightIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -60,12 +90,22 @@ function formatEntryDuration(entry: TimesheetDto): string {
 export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
   const { showToast } = useToast();
   const {
+    activities,
     myTimesheetsPage1,
     myTimesheetsPage1Error,
     myTimesheetsPage1Loaded,
     isFetchingMyTimesheetsPage1,
     refreshMyTimesheetsPage1,
   } = useMobileLookupCache();
+
+  /** Empty until the activity cache resolves, which keeps the label from flashing. */
+  const assemblyActivityIds = useMemo(
+    () =>
+      new Set(
+        activities.filter((activity) => activity.tracksAssemblies).map((activity) => activity.id),
+      ),
+    [activities],
+  );
 
   const [extraEntries, setExtraEntries] = useState<TimesheetDto[]>([]);
   const [page, setPage] = useState(1);
@@ -150,6 +190,8 @@ export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
                 <ul className="timesheet-entry-list">
                   {dayEntries.map((entry) => {
                     const editable = isEditableTodayEntry(entry);
+                    const tracksAssemblies =
+                      entry.activityId !== null && assemblyActivityIds.has(entry.activityId);
 
                     if (editable) {
                       return (
@@ -174,6 +216,10 @@ export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
                                   {entry.activity.name}
                                 </span>
                               ) : null}
+                              <EntryAssemblies
+                                entry={entry}
+                                tracksAssemblies={tracksAssemblies}
+                              />
                             </span>
                             <span className="timesheet-entry-duration">
                               {formatEntryDuration(entry)}
@@ -204,6 +250,10 @@ export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
                                 {entry.activity.name}
                               </span>
                             ) : null}
+                            <EntryAssemblies
+                              entry={entry}
+                              tracksAssemblies={tracksAssemblies}
+                            />
                           </span>
                           <span className="timesheet-entry-duration">
                             {formatEntryDuration(entry)}

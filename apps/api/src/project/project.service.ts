@@ -15,6 +15,7 @@ import type {
   UpdateProjectInput,
 } from '@fabxpert/shared/dto/project.dto';
 import { pickRandomProjectColor } from '@fabxpert/shared/projectColor';
+import { isProjectCompletedStatus } from '@fabxpert/shared/projectStatus';
 import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
 import { PaginationParams } from '../common/pagination/parse-pagination.util';
 import { notDeleted } from '../common/prisma/soft-delete.util';
@@ -402,8 +403,10 @@ export class ProjectService {
         data: {
           ...scalarInput,
           ...(isPinned !== undefined ? { isPinned } : {}),
-          // Stamp the completion date if the project is created already finalized.
-          ...(scalarInput.status === 'FINALIZAT' ? { completedAt: new Date() } : {}),
+          // Stamp the completion date if the project is created already delivered.
+          ...(scalarInput.status && isProjectCompletedStatus(scalarInput.status)
+            ? { completedAt: new Date() }
+            : {}),
           color: color ?? pickRandomProjectColor(),
           ...(panouSlot
             ? { indexPanou: panouSlot.indexPanou, panouColumn: panouSlot.panouColumn }
@@ -455,14 +458,23 @@ export class ProjectService {
       panouColumn = null;
     }
 
-    // Track the completion date across status transitions: stamp it when the
-    // project enters FINALIZAT, clear it when it leaves. Editing a project that
-    // is already FINALIZAT leaves the existing date untouched.
+    // Track the completion date across status transitions.
+    //
+    // FINALIZAT is the authoritative date: shipping is an external step that
+    // can sit for days, so the day the truck left says little about when the
+    // work was actually done. A project that only reached LIVRAT still gets a
+    // date — otherwise it would fall outside every reporting interval — but
+    // that one is provisional and is rewritten the moment it is finalized.
     const nextStatus = scalarInput.status ?? existing.status;
+    const wasCompleted = isProjectCompletedStatus(existing.status);
+    const isCompleted = isProjectCompletedStatus(nextStatus);
+    const enteringCompleted = isCompleted && !wasCompleted;
+    const enteringFinalized = nextStatus === 'FINALIZAT' && existing.status !== 'FINALIZAT';
+
     let completedAt: Date | null | undefined;
-    if (nextStatus === 'FINALIZAT' && existing.status !== 'FINALIZAT') {
+    if (enteringCompleted || enteringFinalized) {
       completedAt = new Date();
-    } else if (nextStatus !== 'FINALIZAT' && existing.status === 'FINALIZAT') {
+    } else if (!isCompleted && wasCompleted) {
       completedAt = null;
     }
 

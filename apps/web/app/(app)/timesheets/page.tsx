@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  listActivities,
   listTimesheetDayGroups,
   type Period,
   type TimesheetDayGroupDto,
@@ -14,9 +15,11 @@ import { PeriodFilter } from '@/components/PeriodFilter';
 import { TimesheetFormPanel } from './TimesheetFormPanel';
 import { TimesheetExportPanel } from './TimesheetExportPanel';
 import {
+  formatAssemblyChip,
   formatDurationMinutes,
   formatRomanianDate,
   formatTimesheetDuration,
+  summarizeDayAssemblies,
 } from './timesheetFormat';
 import { TimesheetDayGroupPanel } from './TimesheetDayGroupPanel';
 import { PanouActivityProgressBar } from '@/app/(app)/panou/PanouActivityProgressBar';
@@ -81,6 +84,32 @@ export default function TimesheetsPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  /** Which activities ask for assemblies — an entry without any then says so. */
+  const [assemblyActivityIds, setAssemblyActivityIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    let cancelled = false;
+
+    listActivities()
+      .then((activities) => {
+        if (!cancelled) {
+          setAssemblyActivityIds(
+            new Set(
+              activities
+                .filter((activity) => activity.tracksAssemblies)
+                .map((activity) => activity.id),
+            ),
+          );
+        }
+      })
+      .catch(() => {
+        // The label is a nicety; the pontaje list works without it.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -194,6 +223,27 @@ export default function TimesheetsPage() {
       width: '110px',
       className: 'tabular-nums text-text-primary',
       render: (row) => formatDurationMinutes(row.totalMinutes),
+    },
+    {
+      key: 'assemblies',
+      header: 'Ansamble',
+      width: '140px',
+      render: (row) => {
+        const { pieces, marks } = summarizeDayAssemblies(row.entries);
+
+        if (pieces === 0) {
+          return <span className="text-text-muted">—</span>;
+        }
+
+        return (
+          <span className="flex items-baseline gap-1.5">
+            <span className="font-medium tabular-nums text-text-primary">{pieces} buc</span>
+            <span className="text-xs text-text-muted">
+              {marks === 1 ? '1 marcă' : `${marks} mărci`}
+            </span>
+          </span>
+        );
+      },
     },
     {
       key: 'details',
@@ -317,6 +367,23 @@ export default function TimesheetsPage() {
                   color={entry.activity?.color ?? null}
                   percent={percent}
                 />
+
+                {entry.assemblies.length > 0 ? (
+                  <div className="ml-[18px] flex flex-wrap gap-1.5">
+                    {entry.assemblies.map((link) => (
+                      <span
+                        key={link.assemblyId}
+                        className="rounded-full border border-border-subtle bg-surface-raised px-2 py-0.5 font-mono text-[11px] text-text-secondary"
+                      >
+                        {formatAssemblyChip(link)}
+                      </span>
+                    ))}
+                  </div>
+                ) : entry.activityId && assemblyActivityIds.has(entry.activityId) ? (
+                  <div className="ml-[18px] text-[11px] text-text-muted">
+                    Fără ansamble — a ajutat la lucrare
+                  </div>
+                ) : null}
 
                 {entry.notes && (
                   <div className="ml-[18px] flex gap-1.5 text-[11px] text-text-muted">

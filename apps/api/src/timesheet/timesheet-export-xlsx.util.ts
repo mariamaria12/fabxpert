@@ -15,6 +15,7 @@ export type TimesheetExportRow = {
   };
   person: { firstName: string; lastName: string };
   activity: { name: string } | null;
+  assemblies: { quantityDone: number; assembly: { name: string } }[];
 };
 
 const HEADERS = [
@@ -28,6 +29,7 @@ const HEADERS = [
   'Tip operație',
   'Lucrător',
   'Detalii',
+  'Ansamble',
 ] as const;
 
 /** 1-based sheet columns; the numeric formats and the total formula follow these. */
@@ -54,6 +56,13 @@ function calendarDateOnly(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
 }
 
+/** The marks of one pontaj in one cell: "GBAL/25 x2, GBAL/26 x3". */
+function formatAssembliesCell(
+  assemblies: TimesheetExportRow['assemblies'],
+): string {
+  return assemblies.map((link) => `${link.assembly.name} x${link.quantityDone}`).join(', ');
+}
+
 
 export async function buildTimesheetExportXlsx(rows: TimesheetExportRow[]): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
@@ -70,6 +79,7 @@ export async function buildTimesheetExportXlsx(rows: TimesheetExportRow[]): Prom
     { header: HEADERS[7], key: 'activity', width: 22 },
     { header: HEADERS[8], key: 'worker', width: 24 },
     { header: HEADERS[9], key: 'notes', width: 40 },
+    { header: HEADERS[10], key: 'assemblies', width: 34 },
   ];
 
   const headerRow = sheet.getRow(1);
@@ -90,6 +100,7 @@ export async function buildTimesheetExportXlsx(rows: TimesheetExportRow[]): Prom
       activity: row.activity?.name ?? '',
       worker: `${row.person.lastName} ${row.person.firstName}`.trim().toUpperCase(),
       notes: formatTimesheetNotesCell(row.notes),
+      assemblies: formatAssembliesCell(row.assemblies),
     });
 
     dataRow.getCell(MONTH_COLUMN).numFmt = '0';

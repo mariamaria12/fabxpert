@@ -7,6 +7,7 @@ import {
   updateTimesheet,
   type ActivityDto,
   type ProjectDto,
+  type TimesheetAssemblyInput,
   type TimesheetDayGroupDto,
   type TimesheetDto,
   type UpdateTimesheetInput,
@@ -17,6 +18,7 @@ import {
   isoToDateInput,
   parseDurationMinutesInput,
 } from './timesheetFormat';
+import { TimesheetAssemblyFields } from './TimesheetAssemblyFields';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { DateField } from '@/components/DateField';
 import { SelectField, type SelectFieldOption } from '@/components/SelectField';
@@ -38,6 +40,7 @@ interface EntryDraft {
   activityId: string;
   duration: string;
   notes: string;
+  assemblies: TimesheetAssemblyInput[];
 }
 
 function entryToDraft(entry: TimesheetDto): EntryDraft {
@@ -46,7 +49,22 @@ function entryToDraft(entry: TimesheetDto): EntryDraft {
     activityId: entry.activityId ?? '',
     duration: durationMinutesToHoursInput(entry.durationMinutes),
     notes: entry.notes ?? '',
+    assemblies: entry.assemblies.map((link) => ({
+      assemblyId: link.assemblyId,
+      quantityDone: link.quantityDone,
+    })),
   };
+}
+
+/** Same marks, same pieces, same order — nothing to send. */
+function sameAssemblies(a: TimesheetAssemblyInput[], b: TimesheetAssemblyInput[]): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  const byId = new Map(b.map((link) => [link.assemblyId, link.quantityDone]));
+
+  return a.every((link) => byId.get(link.assemblyId) === link.quantityDone);
 }
 
 function draftsFromEntries(entries: TimesheetDto[]): Record<string, EntryDraft> {
@@ -171,11 +189,36 @@ export function TimesheetDayGroupPanel({
     })),
   );
 
-  function updateDraft(entryId: string, field: keyof EntryDraft, value: string) {
+  function tracksAssemblies(activityId: string): boolean {
+    return activities.some((activity) => activity.id === activityId && activity.tracksAssemblies);
+  }
+
+  function updateAssemblies(entryId: string, assemblies: TimesheetAssemblyInput[]) {
     setDrafts((current) => ({
       ...current,
-      [entryId]: { ...current[entryId], [field]: value },
+      [entryId]: { ...current[entryId], assemblies },
     }));
+    setFormError(null);
+  }
+
+  function updateDraft(
+    entryId: string,
+    field: 'projectId' | 'activityId' | 'duration' | 'notes',
+    value: string,
+  ) {
+    setDrafts((current) => {
+      const draft = current[entryId];
+      const next = { ...draft, [field]: value };
+      // A mark belongs to one project's drawing and to the activity it was
+      // reported on, so moving either one empties the list.
+      const movedProject = field === 'projectId' && value !== draft.projectId;
+      const leftAssemblyActivity = field === 'activityId' && !tracksAssemblies(value);
+
+      return {
+        ...current,
+        [entryId]: movedProject || leftAssemblyActivity ? { ...next, assemblies: [] } : next,
+      };
+    });
     if (field === 'duration') {
       setDurationErrors((current) => {
         if (!current[entryId]) {
@@ -193,6 +236,15 @@ export function TimesheetDayGroupPanel({
   function buildEntryPayload(entry: TimesheetDto, minutes: number): UpdateTimesheetInput {
     const draft = drafts[entry.id];
     const notes = draft.notes.trim();
+    const savedAssemblies = entry.assemblies.map((link) => ({
+      assemblyId: link.assemblyId,
+      quantityDone: link.quantityDone,
+    }));
+    // An activity that no longer tracks assemblies clears them; the server
+    // drops them on a project change on its own.
+    const nextAssemblies = tracksAssemblies(draft.activityId) ? draft.assemblies : [];
+    const assembliesChanged =
+      draft.projectId === entry.projectId && !sameAssemblies(nextAssemblies, savedAssemblies);
 
     return {
       ...(dateChanged ? { workDate } : {}),
@@ -202,6 +254,7 @@ export function TimesheetDayGroupPanel({
         ? { activityId: draft.activityId }
         : {}),
       ...(notes !== (entry.notes ?? '') ? { notes } : {}),
+      ...(assembliesChanged ? { assemblies: nextAssemblies } : {}),
     };
   }
 
@@ -447,6 +500,19 @@ export function TimesheetDayGroupPanel({
                       placeholder={DURATION_PLACEHOLDER}
                       onChange={(value) => updateDraft(entry.id, 'duration', value)}
                     />
+
+                    {tracksAssemblies(draft.activityId) && (
+                      <TimesheetAssemblyFields
+                        idPrefix={`entry-${entry.id}`}
+                        projectId={draft.projectId}
+                        activityId={draft.activityId}
+                        value={draft.assemblies}
+                        savedAssemblies={entry.assemblies}
+                        savedActivityId={entry.activityId}
+                        disabled={isBusy}
+                        onChange={(next) => updateAssemblies(entry.id, next)}
+                      />
+                    )}
 
                     <div>
                       <label htmlFor={`notes-${entry.id}`} className={FORM_LABEL_CLASS}>

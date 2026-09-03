@@ -64,7 +64,7 @@ export function ActivitySelect({ onChoose }: ActivitySelectProps) {
 
   return (
     <div className="flow-content">
-      <p className="flow-step-label">PASUL 2 DIN 2</p>
+      <p className="flow-step-label">PASUL 2</p>
       <div className="flow-heading-row">
         <h2 className="flow-heading">Alege activitatea</h2>
         <button
@@ -106,6 +106,9 @@ export function ActivitySelect({ onChoose }: ActivitySelectProps) {
                 <span className="option-row-body">
                   <span className="option-row-title">{activity.name}</span>
                 </span>
+                {activity.tracksAssemblies ? (
+                  <span className="assembly-chip assembly-chip-tracks">ansamble</span>
+                ) : null}
               </button>
             </li>
           ))}

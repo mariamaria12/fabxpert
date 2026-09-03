@@ -1,5 +1,6 @@
 import type { TimesheetDto } from '@fabxpert/shared';
 import { useState } from 'react';
+import { AssemblySummary } from './AssemblySummary';
 import { DurationInput } from './DurationInput';
 import { useDurationInput } from '../hooks/useDurationInput';
 import { useMobileLookupCache } from '../context/MobileLookupCacheContext';
@@ -119,9 +120,18 @@ export function TimesheetEdit({ timesheet, onSaved, onCancel }: TimesheetEditPro
   return (
     <div className="flow-screen">
       <div className="flow-content">
-        {/* Project and activity are intentionally not editable here — changing what
-            was worked on is admin territory (post-MVP). */}
+        {/* Project, activity and the assembly pieces are intentionally not editable
+            here — changing what was worked on is admin territory (post-MVP). */}
         <h2 className="flow-heading">Editează pontajul</h2>
+
+        <AssemblySummary
+          items={timesheet.assemblies.map((link) => ({
+            id: link.assemblyId,
+            name: link.name,
+            quantity: link.quantityDone,
+          }))}
+          note="Bucățile rămân cum au fost logate. Dacă s-au schimbat, șterge pontajul și adaugă-l din nou."
+        />
 
         <DurationInput
           hoursInput={hoursInput}

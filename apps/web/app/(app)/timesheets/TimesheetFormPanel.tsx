@@ -15,6 +15,7 @@ import {
   type ActivityDto,
   type PersonDto,
   type ProjectDto,
+  type TimesheetAssemblyInput,
   type TimesheetDto,
 } from '@fabxpert/shared';
 import { useEffect, useState, type FormEvent } from 'react';
@@ -23,6 +24,7 @@ import {
   durationMinutesToHoursInput,
   parseDurationMinutesInput,
 } from './timesheetFormat';
+import { TimesheetAssemblyFields } from './TimesheetAssemblyFields';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { DateField } from '@/components/DateField';
 import { SelectField } from '@/components/SelectField';
@@ -39,6 +41,7 @@ interface TimesheetFormValues {
   workDate: string;
   duration: string;
   notes: string;
+  assemblies: TimesheetAssemblyInput[];
 }
 
 /** Mirrors what parseDurationMinutesInput accepts. */
@@ -51,6 +54,7 @@ const EMPTY_FORM: TimesheetFormValues = {
   workDate: '',
   duration: '',
   notes: '',
+  assemblies: [],
 };
 
 /** Values prefilled when the panel is opened in create mode from another screen. */
@@ -77,6 +81,10 @@ function timesheetToFormValues(timesheet: TimesheetDto): TimesheetFormValues {
     workDate: isoToDateInput(timesheet.workDate),
     duration: durationMinutesToHoursInput(timesheet.durationMinutes),
     notes: timesheet.notes ?? '',
+    assemblies: timesheet.assemblies.map((link) => ({
+      assemblyId: link.assemblyId,
+      quantityDone: link.quantityDone,
+    })),
   };
 }
 
@@ -90,6 +98,8 @@ function buildPayload(values: TimesheetFormValues) {
     workDate: values.workDate || undefined,
     durationMinutes: durationMinutes ?? 0,
     notes: values.notes.trim() || undefined,
+    // Always sent on edit so clearing the last mark actually clears it.
+    assemblies: values.assemblies,
   };
 }
 
@@ -201,8 +211,26 @@ export function TimesheetFormPanel({
     );
   }, [open, mode, timesheet, createDefaults]);
 
-  function updateField(field: keyof TimesheetFormValues, value: string) {
-    setValues((current) => ({ ...current, [field]: value }));
+  function updateAssemblies(assemblies: TimesheetAssemblyInput[]) {
+    setValues((current) => ({ ...current, assemblies }));
+    setFormError(null);
+  }
+
+  function updateField(
+    field: 'personId' | 'projectId' | 'activityId' | 'workDate' | 'duration' | 'notes',
+    value: string,
+  ) {
+    setValues((current) => {
+      const next = { ...current, [field]: value };
+      // A mark belongs to one project's drawing and to the activity it was
+      // reported on, so moving either one empties the list.
+      const movedProject = field === 'projectId' && value !== current.projectId;
+      const leftAssemblyActivity =
+        field === 'activityId' &&
+        !activities.some((activity) => activity.id === value && activity.tracksAssemblies);
+
+      return movedProject || leftAssemblyActivity ? { ...next, assemblies: [] } : next;
+    });
     setFieldErrors((current) => {
       if (!current[field]) {
         return current;
@@ -341,6 +369,10 @@ export function TimesheetFormPanel({
     label: activity.name,
   }));
 
+  const tracksAssemblies = activities.some(
+    (activity) => activity.id === values.activityId && activity.tracksAssemblies,
+  );
+
   const footer = confirmDelete ? (
     <div role="alertdialog" aria-labelledby="timesheet-delete-title">
       <p id="timesheet-delete-title" className="text-sm text-text-secondary">
@@ -458,6 +490,19 @@ export function TimesheetFormPanel({
           placeholder={DURATION_PLACEHOLDER}
           onChange={(value) => updateField('duration', value)}
         />
+
+        {tracksAssemblies && (
+          <TimesheetAssemblyFields
+            idPrefix="timesheet-form"
+            projectId={values.projectId}
+            activityId={values.activityId}
+            value={values.assemblies}
+            savedAssemblies={timesheet?.assemblies}
+            savedActivityId={timesheet?.activityId ?? null}
+            disabled={isBusy}
+            onChange={updateAssemblies}
+          />
+        )}
 
         <div>
           <label htmlFor="notes" className="mb-1.5 block text-xs text-text-secondary">

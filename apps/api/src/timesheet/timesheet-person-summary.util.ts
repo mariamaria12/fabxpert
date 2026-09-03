@@ -3,6 +3,7 @@ import type { ProjectStatus } from '@fabxpert/shared/dto/project.dto';
 import type {
   PersonAccountGroup,
   PersonSummaryResponse,
+  TimesheetAssemblyDto,
   TimesheetSummaryPeriod,
 } from '@fabxpert/shared/dto/timesheet.dto';
 
@@ -24,6 +25,19 @@ export type PersonSummarySqlRow = {
   minutes: number | bigint;
   /** Every non-empty note behind this project/activity total, oldest first. */
   notes: string[];
+};
+
+/**
+ * Assemblies are counted in their own pass: joining them into the summary query
+ * would multiply the timesheet rows and inflate the minutes.
+ */
+export type PersonSummaryAssemblySqlRow = {
+  personId: string;
+  projectId: string;
+  activityId: string | null;
+  assemblyId: string;
+  assemblyName: string;
+  quantityDone: number | bigint;
 };
 
 const NO_ACTIVITY_LABEL = 'Fără activitate';
@@ -84,12 +98,49 @@ export function buildPersonSummaryQuery(from: Date | null, to: Date | null) {
   `;
 }
 
-function toMinutes(value: number | bigint): number {
+export function buildPersonSummaryAssemblyQuery(from: Date | null, to: Date | null) {
+  const periodFilter =
+    from && to
+      ? Prisma.sql`AND t."workDate" >= ${from} AND t."workDate" < ${to}`
+      : Prisma.empty;
+
+  return Prisma.sql`
+    SELECT
+      t."personId" AS "personId",
+      t."projectId" AS "projectId",
+      t."activityId" AS "activityId",
+      ta."assemblyId" AS "assemblyId",
+      pa.name AS "assemblyName",
+      SUM(ta."quantityDone")::int AS "quantityDone"
+    FROM timesheet_assemblies ta
+    INNER JOIN timesheets t ON t.id = ta."timesheetId" AND t."deletedAt" IS NULL
+    INNER JOIN project_assemblies pa ON pa.id = ta."assemblyId" AND pa."deletedAt" IS NULL
+    WHERE TRUE
+      ${periodFilter}
+    GROUP BY
+      t."personId",
+      t."projectId",
+      t."activityId",
+      ta."assemblyId",
+      pa.name,
+      pa.position
+    ORDER BY pa.position ASC, pa.name ASC
+  `;
+}
+
+/** Groups the summary rows and the assembly rows on the same key. */
+function summaryRowKey(personId: string, projectId: string, activityId: string | null): string {
+  return `${personId}|${projectId}|${activityId ?? ''}`;
+}
+
+/** Postgres SUM comes back as bigint on some drivers. */
+function toNumber(value: number | bigint): number {
   return typeof value === 'bigint' ? Number(value) : value;
 }
 
 export function shapePersonSummary(
   rows: PersonSummarySqlRow[],
+  assemblyRows: PersonSummaryAssemblySqlRow[],
   period: TimesheetSummaryPeriod,
 ): PersonSummaryResponse {
   const byPerson = new Map<
@@ -97,8 +148,20 @@ export function shapePersonSummary(
     PersonSummaryResponse['persons'][number]
   >();
 
+  const assembliesByRow = new Map<string, TimesheetAssemblyDto[]>();
+  for (const row of assemblyRows) {
+    const key = summaryRowKey(row.personId, row.projectId, row.activityId);
+    const list = assembliesByRow.get(key) ?? [];
+    list.push({
+      assemblyId: row.assemblyId,
+      name: row.assemblyName,
+      quantityDone: toNumber(row.quantityDone),
+    });
+    assembliesByRow.set(key, list);
+  }
+
   for (const row of rows) {
-    const minutes = toMinutes(row.minutes);
+    const minutes = toNumber(row.minutes);
     if (minutes <= 0) {
       continue;
     }
@@ -130,6 +193,8 @@ export function shapePersonSummary(
       activityColor: row.activityColor,
       minutes,
       notes: row.notes ?? [],
+      assemblies:
+        assembliesByRow.get(summaryRowKey(row.personId, row.projectId, row.activityId)) ?? [],
     });
   }
 
