@@ -1,25 +1,25 @@
-// Colors for the Rapoarte charts. Semantic tokens (theme-aware) for KPIs and
-// on-time/late; a fixed hue palette for multi-series bars where an entity has no
-// color of its own.
+// Colors for the Rapoarte charts, all read from tokens.css: semantic tokens for
+// KPIs and on-time/late, and the --chart-N hues for multi-series bars where an
+// entity has no color of its own.
 
 export const TOKEN = {
   accent: 'var(--color-accent)',
   success: 'var(--color-success-icon)',
   danger: 'var(--color-danger-text)',
   muted: 'var(--color-text-muted)',
-  info: '#60a5fa',
+  info: 'var(--color-info)',
 } as const;
 
 /** Distinct hues cycled for client/activity bars without an assigned color. */
 export const CHART_PALETTE = [
-  '#d9a441',
-  '#60a5fa',
-  '#86efac',
-  '#c084fc',
-  '#f0a868',
-  '#5ed0c5',
-  '#f472b6',
-  '#a3e635',
+  'var(--chart-1)',
+  'var(--chart-2)',
+  'var(--chart-3)',
+  'var(--chart-4)',
+  'var(--chart-5)',
+  'var(--chart-6)',
+  'var(--chart-7)',
+  'var(--chart-8)',
 ] as const;
 
 export function paletteColor(index: number): string {

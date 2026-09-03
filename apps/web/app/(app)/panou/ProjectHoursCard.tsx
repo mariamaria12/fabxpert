@@ -3,7 +3,7 @@
 import type { ProjectSummaryActivityRow, ProjectStatus } from '@fabxpert/shared';
 import { PROJECT_TERMINAL_STATUSES } from '@fabxpert/shared';
 import { ActivityBreakdownRows } from './ActivityBreakdownRows';
-import { panouAccentTint } from './panouColors';
+import { NEUTRAL_ACCENT, panouAccentTint } from './panouColors';
 import { PanouProjectCard } from './PanouProjectCard';
 
 export type ProjectHoursCardProject = {
@@ -28,7 +28,7 @@ export function ProjectHoursCard({
   onToggle: () => void;
 }) {
   const showStatusBadge = PROJECT_TERMINAL_STATUSES.includes(project.status);
-  const color = project.color ?? '#8c8a80';
+  const color = project.color ?? NEUTRAL_ACCENT;
 
   return (
     <PanouProjectCard

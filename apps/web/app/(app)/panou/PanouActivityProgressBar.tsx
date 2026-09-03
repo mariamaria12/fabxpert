@@ -1,6 +1,6 @@
 'use client';
 
-import { panouAccentTint } from './panouColors';
+import { NEUTRAL_ACCENT, panouAccentTint } from './panouColors';
 
 export function PanouActivityProgressBar({
   color,
@@ -11,7 +11,7 @@ export function PanouActivityProgressBar({
   percent: number;
   className?: string;
 }) {
-  const fill = color ?? '#8c8a80';
+  const fill = color ?? NEUTRAL_ACCENT;
   const width = percent <= 0 ? 0 : Math.max(percent, 6);
 
   return (

@@ -14,11 +14,14 @@ export function getRolePaletteColor(stableIndex: number): string {
   return ROLE_UI_PALETTE[stableIndex % ROLE_UI_PALETTE.length];
 }
 
-const TEXT_ON_LIGHT_SWATCH = '#2B2107';
+const TEXT_ON_LIGHT_SWATCH = 'var(--color-text-on-light)';
 const TEXT_ON_DARK_SWATCH = 'var(--color-text-primary)';
 
-/** Readable label/icon color on a solid swatch background. */
+/** Readable label/icon color on a solid swatch background. Non-hex input (a var()) gets the primary text color. */
 export function contrastTextOnHex(hex: string): string {
+  if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+    return TEXT_ON_DARK_SWATCH;
+  }
   const normalized = hex.toUpperCase();
   const r = Number.parseInt(normalized.slice(1, 3), 16);
   const g = Number.parseInt(normalized.slice(3, 5), 16);

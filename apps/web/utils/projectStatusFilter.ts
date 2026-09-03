@@ -5,25 +5,21 @@ import {
 } from '@fabxpert/shared';
 import type { SearchableSelectOption } from '@/components/SearchableSelect';
 
-/** Chip colors aligned with status badge tokens (tokens.css). */
-export const STATUS_CHIP_COLORS: Record<ProjectStatus, string> = {
-  CIORNA: '#444441',
-  IN_OFERTARE: '#0c447c',
-  CASTIGAT: '#085041',
-  IN_PROIECTARE: '#3c3489',
-  IN_PRODUCTIE: '#633806',
-  PREGATIT_LIVRARE: '#712b13',
-  LIVRAT: '#27500a',
-  FINALIZAT: '#1a4a52',
-  SUSPENDAT: '#444441',
-  ANULAT: '#791f1f',
-};
+/** Status chip colors, read from the --status-* tokens in tokens.css. */
+export const STATUS_CHIP_COLORS: Record<ProjectStatus, { background: string; text: string }> =
+  Object.fromEntries(
+    PROJECT_STATUS_VALUES.map((status) => {
+      const slug = status.toLowerCase().replaceAll('_', '-');
+      return [status, { background: `var(--status-${slug}-bg)`, text: `var(--status-${slug}-text)` }];
+    }),
+  ) as Record<ProjectStatus, { background: string; text: string }>;
 
 export const STATUS_FILTER_OPTIONS: SearchableSelectOption[] = PROJECT_STATUS_VALUES.map(
   (status) => ({
     id: status,
     label: PROJECT_STATUS_META[status].label,
-    color: STATUS_CHIP_COLORS[status],
+    color: STATUS_CHIP_COLORS[status].background,
+    textColor: STATUS_CHIP_COLORS[status].text,
   }),
 );
 

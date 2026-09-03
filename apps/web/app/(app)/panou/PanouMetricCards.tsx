@@ -150,7 +150,7 @@ export function PanouMetricCards() {
         onClick={() => selectView(id)}
         className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left transition-all sm:gap-2 sm:px-2.5 sm:py-2 ${
           isSelected
-            ? 'border-transparent shadow-sm shadow-black/10'
+            ? 'border-transparent shadow-card'
             : 'border-border-subtle bg-surface hover:border-border hover:bg-surface-raised/40'
         }`}
         style={

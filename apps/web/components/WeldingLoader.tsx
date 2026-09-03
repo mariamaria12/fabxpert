@@ -3,8 +3,8 @@
  * glowing bead behind it while sparks scatter. Reading a project workbook takes
  * a second or two, and this says "working" without a spinner.
  *
- * Spark colours are hardcoded warm on purpose — a spark is a physical thing and
- * must not invert with the theme.
+ * Colors come from the --loader-* tokens in tokens.css. The bead, glow and
+ * sparks stay warm in every theme — a spark is a physical thing.
  */
 const SPARKS = [
   { sx: '26px', sy: '-20px', delay: '0s', size: 3 },
@@ -24,10 +24,10 @@ export function WeldingLoader({ label }: WeldingLoaderProps) {
   return (
     <div className="flex flex-col items-center gap-5" role="status" aria-live="polite">
       <div className="weld-scene relative h-[110px] w-[200px]">
-        <div className="absolute left-[62px] top-[68px] h-[7px] w-[76px] rounded-sm bg-[#4a4a45]" />
+        <div className="absolute left-[62px] top-[68px] h-[7px] w-[76px] rounded-sm bg-[var(--loader-seam)]" />
 
         <div
-          className="absolute left-[62px] top-[68px] h-[7px] rounded-sm bg-[linear-gradient(90deg,#8a4a12,#e8912a,#ffd27a)]"
+          className="absolute left-[62px] top-[68px] h-[7px] rounded-sm bg-[linear-gradient(90deg,var(--loader-bead-start),var(--loader-bead-mid),var(--loader-bead-end))]"
           style={{ animation: 'weld-bead 2.4s ease-in-out infinite' }}
         />
 
@@ -36,22 +36,22 @@ export function WeldingLoader({ label }: WeldingLoaderProps) {
           style={{ animation: 'weld-travel 2.4s ease-in-out infinite' }}
         >
           <div
-            className="absolute left-[-26px] top-[62px] size-[52px] rounded-full bg-[#ffb347] blur-xl"
+            className="absolute left-[-26px] top-[62px] size-[52px] rounded-full bg-[var(--loader-glow)] blur-xl"
             style={{ animation: 'weld-glow 0.5s ease-in-out infinite' }}
           />
 
-          <div className="absolute left-[-3px] top-[16px] h-[42px] w-[7px] origin-bottom -rotate-[24deg] rounded-t-[3px] bg-[#6f6e66]" />
-          <div className="absolute left-[-1px] top-[52px] h-[14px] w-[3px] origin-bottom -rotate-[24deg] rounded-sm bg-[#c9c7bd]" />
+          <div className="absolute left-[-3px] top-[16px] h-[42px] w-[7px] origin-bottom -rotate-[24deg] rounded-t-[3px] bg-[var(--loader-torch)]" />
+          <div className="absolute left-[-1px] top-[52px] h-[14px] w-[3px] origin-bottom -rotate-[24deg] rounded-sm bg-[var(--loader-torch-tip)]" />
 
           <div
-            className="absolute left-[-5px] top-[62px] size-[11px] rounded-full bg-[#fff3d0] shadow-[0_0_14px_6px_rgba(255,179,71,0.85)]"
+            className="absolute left-[-5px] top-[62px] size-[11px] rounded-full bg-[var(--loader-arc)] shadow-[0_0_14px_6px_var(--loader-glow-halo)]"
             style={{ animation: 'weld-arc 0.28s ease-in-out infinite' }}
           />
 
           {SPARKS.map((spark) => (
             <span
               key={spark.delay}
-              className="absolute rounded-full bg-[#ffcf6b]"
+              className="absolute rounded-full bg-[var(--loader-spark)]"
               style={{
                 left: 0,
                 top: '66px',

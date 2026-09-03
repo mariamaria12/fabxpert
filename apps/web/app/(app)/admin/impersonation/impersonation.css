@@ -21,7 +21,7 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--color-scrim);
   backdrop-filter: blur(2px);
 }
 
@@ -99,7 +99,7 @@
   background: var(--color-bg);
   color: var(--color-text-primary);
   color-scheme: dark;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-modal);
   font-family:
     system-ui,
     -apple-system,
@@ -131,7 +131,7 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--color-scrim);
 }
 
 .imp-confirm-card {
@@ -141,7 +141,7 @@
   border: 1px solid var(--color-border);
   border-radius: 16px;
   background: var(--color-surface);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-modal);
 }
 
 .imp-confirm-text {
@@ -525,7 +525,7 @@
   border: 1px solid var(--color-border);
   border-radius: 10px;
   background: var(--color-surface);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-raised);
 }
 
 .app-header-dropdown-name {
@@ -1695,7 +1695,7 @@
 .toast-success {
   background: var(--color-toast-success-bg);
   color: var(--color-text-primary);
-  border-color: rgba(151, 196, 89, 0.35);
+  border-color: var(--color-success-border);
 }
 
 .toast-success .toast-icon {
@@ -1705,7 +1705,7 @@
 .toast-error {
   background: var(--color-toast-error-bg);
   color: var(--color-text-primary);
-  border-color: rgba(240, 149, 149, 0.35);
+  border-color: var(--color-danger-border);
 }
 
 .toast-error .toast-icon {
@@ -2047,8 +2047,8 @@
 }
 
 .assembly-check-done {
-  border-color: rgba(151, 196, 89, 0.45);
-  background: rgba(151, 196, 89, 0.14);
+  border-color: var(--color-success-border);
+  background: var(--color-success-tint);
   color: var(--color-success-icon);
 }
 
@@ -2073,7 +2073,7 @@
   padding: 4px 9px;
   border: 1px solid var(--color-border-subtle);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--color-surface-subtle);
   font-size: 11px;
   color: var(--color-text-muted);
   white-space: nowrap;
@@ -2086,8 +2086,8 @@
 }
 
 .assembly-chip-complete {
-  border-color: rgba(151, 196, 89, 0.4);
-  background: rgba(151, 196, 89, 0.12);
+  border-color: var(--color-success-border);
+  background: var(--color-success-tint);
   color: var(--color-success-icon);
 }
 
@@ -2210,7 +2210,7 @@
 .assembly-tick-previous {
   border-style: dashed;
   border-color: var(--color-border-subtle);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-surface-subtle);
   color: var(--color-text-muted);
   opacity: 0.75;
   cursor: default;
@@ -2341,7 +2341,7 @@
 }
 
 .assembly-chip-row .assembly-chip {
-  background: rgba(0, 0, 0, 0.18);
+  background: var(--color-surface-sunken);
 }
 
 .assembly-summary-note {

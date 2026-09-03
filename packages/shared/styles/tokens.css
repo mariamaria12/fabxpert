@@ -1,40 +1,102 @@
 /*
- * FabXpert design tokens — single source of truth for colors.
- * Shared across apps/web and (later) apps/mobile.
+ * FabXpert design tokens — the single source of truth for every UI color.
+ * Loaded once by apps/web (layout.tsx) and apps/mobile (main.tsx).
  *
- * Currently a single dark theme, defined on :root.
- * A future light theme or brand variant can be added as an override block
- * without touching consuming code, e.g.:
+ * Every visual color comes from here: components use the Tailwind utilities
+ * mapped in apps/web/tailwind.config.ts or var(--...) directly, never a raw
+ * hex/rgba value. The only literals outside this file are the ones CSS cannot
+ * reach (PWA manifests, <meta theme-color>, native color inputs); those live in
+ * packages/shared/src/themeColors.ts and must match the values below.
  *
- *   [data-theme='light'] {
+ * Not theme tokens: project colors, role swatches, RAL/finish colors. They are
+ * data about an entity (a project, a paint code) and stay the same in any theme.
+ *
+ * Adding a theme is an override block; consuming code does not change:
+ *
+ *   :root[data-theme='light'] {
+ *     color-scheme: light;
  *     --color-bg: ...;
- *     ...
  *   }
- *
- * Components must reference tokens (via Tailwind utilities or var(--...)),
- * never hardcoded hex values.
  */
 
 :root {
-  /* Core palette */
+  color-scheme: dark;
+
+  /* Surfaces */
   --color-bg: #1f1e19;
   --color-surface: #26251e;
   --color-surface-raised: rgba(255, 255, 255, 0.045);
+  --color-surface-subtle: rgba(255, 255, 255, 0.035);
+  --color-surface-sunken: rgba(0, 0, 0, 0.18);
+  --color-surface-popover: #35342c;
+  --color-surface-popover-hover: rgba(255, 255, 255, 0.08);
+  --color-scrim: rgba(0, 0, 0, 0.6);
+
+  /* Borders */
   --color-border: rgba(255, 255, 255, 0.12);
   --color-border-subtle: rgba(255, 255, 255, 0.07);
+  --color-border-strong: rgba(255, 255, 255, 0.24);
+
+  /* Text */
   --color-text-primary: #f0eee6;
   --color-text-secondary: #b8b6ac;
   --color-text-muted: #8c8a80;
+  --color-text-on-light: #2b2107;
+
+  /* Accent */
   --color-accent: #d9a441;
   --color-accent-contrast: #2b2107;
   --color-accent-tint: rgba(217, 164, 65, 0.12);
+  --color-accent-tint-strong: rgba(217, 164, 65, 0.28);
   --color-accent-border: rgba(217, 164, 65, 0.45);
+
+  /* Feedback */
+  --color-success-icon: #97c459;
+  --color-success-tint: rgba(151, 196, 89, 0.14);
+  --color-success-border: rgba(151, 196, 89, 0.4);
   --color-danger-text: #f09595;
+  --color-danger-border: rgba(240, 149, 149, 0.35);
+  --color-info: #60a5fa;
   --color-toast-success-bg: rgba(151, 196, 89, 0.16);
   --color-toast-error-bg: rgba(181, 83, 60, 0.2);
-  --color-success-icon: #97c459;
   --color-timer-stop: #b5533c;
   --color-timer-stop-text: #f5e8e4;
+
+  /* Elevation */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-raised: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-modal: 0 16px 40px rgba(0, 0, 0, 0.45);
+  --shadow-popover: 0 12px 32px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+
+  /* Panou metric cards */
+  --color-metric-projects: #a78bfa;
+  --color-metric-hours: var(--color-info);
+  --color-metric-people: #86efac;
+  --color-metric-on-leave: #fbbf24;
+  --color-metric-not-logged: #f87171;
+
+  /* Report charts — hues cycled for series without a color of their own */
+  --chart-1: var(--color-accent);
+  --chart-2: var(--color-info);
+  --chart-3: #86efac;
+  --chart-4: #c084fc;
+  --chart-5: #f0a868;
+  --chart-6: #5ed0c5;
+  --chart-7: #f472b6;
+  --chart-8: #a3e635;
+
+  /* Welding loader. The bead, glow and sparks are hot metal — keep them warm
+     in every theme; only the seam and torch are "material" greys. */
+  --loader-seam: #4a4a45;
+  --loader-torch: #6f6e66;
+  --loader-torch-tip: #c9c7bd;
+  --loader-bead-start: #8a4a12;
+  --loader-bead-mid: #e8912a;
+  --loader-bead-end: #ffd27a;
+  --loader-glow: #ffb347;
+  --loader-glow-halo: rgba(255, 179, 71, 0.85);
+  --loader-arc: #fff3d0;
+  --loader-spark: #ffcf6b;
 
   /* Project status badges */
   --status-ciorna-bg: #444441;

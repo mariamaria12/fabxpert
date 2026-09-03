@@ -330,7 +330,9 @@ export function SearchableMultiSelect({
           }`}
         >
           {selectedOptions.map((option) => {
-            const chipTextColor = option.color ? contrastTextOnHex(option.color) : undefined;
+            const chipTextColor = option.color
+              ? (option.textColor ?? contrastTextOnHex(option.color))
+              : undefined;
 
             return (
               <span

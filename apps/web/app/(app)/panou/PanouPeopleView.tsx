@@ -24,7 +24,7 @@ function PersonHoursCard({
   onEdit: () => void;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border-subtle bg-surface shadow-sm shadow-black/10">
+    <div className="overflow-hidden rounded-lg border border-border-subtle bg-surface shadow-card">
       <div className="flex items-center">
         <button
           type="button"

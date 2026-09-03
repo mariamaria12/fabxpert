@@ -163,7 +163,7 @@ export function AssemblyImportScreen({
   ));
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-scrim p-4">
       <div className="relative flex max-h-full w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-popover">
         <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-6 py-4">
           <div className="min-w-0">

@@ -475,3 +475,4 @@ export { normalizeProfileKey, toProfileKey } from './steelProfile';
 export { parseTsvRows } from './tsv';
 export type { TimesheetAssemblyDto, TimesheetAssemblyInput } from './dto/timesheet.dto';
 export { timesheetAssemblyInputSchema } from './dto/timesheet.dto';
+export { THEME_COLORS } from './themeColors';

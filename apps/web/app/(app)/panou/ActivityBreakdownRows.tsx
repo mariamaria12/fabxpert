@@ -46,7 +46,7 @@ function ActivityDot({ color }: { color: string | null }) {
   );
 }
 
-/** Pieces closed on the project's list, with the period's hours beside them. */
+/** Pieces closed on the project's list, with the period's hours beside them. Same colors as the hours rows so the two halves read as one list. */
 function AssemblyActivityCells({ activity }: { activity: ProjectSummaryActivityRow }) {
   const progress = activity.assemblyProgress;
   if (!progress) {
@@ -61,9 +61,9 @@ function AssemblyActivityCells({ activity }: { activity: ProjectSummaryActivityR
     <>
       <div className="flex min-w-0 items-center gap-2">
         <ActivityDot color={activity.activityColor} />
-        <span className="truncate text-xs text-text-primary">{activity.activityName}</span>
+        <span className="truncate text-xs text-text-secondary">{activity.activityName}</span>
       </div>
-      <span className="text-right text-[11px] font-semibold tabular-nums text-text-primary">
+      <span className="text-right text-[11px] tabular-nums text-text-muted">
         {hasList ? `${percent}%` : ''}
       </span>
       <PanouActivityProgressBar
@@ -74,7 +74,7 @@ function AssemblyActivityCells({ activity }: { activity: ProjectSummaryActivityR
       <span className="whitespace-nowrap font-mono text-[11px] tabular-nums text-text-muted">
         {hasList ? `${piecesDone} / ${piecesTotal} buc.` : `${piecesDone} buc.`}
       </span>
-      <span className="text-right font-mono text-[11px] font-semibold tabular-nums text-text-primary">
+      <span className="text-right font-mono text-[11px] tabular-nums text-text-muted">
         {formatDurationMinutes(activity.minutes)}
       </span>
     </>
@@ -127,7 +127,7 @@ function AssemblyTotalCells({ activities }: { activities: ProjectSummaryActivity
   return (
     <>
       <span className="truncate pl-[14px] text-xs text-text-muted">Progres total ansamble</span>
-      <span className="text-right text-[11px] font-semibold tabular-nums text-text-primary">
+      <span className="text-right text-[11px] tabular-nums text-text-muted">
         {piecesTotal > 0 ? `${percent}%` : ''}
       </span>
       <PanouActivityProgressBar

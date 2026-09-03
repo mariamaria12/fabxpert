@@ -123,7 +123,7 @@ Responsibilities:
 - Employee roles & Activities (lookup administration)
 - Administration
 
-**Styling:** Tailwind CSS, configured to consume the color tokens defined in `packages/shared/styles/tokens.css` (see Shared Packages below) rather than hardcoded hex values. This keeps theming (e.g. a future light theme) a matter of editing the shared token file, not touching components.
+**Styling:** Tailwind CSS, configured to consume the color tokens defined in `packages/shared/styles/tokens.css` (see Shared Packages below) rather than hardcoded hex values. Every theme color — surfaces, text, feedback, shadows, scrims, chart hues, the loader illustration — is a token there, so a light theme is an override block in that file, not a change to components. The only literals outside CSS are in `packages/shared/src/themeColors.ts`, for the places CSS cannot reach (PWA manifests, `<meta theme-color>`, the native color input). Entity colors — project colors, role swatches, RAL/finish colors — are data, not theme, and stay as hex values.
 
 **Visual direction:** industrial/technical, dark-mode-first, data-dense. See the design tokens in `packages/shared/styles/tokens.css` for the concrete palette (background, surface, text, accent, and per-status colors for `ProjectStatus`).
 
@@ -201,7 +201,7 @@ Contains code shared between all applications:
 - Utility functions
 - Constants
 - `src/api/` — a framework-agnostic, typed HTTP client layer (`client.ts` for the base request/error handling, `auth.ts` for auth-specific functions like `login`, `logout`, `getMe`, etc.). This is the **only** place that talks to `apps/api` directly — no app (`apps/web`, `apps/mobile`) should call `fetch` on API endpoints directly. The client is configured once at each app's startup via `configureApiClient(baseUrl)`, reading that app's own env var (e.g. `NEXT_PUBLIC_API_URL`) — the shared package itself never reads env vars directly, so it stays reusable across Next.js and Vite apps alike.
-- `styles/tokens.css` — the color token system (CSS custom properties) consumed by `apps/web` via Tailwind and by `apps/mobile` directly. Single source of truth for the palette; supports adding a future theme (e.g. light mode) as an override block without touching consuming components.
+- `styles/tokens.css` — the color token system (CSS custom properties) consumed by `apps/web` via Tailwind and by `apps/mobile` directly. Single source of truth for the palette (it also declares `color-scheme`); a future theme (e.g. light mode) is an override block there, without touching consuming components. `src/themeColors.ts` mirrors the handful of values needed as literals outside CSS.
 
 Business definitions should never be duplicated.
 

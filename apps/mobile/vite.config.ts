@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+// Relative import: the @fabxpert/shared alias below only applies to app code, not to this config.
+import { THEME_COLORS } from '../../packages/shared/src/themeColors';
 
 const appDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -29,6 +31,11 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    {
+      // index.html cannot import the palette, so the theme-color meta is filled in here.
+      name: 'theme-color-meta',
+      transformIndexHtml: (html) => html.replaceAll('{{THEME_COLOR}}', THEME_COLORS.bg),
+    },
     VitePWA({
       // Default generated service worker: precaches built assets, auto-updates.
       registerType: 'autoUpdate',
@@ -43,9 +50,8 @@ export default defineConfig({
         short_name: 'FabXpert Time',
         description: 'Pontaj muncitori',
         lang: 'ro',
-        // Matches --color-bg from packages/shared/styles/tokens.css.
-        theme_color: '#1F1E19',
-        background_color: '#1F1E19',
+        theme_color: THEME_COLORS.bg,
+        background_color: THEME_COLORS.bg,
         display: 'standalone',
         icons: [
           {

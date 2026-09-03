@@ -3,10 +3,6 @@
   box-sizing: border-box;
 }
 
-:root {
-  color-scheme: dark;
-}
-
 body {
   background: var(--color-bg);
   color: var(--color-text-primary);
@@ -361,7 +357,7 @@ body {
   border: 1px solid var(--color-border);
   border-radius: 10px;
   background: var(--color-surface);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-raised);
 }
 
 .app-header-dropdown-name {
@@ -1532,7 +1528,7 @@ body {
 .toast-success {
   background: var(--color-toast-success-bg);
   color: var(--color-text-primary);
-  border-color: rgba(151, 196, 89, 0.35);
+  border-color: var(--color-success-border);
 }
 
 .toast-success .toast-icon {
@@ -1542,7 +1538,7 @@ body {
 .toast-error {
   background: var(--color-toast-error-bg);
   color: var(--color-text-primary);
-  border-color: rgba(240, 149, 149, 0.35);
+  border-color: var(--color-danger-border);
 }
 
 .toast-error .toast-icon {
@@ -1845,7 +1841,7 @@ body {
   z-index: 60;
   display: flex;
   align-items: flex-end;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--color-scrim);
 }
 
 .push-prompt-sheet {
@@ -2296,8 +2292,8 @@ body {
 }
 
 .assembly-check-done {
-  border-color: rgba(151, 196, 89, 0.45);
-  background: rgba(151, 196, 89, 0.14);
+  border-color: var(--color-success-border);
+  background: var(--color-success-tint);
   color: var(--color-success-icon);
 }
 
@@ -2322,7 +2318,7 @@ body {
   padding: 4px 9px;
   border: 1px solid var(--color-border-subtle);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--color-surface-subtle);
   font-size: 11px;
   color: var(--color-text-muted);
   white-space: nowrap;
@@ -2335,8 +2331,8 @@ body {
 }
 
 .assembly-chip-complete {
-  border-color: rgba(151, 196, 89, 0.4);
-  background: rgba(151, 196, 89, 0.12);
+  border-color: var(--color-success-border);
+  background: var(--color-success-tint);
   color: var(--color-success-icon);
 }
 
@@ -2459,7 +2455,7 @@ body {
 .assembly-tick-previous {
   border-style: dashed;
   border-color: var(--color-border-subtle);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-surface-subtle);
   color: var(--color-text-muted);
   opacity: 0.75;
   cursor: default;
@@ -2590,7 +2586,7 @@ body {
 }
 
 .assembly-chip-row .assembly-chip {
-  background: rgba(0, 0, 0, 0.18);
+  background: var(--color-surface-sunken);
 }
 
 .assembly-summary-note {

@@ -57,7 +57,7 @@ export function SendReminderConfirm({
 
   const content = (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/55 p-6"
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-scrim p-6"
       role="alertdialog"
       aria-modal="true"
       aria-label="Confirmare trimitere notificare"
@@ -67,7 +67,7 @@ export function SendReminderConfirm({
         }
       }}
     >
-      <div className="w-full max-w-[300px] rounded-2xl border border-border bg-surface px-[18px] pb-4 pt-5 shadow-[0_16px_40px_rgba(0,0,0,0.45)]">
+      <div className="w-full max-w-[300px] rounded-2xl border border-border bg-surface px-[18px] pb-4 pt-5 shadow-modal">
         <p className="mb-4 text-center text-[15px] font-medium text-text-primary">
           Sigur vrei să trimiți notificarea de pontaj către {personName}?
         </p>

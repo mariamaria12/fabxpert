@@ -8,7 +8,7 @@ import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { FinisajBadge } from '@/components/FinisajBadge';
 import { ActivityBreakdownRows } from './ActivityBreakdownRows';
-import { panouAccentTint } from './panouColors';
+import { NEUTRAL_ACCENT, panouAccentTint } from './panouColors';
 import { PanouProjectCard } from './PanouProjectCard';
 import type { DraggableAttributes } from '@dnd-kit/core';
 import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities';
@@ -34,7 +34,7 @@ function PinnedProjectPinButton({
 }) {
   const { showToast } = useToast();
   const [pending, setPending] = useState(false);
-  const color = project.color ?? '#8c8a80';
+  const color = project.color ?? NEUTRAL_ACCENT;
 
   async function handleClick() {
     if (pending) {

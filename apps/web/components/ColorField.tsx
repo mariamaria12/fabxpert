@@ -2,14 +2,16 @@
 
 import {
   PROJECT_COLOR_PRESETS,
+  THEME_COLORS,
   type ProjectColorPreset,
 } from '@fabxpert/shared';
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useBusinessAutofillProps } from './inputAutofill';
 
 const HEX_REGEX = /^#[0-9A-Fa-f]{6}$/;
-const PICKER_FALLBACK = '#6B6B6B';
-const CHECK_ON_LIGHT = '#2B2107';
+// <input type="color"> only accepts a literal hex, so this one cannot be a var().
+const PICKER_FALLBACK = THEME_COLORS.swatchFallback;
+const CHECK_ON_LIGHT = 'var(--color-text-on-light)';
 const CHECK_ON_DARK = 'var(--color-text-primary)';
 
 /** Preset palette — re-exported for existing web imports. */

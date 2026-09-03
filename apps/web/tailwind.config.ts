@@ -27,8 +27,16 @@ const config: Config = {
         'text-muted': 'var(--color-text-muted)',
         accent: 'var(--color-accent)',
         'accent-contrast': 'var(--color-accent-contrast)',
+        'surface-subtle': 'var(--color-surface-subtle)',
+        'surface-sunken': 'var(--color-surface-sunken)',
+        scrim: 'var(--color-scrim)',
+        'text-on-light': 'var(--color-text-on-light)',
         danger: 'var(--color-danger-text)',
+        'danger-border': 'var(--color-danger-border)',
         success: 'var(--color-success-icon)',
+        'success-tint': 'var(--color-success-tint)',
+        'success-border': 'var(--color-success-border)',
+        info: 'var(--color-info)',
         status: {
           ciorna: {
             bg: 'var(--status-ciorna-bg)',
@@ -73,6 +81,9 @@ const config: Config = {
         },
       },
       boxShadow: {
+        card: 'var(--shadow-card)',
+        raised: 'var(--shadow-raised)',
+        modal: 'var(--shadow-modal)',
         popover: 'var(--shadow-popover)',
       },
     },

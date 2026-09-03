@@ -7,7 +7,7 @@ import {
 } from '@fabxpert/shared';
 import type { ReactNode } from 'react';
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
-import { panouAccentTint } from './panouColors';
+import { NEUTRAL_ACCENT, panouAccentTint } from './panouColors';
 
 export type PanouProjectCardTimeline = {
   daysText: string;
@@ -63,7 +63,7 @@ export function PanouProjectCard({
   expandedContent?: ReactNode;
   durationTopActions?: ReactNode;
 }) {
-  const color = accentColor ?? '#8c8a80';
+  const color = accentColor ?? NEUTRAL_ACCENT;
   const handleTitleClick = onTitleClick ?? onToggle;
   // Null or blank leaves the row exactly as it was — no orphan separator.
   const subline = titleSubline?.trim() ? titleSubline.trim() : null;
@@ -109,7 +109,7 @@ export function PanouProjectCard({
   const hasLeadingColumn = Boolean(leadingSlot) || !hideLeadingIcon;
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border-subtle bg-surface shadow-sm shadow-black/10">
+    <div className="overflow-hidden rounded-lg border border-border-subtle bg-surface shadow-card">
       <div className="flex items-stretch">
         <span
           className="w-0.5 shrink-0 self-stretch"

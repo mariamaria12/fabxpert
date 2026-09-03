@@ -5,7 +5,7 @@ type PanouPinnedViewMode = 'one-column' | 'two-columns';
 function PinnedProjectCardSkeleton() {
   return (
     <div
-      className="overflow-hidden rounded-lg border border-border-subtle bg-surface shadow-sm shadow-black/10"
+      className="overflow-hidden rounded-lg border border-border-subtle bg-surface shadow-card"
       aria-hidden="true"
     >
       <div className="flex items-stretch">

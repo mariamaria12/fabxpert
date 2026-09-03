@@ -369,9 +369,11 @@ export const PanouPinnedProjectsSection = forwardRef<
 
   return (
     <section className="mt-4">
-      {/* Double-size type for the pinned cards; the edit panel below stays out
-          of the wrapper so it keeps the app's normal sizing. */}
-      <div className="panou-pinned-large">
+      {/* Double-size type for the pinned cards, only when they run full width:
+          in the two-column grid the enlarged breakdown overflows the card. The
+          edit panel below stays out of the wrapper so it keeps the app's normal
+          sizing. */}
+      <div className={viewMode === 'one-column' ? 'panou-pinned-large' : undefined}>
       <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
         <h2 className="text-sm font-semibold text-text-primary">Proiecte</h2>
         {!isMobile && (

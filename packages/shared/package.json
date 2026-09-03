@@ -121,6 +121,10 @@
       "types": "./dist/projectStatus.d.ts",
       "default": "./dist/projectStatus.js"
     },
+    "./themeColors": {
+      "types": "./dist/themeColors.d.ts",
+      "default": "./dist/themeColors.js"
+    },
     "./styles/tokens.css": "./styles/tokens.css"
   },
   "scripts": {

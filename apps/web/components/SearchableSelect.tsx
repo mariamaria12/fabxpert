@@ -28,6 +28,8 @@ export interface SearchableSelectOption {
   disabled?: boolean;
   disabledSuffix?: string;
   color?: string | null;
+  /** Readable text on `color`; derived from the hex when omitted. */
+  textColor?: string;
 }
 
 export interface SearchableSelectProps {
