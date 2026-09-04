@@ -94,20 +94,8 @@
   --shadow-modal: 0 16px 40px rgba(2, 6, 23, 0.5);
   --shadow-popover: 0 8px 24px rgba(2, 6, 23, 0.45);
 
-  /* Panou metric cards — icon tint only; the figure stays primary text */
-  --color-metric-projects: var(--color-primary);
-  --color-metric-hours: var(--color-cyan);
-  --color-metric-people: var(--color-success);
-  --color-metric-on-leave: var(--color-warning);
-  --color-metric-not-logged: var(--color-danger);
-
-  /* Report charts — hues cycled for series without a color of their own */
-  --chart-1: var(--color-primary);
-  --chart-2: var(--color-cyan);
-  --chart-3: var(--color-success);
-  --chart-4: var(--color-purple);
-  --chart-5: var(--color-warning);
-  --chart-6: var(--color-danger);
+  /* Report charts — the two hues without a semantic token; the rest are
+     derived below, in the shared block */
   --chart-7: #818cf8;
   --chart-8: #2dd4bf;
 
@@ -156,13 +144,38 @@
   --status-anulat-bg: #450a0a;
   --status-anulat-text: #fca5a5;
   --status-anulat-border: #991b1b;
+  --color-accent-tint-strong: #1e3a8a;
+}
+
+/*
+ * Derived tokens. A var() inside a custom property resolves on the element that
+ * declares it, so these must be declared on every themed element — <html> and
+ * any element carrying data-theme (the impersonation phone frame) — or a frame
+ * on one theme would inherit values already resolved against the page's theme.
+ * Kept before the light and gold blocks so a theme can still override them.
+ */
+:root,
+[data-theme] {
+  /* Panou metric cards — icon tint only; the figure stays primary text */
+  --color-metric-projects: var(--color-primary);
+  --color-metric-hours: var(--color-cyan);
+  --color-metric-people: var(--color-success);
+  --color-metric-on-leave: var(--color-warning);
+  --color-metric-not-logged: var(--color-danger);
+
+  /* Report charts — hues cycled for series without a color of their own */
+  --chart-1: var(--color-primary);
+  --chart-2: var(--color-cyan);
+  --chart-3: var(--color-success);
+  --chart-4: var(--color-purple);
+  --chart-5: var(--color-warning);
+  --chart-6: var(--color-danger);
 
   /* Aliases kept for existing rules (mobile CSS, Tailwind map). New code uses
-     the semantic names above. */
+     the semantic names. */
   --color-accent: var(--color-primary);
   --color-accent-contrast: var(--color-text-on-primary);
   --color-accent-tint: var(--color-primary-bg);
-  --color-accent-tint-strong: #1e3a8a;
   --color-accent-border: var(--color-primary-border);
   --color-success-icon: var(--color-success);
   --color-success-tint: var(--color-success-bg);
