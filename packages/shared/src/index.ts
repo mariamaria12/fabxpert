@@ -342,16 +342,40 @@ export {
   settleOvertimeBalance,
   formatOvertimeHours,
   formatOvertimeBalance,
+  accountingHours,
+  SATURDAY_WORK_MINUTES,
+  countSaturdaysWorked,
 } from './overtime';
-export type { OvertimeDay, OvertimeSettlementSplit } from './overtime';
+export {
+  ACCOUNTING_DAY_CODES,
+  PRESENT_DAY_CODE,
+  leaveTypeDayCode,
+} from './accountingDocument';
+export type {
+  OvertimeDay,
+  OvertimeSettlementSplit,
+  AccountingHoursInput,
+  AccountingHoursSplit,
+} from './overtime';
 export {
   getMyOvertimeBalance,
   getOvertimeBalance,
   listOvertimeBalances,
   previewOvertimeSettlement,
   settleOvertimeMonth,
+  getOvertimeApprovalsPendingCount,
+  getAccountingTimesheet,
+  exportAccountingTimesheetXlsx,
+  reopenAccountingMonth,
 } from './api/overtime';
 export type {
+  AccountingExportDto,
+  AccountingTimesheetLineDto,
+  ReopenAccountingMonthResponse,
+  AccountingTimesheetResponse,
+  AccountingTimesheetStatus,
+  AccountingTimesheetTotals,
+  OvertimeApprovalsPendingResponse,
   OvertimeBalanceDto,
   OvertimeBalancePersonDto,
   OvertimeBalanceRowDto,

@@ -189,6 +189,7 @@ model User {
   pollVotes    PollVote[]
 
   settledOvertimeMonths OvertimeSettlement[] @relation("OvertimeSettledBy")
+  accountingExports     AccountingExport[]   @relation("AccountingExportedBy")
 
   @@map("users")
 }
@@ -395,6 +396,27 @@ model OvertimeSettlement {
   @@unique([personId, month])
   @@index([personId])
   @@map("overtime_settlements")
+}
+
+// ---------------------------------------------------------------------------
+// AccountingExport
+// One row per month whose pontaj document was generated for accounting. The
+// month reads as closed while the row exists — generating again refreshes the
+// row, deleting it reopens the month. Nothing else is frozen: the document is
+// rebuilt from the pontaje and approvals as they stand.
+// ---------------------------------------------------------------------------
+
+model AccountingExport {
+  id String @id @default(uuid())
+
+  /// First day of the exported month, at midnight.
+  month DateTime @unique
+
+  exportedAt       DateTime @default(now())
+  exportedByUserId String?
+  exportedBy       User?    @relation("AccountingExportedBy", fields: [exportedByUserId], references: [id])
+
+  @@map("accounting_exports")
 }
 
 // ---------------------------------------------------------------------------

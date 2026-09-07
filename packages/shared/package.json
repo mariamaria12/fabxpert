@@ -89,6 +89,10 @@
       "types": "./dist/workDate.d.ts",
       "default": "./dist/workDate.js"
     },
+    "./accountingDocument": {
+      "types": "./dist/accountingDocument.d.ts",
+      "default": "./dist/accountingDocument.js"
+    },
     "./timesheetNotes": {
       "types": "./dist/timesheetNotes.d.ts",
       "default": "./dist/timesheetNotes.js"

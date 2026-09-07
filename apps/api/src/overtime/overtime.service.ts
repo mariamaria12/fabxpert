@@ -1,5 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type {
+  AccountingExportDto,
+  AccountingTimesheetLineDto,
+  AccountingTimesheetResponse,
+  OvertimeApprovalsPendingResponse,
+  ReopenAccountingMonthResponse,
   OvertimeBalanceDto,
   OvertimeBalancePersonDto,
   OvertimeBalancesResponse,
@@ -9,6 +14,8 @@ import type {
 } from '@fabxpert/shared/dto/overtime.dto';
 import {
   DAILY_WORK_MINUTES,
+  accountingHours,
+  countSaturdaysWorked,
   overtimeBalanceMinutes,
   overtimeDaysAvailable,
   settleOvertimeBalance,
@@ -18,8 +25,15 @@ import {
   isSameWorkDate,
   isWorkingDate,
   normalizeWorkDate,
+  todayWorkDate,
   workDateToDayKey,
 } from '@fabxpert/shared/workDate';
+import { leaveTypeDayCode, PRESENT_DAY_CODE } from '@fabxpert/shared/accountingDocument';
+import type { LeaveType } from '@fabxpert/shared/dto/leave.dto';
+import {
+  buildAccountingTimesheetFilename,
+  buildAccountingTimesheetXlsx,
+} from './overtime-accounting-xlsx.util';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { notDeleted } from '../common/prisma/soft-delete.util';
 import { PrismaService } from '../prisma/prisma.service';
@@ -40,6 +54,16 @@ function startOfMonth(date: Date): Date {
 
 function startOfNextMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth() + 1, 1, 0, 0, 0, 0);
+}
+
+/** The last month that is over — the one waiting to be approved. */
+function lastCompleteMonth(reference = new Date()): Date {
+  return new Date(reference.getFullYear(), reference.getMonth() - 1, 1, 0, 0, 0, 0);
+}
+
+/** A month still being worked, or not started: nothing in it can be approved yet. */
+function isMonthInProgress(monthStart: Date): boolean {
+  return startOfNextMonth(monthStart).getTime() > startOfMonth(new Date()).getTime();
 }
 
 function formatMonth(date: Date): string {
@@ -63,10 +87,23 @@ export function parseMonthString(value: string): Date {
 }
 
 type ApprovedLeave = {
+  type: LeaveType;
   startDate: Date;
   endDate: Date;
   durationMinutes: number | null;
 };
+
+/** Mon–Fri days in the month — the norm on the pontaj. */
+function workingDaysInMonth(monthStart: Date): number {
+  const end = startOfNextMonth(monthStart);
+  let count = 0;
+  for (const cursor = new Date(monthStart); cursor < end; cursor.setDate(cursor.getDate() + 1)) {
+    if (isWorkingDate(cursor)) {
+      count += 1;
+    }
+  }
+  return count;
+}
 
 /**
  * Approved leave spread over the days it covers, keyed by day. A day already
@@ -99,6 +136,32 @@ function leaveMinutesByDay(requests: ApprovedLeave[]): Map<string, number> {
   return byDay;
 }
 
+/**
+ * The leave type covering each working day, for the pontaj grid. Hours taken
+ * as RECUPERARE cover their day too — it reads as present either way.
+ */
+function leaveTypesByDay(requests: ApprovedLeave[]): Map<string, LeaveType> {
+  const byDay = new Map<string, LeaveType>();
+
+  for (const request of requests) {
+    if (request.durationMinutes !== null) {
+      byDay.set(workDateToDayKey(request.startDate), request.type);
+      continue;
+    }
+
+    const cursor = normalizeWorkDate(request.startDate);
+    const end = normalizeWorkDate(request.endDate);
+    while (cursor.getTime() <= end.getTime()) {
+      if (isWorkingDate(cursor)) {
+        byDay.set(workDateToDayKey(cursor), request.type);
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+
+  return byDay;
+}
+
 /** A logged day plus the date it fell on, so callers can bucket it by month. */
 type DatedOvertimeDay = OvertimeDay & { workDate: Date };
 
@@ -107,13 +170,18 @@ type OvertimeSourceData = {
   daysByPerson: Map<string, DatedOvertimeDay[]>;
   /** RECUPERARE per person per `YYYY-MM` — what the balance is spent on. */
   usedByPersonMonth: Map<string, Map<string, number>>;
+  /** Approved leave per person per day key, for the pontaj grid. */
+  leaveTypesByPersonDay: Map<string, Map<string, LeaveType>>;
 };
 
 /** What one month produced for one person, before it is settled. */
 type MonthActivity = {
   earnedMinutes: number;
   usedMinutes: number;
+  saturdaysWorked: number;
 };
+
+const NO_ACTIVITY: MonthActivity = { earnedMinutes: 0, usedMinutes: 0, saturdaysWorked: 0 };
 
 @Injectable()
 export class OvertimeService {
@@ -152,11 +220,7 @@ export class OvertimeService {
       this.loadOvertimeSource({ personId }),
     ]);
 
-    return this.buildBalance(
-      personId,
-      settlements,
-      this.monthlyActivity(personId, source),
-    );
+    return this.buildBalance(personId, settlements, this.monthlyActivity(personId, source));
   }
 
   /**
@@ -176,9 +240,7 @@ export class OvertimeService {
     ]);
 
     const settlementsByPerson = groupBy(settlements, (row) => row.personId);
-    const source = await this.loadOvertimeSource(
-      scanFrom(persons, settlementsByPerson),
-    );
+    const source = await this.loadOvertimeSource(scanFrom(persons, settlementsByPerson));
 
     return {
       rows: persons.map((person) => ({
@@ -221,11 +283,12 @@ export class OvertimeService {
     month: Date,
     reserveMinutesByPerson: Record<string, number>,
     actor: AuthenticatedUser,
+    personIds?: string[],
   ): Promise<SettleOvertimeMonthResponse> {
     const monthStart = startOfMonth(month);
     this.assertSettleable(monthStart);
 
-    const lines = await this.buildSettlementLines(monthStart, reserveMinutesByPerson);
+    const lines = await this.buildSettlementLines(monthStart, reserveMinutesByPerson, personIds);
 
     await this.prisma.$transaction(
       lines.map((line) =>
@@ -262,8 +325,185 @@ export class OvertimeService {
     };
   }
 
+  /** How many people still wait for last month's approval — the sidebar badge. */
+  async countPendingApprovals(): Promise<OvertimeApprovalsPendingResponse> {
+    const monthStart = lastCompleteMonth();
+    const lines = await this.buildSettlementLines(monthStart, {});
+
+    return {
+      month: formatMonth(monthStart),
+      count: lines.filter((line) => line.settledAt === null).length,
+    };
+  }
+
+  /**
+   * The pontaj for accounting of one month: everyone, with the hours they
+   * logged split into normal and approved overtime, and the day-by-day grid
+   * the document is drawn from. Nothing is written here — the month closes
+   * when the document is generated. Overtime only reaches this view once its
+   * settlement is approved; until then the line says how much is still waiting.
+   */
+  async accountingTimesheet(month: Date): Promise<AccountingTimesheetResponse> {
+    const monthStart = startOfMonth(month);
+    const monthKey = formatMonth(monthStart);
+    const monthInProgress = isMonthInProgress(monthStart);
+    const nextMonth = startOfNextMonth(monthStart);
+
+    const [persons, settledRows, source, pendingLines, exportRow] = await Promise.all([
+      this.listPersons(),
+      this.prisma.overtimeSettlement.findMany({
+        where: { month: monthStart },
+        select: { personId: true, paidMinutes: true, settledAt: true },
+      }),
+      this.loadOvertimeSource({ from: monthStart, to: nextMonth }),
+      monthInProgress ? Promise.resolve([]) : this.buildSettlementLines(monthStart, {}),
+      this.findAccountingExport(monthStart),
+    ]);
+
+    const settledByPerson = new Map(settledRows.map((row) => [row.personId, row]));
+    const pendingByPerson = new Map(
+      pendingLines.filter((line) => line.settledAt === null).map((line) => [line.person.id, line]),
+    );
+    const today = todayWorkDate();
+
+    const lines: AccountingTimesheetLineDto[] = persons.map((person) => {
+      const days = source.daysByPerson.get(person.id) ?? [];
+      const loggedByDay = new Map(
+        days.map((day) => [workDateToDayKey(day.workDate), day.loggedMinutes]),
+      );
+      const leaveByDay =
+        source.leaveTypesByPersonDay.get(person.id) ?? new Map<string, LeaveType>();
+      const activity = this.monthlyActivity(person.id, source).get(monthKey) ?? NO_ACTIVITY;
+      const settled = settledByPerson.get(person.id) ?? null;
+      const pending = pendingByPerson.get(person.id) ?? null;
+
+      // One code per calendar day. Weekends stay blank on purpose: a Saturday
+      // is counted separately, a Sunday's hours go to overtime.
+      const dayCodes: string[] = [];
+      const missingWorkingDays: string[] = [];
+      for (
+        const cursor = new Date(monthStart);
+        cursor < nextMonth;
+        cursor.setDate(cursor.getDate() + 1)
+      ) {
+        const dayKey = workDateToDayKey(cursor);
+        const leave = leaveByDay.get(dayKey);
+        const worked = (loggedByDay.get(dayKey) ?? 0) > 0;
+        const isWorking = isWorkingDate(cursor);
+
+        let code = '';
+        if (leave && isWorking) {
+          code = leaveTypeDayCode(leave);
+        } else if (worked && isWorking) {
+          code = PRESENT_DAY_CODE;
+        }
+        dayCodes.push(code);
+
+        if (isWorking && code === '' && cursor.getTime() < today.getTime()) {
+          missingWorkingDays.push(dayKey);
+        }
+      }
+
+      const loggedMinutes = sumBy(days, (day) => day.loggedMinutes);
+      const split = accountingHours({
+        loggedMinutes,
+        earnedMinutes: activity.earnedMinutes,
+        paidMinutes: settled?.paidMinutes ?? null,
+      });
+
+      // A line waits while its settlement is missing; a month in progress
+      // waits as a whole, and a past month with nothing to settle is ready.
+      const waiting = monthInProgress || pending !== null;
+      const status = exportRow ? 'EXPORTAT' : settled || !waiting ? 'GATA_EXPORT' : 'IN_PREGATIRE';
+
+      return {
+        person: toBalancePerson(person),
+        loggedMinutes,
+        ...split,
+        saturdaysWorked: activity.saturdaysWorked,
+        dayCodes,
+        missingWorkingDays,
+        pendingBalanceMinutes: pending?.balanceMinutes ?? null,
+        status,
+        settledAt: settled?.settledAt.toISOString() ?? null,
+      };
+    });
+
+    const pending = lines.filter((line) => line.pendingBalanceMinutes !== null);
+    const withGaps = lines.filter((line) => line.missingWorkingDays.length > 0);
+
+    return {
+      month: monthKey,
+      monthInProgress,
+      workingDays: workingDaysInMonth(monthStart),
+      export: exportRow,
+      lines,
+      totals: {
+        persons: lines.length,
+        normalMinutes: sumBy(lines, (line) => line.normalMinutes),
+        overtimeMinutes: sumBy(lines, (line) => line.overtimeMinutes),
+        totalMinutes: sumBy(lines, (line) => line.totalMinutes),
+        pendingCount: pending.length,
+        pendingBalanceMinutes: sumBy(pending, (line) => line.pendingBalanceMinutes ?? 0),
+        missingDaysPersons: withGaps.length,
+        missingDays: sumBy(withGaps, (line) => line.missingWorkingDays.length),
+      },
+    };
+  }
+
+  /**
+   * Builds the document accounting receives and closes the month behind it.
+   * Generating again rebuilds the document from the pontaje as they stand and
+   * refreshes the close; `reopenAccountingMonth` undoes it.
+   */
+  async exportAccountingDocument(
+    month: Date,
+    actor: AuthenticatedUser,
+  ): Promise<{ buffer: Buffer; filename: string; report: AccountingTimesheetResponse }> {
+    const monthStart = startOfMonth(month);
+
+    await this.prisma.accountingExport.upsert({
+      where: { month: monthStart },
+      create: { month: monthStart, exportedByUserId: actor.id },
+      update: { exportedAt: new Date(), exportedByUserId: actor.id },
+    });
+
+    const report = await this.accountingTimesheet(monthStart);
+    const buffer = await buildAccountingTimesheetXlsx(report);
+
+    return { buffer, filename: buildAccountingTimesheetFilename(report.month), report };
+  }
+
+  async reopenAccountingMonth(month: Date): Promise<ReopenAccountingMonthResponse> {
+    const monthStart = startOfMonth(month);
+    const { count } = await this.prisma.accountingExport.deleteMany({
+      where: { month: monthStart },
+    });
+
+    return { month: formatMonth(monthStart), reopened: count > 0 };
+  }
+
+  private async findAccountingExport(monthStart: Date): Promise<AccountingExportDto | null> {
+    const row = await this.prisma.accountingExport.findUnique({
+      where: { month: monthStart },
+      select: {
+        exportedAt: true,
+        exportedBy: { select: { person: { select: { firstName: true, lastName: true } } } },
+      },
+    });
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      exportedAt: row.exportedAt.toISOString(),
+      exportedBy: row.exportedBy?.person ?? null,
+    };
+  }
+
   private assertSettleable(monthStart: Date): void {
-    if (startOfNextMonth(monthStart).getTime() > startOfMonth(new Date()).getTime()) {
+    if (isMonthInProgress(monthStart)) {
       throw new BadRequestException('Only past months can be settled');
     }
   }
@@ -272,41 +512,62 @@ export class OvertimeService {
    * One line per person who has something to settle. People with no activity
    * and nothing carried in are skipped — a settlement row of all zeroes says
    * nothing and would only make the month look busier than it was.
+   *
+   * `personIds` narrows the lines to those people, so one person can be
+   * approved on their own. Someone already approved keeps the reserve from
+   * that approval unless `reserveMinutesByPerson` says otherwise, so a preview
+   * shows what was decided and a re-approval does not silently pay it out.
    */
   private async buildSettlementLines(
     monthStart: Date,
     reserveMinutesByPerson: Record<string, number>,
+    personIds?: string[],
   ): Promise<OvertimeSettlementLineDto[]> {
     const monthKey = formatMonth(monthStart);
     const [persons, settlements, source] = await Promise.all([
       this.listPersons(),
       this.prisma.overtimeSettlement.findMany({
-        where: { month: { lt: monthStart } },
-        select: { personId: true, month: true, carriedOutMinutes: true },
+        where: { month: { lte: monthStart } },
+        select: { personId: true, month: true, carriedOutMinutes: true, settledAt: true },
         orderBy: { month: 'desc' },
       }),
       this.loadOvertimeSource({ to: startOfNextMonth(monthStart) }),
     ]);
 
-    const settlementsByPerson = groupBy(settlements, (row) => row.personId);
+    // Earlier months feed the carry-in; the month itself only says who is done.
+    const settlementsByPerson = groupBy(
+      settlements.filter((row) => row.month.getTime() < monthStart.getTime()),
+      (row) => row.personId,
+    );
+    const settledByPerson = new Map(
+      settlements
+        .filter((row) => row.month.getTime() === monthStart.getTime())
+        .map((row) => [row.personId, row]),
+    );
+    const wanted = personIds ? new Set(personIds) : null;
     const lines: OvertimeSettlementLineDto[] = [];
 
     for (const person of persons) {
+      if (wanted && !wanted.has(person.id)) {
+        continue;
+      }
+
       const activity = this.monthlyActivity(person.id, source);
       const carriedInMinutes = this.carriedInFor(
         settlementsByPerson.get(person.id) ?? [],
         activity,
         monthKey,
       );
-      const month = activity.get(monthKey) ?? { earnedMinutes: 0, usedMinutes: 0 };
-      const balanceMinutes =
-        carriedInMinutes + month.earnedMinutes - month.usedMinutes;
+      const month = activity.get(monthKey) ?? NO_ACTIVITY;
+      const balanceMinutes = carriedInMinutes + month.earnedMinutes - month.usedMinutes;
 
       if (balanceMinutes === 0 && carriedInMinutes === 0) {
         continue;
       }
 
-      const reserveMinutes = Math.max(reserveMinutesByPerson[person.id] ?? 0, 0);
+      const settled = settledByPerson.get(person.id) ?? null;
+      const storedReserve = Math.max(settled?.carriedOutMinutes ?? 0, 0);
+      const reserveMinutes = Math.max(reserveMinutesByPerson[person.id] ?? storedReserve, 0);
       const { paidMinutes, carriedOutMinutes } = settleOvertimeBalance(
         balanceMinutes,
         reserveMinutes,
@@ -317,10 +578,12 @@ export class OvertimeService {
         carriedInMinutes,
         earnedMinutes: month.earnedMinutes,
         usedMinutes: month.usedMinutes,
+        saturdaysWorked: month.saturdaysWorked,
         balanceMinutes,
         reserveMinutes: carriedOutMinutes > 0 ? carriedOutMinutes : 0,
         paidMinutes,
         carriedOutMinutes,
+        settledAt: settled?.settledAt.toISOString() ?? null,
       });
     }
 
@@ -336,9 +599,8 @@ export class OvertimeService {
     const monthKey = formatMonth(currentMonth);
 
     const carriedInMinutes = this.carriedInFor(settlements, activity, monthKey);
-    const month = activity.get(monthKey) ?? { earnedMinutes: 0, usedMinutes: 0 };
-    const remainingMinutes =
-      carriedInMinutes + month.earnedMinutes - month.usedMinutes;
+    const month = activity.get(monthKey) ?? NO_ACTIVITY;
+    const remainingMinutes = carriedInMinutes + month.earnedMinutes - month.usedMinutes;
 
     const lastSettled = latestMonth(settlements);
 
@@ -348,6 +610,7 @@ export class OvertimeService {
       carriedInMinutes,
       earnedMinutes: month.earnedMinutes,
       usedMinutes: month.usedMinutes,
+      saturdaysWorked: month.saturdaysWorked,
       remainingMinutes,
       remainingDays: overtimeDaysAvailable(Math.max(0, remainingMinutes)),
       settledThroughMonth: lastSettled ? formatMonth(lastSettled) : null,
@@ -394,7 +657,7 @@ export class OvertimeService {
       if (existing) {
         return existing;
       }
-      const created = { earnedMinutes: 0, usedMinutes: 0 };
+      const created = { ...NO_ACTIVITY };
       byMonth.set(key, created);
       return created;
     };
@@ -403,7 +666,9 @@ export class OvertimeService {
       formatMonth(day.workDate),
     );
     for (const [key, days] of daysByMonth) {
-      entry(key).earnedMinutes = overtimeBalanceMinutes(days);
+      const month = entry(key);
+      month.earnedMinutes = overtimeBalanceMinutes(days);
+      month.saturdaysWorked = countSaturdaysWorked(days);
     }
 
     for (const [key, minutes] of source.usedByPersonMonth.get(personId) ?? []) {
@@ -497,8 +762,10 @@ export class OvertimeService {
     }
 
     const leaveDaysByPerson = new Map<string, Map<string, number>>();
+    const leaveTypesByPersonDay = new Map<string, Map<string, LeaveType>>();
     for (const [personId, requests] of leaveRequestsByPerson) {
       leaveDaysByPerson.set(personId, leaveMinutesByDay(requests));
+      leaveTypesByPersonDay.set(personId, leaveTypesByDay(requests));
     }
 
     const daysByPerson = new Map<string, DatedOvertimeDay[]>();
@@ -511,12 +778,13 @@ export class OvertimeService {
         loggedMinutes: row._sum.durationMinutes ?? 0,
         leaveMinutes: leaveByDay?.get(workDateToDayKey(row.workDate)) ?? 0,
         isWorkingDay: isWorkingDate(row.workDate),
+        isSaturday: row.workDate.getDay() === 6,
         isInProgress: isSameWorkDate(row.workDate),
       });
       daysByPerson.set(row.personId, days);
     }
 
-    return { daysByPerson, usedByPersonMonth };
+    return { daysByPerson, usedByPersonMonth, leaveTypesByPersonDay };
   }
 
   private async resolveActorPersonId(userId: string): Promise<string> {

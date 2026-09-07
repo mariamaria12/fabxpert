@@ -1,14 +1,22 @@
 /** Contractual working day. Anything logged past it accrues as overtime. */
 export const DAILY_WORK_MINUTES = 540; // 9h
 
+/** A worked Saturday is paid as a 7.5h day; only what is logged past it is overtime. */
+export const SATURDAY_WORK_MINUTES = 450;
+
 /** One day a person logged time on, with everything that day is credited for. */
 export type OvertimeDay = {
   /** Minutes logged that day. */
   loggedMinutes: number;
   /** Approved leave covering that day — a whole day off is DAILY_WORK_MINUTES. */
   leaveMinutes?: number;
-  /** Weekend work is overtime hour for hour, never a debt. Defaults to true. */
+  /** Weekend work is never a debt. Defaults to true. */
   isWorkingDay?: boolean;
+  /**
+   * A worked Saturday counts as a day at the Saturday norm, so only the hours
+   * past SATURDAY_WORK_MINUTES are overtime. A Sunday stays hour for hour.
+   */
+  isSaturday?: boolean;
   /** Today, still being worked. It can earn overtime but cannot owe any yet. */
   isInProgress?: boolean;
 };
@@ -17,9 +25,10 @@ export type OvertimeDay = {
  * Running overtime over a set of days.
  *
  * A working day counts for what it is short of, or over, the contractual day:
- * ten hours is +1h, eight is −1h. A weekend day has no contractual hours to
- * meet, so everything logged on it is overtime — four hours on a Saturday is
- * +4h.
+ * ten hours is +1h, eight is −1h. A Saturday is paid as a worked day of 7.5h,
+ * so only what is logged past that is overtime — nine hours on a Saturday is
+ * +1h 30m, four hours is nothing. A Sunday has no norm at all: everything
+ * logged on it is overtime.
  *
  * Only days the person logged time on are passed in — a day with no timesheet
  * at all is not a debt, it is simply not counted.
@@ -36,12 +45,24 @@ export type OvertimeDay = {
 export function overtimeBalanceMinutes(days: OvertimeDay[]): number {
   return days.reduce((sum, day) => {
     if (day.isWorkingDay === false) {
-      return sum + day.loggedMinutes;
+      return (
+        sum +
+        (day.isSaturday
+          ? Math.max(0, day.loggedMinutes - SATURDAY_WORK_MINUTES)
+          : day.loggedMinutes)
+      );
     }
 
     const delta = day.loggedMinutes + (day.leaveMinutes ?? 0) - DAILY_WORK_MINUTES;
     return sum + (day.isInProgress ? Math.max(0, delta) : delta);
   }, 0);
+}
+
+/** Saturdays with any time logged — each one is a worked Saturday, however short. */
+export function countSaturdaysWorked(days: OvertimeDay[]): number {
+  return days.filter(
+    (day) => day.isWorkingDay === false && day.isSaturday === true && day.loggedMinutes > 0,
+  ).length;
 }
 
 /** How a month's balance splits when it is settled. */
@@ -106,4 +127,42 @@ export function formatOvertimeBalance(minutes: number): string {
   }
 
   return `${rounded > 0 ? '+' : '−'}${formatOvertimeHours(rounded)}`;
+}
+
+/** One person's month, as the pontaj for accounting reads it. */
+export type AccountingHoursInput = {
+  /** Every minute logged on timesheets that month. */
+  loggedMinutes: number;
+  /** Overtime the month produced, by the balance rule. Negative for a short month. */
+  earnedMinutes: number;
+  /** Paid at settlement. Null while the month is not approved yet. */
+  paidMinutes: number | null;
+};
+
+export type AccountingHoursSplit = {
+  normalMinutes: number;
+  overtimeMinutes: number;
+  totalMinutes: number;
+};
+
+/**
+ * How a month's hours split on the pontaj sent to accounting.
+ *
+ * Normal hours are what was logged minus the overtime the month produced — a
+ * short month is simply the hours logged. Overtime is only what the settlement
+ * approved for payment; before approval it is zero, so an unapproved balance
+ * never reaches accounting.
+ */
+export function accountingHours(input: AccountingHoursInput): AccountingHoursSplit {
+  const normalMinutes = Math.max(
+    input.loggedMinutes - Math.max(input.earnedMinutes, 0),
+    0,
+  );
+  const overtimeMinutes = Math.max(input.paidMinutes ?? 0, 0);
+
+  return {
+    normalMinutes,
+    overtimeMinutes,
+    totalMinutes: normalMinutes + overtimeMinutes,
+  };
 }

@@ -19,6 +19,8 @@ export type OvertimeBalanceDto = {
   earnedMinutes: number;
   /** RECUPERARE taken this month. */
   usedMinutes: number;
+  /** Saturdays with time logged this month — paid as days, not as overtime. */
+  saturdaysWorked: number;
   /** carriedInMinutes + earnedMinutes − usedMinutes. */
   remainingMinutes: number;
   /** Whole days off `remainingMinutes` covers. */
@@ -50,12 +52,16 @@ export type OvertimeSettlementLineDto = {
   carriedInMinutes: number;
   earnedMinutes: number;
   usedMinutes: number;
+  /** Saturdays with time logged that month. */
+  saturdaysWorked: number;
   /** carriedIn + earned − used: what the settlement splits. */
   balanceMinutes: number;
   /** Kept instead of paid. Zero unless an admin sets a reserve. */
   reserveMinutes: number;
   paidMinutes: number;
   carriedOutMinutes: number;
+  /** When this person's month was approved, as ISO; null while it still waits. */
+  settledAt: string | null;
 };
 
 /** What a month would settle to, without committing anything. */
@@ -74,4 +80,77 @@ export type SettleOvertimeMonthResponse = {
   personsSettled: number;
   totalPaidMinutes: number;
   totalCarriedOutMinutes: number;
+};
+
+/** People whose last complete month still waits for approval — the sidebar badge. */
+export type OvertimeApprovalsPendingResponse = {
+  month: string;
+  count: number;
+};
+
+/**
+ * Where one person's month stands on the pontaj for accounting. EXPORTAT is
+ * month-wide: the document was generated and the month is closed until it is
+ * reopened.
+ */
+export type AccountingTimesheetStatus = 'IN_PREGATIRE' | 'GATA_EXPORT' | 'EXPORTAT';
+
+export type AccountingTimesheetLineDto = {
+  person: OvertimeBalancePersonDto;
+  /** Every minute logged that month. */
+  loggedMinutes: number;
+  normalMinutes: number;
+  /** Overtime approved for payment. Zero until the month is approved. */
+  overtimeMinutes: number;
+  totalMinutes: number;
+  /** Saturdays with time logged — paid as days, not as overtime. */
+  saturdaysWorked: number;
+  /**
+   * One code per calendar day of the month (index 0 is the 1st): X, a leave
+   * code, or '' for nothing. Weekends stay '' — a Saturday is counted in
+   * `saturdaysWorked`, a Sunday goes to overtime.
+   */
+  dayCodes: string[];
+  /** Working days already past with neither a pontaj nor approved leave, as `YYYY-MM-DD`. */
+  missingWorkingDays: string[];
+  /** Balance still waiting for approval; null once approved, or when nothing needs it. */
+  pendingBalanceMinutes: number | null;
+  status: AccountingTimesheetStatus;
+  settledAt: string | null;
+};
+
+export type AccountingTimesheetTotals = {
+  persons: number;
+  normalMinutes: number;
+  overtimeMinutes: number;
+  totalMinutes: number;
+  /** Lines still waiting for approval, and the hours they hold back. */
+  pendingCount: number;
+  pendingBalanceMinutes: number;
+  /** People with at least one working day unaccounted for, and how many such days in all. */
+  missingDaysPersons: number;
+  missingDays: number;
+};
+
+/** The document was generated: the month is closed until someone reopens it. */
+export type AccountingExportDto = {
+  exportedAt: string;
+  exportedBy: { firstName: string; lastName: string } | null;
+};
+
+export type AccountingTimesheetResponse = {
+  /** `YYYY-MM`. */
+  month: string;
+  /** The month is not over: nothing can be approved, every line is in preparation. */
+  monthInProgress: boolean;
+  /** Mon–Fri days in the month — the norm on the document. */
+  workingDays: number;
+  export: AccountingExportDto | null;
+  lines: AccountingTimesheetLineDto[];
+  totals: AccountingTimesheetTotals;
+};
+
+export type ReopenAccountingMonthResponse = {
+  month: string;
+  reopened: boolean;
 };

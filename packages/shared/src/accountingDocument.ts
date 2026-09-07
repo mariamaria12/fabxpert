@@ -1,0 +1,38 @@
+import type { LeaveType } from './dto/leave.dto';
+
+/**
+ * The day codes of the pontaj sent to accounting, in legend order. The app
+ * writes X and the three leave codes it knows about; the rest are there for
+ * accounting to fill in by hand and for the sheet's formulas to count.
+ */
+export const ACCOUNTING_DAY_CODES: readonly { code: string; label: string }[] = [
+  { code: 'X', label: 'Prezent' },
+  { code: 'CO', label: 'Concediu de odihnă' },
+  { code: 'INV', label: 'Învoire' },
+  { code: 'CFP', label: 'Concediu fără plată' },
+  { code: 'CM', label: 'Concediu medical' },
+  { code: 'CP', label: 'Concediu paternal' },
+  { code: 'AN', label: 'Absență nemotivată' },
+  { code: 'DS', label: 'Donare de sânge' },
+  { code: 'CS', label: 'Contract suspendat' },
+  { code: '*', label: 'Prezent CIM 2 ore' },
+];
+
+export const PRESENT_DAY_CODE = 'X';
+
+/**
+ * What an approved leave day reads as on the pontaj. RECUPERARE is time off
+ * already earned, so it is paid as a worked day and marked present.
+ */
+export function leaveTypeDayCode(type: LeaveType): string {
+  switch (type) {
+    case 'ODIHNA':
+      return 'CO';
+    case 'MEDICAL':
+      return 'CM';
+    case 'NEPLATIT':
+      return 'CFP';
+    case 'RECUPERARE':
+      return PRESENT_DAY_CODE;
+  }
+}

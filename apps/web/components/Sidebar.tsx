@@ -7,7 +7,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { InitialsAvatar, PersonAvatar } from '@/components/PersonAvatar';
 import { clearCachedSessionUser } from '@/utils/sessionUserCache';
 import { useLeavePendingCount } from '@/context/LeavePendingCountContext';
-import { NAV_ITEMS } from '@/components/navItems';
+import { useOvertimePendingCount } from '@/context/OvertimePendingCountContext';
+import { isNavItemActive, NAV_GROUPS, type NavBadgeKey } from '@/components/navItems';
 import { useTheme } from '@/hooks/useTheme';
 import { nextTheme, THEMES } from '@/utils/theme';
 
@@ -34,8 +35,14 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { pendingCount } = useLeavePendingCount();
+  const { pendingCount: leavePendingCount } = useLeavePendingCount();
+  const { pendingCount: overtimePendingCount } = useOvertimePendingCount();
   const { theme, setTheme } = useTheme();
+
+  const badgeCounts: Record<NavBadgeKey, number> = {
+    leavePending: leavePendingCount,
+    overtimePending: overtimePendingCount,
+  };
   const themeMeta = THEMES.find((item) => item.id === theme) ?? THEMES[0];
 
   async function handleLogout() {
@@ -62,15 +69,11 @@ export function Sidebar({
           title="FabXpert"
           className="flex items-baseline font-medium"
         >
-          {!collapsed && (
-            <span className="text-sm tracking-[0.06em] text-text-primary">FAB</span>
-          )}
+          {!collapsed && <span className="text-sm tracking-[0.06em] text-text-primary">FAB</span>}
           <span className={`text-[28px] leading-none text-accent ${collapsed ? '' : '-mx-0.5'}`}>
             X
           </span>
-          {!collapsed && (
-            <span className="text-sm tracking-[0.06em] text-text-primary">PERT</span>
-          )}
+          {!collapsed && <span className="text-sm tracking-[0.06em] text-text-primary">PERT</span>}
         </Link>
         {onToggleCollapse && (
           <button
@@ -87,53 +90,65 @@ export function Sidebar({
         )}
       </div>
 
-      {/* Navigation */}
-      <nav className="mt-2 flex flex-col gap-1 px-2">
-        {NAV_ITEMS.map((item) => {
-          const isActive =
-            item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
-          const badge =
-            'badgeKey' in item && item.badgeKey === 'leavePending' && pendingCount > 0
-              ? pendingCount
-              : null;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={item.label}
-              onClick={onNavigate}
-              className={`flex items-center gap-2.5 rounded-md py-2 text-sm ${
-                collapsed ? 'justify-center px-0' : 'px-2.5'
-              } ${
-                isActive
-                  ? 'bg-surface-active text-primary-hover'
-                  : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
-              }`}
-            >
-              <span className="relative shrink-0">
-                <i
-                  className={`ti ${item.icon} text-lg ${isActive ? 'text-primary' : 'text-text-muted'}`}
-                  aria-hidden="true"
-                />
-                {collapsed && badge !== null ? (
-                  <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-accent text-[10px] font-semibold text-accent-contrast">
-                    {badge > 9 ? '9+' : badge}
-                  </span>
-                ) : null}
-              </span>
-              {!collapsed && (
-                <>
-                  <span className="min-w-0 flex-1">{item.label}</span>
-                  {badge !== null ? (
-                    <span className="shrink-0 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-accent-contrast">
-                      {badge > 99 ? '99+' : badge}
+      {/* Navigation — grouped; a group heading becomes a hairline when collapsed */}
+      <nav className="mt-2 flex flex-col gap-1 overflow-y-auto px-2">
+        {NAV_GROUPS.map((group, groupIndex) => (
+          <div key={group.label} className={groupIndex === 0 ? '' : 'mt-3'}>
+            {collapsed ? (
+              groupIndex === 0 ? null : (
+                <div className="mx-2 mb-2 border-t border-border-subtle" aria-hidden="true" />
+              )
+            ) : (
+              <p className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-[0.09em] text-text-disabled">
+                {group.label}
+              </p>
+            )}
+            <div className="flex flex-col gap-1">
+              {group.items.map((item) => {
+                const isActive = isNavItemActive(item, pathname);
+                const count = item.badgeKey ? badgeCounts[item.badgeKey] : 0;
+                const badge = count > 0 ? count : null;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    title={item.label}
+                    onClick={onNavigate}
+                    className={`flex items-center gap-2.5 rounded-md py-2 text-sm ${
+                      collapsed ? 'justify-center px-0' : 'px-2.5'
+                    } ${
+                      isActive
+                        ? 'bg-surface-active text-primary-hover'
+                        : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
+                    }`}
+                  >
+                    <span className="relative shrink-0">
+                      <i
+                        className={`ti ${item.icon} text-lg ${isActive ? 'text-primary' : 'text-text-muted'}`}
+                        aria-hidden="true"
+                      />
+                      {collapsed && badge !== null ? (
+                        <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-accent text-[10px] font-semibold text-accent-contrast">
+                          {badge > 9 ? '9+' : badge}
+                        </span>
+                      ) : null}
                     </span>
-                  ) : null}
-                </>
-              )}
-            </Link>
-          );
-        })}
+                    {!collapsed && (
+                      <>
+                        <span className="min-w-0 flex-1">{item.label}</span>
+                        {badge !== null ? (
+                          <span className="shrink-0 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-accent-contrast">
+                            {badge > 99 ? '99+' : badge}
+                          </span>
+                        ) : null}
+                      </>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* Theme switch — cycles through THEMES */}

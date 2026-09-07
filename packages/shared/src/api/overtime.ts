@@ -1,5 +1,8 @@
-import { request } from './client';
+import { request, requestBlob } from './client';
 import type {
+  AccountingTimesheetResponse,
+  ReopenAccountingMonthResponse,
+  OvertimeApprovalsPendingResponse,
   OvertimeBalanceDto,
   OvertimeBalancesResponse,
   OvertimeSettlementPreviewResponse,
@@ -28,14 +31,51 @@ export function previewOvertimeSettlement(month: string) {
 
 /**
  * Admin only. `month` is `YYYY-MM` and must already be over. Anyone left out of
- * `reserveMinutesByPerson` is paid their whole balance.
+ * `reserveMinutesByPerson` is paid their whole balance, or keeps the reserve
+ * from an earlier approval. `personIds` approves only those people; absent,
+ * the whole month is approved at once.
  */
 export function settleOvertimeMonth(
   month: string,
   reserveMinutesByPerson: Record<string, number> = {},
+  personIds?: string[],
 ) {
   return request<SettleOvertimeMonthResponse>('/overtime/settle-month', {
     method: 'POST',
-    body: JSON.stringify({ month, reserveMinutesByPerson }),
+    body: JSON.stringify({
+      month,
+      reserveMinutesByPerson,
+      ...(personIds ? { personIds } : {}),
+    }),
   });
+}
+
+/** Admin only. How many people still wait for last month's approval. */
+export function getOvertimeApprovalsPendingCount() {
+  return request<OvertimeApprovalsPendingResponse>('/overtime/approvals-pending-count');
+}
+
+/** Admin only. The pontaj for accounting of `month` (`YYYY-MM`), recomputed on every call. */
+export function getAccountingTimesheet(month: string) {
+  return request<AccountingTimesheetResponse>(
+    `/overtime/accounting?month=${encodeURIComponent(month)}`,
+  );
+}
+
+/**
+ * Admin only. Generates the pontaj document for accounting and closes the
+ * month — reversible with `reopenAccountingMonth`.
+ */
+export function exportAccountingTimesheetXlsx(month: string) {
+  return requestBlob(`/overtime/accounting/export?month=${encodeURIComponent(month)}`, {
+    method: 'POST',
+  });
+}
+
+/** Admin only. Reopens a month closed by the export. */
+export function reopenAccountingMonth(month: string) {
+  return request<ReopenAccountingMonthResponse>(
+    `/overtime/accounting/export?month=${encodeURIComponent(month)}`,
+    { method: 'DELETE' },
+  );
 }

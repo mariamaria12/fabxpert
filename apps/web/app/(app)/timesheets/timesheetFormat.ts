@@ -153,3 +153,13 @@ export function parseDurationMinutesInput(value: string): number | null {
 
   return null;
 }
+
+/** Hours as a decimal with Romanian separators: "3.912 h", "27,5 h", "0 h". */
+export function formatHoursDecimal(totalMinutes: number): string {
+  const hours = Math.round(Math.abs(totalMinutes) / 6) / 10;
+  const formatted = hours.toLocaleString('ro-RO', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1,
+  });
+  return `${totalMinutes < 0 ? '−' : ''}${formatted} h`;
+}

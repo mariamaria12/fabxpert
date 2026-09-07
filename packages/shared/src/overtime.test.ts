@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DAILY_WORK_MINUTES,
+  SATURDAY_WORK_MINUTES,
+  accountingHours,
+  countSaturdaysWorked,
   overtimeBalanceMinutes,
   settleOvertimeBalance,
 } from './overtime';
@@ -18,10 +21,37 @@ test('a finished working day counts what it is over or short of the norm', () =>
   assert.equal(overtimeBalanceMinutes([workingDay(480)]), -60);
 });
 
-test('weekend work is overtime hour for hour', () => {
+test('sunday work is overtime hour for hour', () => {
   assert.equal(
     overtimeBalanceMinutes([{ loggedMinutes: 240, isWorkingDay: false }]),
     240,
+  );
+});
+
+test('a saturday is a 7.5h day: only what is logged past it is overtime', () => {
+  const saturday = (loggedMinutes: number) => ({
+    loggedMinutes,
+    isWorkingDay: false,
+    isSaturday: true,
+  });
+
+  assert.equal(overtimeBalanceMinutes([saturday(240)]), 0);
+  assert.equal(overtimeBalanceMinutes([saturday(SATURDAY_WORK_MINUTES)]), 0);
+  assert.equal(overtimeBalanceMinutes([saturday(540)]), 90);
+  // A short Saturday is never a debt.
+  assert.equal(overtimeBalanceMinutes([saturday(60), workingDay(DAILY_WORK_MINUTES)]), 0);
+});
+
+test('every saturday with time logged is a worked saturday, however short', () => {
+  assert.equal(
+    countSaturdaysWorked([
+      { loggedMinutes: 60, isWorkingDay: false, isSaturday: true },
+      { loggedMinutes: 540, isWorkingDay: false, isSaturday: true },
+      { loggedMinutes: 0, isWorkingDay: false, isSaturday: true },
+      { loggedMinutes: 300, isWorkingDay: false },
+      workingDay(540),
+    ]),
+    2,
   );
 });
 
@@ -108,4 +138,39 @@ test('settling holds carriedIn + earned − used = paid + carriedOut', () => {
     assert.equal(paidMinutes + carriedOutMinutes, balance);
     assert.ok(paidMinutes >= 0, 'a payout is never negative');
   }
+});
+
+test('accounting splits a month into normal hours and the overtime approved for pay', () => {
+  // 180h logged, 12h of it over the norm, all 12h approved.
+  assert.deepEqual(
+    accountingHours({ loggedMinutes: 10800, earnedMinutes: 720, paidMinutes: 720 }),
+    { normalMinutes: 10080, overtimeMinutes: 720, totalMinutes: 10800 },
+  );
+});
+
+test('unapproved overtime never reaches accounting', () => {
+  assert.deepEqual(
+    accountingHours({ loggedMinutes: 10800, earnedMinutes: 720, paidMinutes: null }),
+    { normalMinutes: 10080, overtimeMinutes: 0, totalMinutes: 10080 },
+  );
+});
+
+test('a short month is paid for what was logged, with nothing over it', () => {
+  assert.deepEqual(
+    accountingHours({ loggedMinutes: 9000, earnedMinutes: -1080, paidMinutes: 0 }),
+    { normalMinutes: 9000, overtimeMinutes: 0, totalMinutes: 9000 },
+  );
+});
+
+test('a reserve kept back is not on the pontaj, but a carried-in payout is', () => {
+  // 6h earned, 2h kept as reserve: 4h paid.
+  assert.equal(
+    accountingHours({ loggedMinutes: 10440, earnedMinutes: 360, paidMinutes: 240 }).totalMinutes,
+    10320,
+  );
+  // 3h earned plus 5h carried in from last month, all paid: total goes past logged.
+  assert.equal(
+    accountingHours({ loggedMinutes: 10260, earnedMinutes: 180, paidMinutes: 480 }).totalMinutes,
+    10560,
+  );
 });
