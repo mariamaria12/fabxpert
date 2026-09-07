@@ -104,6 +104,7 @@ type PinnedCardOptions = {
   toggleExpanded: (projectId: string) => void;
   handleUnpinned: (updated: ProjectDto) => void;
   openEdit: (project: PinnedProjectSummaryRow) => void;
+  handleAssembliesChanged: () => void;
 };
 
 function renderPinnedProjectCards(
@@ -119,6 +120,7 @@ function renderPinnedProjectCards(
       onToggle={() => options.toggleExpanded(project.id)}
       onUnpinned={options.handleUnpinned}
       onEdit={() => options.openEdit(project)}
+      onAssembliesChanged={options.handleAssembliesChanged}
       dragByTitle={dragByTitle}
     />
   ));
@@ -365,6 +367,7 @@ export const PanouPinnedProjectsSection = forwardRef<
     toggleExpanded,
     handleUnpinned,
     openEdit,
+    handleAssembliesChanged: () => void refetchSummary(),
   };
 
   return (

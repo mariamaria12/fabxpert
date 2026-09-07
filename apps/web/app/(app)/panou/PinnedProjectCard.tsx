@@ -7,6 +7,7 @@ import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { FinisajBadge } from '@/components/FinisajBadge';
+import { AssemblyListScreen } from '@/app/(app)/projects/AssemblyListScreen';
 import { ActivityBreakdownRows } from './ActivityBreakdownRows';
 import { NEUTRAL_ACCENT, panouAccentTint } from './panouColors';
 import { PanouProjectCard } from './PanouProjectCard';
@@ -71,6 +72,34 @@ function PinnedProjectPinButton({
   );
 }
 
+/**
+ * Opens the "De făcut / Realizate" view of the project's list. Lives in the
+ * card's right-hand column with the other actions, under the edit pencil.
+ */
+function PinnedProjectAssembliesButton({
+  count,
+  onOpen,
+}: {
+  count: number;
+  onOpen: () => void;
+}) {
+  const label = `Vezi cele ${count} ansamble`;
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onOpen();
+      }}
+      aria-label={label}
+      title={label}
+      className="flex size-7 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-raised hover:text-accent"
+    >
+      <i className="ti ti-stack-2 text-lg leading-none" aria-hidden="true" />
+    </button>
+  );
+}
+
 function PinnedProjectEditButton({ onEdit }: { onEdit: () => void }) {
   return (
     <button
@@ -93,6 +122,7 @@ export function PinnedProjectCard({
   onToggle,
   onUnpinned,
   onEdit,
+  onAssembliesChanged,
   dragHandleProps,
   showPinButton = true,
   titleHandleProps,
@@ -102,12 +132,15 @@ export function PinnedProjectCard({
   onToggle: () => void;
   onUnpinned: (updated: ProjectDto) => void;
   onEdit: () => void;
+  /** The list was edited from the card; the summary's counts have to catch up. */
+  onAssembliesChanged?: () => void;
   dragHandleProps?: DragHandleProps;
   /** Off on phones, where the card has no icons. */
   showPinButton?: boolean;
   /** Phones drag by holding the project code instead of a grip icon. */
   titleHandleProps?: Record<string, unknown>;
 }) {
+  const [assembliesOpen, setAssembliesOpen] = useState(false);
   const timelineDates = getProjectTimelineDates(project.startDate, project.dueDate);
   const timeline = timelineDates
     ? (() => {
@@ -124,23 +157,20 @@ export function PinnedProjectCard({
     : null;
 
   return (
+    <>
     <PanouProjectCard
       accentColor={project.color}
       title={project.code}
       status={project.status}
       titleSubline={project.denumireLucrare}
-      infoContent={
-        <span className="flex min-w-0 items-center gap-1.5">
-          <FinisajBadge value={project.finisaj} />
-          {project.assemblyCount > 0 && (
-            <i
-              className="ti ti-stack-2 text-sm leading-none text-text-muted"
-              role="img"
-              aria-label="Are listă de ansamble"
-              title="Are listă de ansamble"
-            />
-          )}
-        </span>
+      infoContent={<FinisajBadge value={project.finisaj} />}
+      sideActions={
+        project.assemblyCount > 0 ? (
+          <PinnedProjectAssembliesButton
+            count={project.assemblyCount}
+            onOpen={() => setAssembliesOpen(true)}
+          />
+        ) : undefined
       }
       hideLeadingIcon={!dragHandleProps && !showPinButton}
       titleHandleProps={titleHandleProps}
@@ -193,5 +223,17 @@ export function PinnedProjectCard({
         )
       }
     />
+
+    {assembliesOpen && (
+      <AssemblyListScreen
+        open
+        variant="progress"
+        projectId={project.id}
+        projectName={project.name}
+        onClose={() => setAssembliesOpen(false)}
+        onChanged={onAssembliesChanged}
+      />
+    )}
+    </>
   );
 }

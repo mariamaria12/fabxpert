@@ -367,8 +367,13 @@ export {
   getAccountingTimesheet,
   exportAccountingTimesheetXlsx,
   reopenAccountingMonth,
+  resolveAccountingDays,
 } from './api/overtime';
+export { ACCOUNTING_DAY_RESOLUTIONS, resolveAccountingDaysSchema } from './dto/overtime.dto';
 export type {
+  AccountingDayResolution,
+  ResolveAccountingDaysInput,
+  ResolveAccountingDaysResponse,
   AccountingExportDto,
   AccountingTimesheetLineDto,
   ReopenAccountingMonthResponse,

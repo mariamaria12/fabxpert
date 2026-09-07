@@ -12,14 +12,29 @@ interface StatTileProps {
 }
 
 /** One number with its label, for the summary row above a table. */
-export function StatTile({ label, icon, value, hint, accent = false, warning = false }: StatTileProps) {
+export function StatTile({
+  label,
+  icon,
+  value,
+  hint,
+  accent = false,
+  warning = false,
+}: StatTileProps) {
   const tone = accent
     ? 'border-primary-border bg-primary-bg'
     : warning
       ? 'border-warning-border bg-warning-bg'
       : 'border-border bg-surface';
-  const valueTone = accent ? 'text-primary-hover' : warning ? 'text-warning-text' : 'text-text-primary';
-  const labelTone = accent ? 'text-primary-hover/85' : warning ? 'text-warning-text/85' : 'text-text-muted';
+  const valueTone = accent
+    ? 'text-primary-hover'
+    : warning
+      ? 'text-warning-text'
+      : 'text-text-primary';
+  const labelTone = accent
+    ? 'text-primary-hover/85'
+    : warning
+      ? 'text-warning-text/85'
+      : 'text-text-muted';
 
   return (
     <div className={`rounded-lg border px-4 py-3 shadow-card ${tone}`}>
@@ -27,7 +42,9 @@ export function StatTile({ label, icon, value, hint, accent = false, warning = f
         {icon ? <i className={`ti ${icon} text-sm`} aria-hidden="true" /> : null}
         {label}
       </div>
-      <div className={`mt-1.5 text-[22px] font-semibold leading-tight tracking-tight tabular-nums ${valueTone}`}>
+      <div
+        className={`mt-1.5 text-[22px] font-semibold leading-tight tracking-tight tabular-nums ${valueTone}`}
+      >
         {value}
       </div>
       {hint ? <div className="mt-1 text-[11px] text-text-muted">{hint}</div> : null}

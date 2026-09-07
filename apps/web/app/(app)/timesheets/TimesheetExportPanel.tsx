@@ -14,10 +14,7 @@ import { PeriodFilter } from '@/components/PeriodFilter';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
-import {
-  EXPORT_PREVIEW_FETCH_SIZE,
-  sortTimesheetsForExport,
-} from './timesheetFilters';
+import { EXPORT_PREVIEW_FETCH_SIZE, sortTimesheetsForExport } from './timesheetFilters';
 import {
   formatExportHours,
   formatExportWorkerName,
@@ -41,8 +38,7 @@ const previewColumns: DataTableColumn<TimesheetDto>[] = [
   {
     key: 'denumireLucrare',
     header: 'Denumire Lucrare',
-    render: (row) =>
-      row.project.denumireLucrare || <span className="text-text-muted">—</span>,
+    render: (row) => row.project.denumireLucrare || <span className="text-text-muted">—</span>,
   },
   {
     key: 'client',
@@ -94,11 +90,7 @@ const previewColumns: DataTableColumn<TimesheetDto>[] = [
   },
 ];
 
-export function TimesheetExportPanel({
-  open,
-  initialPeriod,
-  onClose,
-}: TimesheetExportPanelProps) {
+export function TimesheetExportPanel({ open, initialPeriod, onClose }: TimesheetExportPanelProps) {
   const { showToast } = useToast();
   const [period, setPeriod] = useState<Period>(initialPeriod);
   const [isExporting, setIsExporting] = useState(false);
@@ -179,10 +171,7 @@ export function TimesheetExportPanel({
   const periodReady = isPeriodQueryReady(period);
 
   const previewTruncated = previewTotal > previewRows.length;
-  const previewTotalMinutes = previewRows.reduce(
-    (sum, row) => sum + row.durationMinutes,
-    0,
-  );
+  const previewTotalMinutes = previewRows.reduce((sum, row) => sum + row.durationMinutes, 0);
   const previewEmptyMessage = periodReady
     ? 'Nu există pontaje în perioada selectată.'
     : 'Selectează o perioadă completă pentru previzualizare.';
@@ -230,9 +219,7 @@ export function TimesheetExportPanel({
           {periodReady && !previewLoading && !previewError && previewTotal > 0 && (
             <p className="text-xs text-text-secondary tabular-nums">
               {previewTotal} pontaje
-              {!previewTruncated && (
-                <> · {formatExportHours(previewTotalMinutes)} ore</>
-              )}
+              {!previewTruncated && <> · {formatExportHours(previewTotalMinutes)} ore</>}
             </p>
           )}
         </div>
@@ -264,8 +251,8 @@ export function TimesheetExportPanel({
 
         {previewTruncated && !previewLoading && (
           <p className="mt-2 text-xs text-text-muted">
-            Afișate primele {previewRows.length} din {previewTotal} înregistrări. Exportul
-            include toate pontajele din perioadă.
+            Afișate primele {previewRows.length} din {previewTotal} înregistrări. Exportul include
+            toate pontajele din perioadă.
           </p>
         )}
       </div>

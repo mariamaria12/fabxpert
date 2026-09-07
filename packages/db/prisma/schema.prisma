@@ -130,6 +130,10 @@ model Person {
   phone      String?
   /// Yearly ODIHNA entitlement (admin-editable). Balance is computed, not stored.
   annualLeaveDays Int   @default(21)
+  /// Never logs time (management, accounting): the pontaj for accounting marks
+  /// every working day without approved leave as present, and overtime does
+  /// not apply.
+  autoPresence Boolean @default(false)
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   deletedAt  DateTime?
@@ -147,6 +151,7 @@ model Person {
   leaveRequests LeaveRequest[]
 
   overtimeSettlements OvertimeSettlement[]
+  accountingPresences AccountingPresence[]
 
   @@map("persons")
 }
@@ -190,6 +195,7 @@ model User {
 
   settledOvertimeMonths OvertimeSettlement[] @relation("OvertimeSettledBy")
   accountingExports     AccountingExport[]   @relation("AccountingExportedBy")
+  accountingPresences   AccountingPresence[] @relation("AccountingPresenceMarkedBy")
 
   @@map("users")
 }
@@ -417,6 +423,31 @@ model AccountingExport {
   exportedBy       User?    @relation("AccountingExportedBy", fields: [exportedByUserId], references: [id])
 
   @@map("accounting_exports")
+}
+
+// ---------------------------------------------------------------------------
+// AccountingPresence
+// A working day an admin marked as present on the pontaj for accounting while
+// generating it, because the person had neither a timesheet nor leave that
+// day. Carries no hours — it only puts the X on the document.
+// ---------------------------------------------------------------------------
+
+model AccountingPresence {
+  id String @id @default(uuid())
+
+  /// The calendar day, at midnight — same convention as Timesheet.workDate.
+  workDate DateTime
+
+  personId String
+  person   Person @relation(fields: [personId], references: [id])
+
+  markedByUserId String?
+  markedBy       User?    @relation("AccountingPresenceMarkedBy", fields: [markedByUserId], references: [id])
+  createdAt      DateTime @default(now())
+
+  @@unique([personId, workDate])
+  @@index([workDate])
+  @@map("accounting_presences")
 }
 
 // ---------------------------------------------------------------------------

@@ -47,6 +47,7 @@ function toPersonDto(person: PersonWithRole): PersonDto {
     employeeRoleId: person.employeeRoleId,
     employeeRole: person.employeeRole,
     annualLeaveDays: person.annualLeaveDays,
+    autoPresence: person.autoPresence,
     createdAt: person.createdAt.toISOString(),
     updatedAt: person.updatedAt.toISOString(),
   };
@@ -135,9 +136,7 @@ export class PersonService {
       where: { id: employeeRoleId, ...notDeleted() },
     });
     if (!role) {
-      throw new BadRequestException(
-        'employeeRoleId does not reference an existing employee role',
-      );
+      throw new BadRequestException('employeeRoleId does not reference an existing employee role');
     }
   }
 }

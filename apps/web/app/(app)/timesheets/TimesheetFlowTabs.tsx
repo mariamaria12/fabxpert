@@ -47,9 +47,7 @@ export function TimesheetFlowTabs({ active, onChange, approvalsPending }: Timesh
             >
               <span
                 className={`flex size-[18px] shrink-0 items-center justify-center rounded-full text-[10px] font-semibold tabular-nums ${
-                  isActive
-                    ? 'bg-accent text-accent-contrast'
-                    : 'bg-surface-raised text-text-muted'
+                  isActive ? 'bg-accent text-accent-contrast' : 'bg-surface-raised text-text-muted'
                 }`}
                 aria-hidden="true"
               >

@@ -91,9 +91,7 @@ function withEntryOptions(
   entryOptions: SelectFieldOption[],
 ): SelectFieldOption[] {
   const known = new Set(options.map((option) => option.id));
-  const missing = entryOptions.filter(
-    (option) => option.id !== '' && !known.has(option.id),
-  );
+  const missing = entryOptions.filter((option) => option.id !== '' && !known.has(option.id));
   return missing.length > 0 ? [...options, ...missing] : options;
 }
 

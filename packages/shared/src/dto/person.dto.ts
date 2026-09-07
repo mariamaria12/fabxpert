@@ -20,6 +20,8 @@ export const createPersonSchema = z.object({
   email: optionalEmail,
   phone: optionalString,
   employeeRoleId: employeeRoleIdSchema.optional(),
+  /** Never logs time — read as present on every working day without leave. */
+  autoPresence: z.boolean().optional(),
 });
 
 export const updatePersonSchema = createPersonSchema.partial().extend({
@@ -50,6 +52,7 @@ export type PersonDto = {
   employeeRoleId: string | null;
   employeeRole: PersonEmployeeRoleDto | null;
   annualLeaveDays: number;
+  autoPresence: boolean;
   createdAt: string;
   updatedAt: string;
 };

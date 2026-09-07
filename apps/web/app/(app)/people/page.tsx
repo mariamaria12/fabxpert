@@ -8,11 +8,7 @@ import {
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { PersonFormPanel } from './PersonFormPanel';
-import {
-  CLIENT_SEARCH_FETCH_SIZE,
-  paginateSlice,
-  personMatchesSearch,
-} from './personSearch';
+import { CLIENT_SEARCH_FETCH_SIZE, paginateSlice, personMatchesSearch } from './personSearch';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { FiltersToggle } from '@/components/FiltersToggle';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -252,12 +248,7 @@ export default function PeoplePage() {
             onRowClick={loading ? undefined : openEdit}
           />
           {!loading && total > 0 && (
-            <Pagination
-              page={page}
-              pageSize={PAGE_SIZE}
-              total={total}
-              onPageChange={setPage}
-            />
+            <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
           )}
         </div>
       )}

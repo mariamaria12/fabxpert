@@ -108,7 +108,11 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
-  async function approve(lines: OvertimeSettlementLineDto[], key: string, reserveOverride?: number) {
+  async function approve(
+    lines: OvertimeSettlementLineDto[],
+    key: string,
+    reserveOverride?: number,
+  ) {
     if (lines.length === 0) {
       return;
     }
@@ -150,7 +154,10 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
   );
   const pendingCarried = pending.reduce(
     (sum, line) =>
-      sum + (line.balanceMinutes <= 0 ? line.balanceMinutes : line.balanceMinutes - paidWithReserve(line, reserves[line.person.id] ?? '')),
+      sum +
+      (line.balanceMinutes <= 0
+        ? line.balanceMinutes
+        : line.balanceMinutes - paidWithReserve(line, reserves[line.person.id] ?? '')),
     0,
   );
   const approvedPaid = approved.reduce((sum, line) => sum + line.paidMinutes, 0);
@@ -214,7 +221,9 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
       width: '100px',
       className: 'text-right tabular-nums',
       render: (line) => (
-        <span className={`font-medium ${line.balanceMinutes < 0 ? 'text-danger' : 'text-text-primary'}`}>
+        <span
+          className={`font-medium ${line.balanceMinutes < 0 ? 'text-danger' : 'text-text-primary'}`}
+        >
           {formatOvertimeBalance(line.balanceMinutes)}
         </span>
       ),
@@ -307,7 +316,10 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
                   : 'border-success-border bg-success-bg text-success-text hover:opacity-90'
               }`}
             >
-              <i className={`ti ${isBusy ? 'ti-loader-2 animate-spin' : 'ti-check'} text-sm`} aria-hidden="true" />
+              <i
+                className={`ti ${isBusy ? 'ti-loader-2 animate-spin' : 'ti-check'} text-sm`}
+                aria-hidden="true"
+              />
               {approvedAlready ? 'Reaprobă' : 'Aprobă'}
             </button>
           </div>
@@ -322,8 +334,8 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
         <div>
           <h1 className="text-[22px] font-medium text-text-primary">Aprobări ore suplimentare</h1>
           <p className="mt-0.5 text-sm text-text-muted">
-            La final de lună aprobi ce rămâne de plată. Doar ce aprobi aici intră în pontajul
-            pentru contabilitate.
+            La final de lună aprobi ce rămâne de plată. Doar ce aprobi aici intră în pontajul pentru
+            contabilitate.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -341,14 +353,22 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
             onClick={() => void approve(pending, 'all')}
             className="inline-flex items-center gap-2 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-contrast transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4 sm:py-2 sm:text-sm"
           >
-            <i className={`ti ${busy === 'all' ? 'ti-loader-2 animate-spin' : 'ti-checks'} text-base`} aria-hidden="true" />
+            <i
+              className={`ti ${busy === 'all' ? 'ti-loader-2 animate-spin' : 'ti-checks'} text-base`}
+              aria-hidden="true"
+            />
             {pending.length > 0 ? `Aprobă toate (${pending.length})` : 'Aprobă toate'}
           </button>
         </div>
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
-        <MonthPicker value={month} onChange={setMonth} max={lastCompleteMonth()} disabled={busy !== null} />
+        <MonthPicker
+          value={month}
+          onChange={setMonth}
+          max={lastCompleteMonth()}
+          disabled={busy !== null}
+        />
         <div className="flex flex-wrap items-center gap-1.5">
           {STATUS_FILTERS.map((filter) => (
             <button
@@ -423,9 +443,9 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
 
       {!loading && !error && lines.length > 0 ? (
         <p className="mt-3 text-xs text-text-muted">
-          Se plătește tot soldul, mai puțin orele pe care le lași fiecăruia de recuperat.
-          Datoriile nu se plătesc — se reportează întregi în luna următoare. O lună aprobată
-          se poate reaproba: valorile se rescriu, iar diferența se reportează.
+          Se plătește tot soldul, mai puțin orele pe care le lași fiecăruia de recuperat. Datoriile
+          nu se plătesc — se reportează întregi în luna următoare. O lună aprobată se poate
+          reaproba: valorile se rescriu, iar diferența se reportează.
         </p>
       ) : null}
     </div>

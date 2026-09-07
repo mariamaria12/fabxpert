@@ -36,6 +36,7 @@ export function PanouProjectCard({
   leadingSlot,
   expandedContent,
   durationTopActions,
+  sideActions,
 }: {
   accentColor: string | null;
   title: string;
@@ -62,6 +63,11 @@ export function PanouProjectCard({
   leadingSlot?: ReactNode;
   expandedContent?: ReactNode;
   durationTopActions?: ReactNode;
+  /**
+   * Extra controls for the right-hand column, under the status row and above
+   * the hours toggle — the assembly list opener on pinned cards.
+   */
+  sideActions?: ReactNode;
 }) {
   const color = accentColor ?? NEUTRAL_ACCENT;
   const handleTitleClick = onTitleClick ?? onToggle;
@@ -160,17 +166,18 @@ export function PanouProjectCard({
                   </span>
                 )}
               </span>
-            {infoContent ? (
-              <span className="mt-1 flex min-w-0">{infoContent}</span>
-            ) : info ? (
-              <span className="mt-0.5 block text-[11px] text-text-secondary [overflow-wrap:anywhere] md:truncate">
-                {info}
+              {/* Company before the finish: the card reads code → client → finish. */}
+              <span className="mt-0.5 block text-[11px] text-text-muted [overflow-wrap:anywhere] md:truncate">
+                {subtitle}
               </span>
-            ) : null}
-            <span className="mt-0.5 block text-[11px] text-text-muted [overflow-wrap:anywhere] md:truncate">
-              {subtitle}
+              {infoContent ? (
+                <span className="mt-1 flex min-w-0">{infoContent}</span>
+              ) : info ? (
+                <span className="mt-0.5 block text-[11px] text-text-secondary [overflow-wrap:anywhere] md:truncate">
+                  {info}
+                </span>
+              ) : null}
             </span>
-          </span>
           </button>
 
           {/* Status stays pinned top right, in the same column as the period
@@ -188,6 +195,7 @@ export function PanouProjectCard({
                 {durationTopActions}
               </div>
             )}
+            {sideActions}
             {!hasFooter && totalBlock}
           </div>
           </div>

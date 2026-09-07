@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 /**
  * Overtime balance for one Person, in minutes (the UI divides by 60).
  *
@@ -99,6 +101,8 @@ export type AccountingTimesheetLineDto = {
   person: OvertimeBalancePersonDto;
   /** External collaborator: on the pontaj, but with no fixed days — nothing reads as missing. */
   isExternal: boolean;
+  /** Never logs time: read as present on every working day without leave. */
+  isAutoPresent: boolean;
   /** Every minute logged that month. */
   loggedMinutes: number;
   normalMinutes: number;
@@ -159,4 +163,45 @@ export type AccountingTimesheetResponse = {
 export type ReopenAccountingMonthResponse = {
   month: string;
   reopened: boolean;
+};
+
+/**
+ * What an admin can put on a working day that has neither a pontaj nor
+ * leave, while generating the pontaj: present (an X with no hours), or an
+ * approved single-day leave of the given type.
+ */
+export const ACCOUNTING_DAY_RESOLUTIONS = [
+  'PRESENT',
+  'ODIHNA',
+  'MEDICAL',
+  'NEPLATIT',
+  'RECUPERARE',
+] as const;
+
+export type AccountingDayResolution = (typeof ACCOUNTING_DAY_RESOLUTIONS)[number];
+
+const uuidSchema = z
+  .string()
+  .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, 'Invalid UUID format');
+
+export const resolveAccountingDaysSchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/, 'month must be YYYY-MM'),
+  resolutions: z
+    .array(
+      z.object({
+        personId: uuidSchema,
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD'),
+        resolution: z.enum(ACCOUNTING_DAY_RESOLUTIONS),
+      }),
+    )
+    .min(1),
+});
+
+export type ResolveAccountingDaysInput = z.infer<typeof resolveAccountingDaysSchema>;
+
+export type ResolveAccountingDaysResponse = {
+  /** Days written: presences marked plus leave created. */
+  resolved: number;
+  /** Days left alone — already covered by leave or a pontaj by the time this ran. */
+  skipped: number;
 };

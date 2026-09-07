@@ -5,6 +5,8 @@ import {
   formatOvertimeHours,
   getAccountingTimesheet,
   reopenAccountingMonth,
+  resolveAccountingDays,
+  type ResolveAccountingDaysInput,
   type AccountingTimesheetLineDto,
   type AccountingTimesheetResponse,
   type AccountingTimesheetStatus,
@@ -17,6 +19,8 @@ import { PersonName } from '@/components/PersonAvatar';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { downloadBlobFile } from '@/utils/downloadBlobFile';
+import { AccountingGapsPanel } from './AccountingGapsPanel';
+import { AccountingPreviewModal } from './AccountingPreviewModal';
 import { MonthPicker } from './MonthPicker';
 import { StatTile, StatTileRow } from './StatTile';
 import { formatHoursDecimal, formatRomanianDate } from './timesheetFormat';
@@ -94,6 +98,9 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [reopening, setReopening] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [gapsOpen, setGapsOpen] = useState(false);
+  const [resolvingGaps, setResolvingGaps] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [role, setRole] = useState(ALL_ROLES);
@@ -126,37 +133,6 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
-  /** The gaps are flagged, never blocking: the document is generated either way. */
-  function warnAboutGaps(current: AccountingTimesheetResponse | null) {
-    if (current && current.totals.missingDays > 0) {
-      showToast(
-        `${formatMissingDays(current.totals.missingDays)} la ${
-          current.totals.missingDaysPersons === 1
-            ? '1 persoană'
-            : `${current.totals.missingDaysPersons} persoane`
-        } — apar goale în document.`,
-        'error',
-      );
-    }
-  }
-
-  async function generate() {
-    setLoading(true);
-    setError(null);
-    try {
-      const next = await getAccountingTimesheet(month);
-      setReport(next);
-      setGeneratedAt(new Date());
-      showToast(`Pontaj generat pentru ${formatMonthLabel(month).toLowerCase()}`, 'success');
-      warnAboutGaps(next);
-    } catch (caught) {
-      setReport(null);
-      setError(apiErrorToastMessage(caught));
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function handleExport() {
     setExporting(true);
     try {
@@ -166,12 +142,43 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
         `Document generat — ${formatMonthLabel(month).toLowerCase()} este marcată ca exportată.`,
         'success',
       );
-      warnAboutGaps(report);
+      setPreviewOpen(false);
       await load(month);
     } catch (caught) {
       showToast(apiErrorToastMessage(caught), 'error');
     } finally {
       setExporting(false);
+    }
+  }
+
+  /**
+   * The document never goes out with a blank working day on it: while there
+   * are gaps, the export stops at the dialog that fills them.
+   */
+  function requestExport() {
+    if (report && report.totals.missingDays > 0) {
+      setGapsOpen(true);
+      return;
+    }
+    void handleExport();
+  }
+
+  async function handleGapsConfirm(resolutions: ResolveAccountingDaysInput['resolutions']) {
+    setResolvingGaps(true);
+    try {
+      const result = await resolveAccountingDays({ month, resolutions });
+      showToast(
+        `${result.resolved === 1 ? '1 zi completată' : `${result.resolved} zile completate`}${
+          result.skipped > 0 ? `, ${result.skipped} sărite (aveau deja pontaj sau concediu)` : ''
+        }.`,
+        'success',
+      );
+      setGapsOpen(false);
+      await handleExport();
+    } catch (caught) {
+      showToast(apiErrorToastMessage(caught), 'error');
+    } finally {
+      setResolvingGaps(false);
     }
   }
 
@@ -229,6 +236,14 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
               title="Colaborator extern — fără număr fix de zile"
             >
               extern
+            </span>
+          ) : null}
+          {line.isAutoPresent ? (
+            <span
+              className="shrink-0 rounded border border-border px-1.5 py-px text-[10px] font-medium uppercase tracking-wide text-text-muted"
+              title="Prezență automată — nu pontează; prezent în fiecare zi lucrătoare fără concediu"
+            >
+              auto
             </span>
           ) : null}
         </span>
@@ -312,7 +327,7 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
           <button
             type="button"
             disabled={exporting || loading || lines.length === 0}
-            onClick={() => void handleExport()}
+            onClick={requestExport}
             title="Descarcă documentul pentru contabilitate și marchează luna ca exportată"
             className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary disabled:opacity-50 sm:px-4 sm:py-2 sm:text-sm"
           >
@@ -324,15 +339,16 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
           </button>
           <button
             type="button"
-            disabled={loading}
-            onClick={() => void generate()}
+            disabled={loading || !report}
+            onClick={() => setPreviewOpen(true)}
+            title="Arată documentul exact așa cum va fi exportat"
             className="inline-flex items-center gap-2 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-contrast transition-opacity hover:opacity-90 disabled:opacity-60 sm:px-4 sm:py-2 sm:text-sm"
           >
             <i
-              className={`ti ${loading ? 'ti-loader-2 animate-spin' : 'ti-file-invoice'} text-base`}
+              className={`ti ${loading ? 'ti-loader-2 animate-spin' : 'ti-eye'} text-base`}
               aria-hidden="true"
             />
-            Generează pontaj
+            Vizualizează pontaj
           </button>
         </div>
       </div>
@@ -377,7 +393,7 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
         </div>
         {generatedAt ? (
           <span className="ml-auto hidden text-xs text-text-muted sm:inline">
-            generat {formatGeneratedAt(generatedAt)}
+            actualizat {formatGeneratedAt(generatedAt)}
           </span>
         ) : null}
       </div>
@@ -418,8 +434,8 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
                 ? '1 persoană'
                 : `${totals.missingDaysPersons} persoane`}
             </span>{' '}
-            — zile lucrătoare fără pontaj și fără concediu aprobat. Apar goale în document, de
-            completat de contabilitate (AN, INV, DS…). Detaliile sunt pe fiecare rând.
+            — zile lucrătoare fără pontaj și fără concediu aprobat. Exportul se oprește întâi la
+            fereastra în care alegi pentru fiecare: prezent, concediu sau liber.
           </div>
         </div>
       ) : null}
@@ -521,12 +537,36 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
         <p className="mt-3 text-xs text-text-muted">
           {hasFilters ? `Se afișează ${visibleLines.length} din ${lines.length} persoane. ` : ''}
           Personalul office nu apare pe pontaj. Colaboratorii externi apar cu zilele lucrate, dar
-          fără zile lipsă și fără ore suplimentare — nu au un număr fix de zile. Orele normale sunt
-          orele pontate fără cele peste program; orele suplimentare sunt doar cele aprobate pentru
-          plată. În document, o zi cu pontaj sau cu recuperare aprobată e X, concediile apar cu
-          codul lor (CO, CM, CFP), iar sâmbetele lucrate se numără separat. „Exportă” descarcă
-          documentul și marchează luna ca exportată — reversibil.
+          fără zile lipsă și fără ore suplimentare — nu au un număr fix de zile. Persoanele cu
+          „prezență automată” (conducere, contabilitate) nu pontează: apar prezente în fiecare zi
+          lucrătoare fără concediu aprobat. Orele normale sunt orele pontate fără cele peste
+          program; orele suplimentare sunt doar cele aprobate pentru plată. În document, o zi cu
+          pontaj sau cu recuperare aprobată e X, concediile apar cu codul lor (CO, CM, CFP), iar
+          sâmbetele lucrate se numără separat. „Exportă” descarcă documentul și marchează luna ca
+          exportată — reversibil.
         </p>
+      ) : null}
+
+      {previewOpen && report ? (
+        <AccountingPreviewModal
+          open
+          month={month}
+          report={report}
+          exporting={exporting}
+          onClose={() => setPreviewOpen(false)}
+          onExport={requestExport}
+        />
+      ) : null}
+
+      {gapsOpen ? (
+        <AccountingGapsPanel
+          open
+          month={month}
+          lines={lines.filter((line) => line.missingWorkingDays.length > 0)}
+          busy={resolvingGaps}
+          onCancel={() => setGapsOpen(false)}
+          onConfirm={(resolutions) => void handleGapsConfirm(resolutions)}
+        />
       ) : null}
     </div>
   );

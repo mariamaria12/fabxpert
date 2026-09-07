@@ -7,6 +7,7 @@ import {
   deleteUser,
   listPersons,
   listUsers,
+  updatePerson,
   updateUser,
   updateUserSchema,
   type PersonDto,
@@ -32,6 +33,8 @@ interface UserFormValues {
   isActive: boolean;
   restrictedProjects: boolean;
   isOfficeUser: boolean;
+  /** Lives on the person, not the account — saved with a separate call. */
+  autoPresence: boolean;
 }
 
 const EMPTY_FORM: UserFormValues = {
@@ -42,6 +45,7 @@ const EMPTY_FORM: UserFormValues = {
   isActive: true,
   restrictedProjects: false,
   isOfficeUser: false,
+  autoPresence: false,
 };
 
 function userToFormValues(user: UserDto): UserFormValues {
@@ -53,6 +57,7 @@ function userToFormValues(user: UserDto): UserFormValues {
     isActive: user.isActive,
     restrictedProjects: user.restrictedProjects,
     isOfficeUser: user.isOfficeUser,
+    autoPresence: user.person.autoPresence,
   };
 }
 
@@ -294,6 +299,9 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
       setIsSubmitting(true);
       try {
         await createUser(parsed.data);
+        if (values.autoPresence) {
+          await updatePerson(values.personId, { autoPresence: true });
+        }
         showToast('Utilizator adăugat', 'success');
         onSaved();
         onClose();
@@ -318,8 +326,9 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
     }
 
     const payload = buildUpdatePayload(user, values);
+    const autoPresenceChanged = values.autoPresence !== user.person.autoPresence;
 
-    if (Object.keys(payload).length === 0) {
+    if (Object.keys(payload).length === 0 && !autoPresenceChanged) {
       showToast('Nicio modificare de salvat', 'success');
       onClose();
       return;
@@ -333,7 +342,11 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
 
     setIsSubmitting(true);
     try {
-      const saved = await updateUser(user.id, parsed.data);
+      let saved = Object.keys(payload).length > 0 ? await updateUser(user.id, parsed.data) : user;
+      if (autoPresenceChanged) {
+        await updatePerson(values.personId, { autoPresence: values.autoPresence });
+        saved = { ...saved, person: { ...saved.person, autoPresence: values.autoPresence } };
+      }
       showToast('Utilizator actualizat', 'success');
       onSaved(saved);
       onClose();
@@ -428,7 +441,11 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
       disableClose={isBusy}
       footer={footer}
     >
-      <form id="user-form" onSubmit={(event) => void handleSubmit(event)} className="flex flex-col gap-4">
+      <form
+        id="user-form"
+        onSubmit={(event) => void handleSubmit(event)}
+        className="flex flex-col gap-4"
+      >
         <TextField
           id="email"
           label="E-mail"
@@ -510,18 +527,33 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
         <label className="inline-flex items-start gap-2 text-sm text-text-secondary">
           <input
             type="checkbox"
+            checked={values.autoPresence}
+            disabled={isBusy || !values.personId}
+            onChange={(event) => updateField('autoPresence', event.target.checked)}
+            className="mt-0.5 size-4 rounded border-border accent-accent"
+          />
+          <span>
+            Prezență automată
+            <span className="mt-0.5 block text-xs text-text-muted">
+              Nu pontează în aplicație (conducere, contabilitate). Pe pontajul pentru contabilitate
+              apare prezent în fiecare zi lucrătoare fără concediu aprobat; nu are ore suplimentare.
+              Se salvează pe persoană, nu pe cont.
+            </span>
+          </span>
+        </label>
+
+        <label className="inline-flex items-start gap-2 text-sm text-text-secondary">
+          <input
+            type="checkbox"
             checked={values.restrictedProjects}
             disabled={isBusy}
-            onChange={(event) =>
-              updateField('restrictedProjects', event.target.checked)
-            }
+            onChange={(event) => updateField('restrictedProjects', event.target.checked)}
             className="mt-0.5 size-4 rounded border-border accent-accent"
           />
           <span>
             Vede doar proiecte alocate specific
             <span className="mt-0.5 block text-xs text-text-muted">
-              Ascunde proiectele vizibile pentru „Toți”; rămân doar cele atribuite
-              funcției sale.
+              Ascunde proiectele vizibile pentru „Toți”; rămân doar cele atribuite funcției sale.
             </span>
           </span>
         </label>

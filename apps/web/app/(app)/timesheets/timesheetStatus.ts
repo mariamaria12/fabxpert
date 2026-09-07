@@ -23,6 +23,9 @@ export function accountingStatusBadgeClassName(status: AccountingTimesheetStatus
 /** A settlement line is either approved (a row exists) or still waiting. */
 export function approvalBadge(settledAt: string | null): { label: string; className: string } {
   return settledAt === null
-    ? { label: 'În așteptare', className: 'bg-status-in-productie-bg text-status-in-productie-text' }
+    ? {
+        label: 'În așteptare',
+        className: 'bg-status-in-productie-bg text-status-in-productie-text',
+      }
     : { label: 'Aprobat', className: 'bg-status-livrat-bg text-status-livrat-text' };
 }

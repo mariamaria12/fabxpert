@@ -2,6 +2,8 @@ import { request, requestBlob } from './client';
 import type {
   AccountingTimesheetResponse,
   ReopenAccountingMonthResponse,
+  ResolveAccountingDaysInput,
+  ResolveAccountingDaysResponse,
   OvertimeApprovalsPendingResponse,
   OvertimeBalanceDto,
   OvertimeBalancesResponse,
@@ -69,6 +71,17 @@ export function getAccountingTimesheet(month: string) {
 export function exportAccountingTimesheetXlsx(month: string) {
   return requestBlob(`/overtime/accounting/export?month=${encodeURIComponent(month)}`, {
     method: 'POST',
+  });
+}
+
+/**
+ * Admin only. Fills working days that have neither a pontaj nor leave: an X
+ * with no hours, or an approved single-day leave.
+ */
+export function resolveAccountingDays(input: ResolveAccountingDaysInput) {
+  return request<ResolveAccountingDaysResponse>('/overtime/accounting/resolve-days', {
+    method: 'POST',
+    body: JSON.stringify(input),
   });
 }
 

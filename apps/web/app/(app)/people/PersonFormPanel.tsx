@@ -44,7 +44,9 @@ function personToFormValues(person: PersonDto): PersonFormValues {
   };
 }
 
-function mapZodFieldErrors(error: { flatten: () => { fieldErrors: Record<string, string[] | undefined> } }) {
+function mapZodFieldErrors(error: {
+  flatten: () => { fieldErrors: Record<string, string[] | undefined> };
+}) {
   const flat = error.flatten().fieldErrors;
   const mapped: Partial<Record<keyof PersonFormValues, string>> = {};
 
@@ -86,7 +88,9 @@ export interface PersonFormPanelProps {
 export function PersonFormPanel({ open, mode, person, onClose, onSaved }: PersonFormPanelProps) {
   const { showToast } = useToast();
   const [values, setValues] = useState<PersonFormValues>(EMPTY_FORM);
-  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof PersonFormValues, string>>>({});
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof PersonFormValues, string>>>(
+    {},
+  );
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -278,7 +282,11 @@ export function PersonFormPanel({ open, mode, person, onClose, onSaved }: Person
       disableClose={isBusy}
       footer={footer}
     >
-      <form id="person-form" onSubmit={(event) => void handleSubmit(event)} className="flex flex-col gap-4">
+      <form
+        id="person-form"
+        onSubmit={(event) => void handleSubmit(event)}
+        className="flex flex-col gap-4"
+      >
         <TextField
           id="firstName"
           label="Prenume"

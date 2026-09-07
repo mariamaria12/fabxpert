@@ -5,6 +5,8 @@ import type {
   AccountingTimesheetResponse,
   OvertimeApprovalsPendingResponse,
   ReopenAccountingMonthResponse,
+  ResolveAccountingDaysInput,
+  ResolveAccountingDaysResponse,
   OvertimeBalanceDto,
   OvertimeBalancePersonDto,
   OvertimeBalancesResponse,
@@ -25,6 +27,7 @@ import {
   isSameWorkDate,
   isWorkingDate,
   normalizeWorkDate,
+  parseWorkDateString,
   todayWorkDate,
   workDateToDayKey,
 } from '@fabxpert/shared/workDate';
@@ -351,8 +354,8 @@ export class OvertimeService {
 
     // Office staff are not on the pontaj; external collaborators are, but
     // without a fixed number of days, so nothing counts as missing for them.
-    const [persons, settledRows, source, pendingLines, exportRow] = await Promise.all([
-      this.listPersons({ includeExternal: true, includeOffice: false }),
+    const [persons, settledRows, source, pendingLines, exportRow, presences] = await Promise.all([
+      this.listPersons({ includeExternal: true, includeOffice: false, includeAutoPresent: true }),
       this.prisma.overtimeSettlement.findMany({
         where: { month: monthStart },
         select: { personId: true, paidMinutes: true, settledAt: true },
@@ -360,7 +363,19 @@ export class OvertimeService {
       this.loadOvertimeSource({ from: monthStart, to: nextMonth }),
       monthInProgress ? Promise.resolve([]) : this.buildSettlementLines(monthStart, {}),
       this.findAccountingExport(monthStart),
+      this.prisma.accountingPresence.findMany({
+        where: { workDate: { gte: monthStart, lt: nextMonth } },
+        select: { personId: true, workDate: true },
+      }),
     ]);
+
+    // Days an admin marked present by hand while generating an earlier pontaj.
+    const presenceByPerson = new Map<string, Set<string>>();
+    for (const row of presences) {
+      const days = presenceByPerson.get(row.personId) ?? new Set<string>();
+      days.add(workDateToDayKey(row.workDate));
+      presenceByPerson.set(row.personId, days);
+    }
 
     const settledByPerson = new Map(settledRows.map((row) => [row.personId, row]));
     const pendingByPerson = new Map(
@@ -379,6 +394,9 @@ export class OvertimeService {
       const settled = settledByPerson.get(person.id) ?? null;
       const pending = pendingByPerson.get(person.id) ?? null;
       const isExternal = isExternalPerson(person);
+      // Never logs time: present on every working day so far, unless on leave.
+      const isAutoPresent = person.autoPresence;
+      const markedPresent = presenceByPerson.get(person.id) ?? new Set<string>();
 
       // One code per calendar day. Weekends stay blank on purpose: a Saturday
       // is counted separately, a Sunday's hours go to overtime.
@@ -391,7 +409,11 @@ export class OvertimeService {
       ) {
         const dayKey = workDateToDayKey(cursor);
         const leave = leaveByDay.get(dayKey);
-        const worked = (loggedByDay.get(dayKey) ?? 0) > 0;
+        const isPast = cursor.getTime() < today.getTime();
+        const worked =
+          (loggedByDay.get(dayKey) ?? 0) > 0 ||
+          markedPresent.has(dayKey) ||
+          (isAutoPresent && cursor.getTime() <= today.getTime());
         const isWorking = isWorkingDate(cursor);
 
         let code = '';
@@ -402,7 +424,7 @@ export class OvertimeService {
         }
         dayCodes.push(code);
 
-        if (!isExternal && isWorking && code === '' && cursor.getTime() < today.getTime()) {
+        if (!isExternal && !isAutoPresent && isWorking && code === '' && isPast) {
           missingWorkingDays.push(dayKey);
         }
       }
@@ -422,6 +444,7 @@ export class OvertimeService {
       return {
         person: toBalancePerson(person),
         isExternal,
+        isAutoPresent,
         loggedMinutes,
         ...split,
         saturdaysWorked: activity.saturdaysWorked,
@@ -476,6 +499,72 @@ export class OvertimeService {
     const buffer = await buildAccountingTimesheetXlsx(report);
 
     return { buffer, filename: buildAccountingTimesheetFilename(report.month), report };
+  }
+
+  /**
+   * Fills the days the admin decided on in the gaps dialog: "present" is an
+   * X with no hours behind it, anything else is an approved single-day leave
+   * written straight to the ledger so balances pick it up. A day that got a
+   * pontaj or leave in the meantime is skipped, never overwritten.
+   */
+  async resolveAccountingDays(
+    input: ResolveAccountingDaysInput,
+    actor: AuthenticatedUser,
+  ): Promise<ResolveAccountingDaysResponse> {
+    const monthStart = parseMonthString(input.month);
+    const nextMonth = startOfNextMonth(monthStart);
+    let resolved = 0;
+    let skipped = 0;
+
+    for (const item of input.resolutions) {
+      const workDate = parseWorkDateString(item.date);
+      if (workDate < monthStart || workDate >= nextMonth || !isWorkingDate(workDate)) {
+        throw new BadRequestException(`${item.date} is not a working day of ${input.month}`);
+      }
+
+      const [timesheets, leave] = await Promise.all([
+        this.prisma.timesheet.count({
+          where: { ...notDeleted(), personId: item.personId, workDate },
+        }),
+        this.prisma.leaveRequest.count({
+          where: {
+            ...notDeleted(),
+            personId: item.personId,
+            status: { in: ['IN_ASTEPTARE', 'APROBAT'] },
+            startDate: { lte: workDate },
+            endDate: { gte: workDate },
+          },
+        }),
+      ]);
+      if (timesheets > 0 || leave > 0) {
+        skipped += 1;
+        continue;
+      }
+
+      if (item.resolution === 'PRESENT') {
+        await this.prisma.accountingPresence.upsert({
+          where: { personId_workDate: { personId: item.personId, workDate } },
+          create: { personId: item.personId, workDate, markedByUserId: actor.id },
+          update: {},
+        });
+      } else {
+        await this.prisma.leaveRequest.create({
+          data: {
+            personId: item.personId,
+            type: item.resolution,
+            startDate: workDate,
+            endDate: workDate,
+            status: 'APROBAT',
+            reason: 'Completat la generarea pontajului pentru contabilitate',
+            reviewedByUserId: actor.id,
+            reviewedAt: new Date(),
+          },
+        });
+      }
+      resolved += 1;
+    }
+
+    return { resolved, skipped };
   }
 
   async reopenAccountingMonth(month: Date): Promise<ReopenAccountingMonthResponse> {
@@ -687,9 +776,17 @@ export class OvertimeService {
    * default and everyone with a login; the pontaj for accounting asks for the
    * external collaborators too and leaves the office staff out.
    */
-  private listPersons(scope: { includeExternal?: boolean; includeOffice?: boolean } = {}) {
+  private listPersons(
+    scope: {
+      includeExternal?: boolean;
+      includeOffice?: boolean;
+      includeAutoPresent?: boolean;
+    } = {},
+  ) {
     const includeExternal = scope.includeExternal ?? INCLUDE_EXTERNAL_EMPLOYEES;
     const includeOffice = scope.includeOffice ?? true;
+    // People on auto-presence never log time, so overtime leaves them out.
+    const includeAutoPresent = scope.includeAutoPresent ?? false;
 
     return this.prisma.person.findMany({
       where: {
@@ -699,13 +796,20 @@ export class OvertimeService {
           ...(includeExternal
             ? []
             : [{ OR: [{ user: null }, { user: { angajatExtern: false } }] }]),
-          ...(includeOffice ? [] : [{ OR: [{ user: null }, { user: { isOfficeUser: false } }] }]),
+          // Office staff stay off the pontaj unless auto-presence puts them on it.
+          ...(includeOffice
+            ? []
+            : [
+                { OR: [{ user: null }, { user: { isOfficeUser: false } }, { autoPresence: true }] },
+              ]),
+          ...(includeAutoPresent ? [] : [{ autoPresence: false }]),
         ],
       },
       select: {
         id: true,
         firstName: true,
         lastName: true,
+        autoPresence: true,
         employeeRole: { select: { name: true } },
         user: { select: { angajatExtern: true } },
       },
@@ -824,6 +928,7 @@ type PersonRow = {
   id: string;
   firstName: string;
   lastName: string;
+  autoPresence: boolean;
   employeeRole: { name: string } | null;
   user: { angajatExtern: boolean } | null;
 };

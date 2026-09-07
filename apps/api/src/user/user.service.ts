@@ -38,6 +38,7 @@ const userSelect = {
       id: true,
       firstName: true,
       lastName: true,
+      autoPresence: true,
       employeeRole: {
         select: { name: true },
       },
@@ -62,6 +63,7 @@ function toUserDto(user: UserWithPerson): UserDto {
       firstName: user.person.firstName,
       lastName: user.person.lastName,
       employeeRole: user.person.employeeRole,
+      autoPresence: user.person.autoPresence,
     },
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
@@ -178,9 +180,7 @@ export class UserService {
             : {}),
           // Admins are office accounts by definition; the flag is free for the rest.
           isOfficeUser: input.role === 'ADMIN' ? true : (input.isOfficeUser ?? false),
-          ...(input.angajatExtern !== undefined
-            ? { angajatExtern: input.angajatExtern }
-            : {}),
+          ...(input.angajatExtern !== undefined ? { angajatExtern: input.angajatExtern } : {}),
         },
         select: userSelect,
       });
@@ -295,10 +295,7 @@ export class UserService {
   }
 
   private handleUniqueViolation(error: unknown): never {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002'
-    ) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       const target = error.meta?.target;
       const fields = Array.isArray(target) ? target : [];
 

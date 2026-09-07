@@ -30,6 +30,7 @@ function toPersonDto(row: LeaveBalanceRowDto): PersonDto {
     phone: null,
     employeeRoleId: null,
     annualLeaveDays: row.person.annualLeaveDays,
+    autoPresence: false,
     employeeRole: row.person.employeeRole
       ? { id: '', name: row.person.employeeRole.name }
       : null,

@@ -50,6 +50,8 @@ export type UserPersonDto = {
   firstName: string;
   lastName: string;
   employeeRole: { name: string } | null;
+  /** Never logs time — present on the pontaj for accounting every working day without leave. */
+  autoPresence: boolean;
 };
 
 /** API-facing User shape — passwordHash is never exposed. */

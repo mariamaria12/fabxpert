@@ -13,6 +13,10 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { z } from 'zod';
+import {
+  resolveAccountingDaysSchema,
+  type ResolveAccountingDaysInput,
+} from '@fabxpert/shared/dto/overtime.dto';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
@@ -91,6 +95,17 @@ export class OvertimeController {
       'Content-Disposition': `attachment; filename="${filename}"`,
     });
     res.send(buffer);
+  }
+
+  /** Fills days without a pontaj or leave, as decided in the gaps dialog. */
+  @Post('accounting/resolve-days')
+  @Roles('ADMIN')
+  @HttpCode(HttpStatus.OK)
+  resolveAccountingDays(
+    @Body(new ZodValidationPipe(resolveAccountingDaysSchema)) input: ResolveAccountingDaysInput,
+    @Req() req: Request & { user: AuthenticatedUser },
+  ) {
+    return this.overtimeService.resolveAccountingDays(input, req.user);
   }
 
   /** Reopens a month closed by the export. */
