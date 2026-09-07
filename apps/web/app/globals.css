@@ -22,6 +22,51 @@ html {
   background-color: var(--color-bg);
 }
 
+/* Separators and notes inside the breakdown run the whole row — five columns
+   on a desktop card, four on a phone. */
+.panou-breakdown-full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 639px) {
+  /* On a phone the figures eat the whole row and the name is left with a
+     letter or two, so the name takes a line of its own and the percent, bar,
+     tonnes and hours line up underneath it. */
+  .panou-breakdown-grid {
+    grid-template-columns: 2rem minmax(2.5rem, 1fr) auto auto;
+    row-gap: 0.3rem;
+  }
+
+  .panou-breakdown-name {
+    grid-column: 1 / -1;
+  }
+
+  /* The "Progres" header sits over the three columns it labels. */
+  .panou-breakdown-progress-head {
+    grid-column: span 3 / span 3;
+  }
+
+  /* More air above a name than between it and its own figures, so each
+     activity still reads as one block. */
+  .panou-breakdown-grid > .panou-breakdown-name:not(:first-child) {
+    margin-top: 0.35rem;
+  }
+
+  /* An hours row has no percent and no tonnes, so its bar takes the columns
+     they would have used instead of leaving gaps down the middle. */
+  .panou-breakdown-hours-blank {
+    display: none;
+  }
+
+  .panou-breakdown-hours-bar {
+    grid-column: 1 / 4;
+  }
+
+  .panou-breakdown-hours-total {
+    grid-column: 4 / 5;
+  }
+}
+
 @media (min-width: 640px) {
   /* Panou → Proiecte, pinned cards at enlarged type — only from the sm
      breakpoint up. On a phone the enlarged columns overflow the card and the

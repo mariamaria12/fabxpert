@@ -9,11 +9,17 @@ import { PanouActivityProgressBar } from './PanouActivityProgressBar';
  * Name | percent | bar | pieces | hours. Every row feeds cells into this one
  * grid rather than owning its own, so the bars line up down the column no
  * matter how wide a row's piece count or duration happens to be. The plain
- * class is a hook for the enlarged pinned cards, which widen the numeric
- * columns in globals.css.
+ * class is a hook for globals.css: the enlarged pinned cards widen the numeric
+ * columns there, and phones drop the name onto a line of its own.
  */
 const BREAKDOWN_GRID =
   'panou-breakdown-grid grid grid-cols-[minmax(0,1fr)_2.25rem_3.5rem_auto_auto] items-center gap-x-2 gap-y-2';
+
+/** First cell of a row — the one phones give a full line to. */
+const NAME_CELL = 'panou-breakdown-name';
+
+/** Separators and notes, which run the whole width at either column count. */
+const FULL_ROW = 'panou-breakdown-full';
 
 /**
  * A tracked activity on a project whose list was never imported has nothing to
@@ -88,7 +94,7 @@ function AssemblyActivityCells({ activity }: { activity: ProjectSummaryActivityR
 
   return (
     <>
-      <div className="flex min-w-0 items-center gap-2">
+      <div className={`${NAME_CELL} flex min-w-0 items-center gap-2`}>
         <ActivityDot color={activity.activityColor} />
         <span className="truncate text-xs text-text-secondary">{activity.activityName}</span>
       </div>
@@ -120,18 +126,18 @@ function ActivityHoursCells({
 }) {
   return (
     <>
-      <div className="flex min-w-0 items-center gap-2">
+      <div className={`${NAME_CELL} flex min-w-0 items-center gap-2`}>
         <ActivityDot color={activity.activityColor} />
         <span className="truncate text-xs text-text-secondary">{activity.activityName}</span>
       </div>
-      <span aria-hidden="true" />
+      <span className="panou-breakdown-hours-blank" aria-hidden="true" />
       <PanouActivityProgressBar
-        className="w-full"
+        className="panou-breakdown-hours-bar w-full"
         color={activity.activityColor}
         percent={percent}
       />
-      <span aria-hidden="true" />
-      <span className="text-right font-mono text-[11px] tabular-nums text-text-muted">
+      <span className="panou-breakdown-hours-blank" aria-hidden="true" />
+      <span className="panou-breakdown-hours-total text-right font-mono text-[11px] tabular-nums text-text-muted">
         {formatDurationMinutes(activity.minutes)}
       </span>
     </>
@@ -157,7 +163,9 @@ function AssemblyTotalCells({ activities }: { activities: ProjectSummaryActivity
 
   return (
     <>
-      <span className="truncate pl-[14px] text-xs text-text-muted">Progres total ansamble</span>
+      <span className={`${NAME_CELL} truncate pl-[14px] text-xs text-text-muted`}>
+        Progres total ansamble
+      </span>
       <span className="text-right text-[11px] tabular-nums text-text-muted">
         {hasList ? `${percent}%` : ''}
       </span>
@@ -185,7 +193,7 @@ function WithoutWeightNote({ activities }: { activities: ProjectSummaryActivityR
   }
 
   return (
-    <span className="col-span-5 text-[10px] text-warning-text">
+    <span className={`${FULL_ROW} text-[10px] text-warning-text`}>
       {count === 1
         ? 'Un ansamblu nu are greutate pe bucată'
         : `${count} ansamble nu au greutate pe bucată`}{' '}
@@ -210,8 +218,10 @@ export function ActivityBreakdownRows({
     <div className={BREAKDOWN_GRID}>
       {assemblyActivities.length > 0 && (
         <>
-          <span className="text-[10px] uppercase tracking-wide text-text-muted">Activitate</span>
-          <span className="col-span-3 text-[10px] uppercase tracking-wide text-text-muted">
+          <span className={`${NAME_CELL} text-[10px] uppercase tracking-wide text-text-muted`}>
+            Activitate
+          </span>
+          <span className="panou-breakdown-progress-head col-span-3 text-[10px] uppercase tracking-wide text-text-muted">
             Progres
           </span>
           <span className="text-right text-[10px] uppercase tracking-wide text-text-muted">
@@ -224,7 +234,7 @@ export function ActivityBreakdownRows({
 
           {assemblyActivities.length > 1 && (
             <>
-              <hr className="col-span-5 border-t border-border-subtle" />
+              <hr className={`${FULL_ROW} border-t border-border-subtle`} />
               <AssemblyTotalCells activities={assemblyActivities} />
             </>
           )}
@@ -234,7 +244,7 @@ export function ActivityBreakdownRows({
       )}
 
       {assemblyActivities.length > 0 && hoursActivities.length > 0 && (
-        <hr className="col-span-5 border-t border-border-subtle" />
+        <hr className={`${FULL_ROW} border-t border-border-subtle`} />
       )}
 
       {hoursActivities.map((activity) => (
