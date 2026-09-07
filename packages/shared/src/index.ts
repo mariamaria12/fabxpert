@@ -503,7 +503,9 @@ export {
   assemblyRemainingForActivity,
   isAssemblyOverDone,
   assemblyHasOverDoneActivity,
+  assemblyListWeight,
 } from './assemblyProgress';
+export type { AssemblyListWeight } from './assemblyProgress';
 export { normalizeProfileKey, toProfileKey } from './steelProfile';
 export { parseTsvRows } from './tsv';
 export type { TimesheetAssemblyDto, TimesheetAssemblyInput } from './dto/timesheet.dto';

@@ -3,6 +3,7 @@
 import {
   ApiError,
   assemblyDoneForActivity,
+  assemblyListWeight,
   createProjectAssembly,
   deleteProjectAssembly,
   listProjectAssemblies,
@@ -17,6 +18,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { WeldingLoader } from '@/components/WeldingLoader';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { formatProjectWeight } from '@/utils/projectWeight';
 import { AssemblyImportScreen } from './AssemblyImportScreen';
 
 /**
@@ -425,6 +427,7 @@ export function AssemblyListScreen({
   }
 
   const totalPieces = assemblies.reduce((sum, assembly) => sum + assembly.quantity, 0);
+  const listWeight = assemblyListWeight(assemblies);
   const isBusy = isSaving || isOverwriting;
   const removedAssemblies = assemblies.filter((assembly) => removedIds.has(assembly.id));
   const removedWithProgress = removedAssemblies.filter(hasProgress).length;
@@ -930,6 +933,24 @@ export function AssemblyListScreen({
                   {assemblies.length === 1 ? 'ansamblu' : 'ansamble'} ·{' '}
                   <span className="font-medium text-text-primary">{totalPieces}</span>{' '}
                   {totalPieces === 1 ? 'bucată' : 'bucăți'}
+                  {listWeight.weightKg !== null && (
+                    <>
+                      {' '}
+                      ·{' '}
+                      <span className="font-medium text-text-primary">
+                        {formatProjectWeight(listWeight.weightKg)}
+                      </span>
+                    </>
+                  )}
+                  {listWeight.withoutWeight > 0 && (
+                    <span className="text-warning-text">
+                      {' '}
+                      ·{' '}
+                      {listWeight.withoutWeight === 1
+                        ? 'un ansamblu fără greutate'
+                        : `${listWeight.withoutWeight} ansamble fără greutate`}
+                    </span>
+                  )}
                 </p>
 
                 {error && (

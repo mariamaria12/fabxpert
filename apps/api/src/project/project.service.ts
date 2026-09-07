@@ -165,9 +165,21 @@ function roleIdsEqual(left: string[], right: string[]): boolean {
   return sortedLeft.every((id, index) => id === sortedRight[index]);
 }
 
-function toProjectDto(project: ProjectWithRelations): ProjectDto;
-function toProjectDto(project: ProjectListRow, compact: true): ProjectDto;
-function toProjectDto(project: ProjectWithRelations | ProjectListRow, compact = false): ProjectDto {
+function toProjectDto(
+  project: ProjectWithRelations,
+  compact?: false,
+  assembliesWithoutWeight?: number,
+): ProjectDto;
+function toProjectDto(
+  project: ProjectListRow,
+  compact: true,
+  assembliesWithoutWeight?: number,
+): ProjectDto;
+function toProjectDto(
+  project: ProjectWithRelations | ProjectListRow,
+  compact = false,
+  assembliesWithoutWeight = 0,
+): ProjectDto {
   return {
     id: project.id,
     name: project.name,
@@ -189,6 +201,7 @@ function toProjectDto(project: ProjectWithRelations | ProjectListRow, compact = 
     company: project.company,
     visibleForRoles: compact ? [] : (project as ProjectWithRelations).visibleForRoles,
     assemblyCount: project._count.assemblies,
+    assembliesWithoutWeight,
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString(),
   };
@@ -282,10 +295,16 @@ export class ProjectService {
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
+    const withoutWeight = await this.countAssembliesWithoutWeight(rows.map((row) => row.id));
+
     return {
       data: compact
-        ? (rows as ProjectListRow[]).map((row) => toProjectDto(row, true))
-        : (rows as ProjectWithRelations[]).map((row) => toProjectDto(row)),
+        ? (rows as ProjectListRow[]).map((row) =>
+            toProjectDto(row, true, withoutWeight.get(row.id)),
+          )
+        : (rows as ProjectWithRelations[]).map((row) =>
+            toProjectDto(row, false, withoutWeight.get(row.id)),
+          ),
       meta: { page, pageSize, total, totalPages },
     };
   }
@@ -298,7 +317,8 @@ export class ProjectService {
     if (!project) {
       throw new NotFoundException(`Project with id ${id} not found`);
     }
-    return toProjectDto(project);
+    const withoutWeight = await this.countAssembliesWithoutWeight([id]);
+    return toProjectDto(project, false, withoutWeight.get(id));
   }
 
   /**
@@ -438,6 +458,11 @@ export class ProjectService {
     }
 
     const { visibleForRoleIds, isPinned, ...scalarInput } = input;
+    // Once a list exists the weight is the list's total, not a form field —
+    // a stale form must not write over what the list just computed.
+    if (existing.assemblyCount > 0) {
+      delete scalarInput.weight;
+    }
     if (visibleForRoleIds !== undefined) {
       await this.assertVisibleForRoleIds(visibleForRoleIds);
     }
@@ -507,7 +532,7 @@ export class ProjectService {
         this.availabilityEvents.emitChanged();
       }
 
-      return toProjectDto(project);
+      return toProjectDto(project, false, existing.assembliesWithoutWeight);
     } catch (error) {
       this.handleUniqueViolation(error);
     }
@@ -564,6 +589,23 @@ export class ProjectService {
     if (existing.readyForExecution) {
       this.availabilityEvents.emitChanged();
     }
+  }
+
+  /** Lines without a weight per piece, per project — what the computed weight leaves out. */
+  private async countAssembliesWithoutWeight(
+    projectIds: string[],
+  ): Promise<Map<string, number>> {
+    if (projectIds.length === 0) {
+      return new Map();
+    }
+
+    const groups = await this.prisma.projectAssembly.groupBy({
+      by: ['projectId'],
+      where: { projectId: { in: projectIds }, weightPerPiece: null, ...notDeleted() },
+      _count: { _all: true },
+    });
+
+    return new Map(groups.map((group) => [group.projectId, group._count._all]));
   }
 
   private async getNextPanouSlot(): Promise<{ panouColumn: number; indexPanou: number }> {

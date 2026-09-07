@@ -17,6 +17,7 @@ import type {
   UpdateProjectAssemblyInput,
 } from '@fabxpert/shared/dto/assembly.dto';
 import { parseAssemblyImport, parseAssemblyRows } from '@fabxpert/shared/assemblyImport';
+import { assemblyListWeight } from '@fabxpert/shared/assemblyProgress';
 import { toProfileKey } from '@fabxpert/shared/steelProfile';
 import { notDeleted } from '../common/prisma/soft-delete.util';
 import {
@@ -147,6 +148,8 @@ export class AssemblyService {
           },
         });
 
+    await this.syncProjectWeight(projectId);
+
     const progress = await loadAssemblyProgress(this.prisma, [assembly.id]);
     return toAssemblyDto(assembly, progress.get(assembly.id) ?? []);
   }
@@ -185,6 +188,8 @@ export class AssemblyService {
       throw caught;
     }
 
+    await this.syncProjectWeight(assembly.projectId);
+
     const progress = await loadAssemblyProgress(this.prisma, [assembly.id]);
     return toAssemblyDto(assembly, progress.get(assembly.id) ?? []);
   }
@@ -195,6 +200,24 @@ export class AssemblyService {
       where: { id: existing.id },
       data: { deletedAt: new Date() },
     });
+    await this.syncProjectWeight(existing.projectId);
+  }
+
+  /**
+   * The project's weight is the list's weight: pieces times kilograms per
+   * piece, over every line that has one. Runs after any change to the list so
+   * the two never drift. Lines without a weight are left out — the count of
+   * them travels with the project so the total can be shown as partial. An
+   * empty list hands the field back to manual entry.
+   */
+  private async syncProjectWeight(projectId: string): Promise<void> {
+    const rows = await this.prisma.projectAssembly.findMany({
+      where: { projectId, ...notDeleted() },
+      select: { quantity: true, weightPerPiece: true },
+    });
+
+    const weight = rows.length > 0 ? assemblyListWeight(rows).weightKg : null;
+    await this.prisma.project.update({ where: { id: projectId }, data: { weight } });
   }
 
   /** Read a pasted list without saving anything, for the preview table. */
@@ -365,6 +388,8 @@ export class AssemblyService {
       },
       { timeout: 120_000 },
     );
+
+    await this.syncProjectWeight(projectId);
 
     return { created: creates.length, updated: updates.length, skipped, deleted, issues };
   }

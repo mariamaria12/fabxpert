@@ -2,6 +2,7 @@
 
 import type { ProjectSummaryActivityRow } from '@fabxpert/shared';
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
+import { formatProjectWeight } from '@/utils/projectWeight';
 import { PanouActivityProgressBar } from './PanouActivityProgressBar';
 
 /**
@@ -36,6 +37,36 @@ function toPercent(done: number, total: number): number {
   return total > 0 ? Math.min(Math.round((done / total) * 100), 100) : 0;
 }
 
+/**
+ * Tonnes lead once the list carries weights; a list without any falls back to
+ * pieces. Absent weights (an API older than the web) read as "no weights".
+ */
+function progressFigures(progress: {
+  piecesDone: number;
+  piecesTotal: number;
+  weightDoneKg?: number;
+  weightTotalKg?: number;
+}): { percent: number; label: string; hasList: boolean } {
+  const weightTotal = progress.weightTotalKg ?? 0;
+  if (weightTotal > 0) {
+    const weightDone = progress.weightDoneKg ?? 0;
+    return {
+      percent: toPercent(weightDone, weightTotal),
+      label: `${formatProjectWeight(weightDone).replace(/ t$/, '')} / ${formatProjectWeight(weightTotal)}`,
+      hasList: true,
+    };
+  }
+
+  const hasList = progress.piecesTotal > 0;
+  return {
+    percent: toPercent(progress.piecesDone, progress.piecesTotal),
+    label: hasList
+      ? `${progress.piecesDone} / ${progress.piecesTotal} buc.`
+      : `${progress.piecesDone} buc.`,
+    hasList,
+  };
+}
+
 function ActivityDot({ color }: { color: string | null }) {
   return (
     <span
@@ -53,9 +84,7 @@ function AssemblyActivityCells({ activity }: { activity: ProjectSummaryActivityR
     return null;
   }
 
-  const { piecesDone, piecesTotal } = progress;
-  const hasList = piecesTotal > 0;
-  const percent = toPercent(piecesDone, piecesTotal);
+  const { percent, label, hasList } = progressFigures(progress);
 
   return (
     <>
@@ -72,7 +101,7 @@ function AssemblyActivityCells({ activity }: { activity: ProjectSummaryActivityR
         percent={percent}
       />
       <span className="whitespace-nowrap font-mono text-[11px] tabular-nums text-text-muted">
-        {hasList ? `${piecesDone} / ${piecesTotal} buc.` : `${piecesDone} buc.`}
+        {label}
       </span>
       <span className="text-right font-mono text-[11px] tabular-nums text-text-muted">
         {formatDurationMinutes(activity.minutes)}
@@ -114,21 +143,23 @@ function ActivityHoursCells({
  * the same list, so the denominator is the list once per activity.
  */
 function AssemblyTotalCells({ activities }: { activities: ProjectSummaryActivityRow[] }) {
-  const piecesDone = activities.reduce(
-    (sum, activity) => sum + (activity.assemblyProgress?.piecesDone ?? 0),
-    0,
-  );
-  const piecesTotal = activities.reduce(
-    (sum, activity) => sum + (activity.assemblyProgress?.piecesTotal ?? 0),
-    0,
-  );
-  const percent = toPercent(piecesDone, piecesTotal);
+  const sum = (pick: (progress: NonNullable<ProjectSummaryActivityRow['assemblyProgress']>) => number) =>
+    activities.reduce(
+      (total, activity) => total + (activity.assemblyProgress ? pick(activity.assemblyProgress) : 0),
+      0,
+    );
+  const { percent, label, hasList } = progressFigures({
+    piecesDone: sum((progress) => progress.piecesDone),
+    piecesTotal: sum((progress) => progress.piecesTotal),
+    weightDoneKg: sum((progress) => progress.weightDoneKg ?? 0),
+    weightTotalKg: sum((progress) => progress.weightTotalKg ?? 0),
+  });
 
   return (
     <>
       <span className="truncate pl-[14px] text-xs text-text-muted">Progres total ansamble</span>
       <span className="text-right text-[11px] tabular-nums text-text-muted">
-        {piecesTotal > 0 ? `${percent}%` : ''}
+        {hasList ? `${percent}%` : ''}
       </span>
       <PanouActivityProgressBar
         className="w-full"
@@ -136,10 +167,30 @@ function AssemblyTotalCells({ activities }: { activities: ProjectSummaryActivity
         percent={percent}
       />
       <span className="whitespace-nowrap font-mono text-[11px] tabular-nums text-text-muted">
-        {piecesDone} / {piecesTotal} buc.
+        {label}
       </span>
       <span aria-hidden="true" />
     </>
+  );
+}
+
+/** Lines the tonnes leave out. Same for every activity, so it is said once. */
+function WithoutWeightNote({ activities }: { activities: ProjectSummaryActivityRow[] }) {
+  const count = Math.max(
+    0,
+    ...activities.map((activity) => activity.assemblyProgress?.assembliesWithoutWeight ?? 0),
+  );
+  if (count === 0) {
+    return null;
+  }
+
+  return (
+    <span className="col-span-5 text-[10px] text-warning-text">
+      {count === 1
+        ? 'Un ansamblu nu are greutate pe bucată'
+        : `${count} ansamble nu au greutate pe bucată`}{' '}
+      — tonele sunt parțiale.
+    </span>
   );
 }
 
@@ -177,6 +228,8 @@ export function ActivityBreakdownRows({
               <AssemblyTotalCells activities={assemblyActivities} />
             </>
           )}
+
+          <WithoutWeightNote activities={assemblyActivities} />
         </>
       )}
 

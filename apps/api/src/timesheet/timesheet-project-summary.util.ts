@@ -186,6 +186,8 @@ export type ProjectSummaryAssemblyDoneSqlRow = {
   projectId: string;
   activityId: string;
   piecesDone: number | bigint;
+  /** Kilograms closed; lines without a weight per piece add nothing. */
+  weightDoneKg: number | null;
 };
 
 export type ProjectSummaryAssemblyTotalSqlRow = {
@@ -193,6 +195,10 @@ export type ProjectSummaryAssemblyTotalSqlRow = {
   piecesTotal: number | bigint;
   /** Lines on the list, regardless of quantity. */
   assemblyCount: number | bigint;
+  /** Kilograms the list holds, over the lines that carry a weight. */
+  weightTotalKg: number | null;
+  /** Lines with no weight per piece. */
+  assembliesWithoutWeight: number | bigint;
 };
 
 /**
@@ -205,7 +211,8 @@ export function buildProjectSummaryAssemblyDoneQuery(projectIds: string[]) {
     SELECT
       t."projectId" AS "projectId",
       ta."activityId" AS "activityId",
-      SUM(ta."quantityDone")::int AS "piecesDone"
+      SUM(ta."quantityDone")::int AS "piecesDone",
+      SUM(ta."quantityDone" * COALESCE(pa."weightPerPiece", 0))::float AS "weightDoneKg"
     FROM timesheet_assemblies ta
     INNER JOIN timesheets t ON t.id = ta."timesheetId" AND t."deletedAt" IS NULL
     INNER JOIN project_assemblies pa ON pa.id = ta."assemblyId" AND pa."deletedAt" IS NULL
@@ -223,7 +230,9 @@ export function buildProjectSummaryAssemblyTotalQuery(projectIds: string[]) {
     SELECT
       pa."projectId" AS "projectId",
       SUM(pa.quantity)::int AS "piecesTotal",
-      COUNT(*)::int AS "assemblyCount"
+      COUNT(*)::int AS "assemblyCount",
+      SUM(pa.quantity * COALESCE(pa."weightPerPiece", 0))::float AS "weightTotalKg",
+      COUNT(*) FILTER (WHERE pa."weightPerPiece" IS NULL)::int AS "assembliesWithoutWeight"
     FROM project_assemblies pa
     WHERE pa."deletedAt" IS NULL
       AND pa."projectId" IN (${Prisma.join(projectIds)})
@@ -234,7 +243,10 @@ export function buildProjectSummaryAssemblyTotalQuery(projectIds: string[]) {
 /** Done, total and list length, keyed for the shaping pass. */
 export type ProjectAssemblyProgressIndex = {
   doneByProjectActivity: Map<string, number>;
+  weightDoneByProjectActivity: Map<string, number>;
   totalByProject: Map<string, number>;
+  weightTotalByProject: Map<string, number>;
+  withoutWeightByProject: Map<string, number>;
   assemblyCountByProject: Map<string, number>;
 };
 
@@ -247,21 +259,32 @@ export function indexProjectAssemblyProgress(
   totalRows: ProjectSummaryAssemblyTotalSqlRow[],
 ): ProjectAssemblyProgressIndex {
   const doneByProjectActivity = new Map<string, number>();
+  const weightDoneByProjectActivity = new Map<string, number>();
   for (const row of doneRows) {
-    doneByProjectActivity.set(
-      assemblyKey(row.projectId, row.activityId),
-      toMinutes(row.piecesDone),
-    );
+    const key = assemblyKey(row.projectId, row.activityId);
+    doneByProjectActivity.set(key, toMinutes(row.piecesDone));
+    weightDoneByProjectActivity.set(key, row.weightDoneKg ?? 0);
   }
 
   const totalByProject = new Map<string, number>();
+  const weightTotalByProject = new Map<string, number>();
+  const withoutWeightByProject = new Map<string, number>();
   const assemblyCountByProject = new Map<string, number>();
   for (const row of totalRows) {
     totalByProject.set(row.projectId, toMinutes(row.piecesTotal));
+    weightTotalByProject.set(row.projectId, row.weightTotalKg ?? 0);
+    withoutWeightByProject.set(row.projectId, toMinutes(row.assembliesWithoutWeight));
     assemblyCountByProject.set(row.projectId, toMinutes(row.assemblyCount));
   }
 
-  return { doneByProjectActivity, totalByProject, assemblyCountByProject };
+  return {
+    doneByProjectActivity,
+    weightDoneByProjectActivity,
+    totalByProject,
+    weightTotalByProject,
+    withoutWeightByProject,
+    assemblyCountByProject,
+  };
 }
 
 /**
@@ -278,9 +301,13 @@ function assemblyProgressFor(
     return null;
   }
 
+  const key = assemblyKey(row.projectId, row.activityId);
   return {
-    piecesDone: index.doneByProjectActivity.get(assemblyKey(row.projectId, row.activityId)) ?? 0,
+    piecesDone: index.doneByProjectActivity.get(key) ?? 0,
     piecesTotal: index.totalByProject.get(row.projectId) ?? 0,
+    weightDoneKg: index.weightDoneByProjectActivity.get(key) ?? 0,
+    weightTotalKg: index.weightTotalByProject.get(row.projectId) ?? 0,
+    assembliesWithoutWeight: index.withoutWeightByProject.get(row.projectId) ?? 0,
   };
 }
 

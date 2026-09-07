@@ -20,6 +20,7 @@ import {
   type ProjectDto,
   type ProjectStatus,
   workDateToDayKey,
+  assemblyListWeight,
 } from '@fabxpert/shared';
 import {
   useEffect,
@@ -44,7 +45,7 @@ import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { equalsSearchText } from '@/utils/searchText';
 import { parseEstimatedHoursInput } from '@/utils/projectEstimatedHours';
-import { parseWeightInput } from '@/utils/projectWeight';
+import { parseWeightInput, weightKgToInput } from '@/utils/projectWeight';
 import {
   companyOptionFromProjectCompany,
   getProjectFormCompanies,
@@ -96,7 +97,7 @@ function projectToFormValues(project: ProjectDto): ProjectFormValues {
     name: project.name,
     denumireLucrare: project.denumireLucrare ?? '',
     finisaj: project.finisaj ?? '',
-    weight: project.weight === null ? '' : String(project.weight),
+    weight: weightKgToInput(project.weight),
     estimatedHours: project.estimatedHours === null ? '' : String(project.estimatedHours),
     notes: project.notes ?? '',
     code: project.code,
@@ -281,6 +282,17 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
   // The panel refetches the project when it opens, so that count wins over the
   // row that opened it — a pinned card hands over a stub with none.
   const savedAssemblyCount = editProject?.assemblyCount ?? project?.assemblyCount ?? 0;
+  const savedWithoutWeight =
+    editProject?.assembliesWithoutWeight ?? project?.assembliesWithoutWeight ?? 0;
+  // A list decides the weight: the saved one on an existing project, or the
+  // one waiting in the form on a new project. The field only takes typing
+  // while there is no list at all.
+  const pendingListWeight = assemblyRows.length > 0 ? assemblyListWeight(assemblyRows) : null;
+  const weightFromList = pendingListWeight !== null || savedAssemblyCount > 0;
+  const weightWithoutCount = pendingListWeight?.withoutWeight ?? savedWithoutWeight;
+  const weightFieldValue = pendingListWeight
+    ? weightKgToInput(pendingListWeight.weightKg)
+    : values.weight;
 
   useEffect(() => {
     if (!open) {
@@ -717,7 +729,10 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
     }
 
     try {
-      setEditProject(await getProject(project.id));
+      const fresh = await getProject(project.id);
+      setEditProject(fresh);
+      // The list just changed, so the weight it computes has too.
+      setValues((current) => ({ ...current, weight: weightKgToInput(fresh.weight) }));
     } catch {
       // Only the count on screen goes stale — not worth interrupting the edit.
     }
@@ -911,16 +926,33 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
           onChange={(value) => updateField('finisaj', value)}
         />
 
-        <TextField
-          id="weight"
-          label="Greutate (kg)"
-          placeholder="1250,5"
-          inputMode="decimal"
-          value={values.weight}
-          error={fieldErrors.weight}
-          disabled={isBusy}
-          onChange={(value) => updateField('weight', value)}
-        />
+        <div>
+          <TextField
+            id="weight"
+            label="Greutate (t)"
+            placeholder="12,5"
+            inputMode="decimal"
+            value={weightFieldValue}
+            error={fieldErrors.weight}
+            disabled={isBusy || weightFromList}
+            readOnly={weightFromList}
+            onChange={(value) => updateField('weight', value)}
+          />
+          {weightFromList && (
+            <p className="mt-1 text-xs text-text-muted">
+              Calculată din lista de ansamble.
+              {weightWithoutCount > 0 && (
+                <span className="text-warning-text">
+                  {' '}
+                  {weightWithoutCount === 1
+                    ? 'Un ansamblu nu are greutate pe bucată'
+                    : `${weightWithoutCount} ansamble nu au greutate pe bucată`}{' '}
+                  — totalul e parțial.
+                </span>
+              )}
+            </p>
+          )}
+        </div>
 
         <TextField
           id="estimatedHours"

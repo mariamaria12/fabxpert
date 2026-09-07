@@ -146,7 +146,10 @@ export type ProjectDto = {
   denumireLucrare: string | null;
   /** Finish (e.g. ZINCARE, RAL9002); null until filled in. */
   finisaj: string | null;
-  /** Weight in kilograms; null until filled in. */
+  /**
+   * Weight in kilograms. Filled in by hand until the project has an assembly
+   * list; from then on it is the list's total and every list change rewrites it.
+   */
   weight: number | null;
   /** Estimated work hours; null until filled in. */
   estimatedHours: number | null;
@@ -167,6 +170,8 @@ export type ProjectDto = {
   visibleForRoles: ProjectVisibleRoleDto[];
   /** Lines on the project's assembly list; 0 when no list was imported yet. */
   assemblyCount: number;
+  /** Lines on the list with no weight per piece — the computed weight leaves them out. */
+  assembliesWithoutWeight: number;
   createdAt: string;
   updatedAt: string;
 };

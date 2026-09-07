@@ -40,3 +40,34 @@ export function assemblyHasOverDoneActivity(
 ): boolean {
   return assembly.progress.some((row) => row.quantityDone > assembly.quantity);
 }
+
+export type AssemblyListWeight = {
+  /** Kilograms for the whole list — pieces times weight per piece. Null when no line has a weight. */
+  weightKg: number | null;
+  /** Lines with no weight per piece; the total above leaves them out. */
+  withoutWeight: number;
+};
+
+/**
+ * What the list weighs, from what the drawing list filled in. A missing weight
+ * per piece is left out and counted, never guessed — the total is flagged as
+ * partial rather than withheld.
+ */
+export function assemblyListWeight(
+  assemblies: Pick<ProjectAssemblyDto, 'quantity' | 'weightPerPiece'>[],
+): AssemblyListWeight {
+  let weightKg = 0;
+  let weighed = 0;
+  let withoutWeight = 0;
+
+  for (const assembly of assemblies) {
+    if (assembly.weightPerPiece === null) {
+      withoutWeight += 1;
+      continue;
+    }
+    weighed += 1;
+    weightKg += assembly.quantity * assembly.weightPerPiece;
+  }
+
+  return { weightKg: weighed > 0 ? weightKg : null, withoutWeight };
+}

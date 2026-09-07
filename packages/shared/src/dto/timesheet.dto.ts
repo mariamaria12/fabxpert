@@ -150,6 +150,12 @@ export type ProjectSummaryAssemblyProgress = {
   piecesDone: number;
   /** Pieces the assembly list holds. Zero when nothing has been imported yet. */
   piecesTotal: number;
+  /** Kilograms closed — pieces done times weight per piece; lines without a weight add nothing. */
+  weightDoneKg: number;
+  /** Kilograms the list holds, over the lines that carry a weight. Zero when none does. */
+  weightTotalKg: number;
+  /** Lines on the list with no weight per piece, so the tonnes above are partial. */
+  assembliesWithoutWeight: number;
 };
 
 export type ProjectSummaryActivityRow = {
