@@ -9,6 +9,8 @@ export type OvertimeDay = {
   leaveMinutes?: number;
   /** Weekend work is overtime hour for hour, never a debt. Defaults to true. */
   isWorkingDay?: boolean;
+  /** Today, still being worked. It can earn overtime but cannot owe any yet. */
+  isInProgress?: boolean;
 };
 
 /**
@@ -22,6 +24,11 @@ export type OvertimeDay = {
  * Only days the person logged time on are passed in — a day with no timesheet
  * at all is not a debt, it is simply not counted.
  *
+ * Today is the exception: it is charged for nothing until it is over, because
+ * the first pontaj of the morning would otherwise open the whole contractual
+ * day as a debt and the balance would sink on its way back up. Time already
+ * logged past the norm today still counts.
+ *
  * Leave already covering a day is credited before the comparison, so an hour
  * of RECUPERARE is charged once (against the balance) and not a second time as
  * a short day.
@@ -32,8 +39,39 @@ export function overtimeBalanceMinutes(days: OvertimeDay[]): number {
       return sum + day.loggedMinutes;
     }
 
-    return sum + day.loggedMinutes + (day.leaveMinutes ?? 0) - DAILY_WORK_MINUTES;
+    const delta = day.loggedMinutes + (day.leaveMinutes ?? 0) - DAILY_WORK_MINUTES;
+    return sum + (day.isInProgress ? Math.max(0, delta) : delta);
   }, 0);
+}
+
+/** How a month's balance splits when it is settled. */
+export type OvertimeSettlementSplit = {
+  /** Paid out. Never negative — a debt is carried, never paid. */
+  paidMinutes: number;
+  /** Rolls into the next month: the reserve, or the debt. */
+  carriedOutMinutes: number;
+};
+
+/**
+ * Splits a month's balance into what is paid and what carries on.
+ *
+ * Everything is paid by default. A reserve is what the person keeps instead,
+ * so they can still take a day off next month; it is capped at the balance,
+ * because you cannot keep more than you earned.
+ *
+ * A debt is never paid — it carries whole into the next month and is worked
+ * back there.
+ */
+export function settleOvertimeBalance(
+  balanceMinutes: number,
+  reserveMinutes = 0,
+): OvertimeSettlementSplit {
+  if (balanceMinutes <= 0) {
+    return { paidMinutes: 0, carriedOutMinutes: balanceMinutes };
+  }
+
+  const reserve = Math.min(Math.max(reserveMinutes, 0), balanceMinutes);
+  return { paidMinutes: balanceMinutes - reserve, carriedOutMinutes: reserve };
 }
 
 /** Whole days off a balance covers — one day off costs a full working day. */

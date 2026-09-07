@@ -1,22 +1,37 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type {
-  CloseOvertimeMonthResponse,
   OvertimeBalanceDto,
+  OvertimeBalancePersonDto,
   OvertimeBalancesResponse,
+  OvertimeSettlementLineDto,
+  OvertimeSettlementPreviewResponse,
+  SettleOvertimeMonthResponse,
 } from '@fabxpert/shared/dto/overtime.dto';
 import {
   DAILY_WORK_MINUTES,
   overtimeBalanceMinutes,
   overtimeDaysAvailable,
+  settleOvertimeBalance,
   type OvertimeDay,
 } from '@fabxpert/shared/overtime';
-import { countInclusiveLeaveDays } from '@fabxpert/shared/leaveDays';
-import { isWorkingDate, normalizeWorkDate, workDateToDayKey } from '@fabxpert/shared/workDate';
+import {
+  isSameWorkDate,
+  isWorkingDate,
+  normalizeWorkDate,
+  workDateToDayKey,
+} from '@fabxpert/shared/workDate';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { notDeleted } from '../common/prisma/soft-delete.util';
 import { PrismaService } from '../prisma/prisma.service';
 
 const MONTH_PATTERN = /^(\d{4})-(\d{2})$/;
+
+/**
+ * External collaborators are left out of overtime for now — they are not on the
+ * contractual working day the balance is measured against. Flip this to include
+ * them; it is the only place the rule is applied.
+ */
+const INCLUDE_EXTERNAL_EMPLOYEES = false;
 
 /** First day of `date`'s month, at midnight. */
 function startOfMonth(date: Date): Date {
@@ -53,15 +68,6 @@ type ApprovedLeave = {
   durationMinutes: number | null;
 };
 
-/** What one approved RECUPERARE request costs: its hours, or a day per working day. */
-function leaveRequestMinutes(request: ApprovedLeave): number {
-  if (request.durationMinutes !== null) {
-    return request.durationMinutes;
-  }
-
-  return countInclusiveLeaveDays(request.startDate, request.endDate) * DAILY_WORK_MINUTES;
-}
-
 /**
  * Approved leave spread over the days it covers, keyed by day. A day already
  * paid for by leave must not also read as a short working day.
@@ -93,14 +99,20 @@ function leaveMinutesByDay(requests: ApprovedLeave[]): Map<string, number> {
   return byDay;
 }
 
-/** A logged day plus the date it fell on, so callers can filter by month. */
+/** A logged day plus the date it fell on, so callers can bucket it by month. */
 type DatedOvertimeDay = OvertimeDay & { workDate: Date };
 
 type OvertimeSourceData = {
   /** Days each person logged time on, ready for the balance rule. */
   daysByPerson: Map<string, DatedOvertimeDay[]>;
-  /** Approved RECUPERARE per person — what the balance is spent on, all time. */
-  usedByPerson: Map<string, number>;
+  /** RECUPERARE per person per `YYYY-MM` — what the balance is spent on. */
+  usedByPersonMonth: Map<string, Map<string, number>>;
+};
+
+/** What one month produced for one person, before it is settled. */
+type MonthActivity = {
+  earnedMinutes: number;
+  usedMinutes: number;
 };
 
 @Injectable()
@@ -126,169 +138,306 @@ export class OvertimeService {
   }
 
   /**
-   * Running overtime balance. A month with an accrual row counts as frozen;
-   * every other month is recomputed from timesheets, so a closing that was
-   * skipped costs accuracy on old data, never minutes.
+   * This month's balance: what was carried in, plus what this month produced.
+   * Everything older was settled — paid out or carried on — so it is not summed
+   * again here.
    */
   async computeBalance(personId: string): Promise<OvertimeBalanceDto> {
-    const [accruals, source] = await Promise.all([
-      this.prisma.overtimeAccrual.findMany({
+    const [settlements, source] = await Promise.all([
+      this.prisma.overtimeSettlement.findMany({
         where: { personId },
-        select: { month: true, earnedMinutes: true },
+        select: { month: true, carriedOutMinutes: true },
         orderBy: { month: 'desc' },
       }),
       this.loadOvertimeSource({ personId }),
     ]);
 
-    const accruedMinutes = accruals.reduce((sum, row) => sum + row.earnedMinutes, 0);
-    const closedMonths = new Set(accruals.map((row) => formatMonth(row.month)));
-    const lastClosed = accruals[0] ?? null;
-
-    const openPeriodMinutes = overtimeBalanceMinutes(
-      openDays(source.daysByPerson.get(personId) ?? [], closedMonths),
-    );
-    const usedMinutes = source.usedByPerson.get(personId) ?? 0;
-    const remainingMinutes = accruedMinutes + openPeriodMinutes - usedMinutes;
-
-    return {
+    return this.buildBalance(
       personId,
-      accruedMinutes,
-      openPeriodMinutes,
-      usedMinutes,
-      remainingMinutes,
-      remainingDays: overtimeDaysAvailable(Math.max(0, remainingMinutes)),
-      closedThroughMonth: lastClosed ? formatMonth(lastClosed.month) : null,
-    };
+      settlements,
+      this.monthlyActivity(personId, source),
+    );
   }
 
   /**
-   * Same balance as computeBalance, for everyone, without a query per person.
-   * The live scan is bounded by the earliest month still open on any person, so
-   * a fully closed history keeps it cheap.
+   * The same balance for everyone, without a query per person. External
+   * collaborators are left out unless INCLUDE_EXTERNAL_EMPLOYEES says otherwise.
+   *
+   * The timesheet scan is bounded by the earliest month still unsettled on
+   * anyone, so a history that is settled up to date stays cheap to read.
    */
   async computeAllBalances(): Promise<OvertimeBalancesResponse> {
-    const [persons, accruals] = await Promise.all([
-      this.prisma.person.findMany({
-        where: notDeleted(),
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          employeeRole: { select: { name: true } },
-        },
-        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-      }),
-      this.prisma.overtimeAccrual.findMany({
-        select: { personId: true, month: true, earnedMinutes: true },
+    const [persons, settlements] = await Promise.all([
+      this.listPersons(),
+      this.prisma.overtimeSettlement.findMany({
+        select: { personId: true, month: true, carriedOutMinutes: true },
+        orderBy: { month: 'desc' },
       }),
     ]);
 
-    const closedMonthsByPerson = new Map<string, Set<string>>();
-    const accruedByPerson = new Map<string, number>();
-    const lastClosedByPerson = new Map<string, Date>();
-
-    for (const row of accruals) {
-      const months = closedMonthsByPerson.get(row.personId) ?? new Set<string>();
-      months.add(formatMonth(row.month));
-      closedMonthsByPerson.set(row.personId, months);
-      accruedByPerson.set(
-        row.personId,
-        (accruedByPerson.get(row.personId) ?? 0) + row.earnedMinutes,
-      );
-
-      const lastClosed = lastClosedByPerson.get(row.personId);
-      if (!lastClosed || row.month > lastClosed) {
-        lastClosedByPerson.set(row.personId, row.month);
-      }
-    }
-
-    let scanAll = false;
-    let openStart: Date | null = null;
-    for (const person of persons) {
-      const lastClosed = lastClosedByPerson.get(person.id);
-      if (!lastClosed) {
-        scanAll = true;
-        break;
-      }
-
-      const start = startOfNextMonth(lastClosed);
-      if (!openStart || start < openStart) {
-        openStart = start;
-      }
-    }
-
+    const settlementsByPerson = groupBy(settlements, (row) => row.personId);
     const source = await this.loadOvertimeSource(
-      !scanAll && openStart ? { from: openStart } : {},
+      scanFrom(persons, settlementsByPerson),
     );
 
     return {
-      rows: persons.map((person) => {
-        const accruedMinutes = accruedByPerson.get(person.id) ?? 0;
-        const openPeriodMinutes = overtimeBalanceMinutes(
-          openDays(
-            source.daysByPerson.get(person.id) ?? [],
-            closedMonthsByPerson.get(person.id) ?? new Set(),
-          ),
-        );
-        const usedMinutes = source.usedByPerson.get(person.id) ?? 0;
-        const remainingMinutes = accruedMinutes + openPeriodMinutes - usedMinutes;
-        const lastClosed = lastClosedByPerson.get(person.id);
+      rows: persons.map((person) => ({
+        person: toBalancePerson(person),
+        balance: this.buildBalance(
+          person.id,
+          settlementsByPerson.get(person.id) ?? [],
+          this.monthlyActivity(person.id, source),
+        ),
+      })),
+    };
+  }
 
-        return {
-          person,
-          balance: {
-            personId: person.id,
-            accruedMinutes,
-            openPeriodMinutes,
-            usedMinutes,
-            remainingMinutes,
-            remainingDays: overtimeDaysAvailable(Math.max(0, remainingMinutes)),
-            closedThroughMonth: lastClosed ? formatMonth(lastClosed) : null,
-          },
-        };
-      }),
+  /** What settling `month` would do, without writing anything. */
+  async previewSettlement(month: Date): Promise<OvertimeSettlementPreviewResponse> {
+    const monthStart = startOfMonth(month);
+    this.assertSettleable(monthStart);
+
+    const lines = await this.buildSettlementLines(monthStart, {});
+    const existing = await this.prisma.overtimeSettlement.count({
+      where: { month: monthStart },
+    });
+
+    return {
+      month: formatMonth(monthStart),
+      alreadySettled: existing > 0,
+      lines,
+      totalPaidMinutes: sumBy(lines, (line) => line.paidMinutes),
+      totalCarriedOutMinutes: sumBy(lines, (line) => line.carriedOutMinutes),
     };
   }
 
   /**
-   * Freezes one past month for every person who logged time in it. Idempotent —
-   * rerunning it overwrites the row, which is how you fix a month after a
-   * backdated timesheet correction.
+   * Settles one past month for everyone who has a balance or a carried-in
+   * figure. Idempotent — settling again overwrites the row, which is how a
+   * month is fixed after a backdated timesheet correction. The difference then
+   * shows up in the months that follow, because they carry from here.
    */
-  async closeMonth(month: Date): Promise<CloseOvertimeMonthResponse> {
+  async settleMonth(
+    month: Date,
+    reserveMinutesByPerson: Record<string, number>,
+    actor: AuthenticatedUser,
+  ): Promise<SettleOvertimeMonthResponse> {
     const monthStart = startOfMonth(month);
-    const monthEnd = startOfNextMonth(monthStart);
+    this.assertSettleable(monthStart);
 
-    if (monthEnd.getTime() > startOfMonth(new Date()).getTime()) {
-      throw new BadRequestException('Only past months can be closed');
+    const lines = await this.buildSettlementLines(monthStart, reserveMinutesByPerson);
+
+    await this.prisma.$transaction(
+      lines.map((line) =>
+        this.prisma.overtimeSettlement.upsert({
+          where: { personId_month: { personId: line.person.id, month: monthStart } },
+          create: {
+            personId: line.person.id,
+            month: monthStart,
+            carriedInMinutes: line.carriedInMinutes,
+            earnedMinutes: line.earnedMinutes,
+            usedMinutes: line.usedMinutes,
+            paidMinutes: line.paidMinutes,
+            carriedOutMinutes: line.carriedOutMinutes,
+            settledByUserId: actor.id,
+          },
+          update: {
+            carriedInMinutes: line.carriedInMinutes,
+            earnedMinutes: line.earnedMinutes,
+            usedMinutes: line.usedMinutes,
+            paidMinutes: line.paidMinutes,
+            carriedOutMinutes: line.carriedOutMinutes,
+            settledAt: new Date(),
+            settledByUserId: actor.id,
+          },
+        }),
+      ),
+    );
+
+    return {
+      month: formatMonth(monthStart),
+      personsSettled: lines.length,
+      totalPaidMinutes: sumBy(lines, (line) => line.paidMinutes),
+      totalCarriedOutMinutes: sumBy(lines, (line) => line.carriedOutMinutes),
+    };
+  }
+
+  private assertSettleable(monthStart: Date): void {
+    if (startOfNextMonth(monthStart).getTime() > startOfMonth(new Date()).getTime()) {
+      throw new BadRequestException('Only past months can be settled');
     }
-
-    const source = await this.loadOvertimeSource({ from: monthStart, to: monthEnd });
-
-    let personsClosed = 0;
-    let totalMinutes = 0;
-
-    for (const [personId, days] of source.daysByPerson) {
-      const earnedMinutes = overtimeBalanceMinutes(days);
-      await this.prisma.overtimeAccrual.upsert({
-        where: { personId_month: { personId, month: monthStart } },
-        create: { personId, month: monthStart, earnedMinutes },
-        update: { earnedMinutes, closedAt: new Date() },
-      });
-      personsClosed += 1;
-      totalMinutes += earnedMinutes;
-    }
-
-    return { month: formatMonth(monthStart), personsClosed, totalMinutes };
   }
 
   /**
-   * The single place timesheets and leave become balance days. One person, one
-   * month, or everyone — every caller reads the same numbers from here, so the
-   * rule can only ever be applied one way.
+   * One line per person who has something to settle. People with no activity
+   * and nothing carried in are skipped — a settlement row of all zeroes says
+   * nothing and would only make the month look busier than it was.
+   */
+  private async buildSettlementLines(
+    monthStart: Date,
+    reserveMinutesByPerson: Record<string, number>,
+  ): Promise<OvertimeSettlementLineDto[]> {
+    const monthKey = formatMonth(monthStart);
+    const [persons, settlements, source] = await Promise.all([
+      this.listPersons(),
+      this.prisma.overtimeSettlement.findMany({
+        where: { month: { lt: monthStart } },
+        select: { personId: true, month: true, carriedOutMinutes: true },
+        orderBy: { month: 'desc' },
+      }),
+      this.loadOvertimeSource({ to: startOfNextMonth(monthStart) }),
+    ]);
+
+    const settlementsByPerson = groupBy(settlements, (row) => row.personId);
+    const lines: OvertimeSettlementLineDto[] = [];
+
+    for (const person of persons) {
+      const activity = this.monthlyActivity(person.id, source);
+      const carriedInMinutes = this.carriedInFor(
+        settlementsByPerson.get(person.id) ?? [],
+        activity,
+        monthKey,
+      );
+      const month = activity.get(monthKey) ?? { earnedMinutes: 0, usedMinutes: 0 };
+      const balanceMinutes =
+        carriedInMinutes + month.earnedMinutes - month.usedMinutes;
+
+      if (balanceMinutes === 0 && carriedInMinutes === 0) {
+        continue;
+      }
+
+      const reserveMinutes = Math.max(reserveMinutesByPerson[person.id] ?? 0, 0);
+      const { paidMinutes, carriedOutMinutes } = settleOvertimeBalance(
+        balanceMinutes,
+        reserveMinutes,
+      );
+
+      lines.push({
+        person: toBalancePerson(person),
+        carriedInMinutes,
+        earnedMinutes: month.earnedMinutes,
+        usedMinutes: month.usedMinutes,
+        balanceMinutes,
+        reserveMinutes: carriedOutMinutes > 0 ? carriedOutMinutes : 0,
+        paidMinutes,
+        carriedOutMinutes,
+      });
+    }
+
+    return lines;
+  }
+
+  private buildBalance(
+    personId: string,
+    settlements: { month: Date; carriedOutMinutes: number }[],
+    activity: Map<string, MonthActivity>,
+  ): OvertimeBalanceDto {
+    const currentMonth = startOfMonth(new Date());
+    const monthKey = formatMonth(currentMonth);
+
+    const carriedInMinutes = this.carriedInFor(settlements, activity, monthKey);
+    const month = activity.get(monthKey) ?? { earnedMinutes: 0, usedMinutes: 0 };
+    const remainingMinutes =
+      carriedInMinutes + month.earnedMinutes - month.usedMinutes;
+
+    const lastSettled = latestMonth(settlements);
+
+    return {
+      personId,
+      month: monthKey,
+      carriedInMinutes,
+      earnedMinutes: month.earnedMinutes,
+      usedMinutes: month.usedMinutes,
+      remainingMinutes,
+      remainingDays: overtimeDaysAvailable(Math.max(0, remainingMinutes)),
+      settledThroughMonth: lastSettled ? formatMonth(lastSettled) : null,
+    };
+  }
+
+  /**
+   * What `monthKey` starts from: the last settlement's carry-out, plus every
+   * month between then and now that was never settled. A settlement that was
+   * skipped costs accuracy on old data, never minutes.
+   */
+  private carriedInFor(
+    settlements: { month: Date; carriedOutMinutes: number }[],
+    activity: Map<string, MonthActivity>,
+    monthKey: string,
+  ): number {
+    const lastSettled = latestMonth(settlements);
+    const carriedOut = lastSettled
+      ? (settlements.find((row) => row.month.getTime() === lastSettled.getTime())
+          ?.carriedOutMinutes ?? 0)
+      : 0;
+
+    const lastSettledKey = lastSettled ? formatMonth(lastSettled) : null;
+    let unsettled = 0;
+    for (const [key, month] of activity) {
+      const afterLastSettled = lastSettledKey === null || key > lastSettledKey;
+      if (afterLastSettled && key < monthKey) {
+        unsettled += month.earnedMinutes - month.usedMinutes;
+      }
+    }
+
+    return carriedOut + unsettled;
+  }
+
+  /** One person's timesheets and RECUPERARE, folded into a figure per month. */
+  private monthlyActivity(
+    personId: string,
+    source: OvertimeSourceData,
+  ): Map<string, MonthActivity> {
+    const byMonth = new Map<string, MonthActivity>();
+
+    const entry = (key: string): MonthActivity => {
+      const existing = byMonth.get(key);
+      if (existing) {
+        return existing;
+      }
+      const created = { earnedMinutes: 0, usedMinutes: 0 };
+      byMonth.set(key, created);
+      return created;
+    };
+
+    const daysByMonth = groupBy(source.daysByPerson.get(personId) ?? [], (day) =>
+      formatMonth(day.workDate),
+    );
+    for (const [key, days] of daysByMonth) {
+      entry(key).earnedMinutes = overtimeBalanceMinutes(days);
+    }
+
+    for (const [key, minutes] of source.usedByPersonMonth.get(personId) ?? []) {
+      entry(key).usedMinutes = minutes;
+    }
+
+    return byMonth;
+  }
+
+  private listPersons() {
+    return this.prisma.person.findMany({
+      where: {
+        ...notDeleted(),
+        ...(INCLUDE_EXTERNAL_EMPLOYEES
+          ? {}
+          : // Persons without a login are kept: external is an explicit flag.
+            { OR: [{ user: null }, { user: { angajatExtern: false } }] }),
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        employeeRole: { select: { name: true } },
+      },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    });
+  }
+
+  /**
+   * The single place timesheets and leave become balance days. Every caller
+   * reads the same numbers from here, so the rule can only be applied one way.
    *
    * `from`/`to` bound the timesheet scan only: leave is always read in full,
-   * because RECUPERARE taken before the window still spends the balance.
+   * because it is bucketed per month afterwards.
    */
   private async loadOvertimeSource(scope: {
     personId?: string;
@@ -326,17 +475,24 @@ export class OvertimeService {
 
     // Any approved leave covers a day; only RECUPERARE spends the balance.
     const leaveRequestsByPerson = new Map<string, ApprovedLeave[]>();
-    const usedByPerson = new Map<string, number>();
+    const usedByPersonMonth = new Map<string, Map<string, number>>();
     for (const request of approvedLeave) {
       const requests = leaveRequestsByPerson.get(request.personId) ?? [];
       requests.push(request);
       leaveRequestsByPerson.set(request.personId, requests);
 
       if (request.type === 'RECUPERARE') {
-        usedByPerson.set(
-          request.personId,
-          (usedByPerson.get(request.personId) ?? 0) + leaveRequestMinutes(request),
-        );
+        const byMonth = usedByPersonMonth.get(request.personId) ?? new Map();
+        // Hours are taken on startDate; whole days spread over the days they
+        // cover, so a request crossing a month boundary lands on both months.
+        if (request.durationMinutes !== null) {
+          addTo(byMonth, formatMonth(request.startDate), request.durationMinutes);
+        } else {
+          for (const [dayKey, minutes] of leaveMinutesByDay([request])) {
+            addTo(byMonth, dayKey.slice(0, 7), minutes);
+          }
+        }
+        usedByPersonMonth.set(request.personId, byMonth);
       }
     }
 
@@ -355,11 +511,12 @@ export class OvertimeService {
         loggedMinutes: row._sum.durationMinutes ?? 0,
         leaveMinutes: leaveByDay?.get(workDateToDayKey(row.workDate)) ?? 0,
         isWorkingDay: isWorkingDate(row.workDate),
+        isInProgress: isSameWorkDate(row.workDate),
       });
       daysByPerson.set(row.personId, days);
     }
 
-    return { daysByPerson, usedByPerson };
+    return { daysByPerson, usedByPersonMonth };
   }
 
   private async resolveActorPersonId(userId: string): Promise<string> {
@@ -379,7 +536,64 @@ export class OvertimeService {
   }
 }
 
-/** Days in months that have no accrual row yet — the part still recomputed live. */
-function openDays(days: DatedOvertimeDay[], closedMonths: Set<string>): DatedOvertimeDay[] {
-  return days.filter((day) => !closedMonths.has(formatMonth(day.workDate)));
+type PersonRow = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  employeeRole: { name: string } | null;
+};
+
+function toBalancePerson(person: PersonRow): OvertimeBalancePersonDto {
+  return person;
+}
+
+function addTo(map: Map<string, number>, key: string, minutes: number): void {
+  map.set(key, (map.get(key) ?? 0) + minutes);
+}
+
+function groupBy<T, K>(items: T[], key: (item: T) => K): Map<K, T[]> {
+  const grouped = new Map<K, T[]>();
+  for (const item of items) {
+    const bucket = grouped.get(key(item)) ?? [];
+    bucket.push(item);
+    grouped.set(key(item), bucket);
+  }
+  return grouped;
+}
+
+function sumBy<T>(items: T[], value: (item: T) => number): number {
+  return items.reduce((sum, item) => sum + value(item), 0);
+}
+
+function latestMonth(rows: { month: Date }[]): Date | null {
+  return rows.reduce<Date | null>(
+    (latest, row) => (!latest || row.month > latest ? row.month : latest),
+    null,
+  );
+}
+
+/**
+ * How far back the timesheet scan has to reach: the month after the earliest
+ * last-settled month across everyone. Anyone never settled pulls it back to the
+ * beginning, because their whole history still has to be recomputed.
+ */
+function scanFrom(
+  persons: { id: string }[],
+  settlementsByPerson: Map<string, { month: Date }[]>,
+): { from?: Date } {
+  let earliest: Date | null = null;
+
+  for (const person of persons) {
+    const lastSettled = latestMonth(settlementsByPerson.get(person.id) ?? []);
+    if (!lastSettled) {
+      return {};
+    }
+
+    const start = new Date(lastSettled.getFullYear(), lastSettled.getMonth() + 1, 1);
+    if (!earliest || start < earliest) {
+      earliest = start;
+    }
+  }
+
+  return earliest ? { from: earliest } : {};
 }

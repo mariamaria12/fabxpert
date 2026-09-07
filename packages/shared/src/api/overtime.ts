@@ -1,8 +1,9 @@
 import { request } from './client';
 import type {
-  CloseOvertimeMonthResponse,
   OvertimeBalanceDto,
   OvertimeBalancesResponse,
+  OvertimeSettlementPreviewResponse,
+  SettleOvertimeMonthResponse,
 } from '../dto/overtime.dto';
 
 export function getMyOvertimeBalance() {
@@ -18,10 +19,23 @@ export function listOvertimeBalances() {
   return request<OvertimeBalancesResponse>('/overtime/balances');
 }
 
-/** Admin only. `month` is `YYYY-MM` and must already be over. */
-export function closeOvertimeMonth(month: string) {
-  return request<CloseOvertimeMonthResponse>('/overtime/close-month', {
+/** Admin only. What settling `month` would pay out, before committing to it. */
+export function previewOvertimeSettlement(month: string) {
+  return request<OvertimeSettlementPreviewResponse>(
+    `/overtime/settlement-preview?month=${encodeURIComponent(month)}`,
+  );
+}
+
+/**
+ * Admin only. `month` is `YYYY-MM` and must already be over. Anyone left out of
+ * `reserveMinutesByPerson` is paid their whole balance.
+ */
+export function settleOvertimeMonth(
+  month: string,
+  reserveMinutesByPerson: Record<string, number> = {},
+) {
+  return request<SettleOvertimeMonthResponse>('/overtime/settle-month', {
     method: 'POST',
-    body: JSON.stringify({ month }),
+    body: JSON.stringify({ month, reserveMinutesByPerson }),
   });
 }

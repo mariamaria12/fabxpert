@@ -147,8 +147,11 @@ export function MyLeaveRequests({
             </strong>
           </p>
           <p className="leave-balance-secondary">
-            {formatOvertimeHours(overtime.accruedMinutes + overtime.openPeriodMinutes)}{' '}
-            acumulate · {formatOvertimeHours(overtime.usedMinutes)} folosite
+            Luna aceasta: {formatOvertimeHours(overtime.earnedMinutes)} acumulate ·{' '}
+            {formatOvertimeHours(overtime.usedMinutes)} folosite
+            {overtime.carriedInMinutes !== 0
+              ? ` · report ${formatOvertimeBalance(overtime.carriedInMinutes)}`
+              : ''}
           </p>
         </section>
       ) : isLoading ? (

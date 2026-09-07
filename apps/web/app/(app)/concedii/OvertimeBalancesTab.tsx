@@ -7,6 +7,7 @@ import {
   type OvertimeBalanceRowDto,
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
+import { OvertimeSettlementPanel } from './OvertimeSettlementPanel';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { PersonName } from '@/components/PersonAvatar';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
@@ -15,26 +16,29 @@ interface OvertimeBalancesTabProps {
   refreshToken: number;
 }
 
-/** `closedThroughMonth` is the same for everyone in practice — show it once. */
-function closedThroughLabel(rows: OvertimeBalanceRowDto[]): string | null {
+/** `settledThroughMonth` is the same for everyone in practice — show it once. */
+function settledThroughLabel(rows: OvertimeBalanceRowDto[]): string | null {
   const months = new Set(
-    rows.map((row) => row.balance.closedThroughMonth).filter((month): month is string => month !== null),
+    rows
+      .map((row) => row.balance.settledThroughMonth)
+      .filter((month): month is string => month !== null),
   );
 
   if (months.size === 0) {
-    return null;
+    return 'Nicio lună decontată încă.';
   }
   if (months.size === 1) {
-    return `Luni închise până în ${[...months][0]}.`;
+    return `Decontat până în ${[...months][0]} inclusiv.`;
   }
 
-  return 'Lunile închise diferă de la o persoană la alta.';
+  return 'Ultima lună decontată diferă de la o persoană la alta.';
 }
 
 export function OvertimeBalancesTab({ refreshToken }: OvertimeBalancesTabProps) {
   const [rows, setRows] = useState<OvertimeBalanceRowDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [settlementOpen, setSettlementOpen] = useState(false);
 
   const loadBalances = useCallback(async () => {
     setLoading(true);
@@ -68,12 +72,21 @@ export function OvertimeBalancesTab({ refreshToken }: OvertimeBalancesTabProps) 
       render: (row) => row.person.employeeRole?.name ?? '—',
     },
     {
-      key: 'accrued',
-      header: 'Acumulate',
-      width: '110px',
+      key: 'carriedIn',
+      header: 'Report',
+      width: '100px',
       className: 'text-right tabular-nums text-text-secondary',
       render: (row) =>
-        formatOvertimeHours(row.balance.accruedMinutes + row.balance.openPeriodMinutes),
+        row.balance.carriedInMinutes === 0
+          ? '—'
+          : formatOvertimeBalance(row.balance.carriedInMinutes),
+    },
+    {
+      key: 'earned',
+      header: 'Luna aceasta',
+      width: '120px',
+      className: 'text-right tabular-nums text-text-secondary',
+      render: (row) => formatOvertimeHours(row.balance.earnedMinutes),
     },
     {
       key: 'used',
@@ -106,10 +119,26 @@ export function OvertimeBalancesTab({ refreshToken }: OvertimeBalancesTabProps) 
     },
   ];
 
-  const closedThrough = closedThroughLabel(rows);
+  const settledThrough = settledThroughLabel(rows);
 
   return (
     <div>
+      <div className="mb-4 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setSettlementOpen(true)}
+          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-contrast"
+        >
+          Decontează luna
+        </button>
+      </div>
+
+      <OvertimeSettlementPanel
+        open={settlementOpen}
+        onClose={() => setSettlementOpen(false)}
+        onSettled={() => void loadBalances()}
+      />
+
       {error ? (
         <div className="flex items-center justify-between gap-4 rounded-md border border-border-subtle bg-[var(--color-toast-error-bg)] px-4 py-3">
           <p className="text-sm text-danger">{error}</p>
@@ -136,8 +165,8 @@ export function OvertimeBalancesTab({ refreshToken }: OvertimeBalancesTabProps) 
 
       {!loading && !error && rows.length > 0 ? (
         <p className="mt-3 text-xs text-text-muted">
-          Peste 9 ore pontate într-o zi intră în sold. Soldul scade când se ia liber în
-          recuperare. {closedThrough}
+          Soldul acoperă doar luna curentă plus reportul din luna precedentă — orele mai
+          vechi au fost deja plătite sau recuperate. {settledThrough}
         </p>
       ) : null}
     </div>

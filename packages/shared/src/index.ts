@@ -339,22 +339,26 @@ export {
   DAILY_WORK_MINUTES,
   overtimeBalanceMinutes,
   overtimeDaysAvailable,
+  settleOvertimeBalance,
   formatOvertimeHours,
   formatOvertimeBalance,
 } from './overtime';
-export type { OvertimeDay } from './overtime';
+export type { OvertimeDay, OvertimeSettlementSplit } from './overtime';
 export {
   getMyOvertimeBalance,
   getOvertimeBalance,
   listOvertimeBalances,
-  closeOvertimeMonth,
+  previewOvertimeSettlement,
+  settleOvertimeMonth,
 } from './api/overtime';
 export type {
   OvertimeBalanceDto,
   OvertimeBalancePersonDto,
   OvertimeBalanceRowDto,
   OvertimeBalancesResponse,
-  CloseOvertimeMonthResponse,
+  OvertimeSettlementLineDto,
+  OvertimeSettlementPreviewResponse,
+  SettleOvertimeMonthResponse,
 } from './dto/overtime.dto';
 export {
   listMyNotifications,

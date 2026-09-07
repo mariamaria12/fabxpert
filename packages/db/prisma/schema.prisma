@@ -146,7 +146,7 @@ model Person {
 
   leaveRequests LeaveRequest[]
 
-  overtimeAccruals OvertimeAccrual[]
+  overtimeSettlements OvertimeSettlement[]
 
   @@map("persons")
 }
@@ -187,6 +187,8 @@ model User {
 
   createdPolls Poll[]     @relation("PollAuthor")
   pollVotes    PollVote[]
+
+  settledOvertimeMonths OvertimeSettlement[] @relation("OvertimeSettledBy")
 
   @@map("users")
 }
@@ -352,30 +354,47 @@ model LeaveRequest {
 }
 
 // ---------------------------------------------------------------------------
-// OvertimeAccrual
-// One closed month of overtime for one Person. A working day counts for what it
-// is over or short of DAILY_WORK_MINUTES, so a month can close negative — it is
-// derivable from timesheets, but a closed month is frozen here: editing an old
-// timesheet afterwards must not silently rewrite a balance people already
-// spent. Months with no row are recomputed live, as the current month always is.
+// OvertimeSettlement
+// One settled month of overtime for one Person. A working day counts for what
+// it is over or short of DAILY_WORK_MINUTES, so a month can settle negative.
+// The figures are derivable from timesheets, but a settled month is frozen
+// here: editing an old timesheet afterwards must not silently rewrite a balance
+// that has already been paid out. Months with no row are recomputed live, as
+// the current month always is, and fold into the next settlement.
 // ---------------------------------------------------------------------------
 
-model OvertimeAccrual {
+/// One month settled for one person. Overtime is recovered as time off or paid
+/// at month end, so a month closes to a payout plus whatever is carried on.
+model OvertimeSettlement {
   id String @id @default(uuid())
 
-  /// First day of the month this row closes, at midnight.
+  /// First day of the month this row settles, at midnight.
   month DateTime
-  /// Overtime balance for that month, frozen at closing time. Negative when the
+
+  /// Balance brought in from the last settled month: a reserve left on purpose
+  /// when positive, a debt still to be worked back when negative.
+  carriedInMinutes Int @default(0)
+  /// Overtime produced in that month, frozen at settlement. Negative when the
   /// person logged fewer hours than the contractual days they worked.
   earnedMinutes Int
-  closedAt      DateTime @default(now())
+  /// RECUPERARE taken in that month.
+  usedMinutes Int @default(0)
+  /// Paid out at settlement. Never negative — a debt is carried, not paid.
+  paidMinutes Int @default(0)
+  /// What rolls into the next month, by the same sign convention as carriedIn.
+  carriedOutMinutes Int @default(0)
+
+  /// carriedIn + earned − used = paid + carriedOut holds on every row.
+  settledAt       DateTime @default(now())
+  settledByUserId String?
+  settledBy       User?    @relation("OvertimeSettledBy", fields: [settledByUserId], references: [id])
 
   personId String
   person   Person @relation(fields: [personId], references: [id])
 
   @@unique([personId, month])
   @@index([personId])
-  @@map("overtime_accruals")
+  @@map("overtime_settlements")
 }
 
 // ---------------------------------------------------------------------------
@@ -535,7 +554,7 @@ model SteelProfile {
 // from the timesheets that covered it (see TimesheetAssembly) — the same rule
 // the leave balance follows. A stored counter would drift the moment someone
 // corrects an old timesheet, and nobody "spends" a finished assembly the way
-// OvertimeAccrual's frozen months are spent.
+// OvertimeSettlement's frozen months are spent.
 // ---------------------------------------------------------------------------
 
 model ProjectAssembly {
