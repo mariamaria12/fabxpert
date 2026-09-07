@@ -97,6 +97,8 @@ export type AccountingTimesheetStatus = 'IN_PREGATIRE' | 'GATA_EXPORT' | 'EXPORT
 
 export type AccountingTimesheetLineDto = {
   person: OvertimeBalancePersonDto;
+  /** External collaborator: on the pontaj, but with no fixed days — nothing reads as missing. */
+  isExternal: boolean;
   /** Every minute logged that month. */
   loggedMinutes: number;
   normalMinutes: number;
@@ -138,6 +140,10 @@ export type AccountingExportDto = {
   exportedBy: { firstName: string; lastName: string } | null;
 };
 
+/**
+ * Everyone on the payroll pontaj: external collaborators included, office
+ * staff left out.
+ */
 export type AccountingTimesheetResponse = {
   /** `YYYY-MM`. */
   month: string;

@@ -11,12 +11,10 @@ import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { PersonName } from '@/components/PersonAvatar';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { StatTile, StatTileRow } from './StatTile';
-import { formatMonthLabel, lastCompleteMonth } from './timesheetMonths';
+import { formatMonthLabel } from './timesheetMonths';
 
 interface OvertimeBalancesTabProps {
   active: boolean;
-  /** Step 3 of the flow — where this month's balance gets approved for pay. */
-  onOpenApprovals: () => void;
 }
 
 /** `settledThroughMonth` is the same for everyone in practice — show it once. */
@@ -42,7 +40,7 @@ function formatUpdatedAt(date: Date): string {
 }
 
 /** Step 2 of the flow: the running overtime balance of everyone, this month. */
-export function OvertimeBalancesTab({ active, onOpenApprovals }: OvertimeBalancesTabProps) {
+export function OvertimeBalancesTab({ active }: OvertimeBalancesTabProps) {
   const [rows, setRows] = useState<OvertimeBalanceRowDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -127,8 +125,7 @@ export function OvertimeBalancesTab({ active, onOpenApprovals }: OvertimeBalance
       header: 'Sâmbete lucrate',
       width: '120px',
       className: 'text-right tabular-nums text-text-secondary',
-      render: (row) =>
-        row.balance.saturdaysWorked === 0 ? '—' : row.balance.saturdaysWorked,
+      render: (row) => (row.balance.saturdaysWorked === 0 ? '—' : row.balance.saturdaysWorked),
     },
     {
       key: 'remaining',
@@ -147,7 +144,7 @@ export function OvertimeBalancesTab({ active, onOpenApprovals }: OvertimeBalance
     },
     {
       key: 'days',
-      header: 'Zile libere',
+      header: 'Zile de recuperat',
       width: '100px',
       className: 'text-right tabular-nums text-text-secondary',
       render: (row) => row.balance.remainingDays,
@@ -192,14 +189,6 @@ export function OvertimeBalancesTab({ active, onOpenApprovals }: OvertimeBalance
             />
             <span className="hidden md:inline">Împrospătare date</span>
           </button>
-          <button
-            type="button"
-            onClick={onOpenApprovals}
-            className="inline-flex items-center gap-2 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-contrast transition-opacity hover:opacity-90 sm:px-4 sm:py-2 sm:text-sm"
-          >
-            Aprobă {formatMonthLabel(lastCompleteMonth()).toLowerCase()}
-            <i className="ti ti-chevron-right text-base" aria-hidden="true" />
-          </button>
         </div>
       </div>
 
@@ -228,7 +217,9 @@ export function OvertimeBalancesTab({ active, onOpenApprovals }: OvertimeBalance
             label="Datorii"
             icon="ti-arrow-down-right"
             value={loading ? '—' : formatOvertimeBalance(totalDebt)}
-            hint={debts.length === 1 ? '1 persoană sub program' : `${debts.length} persoane sub program`}
+            hint={
+              debts.length === 1 ? '1 persoană sub program' : `${debts.length} persoane sub program`
+            }
           />
         </StatTileRow>
       </div>
@@ -259,10 +250,9 @@ export function OvertimeBalancesTab({ active, onOpenApprovals }: OvertimeBalance
 
       {!loading && !error && rows.length > 0 ? (
         <p className="mt-3 text-xs text-text-muted">
-          Soldul acoperă doar luna curentă plus reportul din luna precedentă — orele mai
-          vechi au fost deja plătite sau recuperate. O sâmbătă lucrată e o zi de 7,5 h:
-          doar ce trece de ea intră în sold; duminica intră oră cu oră.{' '}
-          {settledThroughLabel(rows)}
+          Soldul acoperă doar luna curentă plus reportul din luna precedentă — orele mai vechi au
+          fost deja plătite sau recuperate. O sâmbătă lucrată e o zi de 7,5 h: doar ce trece de ea
+          intră în sold; duminica intră oră cu oră. {settledThroughLabel(rows)}
         </p>
       ) : null}
     </div>

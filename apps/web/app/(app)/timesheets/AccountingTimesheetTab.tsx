@@ -218,9 +218,21 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
     {
       key: 'role',
       header: 'Rol',
-      width: '150px',
+      width: '170px',
       className: 'text-text-secondary',
-      render: (line) => line.person.employeeRole?.name ?? '—',
+      render: (line) => (
+        <span className="flex items-center gap-1.5">
+          <span className="truncate">{line.person.employeeRole?.name ?? '—'}</span>
+          {line.isExternal ? (
+            <span
+              className="shrink-0 rounded border border-border px-1.5 py-px text-[10px] font-medium uppercase tracking-wide text-text-muted"
+              title="Colaborator extern — fără număr fix de zile"
+            >
+              extern
+            </span>
+          ) : null}
+        </span>
+      ),
     },
     {
       key: 'normal',
@@ -235,7 +247,11 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
       width: '140px',
       className: 'text-right tabular-nums',
       render: (line) => (
-        <span className={line.overtimeMinutes > 0 ? 'font-semibold text-warning-text' : 'text-text-muted'}>
+        <span
+          className={
+            line.overtimeMinutes > 0 ? 'font-semibold text-warning-text' : 'text-text-muted'
+          }
+        >
           {line.overtimeMinutes > 0 ? formatOvertimeHours(line.overtimeMinutes) : '0h'}
         </span>
       ),
@@ -288,8 +304,8 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
         <div>
           <h1 className="text-[22px] font-medium text-text-primary">Pontaj pentru contabilitate</h1>
           <p className="mt-0.5 text-sm text-text-muted">
-            Ultimul pas al fluxului: orele lunii pe fiecare persoană, cu orele suplimentare
-            aprobate incluse.
+            Ultimul pas al fluxului: orele lunii pe fiecare persoană, cu orele suplimentare aprobate
+            incluse.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -300,7 +316,10 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
             title="Descarcă documentul pentru contabilitate și marchează luna ca exportată"
             className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary disabled:opacity-50 sm:px-4 sm:py-2 sm:text-sm"
           >
-            <i className={`ti ${exporting ? 'ti-loader-2 animate-spin' : 'ti-file-spreadsheet'} text-base`} aria-hidden="true" />
+            <i
+              className={`ti ${exporting ? 'ti-loader-2 animate-spin' : 'ti-file-spreadsheet'} text-base`}
+              aria-hidden="true"
+            />
             {report?.export ? 'Exportă din nou' : 'Exportă'}
           </button>
           <button
@@ -309,7 +328,10 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
             onClick={() => void generate()}
             className="inline-flex items-center gap-2 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-contrast transition-opacity hover:opacity-90 disabled:opacity-60 sm:px-4 sm:py-2 sm:text-sm"
           >
-            <i className={`ti ${loading ? 'ti-loader-2 animate-spin' : 'ti-file-invoice'} text-base`} aria-hidden="true" />
+            <i
+              className={`ti ${loading ? 'ti-loader-2 animate-spin' : 'ti-file-invoice'} text-base`}
+              aria-hidden="true"
+            />
             Generează pontaj
           </button>
         </div>
@@ -364,10 +386,8 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
         <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-success-border bg-success-bg px-4 py-3 text-sm text-success-text">
           <i className="ti ti-lock-check shrink-0 text-base" aria-hidden="true" />
           <div className="min-w-0 flex-1">
-            <span className="font-semibold">
-              {formatMonthLabel(month)} este exportată
-            </span>{' '}
-            — document generat la {formatExportedAt(report.export.exportedAt)}
+            <span className="font-semibold">{formatMonthLabel(month)} este exportată</span> —
+            document generat la {formatExportedAt(report.export.exportedAt)}
             {report.export.exportedBy
               ? ` de ${report.export.exportedBy.firstName} ${report.export.exportedBy.lastName}`
               : ''}
@@ -379,7 +399,10 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
             onClick={() => void handleReopen()}
             className="inline-flex shrink-0 items-center gap-1 rounded-md border border-success-border px-2.5 py-1 text-xs font-semibold text-success-text transition-colors hover:bg-success-border/40 disabled:opacity-50"
           >
-            <i className={`ti ${reopening ? 'ti-loader-2 animate-spin' : 'ti-lock-open'} text-sm`} aria-hidden="true" />
+            <i
+              className={`ti ${reopening ? 'ti-loader-2 animate-spin' : 'ti-lock-open'} text-sm`}
+              aria-hidden="true"
+            />
             Redeschide luna
           </button>
         </div>
@@ -391,10 +414,12 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
           <div className="min-w-0 flex-1">
             <span className="font-semibold">
               {formatMissingDays(totals.missingDays)} la{' '}
-              {totals.missingDaysPersons === 1 ? '1 persoană' : `${totals.missingDaysPersons} persoane`}
+              {totals.missingDaysPersons === 1
+                ? '1 persoană'
+                : `${totals.missingDaysPersons} persoane`}
             </span>{' '}
-            — zile lucrătoare fără pontaj și fără concediu aprobat. Apar goale în document,
-            de completat de contabilitate (AN, INV, DS…). Detaliile sunt pe fiecare rând.
+            — zile lucrătoare fără pontaj și fără concediu aprobat. Apar goale în document, de
+            completat de contabilitate (AN, INV, DS…). Detaliile sunt pe fiecare rând.
           </div>
         </div>
       ) : null}
@@ -403,9 +428,9 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
         <div className="mt-4 flex items-start gap-3 rounded-lg border border-info-border bg-info-bg px-4 py-3 text-sm text-info-text">
           <i className="ti ti-info-circle mt-0.5 shrink-0 text-base" aria-hidden="true" />
           <div>
-            <span className="font-semibold">{formatMonthLabel(month)} nu s-a încheiat.</span>{' '}
-            Orele suplimentare se aprobă abia după ultima zi a lunii, așa că pontajul de aici
-            conține deocamdată doar orele normale.
+            <span className="font-semibold">{formatMonthLabel(month)} nu s-a încheiat.</span> Orele
+            suplimentare se aprobă abia după ultima zi a lunii, așa că pontajul de aici conține
+            deocamdată doar orele normale.
           </div>
         </div>
       ) : totals && totals.pendingCount > 0 ? (
@@ -486,17 +511,21 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
           data={visibleLines}
           rowKey={(line) => line.person.id}
           loading={loading}
-          emptyMessage={hasFilters ? 'Nicio persoană nu corespunde filtrelor.' : 'Nicio persoană găsită.'}
+          emptyMessage={
+            hasFilters ? 'Nicio persoană nu corespunde filtrelor.' : 'Nicio persoană găsită.'
+          }
         />
       </div>
 
       {!loading && !error && lines.length > 0 ? (
         <p className="mt-3 text-xs text-text-muted">
           {hasFilters ? `Se afișează ${visibleLines.length} din ${lines.length} persoane. ` : ''}
-          Orele normale sunt orele pontate fără cele peste program; orele suplimentare sunt doar
-          cele aprobate pentru plată. În document, o zi cu pontaj sau cu recuperare aprobată
-          e X, concediile apar cu codul lor (CO, CM, CFP), iar sâmbetele lucrate se numără
-          separat. „Exportă” descarcă documentul și marchează luna ca exportată — reversibil.
+          Personalul office nu apare pe pontaj. Colaboratorii externi apar cu zilele lucrate, dar
+          fără zile lipsă și fără ore suplimentare — nu au un număr fix de zile. Orele normale sunt
+          orele pontate fără cele peste program; orele suplimentare sunt doar cele aprobate pentru
+          plată. În document, o zi cu pontaj sau cu recuperare aprobată e X, concediile apar cu
+          codul lor (CO, CM, CFP), iar sâmbetele lucrate se numără separat. „Exportă” descarcă
+          documentul și marchează luna ca exportată — reversibil.
         </p>
       ) : null}
     </div>

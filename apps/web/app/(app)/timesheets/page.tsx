@@ -8,11 +8,7 @@ import { OvertimeApprovalsTab } from './OvertimeApprovalsTab';
 import { OvertimeBalancesTab } from './OvertimeBalancesTab';
 import { TimesheetFlowTabs } from './TimesheetFlowTabs';
 import { TimesheetListTab } from './TimesheetListTab';
-import {
-  DEFAULT_TIMESHEET_TAB,
-  parseTimesheetTab,
-  type TimesheetTab,
-} from './timesheetTabs';
+import { DEFAULT_TIMESHEET_TAB, parseTimesheetTab, type TimesheetTab } from './timesheetTabs';
 
 /**
  * Pontaj → Ore suplimentare → Aprobări → Contabilitate, one page with a step
@@ -24,9 +20,7 @@ export default function TimesheetsPage() {
   const searchParams = useSearchParams();
   const { pendingCount } = useOvertimePendingCount();
   const activeTab = parseTimesheetTab(searchParams.get('tab'));
-  const [activatedTabs, setActivatedTabs] = useState<Set<TimesheetTab>>(
-    () => new Set([activeTab]),
-  );
+  const [activatedTabs, setActivatedTabs] = useState<Set<TimesheetTab>>(() => new Set([activeTab]));
 
   useEffect(() => {
     setActivatedTabs((current) => {
@@ -70,10 +64,7 @@ export default function TimesheetsPage() {
 
         {activatedTabs.has('overtime') && (
           <div hidden={activeTab !== 'overtime'}>
-            <OvertimeBalancesTab
-              active={activeTab === 'overtime'}
-              onOpenApprovals={() => setActiveTab('approvals')}
-            />
+            <OvertimeBalancesTab active={activeTab === 'overtime'} />
           </div>
         )}
 

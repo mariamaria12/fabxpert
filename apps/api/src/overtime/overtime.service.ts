@@ -349,8 +349,10 @@ export class OvertimeService {
     const monthInProgress = isMonthInProgress(monthStart);
     const nextMonth = startOfNextMonth(monthStart);
 
+    // Office staff are not on the pontaj; external collaborators are, but
+    // without a fixed number of days, so nothing counts as missing for them.
     const [persons, settledRows, source, pendingLines, exportRow] = await Promise.all([
-      this.listPersons(),
+      this.listPersons({ includeExternal: true, includeOffice: false }),
       this.prisma.overtimeSettlement.findMany({
         where: { month: monthStart },
         select: { personId: true, paidMinutes: true, settledAt: true },
@@ -376,6 +378,7 @@ export class OvertimeService {
       const activity = this.monthlyActivity(person.id, source).get(monthKey) ?? NO_ACTIVITY;
       const settled = settledByPerson.get(person.id) ?? null;
       const pending = pendingByPerson.get(person.id) ?? null;
+      const isExternal = isExternalPerson(person);
 
       // One code per calendar day. Weekends stay blank on purpose: a Saturday
       // is counted separately, a Sunday's hours go to overtime.
@@ -399,7 +402,7 @@ export class OvertimeService {
         }
         dayCodes.push(code);
 
-        if (isWorking && code === '' && cursor.getTime() < today.getTime()) {
+        if (!isExternal && isWorking && code === '' && cursor.getTime() < today.getTime()) {
           missingWorkingDays.push(dayKey);
         }
       }
@@ -418,6 +421,7 @@ export class OvertimeService {
 
       return {
         person: toBalancePerson(person),
+        isExternal,
         loggedMinutes,
         ...split,
         saturdaysWorked: activity.saturdaysWorked,
@@ -678,20 +682,32 @@ export class OvertimeService {
     return byMonth;
   }
 
-  private listPersons() {
+  /**
+   * Who a computation is about. Overtime keeps the INCLUDE_EXTERNAL_EMPLOYEES
+   * default and everyone with a login; the pontaj for accounting asks for the
+   * external collaborators too and leaves the office staff out.
+   */
+  private listPersons(scope: { includeExternal?: boolean; includeOffice?: boolean } = {}) {
+    const includeExternal = scope.includeExternal ?? INCLUDE_EXTERNAL_EMPLOYEES;
+    const includeOffice = scope.includeOffice ?? true;
+
     return this.prisma.person.findMany({
       where: {
         ...notDeleted(),
-        ...(INCLUDE_EXTERNAL_EMPLOYEES
-          ? {}
-          : // Persons without a login are kept: external is an explicit flag.
-            { OR: [{ user: null }, { user: { angajatExtern: false } }] }),
+        AND: [
+          // Persons without a login are kept: external and office are explicit flags.
+          ...(includeExternal
+            ? []
+            : [{ OR: [{ user: null }, { user: { angajatExtern: false } }] }]),
+          ...(includeOffice ? [] : [{ OR: [{ user: null }, { user: { isOfficeUser: false } }] }]),
+        ],
       },
       select: {
         id: true,
         firstName: true,
         lastName: true,
         employeeRole: { select: { name: true } },
+        user: { select: { angajatExtern: true } },
       },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     });
@@ -809,10 +825,21 @@ type PersonRow = {
   firstName: string;
   lastName: string;
   employeeRole: { name: string } | null;
+  user: { angajatExtern: boolean } | null;
 };
 
 function toBalancePerson(person: PersonRow): OvertimeBalancePersonDto {
-  return person;
+  return {
+    id: person.id,
+    firstName: person.firstName,
+    lastName: person.lastName,
+    employeeRole: person.employeeRole,
+  };
+}
+
+/** A person without a login is on the payroll like anyone else; external is an explicit flag. */
+function isExternalPerson(person: PersonRow): boolean {
+  return person.user?.angajatExtern ?? false;
 }
 
 function addTo(map: Map<string, number>, key: string, minutes: number): void {
