@@ -334,15 +334,19 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
       return;
     }
 
-    const parsed = updateUserSchema.safeParse(payload);
-    if (!parsed.success) {
+    // The account payload is validated only when there is one: the schema
+    // refuses an empty object, and a change to auto presence alone leaves it
+    // empty — that change goes to the person, not the account.
+    const hasAccountChanges = Object.keys(payload).length > 0;
+    const parsed = hasAccountChanges ? updateUserSchema.safeParse(payload) : null;
+    if (parsed && !parsed.success) {
       setFieldErrors(mapZodFieldErrors(parsed.error));
       return;
     }
 
     setIsSubmitting(true);
     try {
-      let saved = Object.keys(payload).length > 0 ? await updateUser(user.id, parsed.data) : user;
+      let saved = parsed?.success ? await updateUser(user.id, parsed.data) : user;
       if (autoPresenceChanged) {
         await updatePerson(values.personId, { autoPresence: values.autoPresence });
         saved = { ...saved, person: { ...saved.person, autoPresence: values.autoPresence } };
