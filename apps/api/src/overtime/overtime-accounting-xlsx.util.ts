@@ -1,8 +1,5 @@
 import ExcelJS from 'exceljs';
-import {
-  ACCOUNTING_DAY_CODES,
-  accountingDocumentLines,
-} from '@fabxpert/shared/accountingDocument';
+import { ACCOUNTING_DAY_CODES, accountingDocumentLines } from '@fabxpert/shared/accountingDocument';
 import type { AccountingTimesheetResponse } from '@fabxpert/shared/dto/overtime.dto';
 
 /**
@@ -50,6 +47,15 @@ const FIRST_DAY_COLUMN = 3; // C
 const LAST_DAY_COLUMN = FIRST_DAY_COLUMN + DAY_COLUMNS - 1; // AG
 const FIRST_PERSON_ROW = 4;
 
+/** Empty in their sheet, between the pay columns and the grand total. */
+const UNUSED_COLUMN = 51; // AY
+
+// The EDENRED cross-check block, written beside the legend as in their sheet.
+const CHECK_TITLE_COLUMN = 8; // H
+const CHECK_LABEL_COLUMN = 9; // I
+const CHECK_VALUE_COLUMN = 10; // J
+const CHECK_MATCH_COLUMN = 11; // K
+
 const SUMMARY_HEADERS: { header: string; width: number }[] = [
   { header: 'Zile lucrate / EDENRED', width: 10.3 },
   { header: 'Zile CO / CM / CP', width: 7.1 },
@@ -93,41 +99,44 @@ const COL = {
 } as const;
 
 const FONT_NAME = 'Arial Narrow';
-const HEADER_FILL: ExcelJS.Fill = {
-  type: 'pattern',
-  pattern: 'solid',
-  fgColor: { argb: 'FF434343' },
-};
+
+function solidFill(argb: string): ExcelJS.Fill {
+  return { type: 'pattern', pattern: 'solid', fgColor: { argb } };
+}
+
+const HEADER_FILL = solidFill('FF434343');
 const HEADER_FONT: Partial<ExcelJS.Font> = {
   name: FONT_NAME,
   size: 10,
   color: { argb: 'FFFFFF00' },
 };
-const SUMMARY_FILL: ExcelJS.Fill = {
-  type: 'pattern',
-  pattern: 'solid',
-  fgColor: { argb: 'FFEFEFEF' },
+const SUMMARY_FILL = solidFill('FFEFEFEF');
+
+/** Saturdays and Sundays are tinted apart in their sheet. */
+const SATURDAY_FILL = solidFill('FFDEEBF7');
+const SUNDAY_FILL = solidFill('FFFBE5D6');
+const TOTAL_FILL = solidFill('FF000000');
+const LEGEND_TITLE_FILL = solidFill('FF7CEB99');
+/**
+ * Their legend paints every code its own colour, and leaves X and * plain.
+ * The label keeps the code's colour unless it has one of its own.
+ */
+const LEGEND_COLORS: Record<string, { code: string; label?: string }> = {
+  CO: { code: 'FFB6D7A8' },
+  INV: { code: 'FFFFC000' },
+  CFP: { code: 'FFA4C2F4' },
+  CM: { code: 'FFFFFF00' },
+  CP: { code: 'FF76E3FF' },
+  AN: { code: 'FFFF7474' },
+  DS: { code: 'FFFFF2CC' },
+  CS: { code: 'FFF6C3FF' },
+  WTF: { code: 'FF000000', label: 'FFA5A5A5' },
 };
-const WEEKEND_FILL: ExcelJS.Fill = {
-  type: 'pattern',
-  pattern: 'solid',
-  fgColor: { argb: 'FFDDEBF7' },
-};
-const TOTAL_FILL: ExcelJS.Fill = {
-  type: 'pattern',
-  pattern: 'solid',
-  fgColor: { argb: 'FF000000' },
-};
-const LEGEND_TITLE_FILL: ExcelJS.Fill = {
-  type: 'pattern',
-  pattern: 'solid',
-  fgColor: { argb: 'FF7CEB99' },
-};
-const LEGEND_CODE_FILL: ExcelJS.Fill = {
-  type: 'pattern',
-  pattern: 'solid',
-  fgColor: { argb: 'FFB6D7A8' },
-};
+
+/** The three bands of the EDENRED cross-check, top to bottom. */
+const CHECK_TITLE_FILL = solidFill('FFFF7474');
+const CHECK_VALUE_FILL = solidFill('FF7CEB99');
+const CHECK_TICKET_FILL = solidFill('FFA3DBFF');
 const THIN: Partial<ExcelJS.Borders> = {
   top: { style: 'thin' },
   left: { style: 'thin' },
@@ -162,6 +171,84 @@ export function buildAccountingTimesheetFilename(month: string): string {
   return `Pontaj_${MONTH_SHORT[monthIndex]}_${year}.xlsx`;
 }
 
+/**
+ * The two cross-checks the accountant keeps under the table: hours and meal
+ * tickets split between production and office, and the EDENRED sum next to
+ * what the totals row says. Which people count as office is their call, so
+ * PRODUCTIV is left to be filled in and TESA follows from it.
+ */
+function writeCrossChecks(
+  sheet: ExcelJS.Worksheet,
+  rows: { totalRow: number; legendRow: number; lastPersonRow: number },
+): void {
+  const { totalRow, legendRow, lastPersonRow } = rows;
+  const productivRow = totalRow + 1;
+  const tesaRow = productivRow + 1;
+  const splitColumns = [COL.dashboardHours, COL.mealTickets];
+
+  const cell = (row: number, column: number) => {
+    const target = sheet.getCell(row, column);
+    target.font = { name: FONT_NAME, size: 10 };
+    target.alignment = CENTER;
+    target.border = THIN;
+    return target;
+  };
+
+  cell(productivRow, COL.extra).value = 'PRODUCTIV';
+  cell(tesaRow, COL.extra).value = 'TESA';
+  for (const column of splitColumns) {
+    const letter = columnLetter(column);
+    cell(productivRow, column).numFmt = COUNT_FORMAT;
+    const tesa = cell(tesaRow, column);
+    tesa.value = { formula: `${letter}${totalRow}-${letter}${productivRow}` };
+    tesa.numFmt = COUNT_FORMAT;
+  }
+
+  const valueRow = legendRow + 1;
+  const ticketRow = legendRow + 2;
+  const valueCell = columnLetter(CHECK_VALUE_COLUMN);
+
+  const band = (row: number, fill: ExcelJS.Fill) => {
+    for (let column = CHECK_TITLE_COLUMN; column <= CHECK_VALUE_COLUMN; column += 1) {
+      cell(row, column).fill = fill;
+    }
+  };
+
+  band(legendRow, CHECK_TITLE_FILL);
+  const title = cell(legendRow, CHECK_TITLE_COLUMN);
+  title.value = 'EDENRED';
+  title.font = { name: FONT_NAME, size: 10, bold: true };
+  title.alignment = { horizontal: 'left', vertical: 'middle' };
+
+  for (const [row, label, formula, fill] of [
+    [valueRow, 'VALOARE', `${valueCell}${ticketRow}*30`, CHECK_VALUE_FILL],
+    [
+      ticketRow,
+      'TICHETE',
+      `SUM(${columnLetter(COL.worked)}${FIRST_PERSON_ROW}:${columnLetter(COL.worked)}${lastPersonRow})`,
+      CHECK_TICKET_FILL,
+    ],
+  ] as const) {
+    band(row, fill);
+
+    const labelCell = cell(row, CHECK_LABEL_COLUMN);
+    labelCell.value = label;
+    labelCell.alignment = { horizontal: 'right', vertical: 'middle' };
+
+    const amount = cell(row, CHECK_VALUE_COLUMN);
+    amount.value = { formula };
+    amount.numFmt = '#,##0';
+
+    // Reads TRUE when the block agrees with the totals row.
+    const match = sheet.getCell(row, CHECK_MATCH_COLUMN);
+    match.value = {
+      formula: `${valueCell}${row}=${columnLetter(row === valueRow ? COL.edenred : COL.worked)}${totalRow}`,
+    };
+    match.font = { name: FONT_NAME, size: 10 };
+    match.alignment = CENTER;
+  }
+}
+
 export async function buildAccountingTimesheetXlsx(
   report: AccountingTimesheetResponse,
 ): Promise<Buffer> {
@@ -182,13 +269,12 @@ export async function buildAccountingTimesheetXlsx(
   });
 
   // --- header rows 1–2 ---
-  const dayColumnsMeta: { column: number; isWeekend: boolean; inMonth: boolean }[] = [];
+  const dayColumnsMeta: { column: number; weekday: number; inMonth: boolean }[] = [];
   for (let offset = 0; offset < DAY_COLUMNS; offset += 1) {
     const column = FIRST_DAY_COLUMN + offset;
     const date = new Date(year, monthIndex, offset + 1);
     const inMonth = offset < daysInMonth;
-    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-    dayColumnsMeta.push({ column, isWeekend, inMonth });
+    dayColumnsMeta.push({ column, weekday: date.getDay(), inMonth });
 
     const nameCell = sheet.getCell(1, column);
     nameCell.value = WEEKDAY_NAMES[date.getDay()];
@@ -223,15 +309,15 @@ export async function buildAccountingTimesheetXlsx(
 
   SUMMARY_HEADERS.forEach((item, index) => {
     const column = COL.worked + index;
+    const stands = column === COL.worked || column === COL.netCard;
     sheet.mergeCells(1, column, 2, column);
     const cell = sheet.getCell(1, column);
     cell.value = item.header;
-    cell.font = {
-      name: FONT_NAME,
-      size: column === COL.worked ? 12 : 10,
-      bold: column === COL.worked,
-    };
-    cell.fill = SUMMARY_FILL;
+    cell.font = { name: FONT_NAME, size: stands ? 12 : 10, bold: stands };
+    // The grey band stops at NET; the columns they fill in stay white.
+    if (column <= COL.net) {
+      cell.fill = SUMMARY_FILL;
+    }
     cell.alignment = { ...CENTER, wrapText: true };
     cell.border = THIN;
   });
@@ -279,8 +365,10 @@ export async function buildAccountingTimesheetXlsx(
       cell.font = { name: FONT_NAME, size: 10, bold: true };
       cell.alignment = CENTER;
       cell.border = THIN;
-      if (meta.inMonth && meta.isWeekend) {
-        cell.fill = WEEKEND_FILL;
+      if (meta.inMonth && meta.weekday === 6) {
+        cell.fill = SATURDAY_FILL;
+      } else if (meta.inMonth && meta.weekday === 0) {
+        cell.fill = SUNDAY_FILL;
       }
     });
 
@@ -298,19 +386,30 @@ export async function buildAccountingTimesheetXlsx(
       [COL.grandTotal]: `${columnLetter(COL.netCard)}${row}+${columnLetter(COL.totalPay)}${row}+${columnLetter(COL.edenred)}${row}+${columnLetter(COL.net)}${row}`,
     };
 
+    // Their sheet counts the "da" written on the day; the app knows the number,
+    // so it writes that and leaves the formula where it has nothing to add.
+    if (line.saturdaysWorked === 0) {
+      formulas[COL.saturdays] = countIf(range, 'da');
+    }
+
     for (let column: number = COL.worked; column <= COL.grandTotal; column += 1) {
+      if (column === UNUSED_COLUMN) {
+        continue;
+      }
       const cell = sheet.getCell(row, column);
       const formula = formulas[column];
       if (formula) {
         cell.value = { formula };
       } else if (column === COL.saturdays) {
-        cell.value = line.saturdaysWorked > 0 ? line.saturdaysWorked : null;
+        cell.value = line.saturdaysWorked;
       } else if (column === COL.extraHours) {
         cell.value = line.overtimeMinutes > 0 ? line.overtimeMinutes / 60 : null;
       }
       cell.font = { name: FONT_NAME, size: column === COL.worked ? 14 : 10, bold: true };
       cell.alignment = CENTER;
-      cell.border = THIN;
+      if (column !== COL.grandTotal) {
+        cell.border = THIN;
+      }
       cell.numFmt =
         column === COL.worked ? '0' : column === COL.extraHours ? '0.0##' : COUNT_FORMAT;
     }
@@ -319,7 +418,7 @@ export async function buildAccountingTimesheetXlsx(
   // --- totals row ---
   const totalRow = lastPersonRow + 1;
   sheet.getRow(totalRow).height = 27;
-  const sumColumns = [
+  const sumColumns: number[] = [
     COL.worked,
     COL.netCard,
     COL.extraHours,
@@ -334,19 +433,37 @@ export async function buildAccountingTimesheetXlsx(
     COL.grandTotal,
   ];
   if (lines.length > 0) {
-    for (const column of sumColumns) {
+    // Black from "Zile lucrate" through "Extra", as in their sheet — the cells
+    // with nothing to total are painted too, so the band is unbroken.
+    for (let column: number = COL.worked; column <= COL.mealTickets; column += 1) {
       const letter = columnLetter(column);
+      const totalled = sumColumns.includes(column);
+      const banded = column <= COL.extra;
       const cell = sheet.getCell(totalRow, column);
-      cell.value = { formula: `SUM(${letter}${FIRST_PERSON_ROW}:${letter}${lastPersonRow})` };
-      cell.font = { name: FONT_NAME, size: column === COL.worked ? 16 : 10, bold: true };
+      if (totalled) {
+        cell.value = { formula: `SUM(${letter}${FIRST_PERSON_ROW}:${letter}${lastPersonRow})` };
+      }
+      cell.font = {
+        name: FONT_NAME,
+        size: column === COL.worked ? 16 : column === COL.netCard ? 14 : banded ? 11 : 10,
+        bold: banded && totalled,
+        ...(banded ? { color: { argb: 'FFFFFFFF' } } : {}),
+      };
       cell.alignment = CENTER;
       cell.border = THIN;
       cell.numFmt = column === COL.worked ? '0' : COUNT_FORMAT;
-      if (column === COL.worked) {
+      if (banded) {
         cell.fill = TOTAL_FILL;
-        cell.font = { ...cell.font, color: { argb: 'FFFFFFFF' } };
       }
     }
+
+    const grandTotal = sheet.getCell(totalRow, COL.grandTotal);
+    grandTotal.value = {
+      formula: `SUM(${columnLetter(COL.grandTotal)}${FIRST_PERSON_ROW}:${columnLetter(COL.grandTotal)}${lastPersonRow})`,
+    };
+    grandTotal.font = { name: FONT_NAME, size: 10 };
+    grandTotal.alignment = CENTER;
+    grandTotal.numFmt = COUNT_FORMAT;
   }
 
   // --- legend ---
@@ -361,22 +478,33 @@ export async function buildAccountingTimesheetXlsx(
   ACCOUNTING_DAY_CODES.forEach((item, index) => {
     const row = legendRow + index;
     sheet.getRow(row).height = 15.75;
+    const colors = LEGEND_COLORS[item.code];
     const codeCell = sheet.getCell(row, FIRST_DAY_COLUMN);
     codeCell.value = item.code;
-    codeCell.font = { name: FONT_NAME, size: 10 };
+    // WTF is the one they wrote to stand out: it asks for a clarification.
+    codeCell.font =
+      item.code === 'WTF'
+        ? { name: FONT_NAME, size: 14, bold: true, color: { argb: 'FFFF0000' } }
+        : { name: FONT_NAME, size: 10 };
     codeCell.alignment = CENTER;
     codeCell.border = THIN;
-    if (index > 0) {
-      codeCell.fill = LEGEND_CODE_FILL;
+    if (colors) {
+      codeCell.fill = solidFill(colors.code);
     }
 
     sheet.mergeCells(row, FIRST_DAY_COLUMN + 1, row, FIRST_DAY_COLUMN + 3);
+    // Merged D:F, so this one style paints the whole band.
     const labelCell = sheet.getCell(row, FIRST_DAY_COLUMN + 1);
     labelCell.value = item.label;
     labelCell.font = { name: FONT_NAME, size: 10 };
     labelCell.alignment = { horizontal: 'left', vertical: 'middle' };
     labelCell.border = THIN;
+    if (colors) {
+      labelCell.fill = solidFill(colors.label ?? colors.code);
+    }
   });
+
+  writeCrossChecks(sheet, { totalRow, legendRow, lastPersonRow });
 
   sheet.views = [{ state: 'frozen', xSplit: 2, ySplit: 3 }];
 

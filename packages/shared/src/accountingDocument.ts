@@ -16,6 +16,7 @@ export const ACCOUNTING_DAY_CODES: readonly { code: string; label: string }[] = 
   { code: 'DS', label: 'Donare de sânge' },
   { code: 'CS', label: 'Contract suspendat' },
   { code: '*', label: 'Prezent CIM 2 ore' },
+  { code: 'WTF', label: 'Clarificare' },
 ];
 
 export const PRESENT_DAY_CODE = 'X';
