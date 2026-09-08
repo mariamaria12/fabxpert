@@ -166,3 +166,41 @@ export function accountingHours(input: AccountingHoursInput): AccountingHoursSpl
     totalMinutes: normalMinutes + overtimeMinutes,
   };
 }
+
+/**
+ * How many days before a month ends its settlement opens. The month is closed
+ * in its last week, not after it: the last day can fall on a weekend, and the
+ * hours have to be approved while there is someone in the office to approve
+ * them. Seven days always cover a full Monday-to-Sunday week.
+ */
+export const SETTLEMENT_WINDOW_DAYS = 7;
+
+/** First day the overtime of `month` can be approved. Any day of the month works. */
+export function settlementOpensOn(month: Date): Date {
+  return new Date(
+    month.getFullYear(),
+    month.getMonth() + 1,
+    1 - SETTLEMENT_WINDOW_DAYS,
+    0,
+    0,
+    0,
+    0,
+  );
+}
+
+/** Whether the overtime of `month` can be approved yet. */
+export function isMonthSettleable(month: Date, reference = new Date()): boolean {
+  const today = new Date(reference.getFullYear(), reference.getMonth(), reference.getDate());
+  return today.getTime() >= settlementOpensOn(month).getTime();
+}
+
+/**
+ * The newest month open for approval — what the month-end flow is about: the
+ * current month once its last week starts, the one before it until then.
+ */
+export function latestSettleableMonth(reference = new Date()): Date {
+  const currentMonth = new Date(reference.getFullYear(), reference.getMonth(), 1, 0, 0, 0, 0);
+  return isMonthSettleable(currentMonth, reference)
+    ? currentMonth
+    : new Date(reference.getFullYear(), reference.getMonth() - 1, 1, 0, 0, 0, 0);
+}

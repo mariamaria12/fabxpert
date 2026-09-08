@@ -46,7 +46,7 @@ const USER_GROUPS: {
   {
     id: 'externi',
     title: 'Externi',
-    description: 'văd doar proiectele alocate specific',
+    description: 'colaboratori, bifați „angajat extern”',
     emptyMessage: 'Niciun utilizator extern.',
   },
   {
@@ -61,7 +61,7 @@ function userGroupOf(user: UserDto): UserGroupId {
   if (user.role === 'ADMIN' || user.isOfficeUser) {
     return 'office';
   }
-  return user.restrictedProjects ? 'externi' : 'angajati';
+  return user.angajatExtern ? 'externi' : 'angajati';
 }
 
 function personName(user: UserDto): string {

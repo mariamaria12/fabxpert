@@ -175,9 +175,8 @@ export class UserService {
           role: input.role,
           personId: input.personId,
           ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
-          ...(input.restrictedProjects !== undefined
-            ? { restrictedProjects: input.restrictedProjects }
-            : {}),
+          // External collaborators only ever see the projects assigned to them.
+          restrictedProjects: input.angajatExtern ? true : (input.restrictedProjects ?? false),
           // Admins are office accounts by definition; the flag is free for the rest.
           isOfficeUser: input.role === 'ADMIN' ? true : (input.isOfficeUser ?? false),
           ...(input.angajatExtern !== undefined ? { angajatExtern: input.angajatExtern } : {}),
@@ -201,9 +200,12 @@ export class UserService {
       await this.assertPersonExists(input.personId);
     }
 
+    // External collaborators only ever see the projects assigned to them, so
+    // the flag is forced on for them and free for everyone else.
+    const restrictedProjects =
+      (input.angajatExtern ?? existing.angajatExtern) ? true : input.restrictedProjects;
     const restrictedProjectsChanged =
-      input.restrictedProjects !== undefined &&
-      input.restrictedProjects !== existing.restrictedProjects;
+      restrictedProjects !== undefined && restrictedProjects !== existing.restrictedProjects;
 
     const data: Prisma.UserUpdateInput = {};
 
@@ -216,8 +218,8 @@ export class UserService {
     if (input.isActive !== undefined) {
       data.isActive = input.isActive;
     }
-    if (input.restrictedProjects !== undefined) {
-      data.restrictedProjects = input.restrictedProjects;
+    if (restrictedProjects !== undefined) {
+      data.restrictedProjects = restrictedProjects;
     }
     if (input.isOfficeUser !== undefined) {
       data.isOfficeUser = input.isOfficeUser;

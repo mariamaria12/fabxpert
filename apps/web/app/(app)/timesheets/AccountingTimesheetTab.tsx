@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  accountingDocumentLines,
   exportAccountingTimesheetXlsx,
   formatOvertimeHours,
   getAccountingTimesheet,
@@ -24,7 +25,12 @@ import { AccountingPreviewModal } from './AccountingPreviewModal';
 import { MonthPicker } from './MonthPicker';
 import { StatTile, StatTileRow } from './StatTile';
 import { formatHoursDecimal, formatRomanianDate } from './timesheetFormat';
-import { currentMonth, formatMonthLabel, lastCompleteMonth } from './timesheetMonths';
+import {
+  currentMonth,
+  formatMonthLabel,
+  latestSettleableMonth,
+  settlementOpensLabel,
+} from './timesheetMonths';
 import {
   ACCOUNTING_STATUS_LABELS,
   accountingStatusBadgeClassName,
@@ -92,7 +98,7 @@ function matchesSearch(line: AccountingTimesheetLineDto, search: string): boolea
 export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTimesheetTabProps) {
   const { showToast } = useToast();
   const businessAutofill = useBusinessAutofillProps();
-  const [month, setMonth] = useState(lastCompleteMonth);
+  const [month, setMonth] = useState(latestSettleableMonth);
   const [report, setReport] = useState<AccountingTimesheetResponse | null>(null);
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
@@ -210,6 +216,10 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
       (role === ALL_ROLES || line.person.employeeRole?.name === role) &&
       (statusFilter === 'all' || line.status === statusFilter),
   );
+  // The document's people first; the external collaborators get their own
+  // section under the table, since nothing about them reaches accounting.
+  const payrollLines = accountingDocumentLines(visibleLines);
+  const externalLines = visibleLines.filter((line) => line.isExternal);
 
   const totals = report?.totals ?? null;
   const readyCount = lines.filter((line) => line.status === 'GATA_EXPORT').length;
@@ -230,14 +240,6 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
       render: (line) => (
         <span className="flex items-center gap-1.5">
           <span className="truncate">{line.person.employeeRole?.name ?? '—'}</span>
-          {line.isExternal ? (
-            <span
-              className="shrink-0 rounded border border-border px-1.5 py-px text-[10px] font-medium uppercase tracking-wide text-text-muted"
-              title="Colaborator extern — fără număr fix de zile; nu intră în documentul pentru contabilitate"
-            >
-              extern
-            </span>
-          ) : null}
           {line.isAutoPresent ? (
             <span
               className="shrink-0 rounded border border-border px-1.5 py-px text-[10px] font-medium uppercase tracking-wide text-text-muted"
@@ -434,19 +436,20 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
                 ? '1 persoană'
                 : `${totals.missingDaysPersons} persoane`}
             </span>{' '}
-            — zile lucrătoare fără pontaj și fără concediu aprobat. Exportul se oprește întâi la
-            fereastra în care alegi pentru fiecare: prezent, concediu sau liber.
+            — zile lucrătoare fără pontaj și fără concediu aprobat.
           </div>
         </div>
       ) : null}
 
-      {report?.monthInProgress ? (
+      {report && !report.settlementOpen ? (
         <div className="mt-4 flex items-start gap-3 rounded-lg border border-info-border bg-info-bg px-4 py-3 text-sm text-info-text">
           <i className="ti ti-info-circle mt-0.5 shrink-0 text-base" aria-hidden="true" />
           <div>
-            <span className="font-semibold">{formatMonthLabel(month)} nu s-a încheiat.</span> Orele
-            suplimentare se aprobă abia după ultima zi a lunii, așa că pontajul de aici conține
-            deocamdată doar orele normale.
+            <span className="font-semibold">
+              Aprobările pentru {formatMonthLabel(month).toLowerCase()} se deschid pe{' '}
+              {settlementOpensLabel(month)}.
+            </span>{' '}
+            Până atunci pontajul de aici conține doar orele normale.
           </div>
         </div>
       ) : totals && totals.pendingCount > 0 ? (
@@ -524,7 +527,7 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
         <DataTable
           storageKey="accounting-timesheet-list"
           columns={columns}
-          data={visibleLines}
+          data={payrollLines}
           rowKey={(line) => line.person.id}
           loading={loading}
           emptyMessage={
@@ -533,17 +536,36 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
         />
       </div>
 
+      {externalLines.length > 0 ? (
+        <div className="mt-6">
+          <DataTable
+            storageKey="accounting-timesheet-external-list"
+            title={
+              <div>
+                <h2 className="text-sm font-medium text-text-primary">Colaboratori externi</h2>
+                <p className="mt-0.5 text-xs text-text-muted">
+                  Nu intră în documentul pentru contabilitate și nu sunt numărați nici în totalurile
+                  de mai sus, nici la zilele fără pontaj — nu au un număr fix de zile.
+                </p>
+              </div>
+            }
+            columns={columns}
+            data={externalLines}
+            rowKey={(line) => line.person.id}
+            emptyMessage="Niciun colaborator extern."
+          />
+        </div>
+      ) : null}
+
       {!loading && !error && lines.length > 0 ? (
         <p className="mt-3 text-xs text-text-muted">
           {hasFilters ? `Se afișează ${visibleLines.length} din ${lines.length} persoane. ` : ''}
-          Personalul office nu apare pe pontaj. Colaboratorii externi apar cu zilele lucrate, dar
-          fără zile lipsă și fără ore suplimentare — nu au un număr fix de zile. Persoanele cu
-          „prezență automată” (conducere, contabilitate) nu pontează: apar prezente în fiecare zi
-          lucrătoare fără concediu aprobat. Orele normale sunt orele pontate fără cele peste
-          program; orele suplimentare sunt doar cele aprobate pentru plată. În document, o zi cu
-          pontaj sau cu recuperare aprobată e X, concediile apar cu codul lor (CO, CM, CFP), iar
-          sâmbetele lucrate se numără separat. „Exportă” descarcă documentul și marchează luna ca
-          exportată — reversibil.
+          Personalul office nu apare pe pontaj. Persoanele cu „prezență automată” (conducere,
+          contabilitate) nu pontează: apar prezente în fiecare zi lucrătoare fără concediu aprobat.
+          Orele normale sunt orele pontate fără cele peste program; orele suplimentare sunt doar
+          cele aprobate pentru plată. În document, o zi cu pontaj sau cu recuperare aprobată e X,
+          concediile apar cu codul lor (CO, CM, CFP), iar sâmbetele lucrate se numără separat.
+          „Exportă” descarcă documentul și marchează luna ca exportată — reversibil.
         </p>
       ) : null}
 

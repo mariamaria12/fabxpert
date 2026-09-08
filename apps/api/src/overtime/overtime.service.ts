@@ -18,6 +18,8 @@ import {
   DAILY_WORK_MINUTES,
   accountingHours,
   countSaturdaysWorked,
+  isMonthSettleable,
+  latestSettleableMonth,
   overtimeBalanceMinutes,
   overtimeDaysAvailable,
   settleOvertimeBalance,
@@ -31,7 +33,11 @@ import {
   todayWorkDate,
   workDateToDayKey,
 } from '@fabxpert/shared/workDate';
-import { leaveTypeDayCode, PRESENT_DAY_CODE } from '@fabxpert/shared/accountingDocument';
+import {
+  accountingDocumentLines,
+  leaveTypeDayCode,
+  PRESENT_DAY_CODE,
+} from '@fabxpert/shared/accountingDocument';
 import type { LeaveType } from '@fabxpert/shared/dto/leave.dto';
 import {
   buildAccountingTimesheetFilename,
@@ -59,15 +65,6 @@ function startOfNextMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth() + 1, 1, 0, 0, 0, 0);
 }
 
-/** The last month that is over — the one waiting to be approved. */
-function lastCompleteMonth(reference = new Date()): Date {
-  return new Date(reference.getFullYear(), reference.getMonth() - 1, 1, 0, 0, 0, 0);
-}
-
-/** A month still being worked, or not started: nothing in it can be approved yet. */
-function isMonthInProgress(monthStart: Date): boolean {
-  return startOfNextMonth(monthStart).getTime() > startOfMonth(new Date()).getTime();
-}
 
 function formatMonth(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -328,9 +325,9 @@ export class OvertimeService {
     };
   }
 
-  /** How many people still wait for last month's approval — the sidebar badge. */
+  /** How many people still wait for the open month's approval — the sidebar badge. */
   async countPendingApprovals(): Promise<OvertimeApprovalsPendingResponse> {
-    const monthStart = lastCompleteMonth();
+    const monthStart = latestSettleableMonth();
     const lines = await this.buildSettlementLines(monthStart, {});
 
     return {
@@ -349,7 +346,7 @@ export class OvertimeService {
   async accountingTimesheet(month: Date): Promise<AccountingTimesheetResponse> {
     const monthStart = startOfMonth(month);
     const monthKey = formatMonth(monthStart);
-    const monthInProgress = isMonthInProgress(monthStart);
+    const settlementOpen = isMonthSettleable(monthStart);
     const nextMonth = startOfNextMonth(monthStart);
 
     // Office staff are not on the pontaj; external collaborators are, but
@@ -361,7 +358,7 @@ export class OvertimeService {
         select: { personId: true, paidMinutes: true, settledAt: true },
       }),
       this.loadOvertimeSource({ from: monthStart, to: nextMonth }),
-      monthInProgress ? Promise.resolve([]) : this.buildSettlementLines(monthStart, {}),
+      settlementOpen ? this.buildSettlementLines(monthStart, {}) : Promise.resolve([]),
       this.findAccountingExport(monthStart),
       this.prisma.accountingPresence.findMany({
         where: { workDate: { gte: monthStart, lt: nextMonth } },
@@ -436,9 +433,9 @@ export class OvertimeService {
         paidMinutes: settled?.paidMinutes ?? null,
       });
 
-      // A line waits while its settlement is missing; a month in progress
-      // waits as a whole, and a past month with nothing to settle is ready.
-      const waiting = monthInProgress || pending !== null;
+      // A line waits while its settlement is missing; a month whose approvals
+      // have not opened waits as a whole, and one with nothing to settle is ready.
+      const waiting = !settlementOpen || pending !== null;
       const status = exportRow ? 'EXPORTAT' : settled || !waiting ? 'GATA_EXPORT' : 'IN_PREGATIRE';
 
       return {
@@ -456,20 +453,23 @@ export class OvertimeService {
       };
     });
 
-    const pending = lines.filter((line) => line.pendingBalanceMinutes !== null);
-    const withGaps = lines.filter((line) => line.missingWorkingDays.length > 0);
+    // The totals are the document's: external collaborators are on the lines,
+    // so the app can list them apart, but they are not on what accounting gets.
+    const documentLines = accountingDocumentLines(lines);
+    const pending = documentLines.filter((line) => line.pendingBalanceMinutes !== null);
+    const withGaps = documentLines.filter((line) => line.missingWorkingDays.length > 0);
 
     return {
       month: monthKey,
-      monthInProgress,
+      settlementOpen,
       workingDays: workingDaysInMonth(monthStart),
       export: exportRow,
       lines,
       totals: {
-        persons: lines.length,
-        normalMinutes: sumBy(lines, (line) => line.normalMinutes),
-        overtimeMinutes: sumBy(lines, (line) => line.overtimeMinutes),
-        totalMinutes: sumBy(lines, (line) => line.totalMinutes),
+        persons: documentLines.length,
+        normalMinutes: sumBy(documentLines, (line) => line.normalMinutes),
+        overtimeMinutes: sumBy(documentLines, (line) => line.overtimeMinutes),
+        totalMinutes: sumBy(documentLines, (line) => line.totalMinutes),
         pendingCount: pending.length,
         pendingBalanceMinutes: sumBy(pending, (line) => line.pendingBalanceMinutes ?? 0),
         missingDaysPersons: withGaps.length,
@@ -596,8 +596,8 @@ export class OvertimeService {
   }
 
   private assertSettleable(monthStart: Date): void {
-    if (isMonthInProgress(monthStart)) {
-      throw new BadRequestException('Only past months can be settled');
+    if (!isMonthSettleable(monthStart)) {
+      throw new BadRequestException('A month can only be settled from its last week on');
     }
   }
 

@@ -344,7 +344,11 @@ export {
   formatOvertimeBalance,
   accountingHours,
   SATURDAY_WORK_MINUTES,
+  SETTLEMENT_WINDOW_DAYS,
   countSaturdaysWorked,
+  isMonthSettleable,
+  latestSettleableMonth,
+  settlementOpensOn,
 } from './overtime';
 export {
   ACCOUNTING_DAY_CODES,

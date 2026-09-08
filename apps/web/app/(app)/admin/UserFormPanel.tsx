@@ -33,6 +33,7 @@ interface UserFormValues {
   isActive: boolean;
   restrictedProjects: boolean;
   isOfficeUser: boolean;
+  angajatExtern: boolean;
   /**
    * Admin accounts only. Lives on the person, not the account — saved with a
    * separate call.
@@ -48,6 +49,7 @@ const EMPTY_FORM: UserFormValues = {
   isActive: true,
   restrictedProjects: false,
   isOfficeUser: false,
+  angajatExtern: false,
   autoPresence: false,
 };
 
@@ -60,6 +62,7 @@ function userToFormValues(user: UserDto): UserFormValues {
     isActive: user.isActive,
     restrictedProjects: user.restrictedProjects,
     isOfficeUser: user.isOfficeUser,
+    angajatExtern: user.angajatExtern,
     autoPresence: user.person.autoPresence,
   };
 }
@@ -84,6 +87,9 @@ function buildUpdatePayload(user: UserDto, values: UserFormValues): UpdateUserIn
   }
   if (values.isOfficeUser !== user.isOfficeUser) {
     payload.isOfficeUser = values.isOfficeUser;
+  }
+  if (values.angajatExtern !== user.angajatExtern) {
+    payload.angajatExtern = values.angajatExtern;
   }
 
   const trimmedPassword = values.password.trim();
@@ -296,6 +302,7 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
         isActive: values.isActive,
         restrictedProjects: values.restrictedProjects,
         isOfficeUser: values.isOfficeUser,
+        angajatExtern: values.angajatExtern,
       });
 
       if (!parsed.success) {
@@ -558,15 +565,34 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
         <label className="inline-flex items-start gap-2 text-sm text-text-secondary">
           <input
             type="checkbox"
-            checked={values.restrictedProjects}
+            checked={values.angajatExtern}
             disabled={isBusy}
+            onChange={(event) => updateField('angajatExtern', event.target.checked)}
+            className="mt-0.5 size-4 rounded border-border accent-accent"
+          />
+          <span>
+            Angajat extern (colaborator)
+            <span className="mt-0.5 block text-xs text-text-muted">
+              Nu intră în documentul pentru contabilitate și nu i se cer zile lipsă — nu are un
+              număr fix de zile. Nu primește sondaje.
+            </span>
+          </span>
+        </label>
+
+        <label className="inline-flex items-start gap-2 text-sm text-text-secondary">
+          <input
+            type="checkbox"
+            checked={values.angajatExtern || values.restrictedProjects}
+            disabled={isBusy || values.angajatExtern}
             onChange={(event) => updateField('restrictedProjects', event.target.checked)}
             className="mt-0.5 size-4 rounded border-border accent-accent"
           />
           <span>
             Vede doar proiecte alocate specific
             <span className="mt-0.5 block text-xs text-text-muted">
-              Ascunde proiectele vizibile pentru „Toți”; rămân doar cele atribuite funcției sale.
+              {values.angajatExtern
+                ? 'Colaboratorii externi văd întotdeauna doar proiectele alocate specific.'
+                : 'Ascunde proiectele vizibile pentru „Toți”; rămân doar cele atribuite funcției sale.'}
             </span>
           </span>
         </label>

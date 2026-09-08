@@ -125,6 +125,7 @@ export type AccountingTimesheetLineDto = {
   settledAt: string | null;
 };
 
+/** Over the lines that reach the document — external collaborators are not in them. */
 export type AccountingTimesheetTotals = {
   persons: number;
   normalMinutes: number;
@@ -151,8 +152,11 @@ export type AccountingExportDto = {
 export type AccountingTimesheetResponse = {
   /** `YYYY-MM`. */
   month: string;
-  /** The month is not over: nothing can be approved, every line is in preparation. */
-  monthInProgress: boolean;
+  /**
+   * The month's approvals have opened — its last week, or later. Until then
+   * nothing can be approved and every line is in preparation.
+   */
+  settlementOpen: boolean;
   /** Mon–Fri days in the month — the norm on the document. */
   workingDays: number;
   export: AccountingExportDto | null;

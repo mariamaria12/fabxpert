@@ -37,11 +37,11 @@ function notLoggedPredicate(
       ? Prisma.sql`AND t."workDate" >= ${from} AND t."workDate" < ${to}`
       : Prisma.empty;
 
-  // External collaborators ("vede doar proiecte alocate specific") are off by
-  // default — they are not expected to log time like employees.
+  // External collaborators are off by default — they are not expected to log
+  // time like employees.
   const externalFilter = includeExternal
     ? Prisma.empty
-    : Prisma.sql`AND (u.id IS NULL OR NOT u."restrictedProjects")`;
+    : Prisma.sql`AND (u.id IS NULL OR NOT u."angajatExtern")`;
 
   const leaveOverlap =
     from && to
@@ -83,7 +83,7 @@ export function buildNotLoggedPersonsQuery(
       pe."firstName" AS "firstName",
       pe."lastName" AS "lastName",
       er.name AS "employeeRoleName",
-      CASE WHEN u."restrictedProjects" THEN 'external' ELSE 'employee' END AS "group"
+      CASE WHEN u."angajatExtern" THEN 'external' ELSE 'employee' END AS "group"
     FROM persons pe
     ${accountJoin}
     LEFT JOIN employee_roles er ON er.id = pe."employeeRoleId" AND er."deletedAt" IS NULL

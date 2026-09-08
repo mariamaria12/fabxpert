@@ -18,7 +18,7 @@ import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { MonthPicker } from './MonthPicker';
 import { StatTile, StatTileRow } from './StatTile';
 import { formatRomanianDate } from './timesheetFormat';
-import { formatMonthLabel, lastCompleteMonth } from './timesheetMonths';
+import { currentMonth, formatMonthLabel, latestSettleableMonth } from './timesheetMonths';
 import { approvalBadge, STATUS_BADGE_CLASS } from './timesheetStatus';
 
 interface OvertimeApprovalsTabProps {
@@ -57,14 +57,15 @@ function paidWithReserve(line: OvertimeSettlementLineDto, reserveInput: string):
 }
 
 /**
- * Step 3 of the flow: at month end, approve what each person is paid for the
- * overtime they hold. Approving writes the settlement; a reserve is what the
- * person keeps as time off instead of pay, and a debt is carried, never paid.
+ * Step 3 of the flow: in the last week of the month, approve what each person
+ * is paid for the overtime they hold. Approving writes the settlement; a
+ * reserve is what the person keeps as time off instead of pay, and a debt is
+ * carried, never paid.
  */
 export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeApprovalsTabProps) {
   const { showToast } = useToast();
   const { refreshPendingCount } = useOvertimePendingCount();
-  const [month, setMonth] = useState(lastCompleteMonth);
+  const [month, setMonth] = useState(latestSettleableMonth);
   const [preview, setPreview] = useState<OvertimeSettlementPreviewResponse | null>(null);
   const [reserves, setReserves] = useState<Record<string, string>>({});
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
@@ -334,8 +335,8 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
         <div>
           <h1 className="text-[22px] font-medium text-text-primary">Aprobări ore suplimentare</h1>
           <p className="mt-0.5 text-sm text-text-muted">
-            La final de lună aprobi ce rămâne de plată. Doar ce aprobi aici intră în pontajul pentru
-            contabilitate.
+            În ultima săptămână a lunii aprobi ce rămâne de plată. Doar ce aprobi aici intră în
+            pontajul pentru contabilitate.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -366,7 +367,7 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
         <MonthPicker
           value={month}
           onChange={setMonth}
-          max={lastCompleteMonth()}
+          max={latestSettleableMonth()}
           disabled={busy !== null}
         />
         <div className="flex flex-wrap items-center gap-1.5">
@@ -385,6 +386,17 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
           ))}
         </div>
       </div>
+
+      {month === currentMonth() ? (
+        <div className="mt-4 flex items-start gap-3 rounded-lg border border-info-border bg-info-bg px-4 py-3 text-sm text-info-text">
+          <i className="ti ti-info-circle mt-0.5 shrink-0 text-base" aria-hidden="true" />
+          <div>
+            <span className="font-semibold">Luna e încă în curs.</span> Poți aproba de pe acum, cu
+            orele pontate până azi. Orele din zilele rămase intră doar dacă reaprobi după ultima zi
+            a lunii.
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-4">
         <StatTileRow>

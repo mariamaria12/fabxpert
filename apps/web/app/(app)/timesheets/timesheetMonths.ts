@@ -1,12 +1,26 @@
 /** `YYYY-MM` helpers for the month-based tabs (approvals, accounting). */
 
+import { latestSettleableMonth as settleableMonthStart, settlementOpensOn } from '@fabxpert/shared';
+
 export function monthKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
-/** The last month that is over — the one an admin normally approves. */
-export function lastCompleteMonth(reference = new Date()): string {
-  return monthKey(new Date(reference.getFullYear(), reference.getMonth() - 1, 1));
+/**
+ * The month an admin approves now: the current one once its last week starts,
+ * the one before it until then.
+ */
+export function latestSettleableMonth(reference = new Date()): string {
+  return monthKey(settleableMonthStart(reference));
+}
+
+/** "24 septembrie" — the day the month's approvals open. */
+export function settlementOpensLabel(month: string): string {
+  const [year, monthIndex] = month.split('-').map(Number);
+  return settlementOpensOn(new Date(year, monthIndex - 1, 1)).toLocaleDateString('ro-RO', {
+    day: 'numeric',
+    month: 'long',
+  });
 }
 
 export function currentMonth(reference = new Date()): string {
