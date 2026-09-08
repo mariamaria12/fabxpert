@@ -1066,6 +1066,18 @@ export function AssemblyListScreen({
                   </p>
                 )}
 
+                {editing && (
+                  <button
+                    type="button"
+                    disabled={isBusy}
+                    onClick={addRow}
+                    className="inline-flex items-center gap-2 self-start text-sm text-accent transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <i className="ti ti-plus text-base" aria-hidden="true" />
+                    Adaugă ansamblu
+                  </button>
+                )}
+
                 {tableRows.length > 0 && (
                   <div className="overflow-x-auto overscroll-x-contain rounded-md border border-border-subtle">
                     <table className="w-full min-w-[36rem] border-collapse text-sm">
@@ -1172,17 +1184,6 @@ export function AssemblyListScreen({
                   </div>
                 )}
 
-                {editing && (
-                  <button
-                    type="button"
-                    disabled={isBusy}
-                    onClick={addRow}
-                    className="inline-flex items-center gap-2 self-start text-sm text-accent transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <i className="ti ti-plus text-base" aria-hidden="true" />
-                    Adaugă ansamblu
-                  </button>
-                )}
               </div>
             )}
           </div>
