@@ -104,6 +104,9 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [reopening, setReopening] = useState(false);
+  // Reopening takes the green banner away with it — this keeps an answer on
+  // screen until the month is exported again.
+  const [reopenedMonth, setReopenedMonth] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [gapsOpen, setGapsOpen] = useState(false);
   const [resolvingGaps, setResolvingGaps] = useState(false);
@@ -149,6 +152,7 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
         'success',
       );
       setPreviewOpen(false);
+      setReopenedMonth(null);
       await load(month);
     } catch (caught) {
       showToast(apiErrorToastMessage(caught), 'error');
@@ -193,6 +197,7 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
     try {
       await reopenAccountingMonth(month);
       showToast(`${formatMonthLabel(month)} a fost redeschisă.`, 'success');
+      setReopenedMonth(month);
       await load(month);
     } catch (caught) {
       showToast(apiErrorToastMessage(caught), 'error');
@@ -423,6 +428,16 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
             />
             Redeschide luna
           </button>
+        </div>
+      ) : reopenedMonth === month ? (
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface-raised px-4 py-3 text-sm text-text-secondary">
+          <i className="ti ti-lock-open shrink-0 text-base" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <span className="font-semibold text-text-primary">
+              {formatMonthLabel(month)} este redeschisă
+            </span>{' '}
+            — pontajele se pot modifica, iar documentul poate fi generat din nou.
+          </div>
         </div>
       ) : null}
 
