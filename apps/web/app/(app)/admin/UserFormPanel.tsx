@@ -33,7 +33,10 @@ interface UserFormValues {
   isActive: boolean;
   restrictedProjects: boolean;
   isOfficeUser: boolean;
-  /** Lives on the person, not the account — saved with a separate call. */
+  /**
+   * Admin accounts only. Lives on the person, not the account — saved with a
+   * separate call.
+   */
   autoPresence: boolean;
 }
 
@@ -280,6 +283,10 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
     setFormError(null);
     setFieldErrors({});
 
+    // Auto presence is an admin-only setting: anything else saves it off, so
+    // demoting an account that had it turns it off with the same save.
+    const autoPresence = values.role === 'ADMIN' && values.autoPresence;
+
     if (mode === 'create') {
       const parsed = createUserSchema.safeParse({
         email: values.email,
@@ -299,7 +306,7 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
       setIsSubmitting(true);
       try {
         await createUser(parsed.data);
-        if (values.autoPresence) {
+        if (autoPresence) {
           await updatePerson(values.personId, { autoPresence: true });
         }
         showToast('Utilizator adăugat', 'success');
@@ -326,7 +333,7 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
     }
 
     const payload = buildUpdatePayload(user, values);
-    const autoPresenceChanged = values.autoPresence !== user.person.autoPresence;
+    const autoPresenceChanged = autoPresence !== user.person.autoPresence;
 
     if (Object.keys(payload).length === 0 && !autoPresenceChanged) {
       showToast('Nicio modificare de salvat', 'success');
@@ -348,8 +355,8 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
     try {
       let saved = parsed?.success ? await updateUser(user.id, parsed.data) : user;
       if (autoPresenceChanged) {
-        await updatePerson(values.personId, { autoPresence: values.autoPresence });
-        saved = { ...saved, person: { ...saved.person, autoPresence: values.autoPresence } };
+        await updatePerson(values.personId, { autoPresence });
+        saved = { ...saved, person: { ...saved.person, autoPresence } };
       }
       showToast('Utilizator actualizat', 'success');
       onSaved(saved);
@@ -528,23 +535,25 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
           </span>
         </label>
 
-        <label className="inline-flex items-start gap-2 text-sm text-text-secondary">
-          <input
-            type="checkbox"
-            checked={values.autoPresence}
-            disabled={isBusy || !values.personId}
-            onChange={(event) => updateField('autoPresence', event.target.checked)}
-            className="mt-0.5 size-4 rounded border-border accent-accent"
-          />
-          <span>
-            Prezență automată
-            <span className="mt-0.5 block text-xs text-text-muted">
-              Nu pontează în aplicație (conducere, contabilitate). Pe pontajul pentru contabilitate
-              apare prezent în fiecare zi lucrătoare fără concediu aprobat; nu are ore suplimentare.
-              Se salvează pe persoană, nu pe cont.
+        {values.role === 'ADMIN' && (
+          <label className="inline-flex items-start gap-2 text-sm text-text-secondary">
+            <input
+              type="checkbox"
+              checked={values.autoPresence}
+              disabled={isBusy || !values.personId}
+              onChange={(event) => updateField('autoPresence', event.target.checked)}
+              className="mt-0.5 size-4 rounded border-border accent-accent"
+            />
+            <span>
+              Prezență automată
+              <span className="mt-0.5 block text-xs text-text-muted">
+                Nu pontează în aplicație (conducere, contabilitate). Pe pontajul pentru
+                contabilitate apare prezent în fiecare zi lucrătoare fără concediu aprobat; nu are
+                ore suplimentare. Se salvează pe persoană, nu pe cont.
+              </span>
             </span>
-          </span>
-        </label>
+          </label>
+        )}
 
         <label className="inline-flex items-start gap-2 text-sm text-text-secondary">
           <input
