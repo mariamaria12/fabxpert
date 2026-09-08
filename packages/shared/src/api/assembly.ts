@@ -6,6 +6,7 @@ import type {
   CreateProjectAssemblyInput,
   ImportProjectAssembliesInput,
   ProjectAssemblyDto,
+  SetAssemblyManualProgressInput,
   UpdateProjectAssemblyInput,
 } from '../dto/assembly.dto';
 
@@ -50,6 +51,20 @@ export function importProjectAssemblies(
   input: ImportProjectAssembliesInput,
 ) {
   return request<AssemblyImportResult>(`/projects/${projectId}/assemblies/import`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+/**
+ * Tick marks as done for one activity, or clear the tick. Returns the touched
+ * rows with their progress recomputed, so the caller needs no second fetch.
+ */
+export function setAssemblyManualProgress(
+  projectId: string,
+  input: SetAssemblyManualProgressInput,
+) {
+  return request<ProjectAssemblyDto[]>(`/projects/${projectId}/assemblies/manual-progress`, {
     method: 'POST',
     body: JSON.stringify(input),
   });

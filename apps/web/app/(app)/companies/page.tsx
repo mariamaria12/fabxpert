@@ -6,9 +6,10 @@ import {
   type CompanyListSortBy,
   type SortOrder,
 } from '@fabxpert/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CompanyFormPanel } from './CompanyFormPanel';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
+import { editActionColumn } from '@/components/editActionColumn';
 import { FiltersToggle } from '@/components/FiltersToggle';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { Pagination } from '@/components/Pagination';
@@ -149,6 +150,14 @@ export default function CompaniesPage() {
     setPanel({ open: false });
   }
 
+  const columns = useMemo(
+    () => [
+      ...companyColumns,
+      editActionColumn<CompanyDto>((row) => openEdit(row), 'Editează compania'),
+    ],
+    [],
+  );
+
   function handleSaved(updated?: CompanyDto) {
     if (updated) {
       setCompanies((current) => replaceById(current, updated));
@@ -234,11 +243,10 @@ export default function CompaniesPage() {
         <div className="mt-3 sm:mt-6">
           <DataTable
           storageKey="companies-list"
-            columns={companyColumns}
+            columns={columns}
             data={companies}
             rowKey={(row) => row.id}
             loading={loading}
-            onRowClick={loading ? undefined : openEdit}
             sortBy={sortBy}
             sortOrder={sortOrder}
             onSortChange={handleSortChange}

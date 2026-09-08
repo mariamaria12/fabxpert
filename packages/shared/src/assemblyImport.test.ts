@@ -4,6 +4,7 @@ import {
   parseAssemblyImport,
   parseAssemblyNumber,
   parseAssemblyQuantity,
+  parseAssemblyRows,
 } from './assemblyImport';
 
 test('parseAssemblyNumber reads "." as a thousands separator', () => {
@@ -27,6 +28,25 @@ test('parseAssemblyNumber keeps fractions instead of rounding them', () => {
   assert.equal(parseAssemblyNumber('7784,5'), 7784.5);
 });
 
+test('parseAssemblyNumber reads a cell that carries both separators', () => {
+  // The last separator cuts the decimals, the other groups thousands — reading
+  // both as decimal points turned 1234,56 kg into 1,234 kg.
+  assert.equal(parseAssemblyNumber('1.234,56'), 1234.56);
+  assert.equal(parseAssemblyNumber('12.345,6'), 12345.6);
+  assert.equal(parseAssemblyNumber('1,234.56'), 1234.56);
+  assert.equal(parseAssemblyNumber('1.234.567,89'), 1234567.89);
+  assert.equal(parseAssemblyNumber('1,234,567.89'), 1234567.89);
+});
+
+test('parseAssemblyNumber takes a workbook number as it stands', () => {
+  // Read off the file there is nothing to guess at: 2.982 is 2.982 kg, where
+  // the same text pasted out of a Romanian sheet is a length of 2982 mm.
+  assert.equal(parseAssemblyNumber(2.982), 2.982);
+  assert.equal(parseAssemblyNumber(58.98), 58.98);
+  assert.equal(parseAssemblyNumber(2800), 2800);
+  assert.equal(parseAssemblyNumber(-1), null);
+});
+
 test('parseAssemblyNumber survives the spaces Excel pastes', () => {
   // Excel groups with a non-breaking space as readily as with a dot.
   assert.equal(parseAssemblyNumber('2800'), 2800);
@@ -42,6 +62,8 @@ test('parseAssemblyNumber reports what it cannot read', () => {
 test('parseAssemblyQuantity accepts whole pieces only', () => {
   assert.equal(parseAssemblyQuantity('1'), 1);
   assert.equal(parseAssemblyQuantity('12'), 12);
+  assert.equal(parseAssemblyQuantity(7), 7);
+  assert.equal(parseAssemblyQuantity('1.200'), 1200);
   assert.equal(parseAssemblyQuantity(''), null);
   assert.equal(parseAssemblyQuantity('0'), null);
   assert.equal(parseAssemblyQuantity('x'), null);
@@ -152,4 +174,31 @@ test('parseAssemblyImport falls back to column order without a header', () => {
     length: 2800,
     weightPerPiece: 58.98,
   });
+});
+
+test('parseAssemblyRows keeps the weight of a workbook row intact', () => {
+  // The uploaded path hands over numbers; 2.982 kg must not become 2982 kg.
+  const result = parseAssemblyRows([
+    ['ANSAMBLU', 'Nr. bucăți', 'Profil', 'Lungime', 'Greutate (Kg./buc.)'],
+    ['GBAL/1', 2, 'CFCHS48.3*3.6', 2981.6, 2.982],
+    ['GGRP/1', 1, 'HEA280', 7610, 1234.56],
+  ]);
+
+  assert.deepEqual(result.issues, []);
+  assert.equal(result.rows[0].weightPerPiece, 2.982);
+  assert.equal(result.rows[0].length, 2981.6);
+  assert.equal(result.rows[1].weightPerPiece, 1234.56);
+});
+
+test('parseAssemblyImport reads a pasted weight above a thousand kilos', () => {
+  const result = parseAssemblyImport(
+    [
+      'ANSAMBLU\tNr. bucăți\tProfil\tLungime\tGreutate (Kg./buc.)',
+      'GGRP/1\t1\tHEA280\t7.610\t1.234,56',
+    ].join('\n'),
+  );
+
+  assert.deepEqual(result.issues, []);
+  assert.equal(result.rows[0].length, 7610);
+  assert.equal(result.rows[0].weightPerPiece, 1234.56);
 });

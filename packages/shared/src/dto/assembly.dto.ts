@@ -101,8 +101,47 @@ export type AssemblyProgressDto = {
   activityId: string;
   activityName: string;
   activityColor: string | null;
+  /** Timesheets plus manual entries — what "done" means everywhere. */
   quantityDone: number;
+  /**
+   * The slice of `quantityDone` nobody pontaged: outsourced marks, or work
+   * finished before the project reached the app. Kept apart so hours-based
+   * productivity can leave it out.
+   */
+  manualQuantity: number;
 };
+
+/** Why a mark was ticked by hand. Empty is stored as null, like every free text. */
+const manualNoteSchema = z
+  .union([z.string().trim().max(500, 'Note must be at most 500 characters'), z.null()])
+  .transform((value) => (value ? value : null));
+
+/**
+ * Tick a set of marks as done for one activity, or clear the tick. Bulk by
+ * design: the log screen works on a whole tab at a time.
+ */
+export const setAssemblyManualProgressSchema = z.object({
+  activityId: z.string().trim().min(1, 'Activity is required'),
+  assemblies: z
+    .array(
+      z.object({
+        assemblyId: z.string().trim().min(1),
+        /**
+         * Pieces to claim by hand. Left out, the server closes the line: it
+         * writes whatever the timesheets have not already covered. A count over
+         * what the list holds is accepted and flagged as over-reported later —
+         * the shop floor is usually right and the list is usually stale.
+         */
+        quantityDone: z.number().int().min(1).max(1_000_000).optional(),
+      }),
+    )
+    .min(1, 'Pick at least one assembly'),
+  /** False clears the manual entry and hands the line back to the timesheets. */
+  done: z.boolean(),
+  note: manualNoteSchema.optional(),
+});
+
+export type SetAssemblyManualProgressInput = z.infer<typeof setAssemblyManualProgressSchema>;
 
 export type ProjectAssemblyDto = {
   id: string;

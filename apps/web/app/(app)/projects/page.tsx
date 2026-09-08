@@ -16,6 +16,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ProjectFormPanel } from './ProjectFormPanel';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
+import { editActionColumn } from '@/components/editActionColumn';
 import {
   ProjectNameCell,
   projectClientTableColumnLayout,
@@ -134,6 +135,26 @@ export default function ProjectsPage() {
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, statusFilters, visibilityFilters, readyForExecution]);
+
+  const clearDeepLinkParams = useCallback(() => {
+    if (!deepLinkEditId && !returnTarget) {
+      return;
+    }
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('edit');
+    params.delete('return');
+    const query = params.toString();
+    router.replace(query ? `/projects?${query}` : '/projects');
+  }, [deepLinkEditId, returnTarget, router, searchParams]);
+
+  const openEdit = useCallback(
+    (project: ProjectDto) => {
+      clearDeepLinkParams();
+      setPanel({ open: true, mode: 'edit', project });
+    },
+    [clearDeepLinkParams],
+  );
 
   const projectColumns = useMemo((): DataTableColumn<ProjectDto>[] => {
     return [
@@ -264,8 +285,9 @@ export default function ProjectsPage() {
           />
         ),
       },
+      editActionColumn<ProjectDto>(openEdit, 'Editează proiectul'),
     ];
-  }, []);
+  }, [openEdit]);
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
@@ -312,18 +334,6 @@ export default function ProjectsPage() {
     setPage(1);
   }
 
-  function clearDeepLinkParams() {
-    if (!deepLinkEditId && !returnTarget) {
-      return;
-    }
-
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete('edit');
-    params.delete('return');
-    const query = params.toString();
-    router.replace(query ? `/projects?${query}` : '/projects');
-  }
-
   function navigateAfterPanelClose() {
     const panouPath = panouPathFromProjectEditReturn(returnTarget);
     if (panouPath) {
@@ -337,11 +347,6 @@ export default function ProjectsPage() {
   function openCreate() {
     clearDeepLinkParams();
     setPanel({ open: true, mode: 'create', project: null });
-  }
-
-  function openEdit(project: ProjectDto) {
-    clearDeepLinkParams();
-    setPanel({ open: true, mode: 'edit', project });
   }
 
   function closePanel() {
@@ -451,7 +456,6 @@ export default function ProjectsPage() {
             rowKey={(row) => row.id}
             rowAccentColor={(row) => row.color ?? 'var(--color-border-subtle)'}
             loading={loading}
-            onRowClick={loading ? undefined : openEdit}
             sortBy={sortBy}
             sortOrder={sortOrder}
             onSortChange={handleSortChange}

@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma as PrismaRuntime } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
 import type { Prisma, ProjectAssembly } from '@prisma/client';
 import type {
   AssemblyImportIssue,
@@ -14,6 +15,7 @@ import type {
   CreateProjectAssemblyInput,
   ImportProjectAssembliesInput,
   ProjectAssemblyDto,
+  SetAssemblyManualProgressInput,
   UpdateProjectAssemblyInput,
 } from '@fabxpert/shared/dto/assembly.dto';
 import { parseAssemblyImport, parseAssemblyRows } from '@fabxpert/shared/assemblyImport';
@@ -28,6 +30,49 @@ import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/jwt.strategy';
 import { doneForActivity, loadAssemblyProgress } from './assembly-progress.util';
 import { readWorkbookPreview } from './assembly-workbook.util';
+
+/**
+ * Rows per INSERT. Each row binds six parameters, so this stays far under the
+ * 65535 Postgres allows while keeping a whole list to a single round trip.
+ */
+const MANUAL_PROGRESS_CHUNK = 500;
+
+function chunked<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
+/**
+ * One statement for a whole batch of ticks. Prisma's upsert is a round trip per
+ * row, which a two-hundred-mark list feels as a stall; `ON CONFLICT` does the
+ * same work in a single call. Ids are minted here rather than by the database,
+ * so the table needs no uuid extension.
+ */
+function buildManualProgressUpsert(
+  rows: { assemblyId: string; quantityDone: number }[],
+  activityId: string,
+  note: string | null,
+  markedById: string,
+): PrismaRuntime.Sql {
+  const values = rows.map(
+    (row) =>
+      PrismaRuntime.sql`(${randomUUID()}, ${row.quantityDone}, ${note}, ${row.assemblyId}, ${activityId}, ${markedById}, NOW(), NOW())`,
+  );
+
+  return PrismaRuntime.sql`
+    INSERT INTO "assembly_manual_progress"
+      ("id", "quantityDone", "note", "assemblyId", "activityId", "markedById", "createdAt", "updatedAt")
+    VALUES ${PrismaRuntime.join(values)}
+    ON CONFLICT ("assemblyId", "activityId") DO UPDATE SET
+      "quantityDone" = EXCLUDED."quantityDone",
+      "note" = EXCLUDED."note",
+      "markedById" = EXCLUDED."markedById",
+      "updatedAt" = NOW()
+  `;
+}
 
 export type ListAssembliesFilters = {
   activityId?: string;
@@ -201,6 +246,117 @@ export class AssemblyService {
       data: { deletedAt: new Date() },
     });
     await this.syncProjectWeight(existing.projectId);
+  }
+
+  /**
+   * Tick a set of marks as done for one activity, for work that never passed
+   * through a timesheet. The manual entry covers only the gap the timesheets
+   * left, so the two sources add up to the line's quantity instead of doubling
+   * it — a mark already fully pontaged records nothing and is simply left alone.
+   *
+   * Untick deletes the entry and hands the line back to the timesheets.
+   */
+  async setManualProgress(
+    actor: AuthenticatedUser,
+    projectId: string,
+    input: SetAssemblyManualProgressInput,
+  ): Promise<ProjectAssemblyDto[]> {
+    const requestedIds = input.assemblies.map((entry) => entry.assemblyId);
+
+    // Every read here is independent, and the round trip to the database is
+    // what a two-hundred-mark batch actually spends its time on.
+    const [activity, assemblies, logged] = await Promise.all([
+      this.prisma.activity.findFirst({
+        where: { id: input.activityId, ...notDeleted() },
+        select: { id: true, tracksAssemblies: true },
+      }),
+      this.prisma.projectAssembly.findMany({
+        where: { id: { in: requestedIds }, projectId, ...notDeleted() },
+        select: { id: true, quantity: true },
+      }),
+      // What the timesheets already cover, so a tick with no count fills the rest.
+      this.prisma.timesheetAssembly.groupBy({
+        by: ['assemblyId'],
+        where: {
+          assemblyId: { in: requestedIds },
+          activityId: input.activityId,
+          timesheet: { deletedAt: null },
+        },
+        _sum: { quantityDone: true },
+      }),
+    ]);
+
+    if (!activity) {
+      throw new BadRequestException('activityId does not reference an existing activity');
+    }
+    if (!activity.tracksAssemblies) {
+      throw new BadRequestException('Activity does not track assemblies');
+    }
+    // A mark that belongs to another project would not come back from the read
+    // above, so a short list is the check that the batch was honest.
+    if (assemblies.length !== requestedIds.length) {
+      throw new BadRequestException('Some assemblies do not belong to this project');
+    }
+
+    const assemblyIds = assemblies.map((assembly) => assembly.id);
+
+    if (!input.done) {
+      await this.prisma.assemblyManualProgress.deleteMany({
+        where: { assemblyId: { in: assemblyIds }, activityId: activity.id },
+      });
+      return this.listByIds(assemblyIds);
+    }
+
+    const loggedByAssembly = new Map(
+      logged.map((row) => [row.assemblyId, row._sum.quantityDone ?? 0]),
+    );
+    const quantityById = new Map(
+      input.assemblies.map((entry) => [entry.assemblyId, entry.quantityDone]),
+    );
+
+    const toUpsert: { assemblyId: string; quantityDone: number }[] = [];
+    const toClear: string[] = [];
+
+    for (const assembly of assemblies) {
+      // No count asked for means "close this line": whatever the timesheets
+      // have not already covered, so the two sources add up to the quantity
+      // instead of doubling it.
+      const gap = Math.max(0, assembly.quantity - (loggedByAssembly.get(assembly.id) ?? 0));
+      const quantityDone = quantityById.get(assembly.id) ?? gap;
+
+      if (quantityDone <= 0) {
+        toClear.push(assembly.id);
+      } else {
+        toUpsert.push({ assemblyId: assembly.id, quantityDone });
+      }
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      if (toClear.length > 0) {
+        await tx.assemblyManualProgress.deleteMany({
+          where: { assemblyId: { in: toClear }, activityId: activity.id },
+        });
+      }
+
+      for (const chunk of chunked(toUpsert, MANUAL_PROGRESS_CHUNK)) {
+        await tx.$executeRaw(
+          buildManualProgressUpsert(chunk, activity.id, input.note ?? null, actor.id),
+        );
+      }
+    });
+
+    return this.listByIds(assemblyIds);
+  }
+
+  /** The rows the caller just touched, refreshed, so the screen needs no refetch. */
+  private async listByIds(assemblyIds: string[]): Promise<ProjectAssemblyDto[]> {
+    const rows = await this.prisma.projectAssembly.findMany({
+      where: { id: { in: assemblyIds } },
+      orderBy: [{ position: 'asc' }, { name: 'asc' }],
+    });
+    const progressByAssembly = await loadAssemblyProgress(this.prisma, assemblyIds);
+
+    return rows.map((row) => toAssemblyDto(row, progressByAssembly.get(row.id) ?? []));
   }
 
   /**

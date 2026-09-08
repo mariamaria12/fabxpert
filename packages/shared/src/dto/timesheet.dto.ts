@@ -156,6 +156,14 @@ export type ProjectSummaryAssemblyProgress = {
   weightTotalKg: number;
   /** Lines on the list with no weight per piece, so the tonnes above are partial. */
   assembliesWithoutWeight: number;
+  /**
+   * The slice of the two "done" figures above that was ticked by hand rather
+   * than pontaged — outsourced marks, or work finished before the project
+   * reached the app. Included in the totals, and kept apart so the bar can
+   * colour it differently and productivity can leave it out.
+   */
+  piecesManual: number;
+  weightManualKg: number;
 };
 
 export type ProjectSummaryActivityRow = {

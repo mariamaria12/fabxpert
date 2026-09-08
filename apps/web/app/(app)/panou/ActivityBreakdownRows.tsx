@@ -52,22 +52,35 @@ function progressFigures(progress: {
   piecesTotal: number;
   weightDoneKg?: number;
   weightTotalKg?: number;
-}): { percent: number; label: string; hasList: boolean } {
+  piecesManual?: number;
+  weightManualKg?: number;
+}): { percent: number; manualPercent: number; label: string; hasList: boolean } {
   const weightTotal = progress.weightTotalKg ?? 0;
   if (weightTotal > 0) {
     const weightDone = progress.weightDoneKg ?? 0;
+    const weightManual = progress.weightManualKg ?? 0;
     return {
       percent: toPercent(weightDone, weightTotal),
-      label: `${formatProjectWeight(weightDone).replace(/ t$/, '')} / ${formatProjectWeight(weightTotal)}`,
+      manualPercent: toPercent(weightManual, weightTotal),
+      // The bar is aria-hidden, so the manual slice has to be readable here.
+      label: `${formatProjectWeight(weightDone).replace(/ t$/, '')} / ${formatProjectWeight(weightTotal)}${
+        weightManual > 0
+          ? ` · ${formatProjectWeight(weightManual).replace(/ t$/, '')} extern`
+          : ''
+      }`,
       hasList: true,
     };
   }
 
   const hasList = progress.piecesTotal > 0;
+  const piecesManual = progress.piecesManual ?? 0;
   return {
     percent: toPercent(progress.piecesDone, progress.piecesTotal),
+    manualPercent: toPercent(piecesManual, progress.piecesTotal),
     label: hasList
-      ? `${progress.piecesDone} / ${progress.piecesTotal} buc.`
+      ? `${progress.piecesDone} / ${progress.piecesTotal} buc.${
+          piecesManual > 0 ? ` · ${piecesManual} extern` : ''
+        }`
       : `${progress.piecesDone} buc.`,
     hasList,
   };
@@ -90,7 +103,7 @@ function AssemblyActivityCells({ activity }: { activity: ProjectSummaryActivityR
     return null;
   }
 
-  const { percent, label, hasList } = progressFigures(progress);
+  const { percent, manualPercent, label, hasList } = progressFigures(progress);
 
   return (
     <>
@@ -105,6 +118,7 @@ function AssemblyActivityCells({ activity }: { activity: ProjectSummaryActivityR
         className="w-full"
         color={activity.activityColor}
         percent={percent}
+        manualPercent={manualPercent}
       />
       <span className="whitespace-nowrap font-mono text-[11px] tabular-nums text-text-muted">
         {label}
@@ -154,11 +168,13 @@ function AssemblyTotalCells({ activities }: { activities: ProjectSummaryActivity
       (total, activity) => total + (activity.assemblyProgress ? pick(activity.assemblyProgress) : 0),
       0,
     );
-  const { percent, label, hasList } = progressFigures({
+  const { percent, manualPercent, label, hasList } = progressFigures({
     piecesDone: sum((progress) => progress.piecesDone),
     piecesTotal: sum((progress) => progress.piecesTotal),
     weightDoneKg: sum((progress) => progress.weightDoneKg ?? 0),
     weightTotalKg: sum((progress) => progress.weightTotalKg ?? 0),
+    piecesManual: sum((progress) => progress.piecesManual ?? 0),
+    weightManualKg: sum((progress) => progress.weightManualKg ?? 0),
   });
 
   return (
@@ -173,6 +189,7 @@ function AssemblyTotalCells({ activities }: { activities: ProjectSummaryActivity
         className="w-full"
         color="var(--color-success-icon)"
         percent={percent}
+        manualPercent={manualPercent}
       />
       <span className="whitespace-nowrap font-mono text-[11px] tabular-nums text-text-muted">
         {label}

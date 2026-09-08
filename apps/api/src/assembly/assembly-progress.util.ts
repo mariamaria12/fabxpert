@@ -1,12 +1,20 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { AssemblyProgressDto } from '@fabxpert/shared/dto/assembly.dto';
 
+/** Running totals per assembly and activity while the two sources are merged. */
+type ProgressTally = { quantityDone: number; manualQuantity: number };
+
+function tallyKey(assemblyId: string, activityId: string): string {
+  return `${assemblyId}:${activityId}`;
+}
+
 /**
- * Pieces done per assembly per activity, grouped straight out of the link
- * table. Nothing is cached on the assembly itself, so a corrected timesheet
- * moves the number with it.
+ * Pieces done per assembly per activity, over both sources: the timesheets that
+ * covered the mark, and the entries an admin ticked by hand for work that never
+ * passed through a timesheet. Nothing is cached on the assembly itself, so a
+ * corrected timesheet moves the number with it.
  *
- * `activityId` is grouped from the link's own copy — Prisma cannot group by a
+ * `activityId` is grouped from each row's own copy — Prisma cannot group by a
  * field reached through a relation. Soft-deleted timesheets still have to be
  * filtered through the relation, which is a lookup by primary key.
  */
@@ -19,40 +27,67 @@ export async function loadAssemblyProgress(
     return byAssembly;
   }
 
-  const grouped = await prisma.timesheetAssembly.groupBy({
-    by: ['assemblyId', 'activityId'],
-    where: {
-      assemblyId: { in: assemblyIds },
-      timesheet: { deletedAt: null },
-    },
-    _sum: { quantityDone: true },
-  });
+  const [logged, manual] = await Promise.all([
+    prisma.timesheetAssembly.groupBy({
+      by: ['assemblyId', 'activityId'],
+      where: {
+        assemblyId: { in: assemblyIds },
+        timesheet: { deletedAt: null },
+      },
+      _sum: { quantityDone: true },
+    }),
+    prisma.assemblyManualProgress.findMany({
+      where: { assemblyId: { in: assemblyIds } },
+      select: { assemblyId: true, activityId: true, quantityDone: true },
+    }),
+  ]);
 
-  if (grouped.length === 0) {
+  if (logged.length === 0 && manual.length === 0) {
     return byAssembly;
   }
 
+  const tallies = new Map<string, ProgressTally & { assemblyId: string; activityId: string }>();
+  const tallyFor = (assemblyId: string, activityId: string) => {
+    const key = tallyKey(assemblyId, activityId);
+    let tally = tallies.get(key);
+    if (!tally) {
+      tally = { assemblyId, activityId, quantityDone: 0, manualQuantity: 0 };
+      tallies.set(key, tally);
+    }
+    return tally;
+  };
+
+  for (const row of logged) {
+    tallyFor(row.assemblyId, row.activityId).quantityDone += row._sum.quantityDone ?? 0;
+  }
+
+  for (const row of manual) {
+    const tally = tallyFor(row.assemblyId, row.activityId);
+    tally.quantityDone += row.quantityDone;
+    tally.manualQuantity += row.quantityDone;
+  }
+
   const activities = await prisma.activity.findMany({
-    where: { id: { in: [...new Set(grouped.map((row) => row.activityId))] } },
+    where: { id: { in: [...new Set([...tallies.values()].map((row) => row.activityId))] } },
     select: { id: true, name: true, color: true },
   });
   const activityById = new Map(activities.map((activity) => [activity.id, activity]));
 
-  for (const row of grouped) {
-    const quantityDone = row._sum.quantityDone ?? 0;
-    if (quantityDone === 0) {
+  for (const tally of tallies.values()) {
+    if (tally.quantityDone === 0) {
       continue;
     }
 
-    const activity = activityById.get(row.activityId);
-    const rows = byAssembly.get(row.assemblyId) ?? [];
+    const activity = activityById.get(tally.activityId);
+    const rows = byAssembly.get(tally.assemblyId) ?? [];
     rows.push({
-      activityId: row.activityId,
+      activityId: tally.activityId,
       activityName: activity?.name ?? '',
       activityColor: activity?.color ?? null,
-      quantityDone,
+      quantityDone: tally.quantityDone,
+      manualQuantity: tally.manualQuantity,
     });
-    byAssembly.set(row.assemblyId, rows);
+    byAssembly.set(tally.assemblyId, rows);
   }
 
   for (const rows of byAssembly.values()) {

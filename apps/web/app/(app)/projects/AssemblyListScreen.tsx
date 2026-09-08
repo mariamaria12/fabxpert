@@ -20,6 +20,7 @@ import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { formatProjectWeight } from '@/utils/projectWeight';
 import { AssemblyImportScreen } from './AssemblyImportScreen';
+import { AssemblyLogView } from './AssemblyLogView';
 
 /**
  * `== null` on purpose: the type says the field is always there, but it arrives
@@ -379,6 +380,9 @@ export function AssemblyListScreen({
   const [invalidCells, setInvalidCells] = useState<Record<string, DraftField[]>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [logging, setLogging] = useState(false);
+  /** Set while the log view writes; drives the blocking loader over the panel. */
+  const [logBusyLabel, setLogBusyLabel] = useState<string | null>(null);
   const [pendingRows, setPendingRows] = useState<AssemblyImportRowDto[] | null>(null);
   const [isOverwriting, setIsOverwriting] = useState(false);
   const newRowCounter = useRef(0);
@@ -414,6 +418,8 @@ export function AssemblyListScreen({
     setInvalidCells({});
     setPendingRows(null);
     setImportOpen(false);
+    setLogging(false);
+    setLogBusyLabel(null);
     void load();
   }, [open, startInEdit, variant, load]);
 
@@ -423,9 +429,20 @@ export function AssemblyListScreen({
     }
 
     function handleKeyDown(event: KeyboardEvent) {
-      // While the import screen is up it owns Escape, and a save in flight
-      // should not lose the panel it is writing from.
-      if (event.key === 'Escape' && !importOpen && !isSaving && !isOverwriting) {
+      // The import screen owns Escape while it is up, and a save in flight
+      // should not lose the panel it is writing from. In the log view Escape
+      // steps back to the list rather than closing the whole panel.
+      if (
+        event.key === 'Escape' &&
+        !importOpen &&
+        !logBusyLabel &&
+        !isSaving &&
+        !isOverwriting
+      ) {
+        if (logging) {
+          setLogging(false);
+          return;
+        }
         onClose();
       }
     }
@@ -438,7 +455,7 @@ export function AssemblyListScreen({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [open, importOpen, isSaving, isOverwriting, onClose]);
+  }, [open, importOpen, logging, logBusyLabel, isSaving, isOverwriting, onClose]);
 
   if (!open) {
     return null;
@@ -446,7 +463,7 @@ export function AssemblyListScreen({
 
   const totalPieces = assemblies.reduce((sum, assembly) => sum + assembly.quantity, 0);
   const listWeight = assemblyListWeight(assemblies);
-  const isBusy = isSaving || isOverwriting;
+  const isBusy = isSaving || isOverwriting || logBusyLabel !== null;
   const removedAssemblies = assemblies.filter((assembly) => removedIds.has(assembly.id));
   const removedWithProgress = removedAssemblies.filter(hasProgress).length;
   const isProgress = variant === 'progress';
@@ -793,25 +810,57 @@ export function AssemblyListScreen({
 
   return (
     <>
-      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-scrim p-4">
-        <div className="relative flex max-h-full min-h-[22rem] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-popover">
+      <div className="fixed inset-0 z-[60] flex justify-end bg-scrim">
+        <div className="relative flex h-dvh w-full max-w-none flex-col border-l border-border-subtle bg-surface shadow-xl sm:max-w-[calc(100vw-var(--sidebar-width,0px))]">
           <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-6 py-4">
-            <div className="min-w-0">
-              <h2 className="text-base font-medium text-text-primary">Ansamble</h2>
-              {projectName && <p className="truncate text-sm text-text-muted">{projectName}</p>}
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
-              {isProgress && !editing && (
+            <div className="flex min-w-0 items-center gap-2">
+              {logging && (
                 <button
                   type="button"
-                  aria-label="Editează ansamblele"
-                  title="Editează ansamblele"
-                  disabled={isBusy || isLoading}
-                  onClick={startEditing}
-                  className="rounded p-1 text-text-muted transition-colors hover:bg-surface-raised hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label="Înapoi la listă"
+                  title="Înapoi la listă"
+                  disabled={isBusy}
+                  onClick={() => setLogging(false)}
+                  className="rounded p-1 text-text-muted transition-colors hover:bg-surface-raised hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  <i className="ti ti-pencil text-lg" aria-hidden="true" />
+                  <i className="ti ti-arrow-left text-lg" aria-hidden="true" />
                 </button>
+              )}
+              <div className="min-w-0">
+                <h2 className="text-base font-medium text-text-primary">
+                  {logging ? 'Loghează execuția' : 'Ansamble'}
+                </h2>
+                {projectName && (
+                  <p className="truncate text-sm text-text-muted">
+                    {logging ? `${projectName} · munca fără pontaj` : projectName}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              {isProgress && !editing && !logging && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Loghează execuția"
+                    title="Loghează execuția"
+                    disabled={isBusy || isLoading}
+                    onClick={() => setLogging(true)}
+                    className="rounded p-1 text-text-muted transition-colors hover:bg-surface-raised hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <i className="ti ti-list-check text-lg" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Editează ansamblele"
+                    title="Editează ansamblele"
+                    disabled={isBusy || isLoading}
+                    onClick={startEditing}
+                    className="rounded p-1 text-text-muted transition-colors hover:bg-surface-raised hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <i className="ti ti-pencil text-lg" aria-hidden="true" />
+                  </button>
+                </>
               )}
               <button
                 type="button"
@@ -825,6 +874,20 @@ export function AssemblyListScreen({
             </div>
           </div>
 
+          {logging ? (
+            <AssemblyLogView
+              projectId={projectId}
+              assemblies={assemblies}
+              disabled={isBusy}
+              onBusyChange={setLogBusyLabel}
+              onAssembliesChanged={(updated) => {
+                const byId = new Map(updated.map((row) => [row.id, row]));
+                setAssemblies((current) => current.map((row) => byId.get(row.id) ?? row));
+                onChanged?.();
+              }}
+            />
+          ) : (
+            <>
           {showTabs && (
             <div className="flex gap-1 border-b border-border-subtle px-6" role="tablist">
               {(isProgress
@@ -1174,11 +1237,16 @@ export function AssemblyListScreen({
               </button>
             )}
           </div>
+            </>
+          )}
 
           {isBusy && (
-            <div className="absolute inset-0 flex items-center justify-center bg-surface/90 backdrop-blur-[1px]">
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface/90 backdrop-blur-[1px]">
               <WeldingLoader
-                label={isOverwriting ? 'Se suprascrie lista…' : 'Se salvează modificările…'}
+                label={
+                  logBusyLabel ??
+                  (isOverwriting ? 'Se suprascrie lista…' : 'Se salvează modificările…')
+                }
               />
             </div>
           )}

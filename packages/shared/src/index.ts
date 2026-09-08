@@ -463,6 +463,7 @@ export {
   listProjectAssemblies,
   createProjectAssembly,
   importProjectAssemblies,
+  setAssemblyManualProgress,
   updateProjectAssembly,
   deleteProjectAssembly,
   previewAssembliesFromText,
@@ -473,6 +474,7 @@ export {
   createProjectAssemblySchema,
   updateProjectAssemblySchema,
   importProjectAssembliesSchema,
+  setAssemblyManualProgressSchema,
   ASSEMBLY_LIST_STATUS_VALUES,
   ASSEMBLY_IMPORT_ISSUE_CODES,
 } from './dto/assembly.dto';
@@ -492,6 +494,7 @@ export type {
   CreateProjectAssemblyInput,
   UpdateProjectAssemblyInput,
   ImportProjectAssembliesInput,
+  SetAssemblyManualProgressInput,
 } from './dto/assembly.dto';
 export {
   parseAssemblyImport,

@@ -20,9 +20,11 @@ import {
   ASSEMBLY_LIST_STATUS_VALUES,
   createProjectAssemblySchema,
   importProjectAssembliesSchema,
+  setAssemblyManualProgressSchema,
   updateProjectAssemblySchema,
   type CreateProjectAssemblyInput,
   type ImportProjectAssembliesInput,
+  type SetAssemblyManualProgressInput,
   type UpdateProjectAssemblyInput,
 } from '@fabxpert/shared/dto/assembly.dto';
 import { z } from 'zod';
@@ -72,6 +74,18 @@ export class ProjectAssemblyController {
     input: ImportProjectAssembliesInput,
   ) {
     return this.assemblyService.importForProject(projectId, input);
+  }
+
+  /** Tick marks as done for one activity without a timesheet behind them. */
+  @Post('manual-progress')
+  @HttpCode(HttpStatus.OK)
+  setManualProgress(
+    @Req() req: Request & { user: AuthenticatedUser },
+    @Param('projectId', new ZodValidationPipe(idParamSchema)) projectId: string,
+    @Body(new ZodValidationPipe(setAssemblyManualProgressSchema))
+    input: SetAssemblyManualProgressInput,
+  ) {
+    return this.assemblyService.setManualProgress(req.user, projectId, input);
   }
 }
 

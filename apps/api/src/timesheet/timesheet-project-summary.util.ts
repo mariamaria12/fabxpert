@@ -185,9 +185,16 @@ export function buildProjectSummaryQuery(
 export type ProjectSummaryAssemblyDoneSqlRow = {
   projectId: string;
   activityId: string;
+  /** Carried so a step done entirely outside the app can still be named. */
+  activityName: string | null;
+  activityColor: string | null;
+  activityTracksAssemblies: boolean | null;
   piecesDone: number | bigint;
   /** Kilograms closed; lines without a weight per piece add nothing. */
   weightDoneKg: number | null;
+  /** The slice of the two above that was ticked by hand, not pontaged. */
+  piecesManual: number | bigint;
+  weightManualKg: number | null;
 };
 
 export type ProjectSummaryAssemblyTotalSqlRow = {
@@ -202,22 +209,55 @@ export type ProjectSummaryAssemblyTotalSqlRow = {
 };
 
 /**
- * Pieces closed per project per activity, over every timesheet there is.
+ * Pieces closed per project per activity, over both sources: the timesheets
+ * that covered the marks, and the entries an admin ticked by hand for work that
+ * never passed through a timesheet. The manual slice is summed separately as
+ * well as into the total, so the bar can show it in its own colour and so
+ * productivity can later be read over hours actually worked.
+ *
  * The summary's period deliberately does not apply here: this is how far the
  * project has got on its list, which a "today" filter must not shrink.
  */
 export function buildProjectSummaryAssemblyDoneQuery(projectIds: string[]) {
   return Prisma.sql`
     SELECT
-      t."projectId" AS "projectId",
-      ta."activityId" AS "activityId",
-      SUM(ta."quantityDone")::int AS "piecesDone",
-      SUM(ta."quantityDone" * COALESCE(pa."weightPerPiece", 0))::float AS "weightDoneKg"
-    FROM timesheet_assemblies ta
-    INNER JOIN timesheets t ON t.id = ta."timesheetId" AND t."deletedAt" IS NULL
-    INNER JOIN project_assemblies pa ON pa.id = ta."assemblyId" AND pa."deletedAt" IS NULL
-    WHERE t."projectId" IN (${Prisma.join(projectIds)})
-    GROUP BY t."projectId", ta."activityId"
+      src."projectId" AS "projectId",
+      src."activityId" AS "activityId",
+      a.name AS "activityName",
+      a.color AS "activityColor",
+      a."tracksAssemblies" AS "activityTracksAssemblies",
+      SUM(src."piecesDone")::int AS "piecesDone",
+      SUM(src."weightDoneKg")::float AS "weightDoneKg",
+      SUM(src."piecesManual")::int AS "piecesManual",
+      SUM(src."weightManualKg")::float AS "weightManualKg"
+    FROM (
+      SELECT
+        t."projectId" AS "projectId",
+        ta."activityId" AS "activityId",
+        ta."quantityDone" AS "piecesDone",
+        ta."quantityDone" * COALESCE(pa."weightPerPiece", 0) AS "weightDoneKg",
+        0 AS "piecesManual",
+        0::float AS "weightManualKg"
+      FROM timesheet_assemblies ta
+      INNER JOIN timesheets t ON t.id = ta."timesheetId" AND t."deletedAt" IS NULL
+      INNER JOIN project_assemblies pa ON pa.id = ta."assemblyId" AND pa."deletedAt" IS NULL
+      WHERE t."projectId" IN (${Prisma.join(projectIds)})
+
+      UNION ALL
+
+      SELECT
+        pa."projectId" AS "projectId",
+        amp."activityId" AS "activityId",
+        amp."quantityDone" AS "piecesDone",
+        amp."quantityDone" * COALESCE(pa."weightPerPiece", 0) AS "weightDoneKg",
+        amp."quantityDone" AS "piecesManual",
+        amp."quantityDone" * COALESCE(pa."weightPerPiece", 0) AS "weightManualKg"
+      FROM assembly_manual_progress amp
+      INNER JOIN project_assemblies pa ON pa.id = amp."assemblyId" AND pa."deletedAt" IS NULL
+      WHERE pa."projectId" IN (${Prisma.join(projectIds)})
+    ) src
+    LEFT JOIN activities a ON a.id = src."activityId"
+    GROUP BY src."projectId", src."activityId", a.name, a.color, a."tracksAssemblies"
   `;
 }
 
@@ -248,6 +288,18 @@ export type ProjectAssemblyProgressIndex = {
   weightTotalByProject: Map<string, number>;
   withoutWeightByProject: Map<string, number>;
   assemblyCountByProject: Map<string, number>;
+  manualByProjectActivity: Map<string, number>;
+  weightManualByProjectActivity: Map<string, number>;
+  /**
+   * Steps that carry manual progress. A fully outsourced activity has no hours
+   * behind it, so it produces no breakdown row of its own — these put it back.
+   */
+  manualActivities: {
+    projectId: string;
+    activityId: string;
+    activityName: string;
+    activityColor: string | null;
+  }[];
 };
 
 function assemblyKey(projectId: string, activityId: string): string {
@@ -260,10 +312,27 @@ export function indexProjectAssemblyProgress(
 ): ProjectAssemblyProgressIndex {
   const doneByProjectActivity = new Map<string, number>();
   const weightDoneByProjectActivity = new Map<string, number>();
+  const manualByProjectActivity = new Map<string, number>();
+  const weightManualByProjectActivity = new Map<string, number>();
+  const manualActivities: ProjectAssemblyProgressIndex['manualActivities'] = [];
+
   for (const row of doneRows) {
     const key = assemblyKey(row.projectId, row.activityId);
     doneByProjectActivity.set(key, toMinutes(row.piecesDone));
     weightDoneByProjectActivity.set(key, row.weightDoneKg ?? 0);
+
+    const manualPieces = toMinutes(row.piecesManual);
+    manualByProjectActivity.set(key, manualPieces);
+    weightManualByProjectActivity.set(key, row.weightManualKg ?? 0);
+
+    if (manualPieces > 0 && row.activityTracksAssemblies) {
+      manualActivities.push({
+        projectId: row.projectId,
+        activityId: row.activityId,
+        activityName: row.activityName ?? 'Activitate',
+        activityColor: row.activityColor,
+      });
+    }
   }
 
   const totalByProject = new Map<string, number>();
@@ -284,6 +353,9 @@ export function indexProjectAssemblyProgress(
     weightTotalByProject,
     withoutWeightByProject,
     assemblyCountByProject,
+    manualByProjectActivity,
+    weightManualByProjectActivity,
+    manualActivities,
   };
 }
 
@@ -301,14 +373,56 @@ function assemblyProgressFor(
     return null;
   }
 
-  const key = assemblyKey(row.projectId, row.activityId);
+  return buildAssemblyProgress(index, row.projectId, row.activityId);
+}
+
+function buildAssemblyProgress(
+  index: ProjectAssemblyProgressIndex,
+  projectId: string,
+  activityId: string,
+): ProjectSummaryAssemblyProgress {
+  const key = assemblyKey(projectId, activityId);
   return {
     piecesDone: index.doneByProjectActivity.get(key) ?? 0,
-    piecesTotal: index.totalByProject.get(row.projectId) ?? 0,
+    piecesTotal: index.totalByProject.get(projectId) ?? 0,
     weightDoneKg: index.weightDoneByProjectActivity.get(key) ?? 0,
-    weightTotalKg: index.weightTotalByProject.get(row.projectId) ?? 0,
-    assembliesWithoutWeight: index.withoutWeightByProject.get(row.projectId) ?? 0,
+    weightTotalKg: index.weightTotalByProject.get(projectId) ?? 0,
+    assembliesWithoutWeight: index.withoutWeightByProject.get(projectId) ?? 0,
+    piecesManual: index.manualByProjectActivity.get(key) ?? 0,
+    weightManualKg: index.weightManualByProjectActivity.get(key) ?? 0,
   };
+}
+
+/**
+ * Give a step done entirely outside the app its own breakdown row. It has no
+ * hours behind it, so nothing in the timesheet query produced one — without
+ * this, outsourced tonnage would have nowhere to show.
+ */
+function appendManualOnlyActivities(
+  index: ProjectAssemblyProgressIndex | undefined,
+  projects: Map<string, { id: string; activities: { activityId: string | null }[] }>,
+): void {
+  if (!index) {
+    return;
+  }
+
+  for (const entry of index.manualActivities) {
+    const project = projects.get(entry.projectId);
+    if (!project) {
+      continue;
+    }
+    if (project.activities.some((activity) => activity.activityId === entry.activityId)) {
+      continue;
+    }
+
+    project.activities.push({
+      activityId: entry.activityId,
+      activityName: entry.activityName,
+      activityColor: entry.activityColor,
+      minutes: 0,
+      assemblyProgress: buildAssemblyProgress(index, entry.projectId, entry.activityId),
+    } as (typeof project.activities)[number]);
+  }
 }
 
 function toMinutes(value: number | bigint): number {
@@ -361,6 +475,8 @@ export function shapeProjectSummary(
       assemblyProgress: assemblyProgressFor(assemblyIndex, row),
     });
   }
+
+  appendManualOnlyActivities(assemblyIndex, byProject);
 
   const projects = Array.from(byProject.values())
     .filter((project) => project.totalMinutes > 0)
@@ -417,6 +533,8 @@ export function shapePinnedProjectsSummary(
       });
     }
   }
+
+  appendManualOnlyActivities(assemblyIndex, byProject);
 
   const projects = Array.from(byProject.values()).sort((left, right) => {
     const leftColumn = left.panouColumn ?? 0;

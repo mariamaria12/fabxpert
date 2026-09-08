@@ -3,6 +3,13 @@ import { parseTsvRows } from './tsv';
 
 export type ParsedAssemblyRow = AssemblyImportRowDto;
 
+/**
+ * One cell of an assembly list. A pasted list is text throughout; an uploaded
+ * workbook hands over the numbers themselves, which are kept as such so the
+ * separators never have to be guessed at.
+ */
+export type AssemblyCell = string | number;
+
 /** Which pasted column each field was read from; -1 means "not found". */
 export type AssemblyImportColumnMap = {
   name: number;
@@ -48,34 +55,72 @@ function headerKey(cell: string): string {
     .replace(/[^a-z0-9]/g, '');
 }
 
-function cellText(cells: string[], index: number): string {
+function cellText(cells: AssemblyCell[], index: number): string {
   if (index < 0) {
     return '';
   }
-  return (cells[index] ?? '').replace(/\u00A0/g, ' ').trim();
+  return String(cells[index] ?? '').replace(/\u00A0/g, ' ').trim();
+}
+
+/** Same cell, with a workbook number left as a number. */
+function cellValue(cells: AssemblyCell[], index: number): AssemblyCell {
+  const cell = index < 0 ? '' : cells[index];
+  return typeof cell === 'number' ? cell : cellText(cells, index);
+}
+
+/**
+ * Turn whatever separators a cell carries into a plain decimal point.
+ *
+ * A cell with both — "1.234,56" out of a Romanian sheet, "1,234.56" out of an
+ * English one — groups thousands with the first and cuts decimals with the
+ * last; reading both as decimal points loses a factor of a thousand. With only
+ * dots, "2.800" is 2800 rather than 2.8: that is how a Romanian sheet displays
+ * a length, and a dot before exactly three digits never means otherwise there.
+ * A separator that repeats can only be grouping, whichever one it is.
+ */
+function normalizeDecimalSeparator(text: string): string {
+  const firstComma = text.indexOf(',');
+  const lastComma = text.lastIndexOf(',');
+  const firstDot = text.indexOf('.');
+  const lastDot = text.lastIndexOf('.');
+
+  if (lastComma >= 0 && lastDot >= 0) {
+    return lastComma > lastDot
+      ? text.replace(/\./g, '').replace(',', '.')
+      : text.replace(/,/g, '');
+  }
+
+  if (firstComma !== lastComma) {
+    return text.replace(/,/g, '');
+  }
+
+  if (firstDot !== lastDot || /^\d{1,3}(\.\d{3})+$/.test(text)) {
+    return text.replace(/\./g, '');
+  }
+
+  return text.replace(',', '.');
 }
 
 /**
  * Lengths and weights carry fractions (2981.6 mm, 58.98 kg), so nothing is
  * rounded here.
  *
- * The catch is only on the pasted path, where Romanian Excel writes 2800 as
- * "2.800" — a dot followed by exactly three digits is a thousands separator,
- * not a decimal point. Reading the file instead hands us 2981.6 directly and
- * skips the guess entirely; the clipboard only ever carries what was displayed,
- * which the sheet has already rounded.
+ * The separator guess is only for the pasted path — the clipboard carries what
+ * the sheet displayed, separators and all. A workbook cell arrives as the
+ * number itself and is taken as it is, so a 2.982 kg piece stays 2.982 kg where
+ * the same text pasted would read as 2982.
  */
-export function parseAssemblyNumber(value: string): number | null {
+export function parseAssemblyNumber(value: AssemblyCell): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value >= 0 ? value : null;
+  }
+
   const text = value.replace(/\s/g, '');
   if (text === '') {
     return null;
   }
 
-  if (/^\d{1,3}(\.\d{3})+$/.test(text)) {
-    return Number.parseInt(text.replace(/\./g, ''), 10);
-  }
-
-  const parsed = Number.parseFloat(text.replace(/,/g, '.'));
+  const parsed = Number.parseFloat(normalizeDecimalSeparator(text));
   if (!Number.isFinite(parsed) || parsed < 0) {
     return null;
   }
@@ -84,27 +129,24 @@ export function parseAssemblyNumber(value: string): number | null {
 }
 
 /** Piece counts are small whole numbers; anything else is unreadable. */
-export function parseAssemblyQuantity(value: string): number | null {
-  const text = value.replace(/[\s.]/g, '').replace(/,/g, '.');
-  if (text === '') {
-    return null;
-  }
-
-  const parsed = Number.parseFloat(text);
-  if (!Number.isFinite(parsed) || parsed < 1) {
+export function parseAssemblyQuantity(value: AssemblyCell): number | null {
+  const parsed = parseAssemblyNumber(value);
+  if (parsed === null || parsed < 1) {
     return null;
   }
 
   return Math.round(parsed);
 }
 
-function findHeaderRow(rows: string[][]): { index: number; columns: AssemblyImportColumnMap } | null {
+function findHeaderRow(
+  rows: AssemblyCell[][],
+): { index: number; columns: AssemblyImportColumnMap } | null {
   // Only the first few rows can be a header — the sheet carries a title block
   // above it, and a data row must never be mistaken for one.
   const limit = Math.min(rows.length, 10);
 
   for (let index = 0; index < limit; index += 1) {
-    const keys = rows[index].map(headerKey);
+    const keys = rows[index].map((cell) => headerKey(String(cell ?? '')));
     const columns: AssemblyImportColumnMap = {
       name: -1,
       quantity: -1,
@@ -138,7 +180,7 @@ export function parseAssemblyImport(text: string): ParseAssemblyImportResult {
  * Every row that carries a mark comes back, unreadable cells included — those
  * are reported as issues so the admin can see them, not dropped.
  */
-export function parseAssemblyRows(rawRows: string[][]): ParseAssemblyImportResult {
+export function parseAssemblyRows(rawRows: AssemblyCell[][]): ParseAssemblyImportResult {
   const header = findHeaderRow(rawRows);
   const columns = header ? header.columns : POSITIONAL_COLUMNS;
   const firstDataRow = header ? header.index + 1 : 0;
@@ -154,7 +196,7 @@ export function parseAssemblyRows(rawRows: string[][]): ParseAssemblyImportResul
     const cells = rawRows[index];
     const rowNumber = index + 1;
 
-    const rawQuantity = cellText(cells, columns.quantity);
+    const rawQuantity = cellValue(cells, columns.quantity);
     const name = cellText(cells, columns.name);
 
     if (name === '') {
@@ -173,19 +215,24 @@ export function parseAssemblyRows(rawRows: string[][]): ParseAssemblyImportResul
 
     const quantity = parseAssemblyQuantity(rawQuantity);
     if (quantity === null) {
-      issues.push({ row: rowNumber, name, code: 'INVALID_QUANTITY', value: rawQuantity || null });
+      issues.push({
+        row: rowNumber,
+        name,
+        code: 'INVALID_QUANTITY',
+        value: String(rawQuantity) || null,
+      });
     }
 
-    const rawLength = cellText(cells, columns.length);
+    const rawLength = cellValue(cells, columns.length);
     const length = rawLength === '' ? null : parseAssemblyNumber(rawLength);
     if (rawLength !== '' && length === null) {
-      issues.push({ row: rowNumber, name, code: 'INVALID_LENGTH', value: rawLength });
+      issues.push({ row: rowNumber, name, code: 'INVALID_LENGTH', value: String(rawLength) });
     }
 
-    const rawWeight = cellText(cells, columns.weightPerPiece);
+    const rawWeight = cellValue(cells, columns.weightPerPiece);
     const weightPerPiece = rawWeight === '' ? null : parseAssemblyNumber(rawWeight);
     if (rawWeight !== '' && weightPerPiece === null) {
-      issues.push({ row: rowNumber, name, code: 'INVALID_WEIGHT', value: rawWeight });
+      issues.push({ row: rowNumber, name, code: 'INVALID_WEIGHT', value: String(rawWeight) });
     }
 
     if (byName.has(name)) {

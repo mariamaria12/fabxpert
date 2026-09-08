@@ -6,10 +6,11 @@ import {
   type PersonListSortBy,
   type SortOrder,
 } from '@fabxpert/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PersonFormPanel } from './PersonFormPanel';
 import { CLIENT_SEARCH_FETCH_SIZE, paginateSlice, personMatchesSearch } from './personSearch';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
+import { editActionColumn } from '@/components/editActionColumn';
 import { FiltersToggle } from '@/components/FiltersToggle';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { Pagination } from '@/components/Pagination';
@@ -153,6 +154,11 @@ export default function PeoplePage() {
     setPanel({ open: false });
   }
 
+  const columns = useMemo(
+    () => [...personColumns, editActionColumn<PersonDto>((row) => openEdit(row), 'Editează persoana')],
+    [],
+  );
+
   function handleSaved(updated?: PersonDto) {
     if (updated) {
       setPersons((current) => replaceById(current, updated));
@@ -238,14 +244,13 @@ export default function PeoplePage() {
         <div className="mt-3 sm:mt-6">
           <DataTable
             storageKey="people-list"
-            columns={personColumns}
+            columns={columns}
             data={persons}
             rowKey={(row) => row.id}
             loading={loading}
             sortBy={sortBy}
             sortOrder={sortOrder}
             onSortChange={handleSortChange}
-            onRowClick={loading ? undefined : openEdit}
           />
           {!loading && total > 0 && (
             <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />

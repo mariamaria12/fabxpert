@@ -84,7 +84,6 @@ interface UserGroupTableProps {
   users: UserDto[];
   columns: DataTableColumn<UserDto>[];
   loading: boolean;
-  onRowClick: (user: UserDto) => void;
 }
 
 /** One group table with its own sort order and pagination over the loaded rows. */
@@ -96,7 +95,6 @@ function UserGroupTable({
   users,
   columns,
   loading,
-  onRowClick,
 }: UserGroupTableProps) {
   const [page, setPage] = useState(1);
   const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
@@ -140,7 +138,6 @@ function UserGroupTable({
             setSortOrder(nextSortOrder);
             setPage(1);
           }}
-          onRowClick={loading ? undefined : onRowClick}
         />
         {!loading && sortedUsers.length > PAGE_SIZE && (
           <div className="border-x border-b border-border-subtle px-2">
@@ -399,7 +396,6 @@ export function UsersTab({ active }: UsersTabProps) {
               users={groupedUsers[group.id]}
               columns={userColumns}
               loading={loading}
-              onRowClick={openEdit}
             />
           ))}
         </div>
