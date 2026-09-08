@@ -33,6 +33,24 @@ function formatNumber(value: number | null | undefined): string {
   return value.toLocaleString('ro-RO', { maximumFractionDigits: 2 });
 }
 
+/** Weight cells are edited the Romanian way: comma decimal, at most two decimals. */
+function formatWeightDraft(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) {
+    return '';
+  }
+  return value.toLocaleString('ro-RO', { maximumFractionDigits: 2, useGrouping: false });
+}
+
+/** Keeps what is typed in a weight cell to digits, one comma and two decimals. */
+function sanitizeWeightInput(raw: string): string {
+  const cleaned = raw.replace(/\./g, ',').replace(/[^\d,]/g, '');
+  const [whole, ...rest] = cleaned.split(',');
+  if (rest.length === 0) {
+    return whole;
+  }
+  return `${whole},${rest.join('').slice(0, 2)}`;
+}
+
 /** Editable cells hold raw text; the value only becomes a number on save. */
 type DraftRow = {
   name: string;
@@ -58,7 +76,7 @@ function toDraft(assembly: ProjectAssemblyDto): DraftRow {
     quantity: String(assembly.quantity),
     profile: assembly.profile ?? '',
     length: assembly.length == null ? '' : String(assembly.length),
-    weightPerPiece: assembly.weightPerPiece == null ? '' : String(assembly.weightPerPiece),
+    weightPerPiece: formatWeightDraft(assembly.weightPerPiece),
   };
 }
 
@@ -716,7 +734,9 @@ export function AssemblyListScreen({
             value={draft.weightPerPiece}
             disabled={isBusy}
             aria-label={`Greutate ansamblu ${index + 1}`}
-            onChange={(event) => updateDraft(id, 'weightPerPiece', event.target.value)}
+            onChange={(event) =>
+              updateDraft(id, 'weightPerPiece', sanitizeWeightInput(event.target.value))
+            }
             className={`${cellClass('weightPerPiece')} text-right`}
           />
         </td>
