@@ -36,3 +36,12 @@ export function leaveTypeDayCode(type: LeaveType): string {
       return PRESENT_DAY_CODE;
   }
 }
+
+/**
+ * The lines that reach the document accounting receives. External
+ * collaborators stay on the pontaj so their days are tracked, but they are
+ * not on the payroll, so the document leaves them out.
+ */
+export function accountingDocumentLines<T extends { isExternal: boolean }>(lines: T[]): T[] {
+  return lines.filter((line) => !line.isExternal);
+}

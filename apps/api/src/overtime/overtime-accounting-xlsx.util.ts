@@ -1,5 +1,8 @@
 import ExcelJS from 'exceljs';
-import { ACCOUNTING_DAY_CODES } from '@fabxpert/shared/accountingDocument';
+import {
+  ACCOUNTING_DAY_CODES,
+  accountingDocumentLines,
+} from '@fabxpert/shared/accountingDocument';
 import type { AccountingTimesheetResponse } from '@fabxpert/shared/dto/overtime.dto';
 
 /**
@@ -8,6 +11,7 @@ import type { AccountingTimesheetResponse } from '@fabxpert/shared/dto/overtime.
  * COUNTIF counters, then the pay columns they fill in by hand, and the legend.
  * The rates in the formulas (400 lei per Saturday, 30 per meal ticket, 9 hours
  * a day) are theirs — kept verbatim so the sheet computes like the ones before it.
+ * Only the payroll is on it: external collaborators stay off the document.
  */
 
 const MONTH_NAMES = [
@@ -163,6 +167,7 @@ export async function buildAccountingTimesheetXlsx(
 ): Promise<Buffer> {
   const { year, monthIndex } = parseMonth(report.month);
   const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const lines = accountingDocumentLines(report.lines);
 
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet(`${MONTH_SHORT[monthIndex]} ${year}`);
@@ -246,11 +251,11 @@ export async function buildAccountingTimesheetXlsx(
   sheet.getRow(3).height = 22.5;
 
   // --- one row per person ---
-  const lastPersonRow = FIRST_PERSON_ROW + report.lines.length - 1;
+  const lastPersonRow = FIRST_PERSON_ROW + lines.length - 1;
   const dayRange = (row: number) =>
     `${columnLetter(FIRST_DAY_COLUMN)}${row}:${columnLetter(LAST_DAY_COLUMN)}${row}`;
 
-  report.lines.forEach((line, index) => {
+  lines.forEach((line, index) => {
     const row = FIRST_PERSON_ROW + index;
     const sheetRow = sheet.getRow(row);
     sheetRow.height = 24.6;
@@ -328,7 +333,7 @@ export async function buildAccountingTimesheetXlsx(
     COL.mealTickets,
     COL.grandTotal,
   ];
-  if (report.lines.length > 0) {
+  if (lines.length > 0) {
     for (const column of sumColumns) {
       const letter = columnLetter(column);
       const cell = sheet.getCell(totalRow, column);

@@ -233,7 +233,7 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
           {line.isExternal ? (
             <span
               className="shrink-0 rounded border border-border px-1.5 py-px text-[10px] font-medium uppercase tracking-wide text-text-muted"
-              title="Colaborator extern — fără număr fix de zile"
+              title="Colaborator extern — fără număr fix de zile; nu intră în documentul pentru contabilitate"
             >
               extern
             </span>

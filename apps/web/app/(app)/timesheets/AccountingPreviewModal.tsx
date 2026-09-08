@@ -1,6 +1,10 @@
 'use client';
 
-import { formatOvertimeHours, type AccountingTimesheetResponse } from '@fabxpert/shared';
+import {
+  accountingDocumentLines,
+  formatOvertimeHours,
+  type AccountingTimesheetResponse,
+} from '@fabxpert/shared';
 import { useEffect } from 'react';
 import { formatMonthLabel } from './timesheetMonths';
 
@@ -30,7 +34,8 @@ function countCodes(codes: string[], ...wanted: string[]): number {
 /**
  * The document as it will be generated, on the whole screen: the day grid
  * per person, the counters, and every working day still unaccounted for
- * marked so it can be dealt with before the export.
+ * marked so it can be dealt with before the export. External collaborators
+ * are not on the document, so they are not shown here either.
  */
 export function AccountingPreviewModal({
   open,
@@ -75,6 +80,8 @@ export function AccountingPreviewModal({
     };
   });
   const gaps = report.totals.missingDays;
+  const lines = accountingDocumentLines(report.lines);
+  const overtimeMinutes = lines.reduce((total, line) => total + line.overtimeMinutes, 0);
 
   const headCell = 'sticky top-0 z-10 border-b border-border bg-surface px-1 py-1.5 text-center';
   const dayCell = 'border-b border-border-subtle px-0.5 py-1 text-center text-[11px] font-semibold';
@@ -92,8 +99,8 @@ export function AccountingPreviewModal({
             Pontaj luna {formatMonthLabel(month).toLowerCase()}
           </h2>
           <p className="text-xs text-text-muted">
-            {report.totals.persons} persoane · {report.workingDays} zile lucrătoare ·{' '}
-            {formatOvertimeHours(report.totals.overtimeMinutes)} ore suplimentare aprobate
+            {lines.length} persoane · {report.workingDays} zile lucrătoare ·{' '}
+            {formatOvertimeHours(overtimeMinutes)} ore suplimentare aprobate
             {gaps > 0
               ? ` · ${gaps === 1 ? '1 zi fără pontaj' : `${gaps} zile fără pontaj`} de completat înainte de export`
               : ' · gata de export'}
@@ -101,7 +108,7 @@ export function AccountingPreviewModal({
         </div>
         <button
           type="button"
-          disabled={exporting || report.lines.length === 0}
+          disabled={exporting || lines.length === 0}
           onClick={onExport}
           className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-60 ${
             gaps > 0
@@ -156,7 +163,7 @@ export function AccountingPreviewModal({
             </tr>
           </thead>
           <tbody>
-            {report.lines.map((line, index) => {
+            {lines.map((line, index) => {
               const worked = countCodes(line.dayCodes, 'X');
               const leave = countCodes(line.dayCodes, 'CO', 'CM');
               const unpaid = countCodes(line.dayCodes, 'CFP');
@@ -173,11 +180,6 @@ export function AccountingPreviewModal({
                     className={`${dayCell} sticky left-8 z-10 whitespace-nowrap bg-surface px-2 text-left text-xs font-medium text-text-primary`}
                   >
                     {line.person.lastName} {line.person.firstName}
-                    {line.isExternal ? (
-                      <span className="ml-1.5 text-[10px] font-normal uppercase text-text-muted">
-                        extern
-                      </span>
-                    ) : null}
                     {line.isAutoPresent ? (
                       <span className="ml-1.5 text-[10px] font-normal uppercase text-text-muted">
                         auto

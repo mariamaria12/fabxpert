@@ -349,6 +349,7 @@ export {
 export {
   ACCOUNTING_DAY_CODES,
   PRESENT_DAY_CODE,
+  accountingDocumentLines,
   leaveTypeDayCode,
 } from './accountingDocument';
 export type {
