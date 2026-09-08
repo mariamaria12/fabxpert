@@ -23,7 +23,8 @@ export const PRESENT_DAY_CODE = 'X';
 
 /**
  * What an approved leave day reads as on the pontaj. RECUPERARE is time off
- * already earned, so it is paid as a worked day and marked present.
+ * already earned, so it is paid as a worked day and marked present; a blood
+ * donation day is paid but not worked, so it counts with the leave.
  */
 export function leaveTypeDayCode(type: LeaveType): string {
   switch (type) {
@@ -35,6 +36,8 @@ export function leaveTypeDayCode(type: LeaveType): string {
       return 'CFP';
     case 'RECUPERARE':
       return PRESENT_DAY_CODE;
+    case 'BLOOD_DONATION':
+      return 'DS';
   }
 }
 

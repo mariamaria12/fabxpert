@@ -7,7 +7,7 @@ import { isWorkingDate, normalizeWorkDate } from './workDate';
  * - Storage: Prisma DateTime at server-local midnight for that calendar day.
  *
  * Day counting: inclusive range between startDate and endDate, excluding
- * Saturday and Sunday. Romanian public holidays are not excluded yet.
+ * Saturday, Sunday and the Romanian public holidays.
  */
 export function countInclusiveLeaveDays(startDate: Date, endDate: Date): number {
   const start = normalizeWorkDate(startDate);

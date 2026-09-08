@@ -7,6 +7,7 @@ const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
   MEDICAL: 'Medical',
   NEPLATIT: 'Neplătit',
   RECUPERARE: 'Liber',
+  BLOOD_DONATION: 'Donare de sânge',
 };
 
 /** The two everyday types come first; the rest sit behind "+" on mobile. */
@@ -17,6 +18,7 @@ export const LEAVE_TYPE_OPTIONS: { value: LeaveType; label: string }[] = [
   'RECUPERARE',
   'MEDICAL',
   'NEPLATIT',
+  'BLOOD_DONATION',
 ].map((value) => ({
   value: value as LeaveType,
   label: LEAVE_TYPE_LABELS[value as LeaveType],

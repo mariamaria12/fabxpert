@@ -93,7 +93,7 @@ type ApprovedLeave = {
   durationMinutes: number | null;
 };
 
-/** Mon–Fri days in the month — the norm on the pontaj. */
+/** Working days in the month, holidays excluded — the norm on the pontaj. */
 function workingDaysInMonth(monthStart: Date): number {
   const end = startOfNextMonth(monthStart);
   let count = 0;

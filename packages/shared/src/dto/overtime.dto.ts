@@ -113,8 +113,8 @@ export type AccountingTimesheetLineDto = {
   saturdaysWorked: number;
   /**
    * One code per calendar day of the month (index 0 is the 1st): X, a leave
-   * code, or '' for nothing. Weekends stay '' — a Saturday is counted in
-   * `saturdaysWorked`, a Sunday goes to overtime.
+   * code, or '' for nothing. Weekends and public holidays stay '' — a Saturday
+   * is counted in `saturdaysWorked`, anything else worked goes to overtime.
    */
   dayCodes: string[];
   /** Working days already past with neither a pontaj nor approved leave, as `YYYY-MM-DD`. */
@@ -157,7 +157,7 @@ export type AccountingTimesheetResponse = {
    * nothing can be approved and every line is in preparation.
    */
   settlementOpen: boolean;
-  /** Mon–Fri days in the month — the norm on the document. */
+  /** Mon–Fri days in the month, holidays aside — the norm on the document. */
   workingDays: number;
   export: AccountingExportDto | null;
   lines: AccountingTimesheetLineDto[];
@@ -180,6 +180,7 @@ export const ACCOUNTING_DAY_RESOLUTIONS = [
   'MEDICAL',
   'NEPLATIT',
   'RECUPERARE',
+  'BLOOD_DONATION',
 ] as const;
 
 export type AccountingDayResolution = (typeof ACCOUNTING_DAY_RESOLUTIONS)[number];

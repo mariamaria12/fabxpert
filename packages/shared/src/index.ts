@@ -270,6 +270,7 @@ export {
   todayDateInputValue,
   workDateToDayKey,
   isWorkingDate,
+  isPublicHoliday,
   isSameWorkDate,
 } from './workDate';
 export {

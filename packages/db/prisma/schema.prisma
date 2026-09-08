@@ -44,6 +44,7 @@ enum LeaveType {
   MEDICAL    // Medical leave — does not affect balance
   NEPLATIT   // Unpaid leave — does not affect balance
   RECUPERARE // Time off in lieu — consumes the overtime balance when approved
+  BLOOD_DONATION // Blood donation day off — paid, affects no balance
 }
 
 enum LeaveStatus {

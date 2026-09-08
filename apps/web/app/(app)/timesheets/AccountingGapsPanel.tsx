@@ -29,6 +29,7 @@ const CHOICES: { id: AccountingDayResolution; label: string }[] = [
   { id: 'ODIHNA', label: 'Concediu de odihnă (CO)' },
   { id: 'MEDICAL', label: 'Concediu medical (CM)' },
   { id: 'NEPLATIT', label: 'Concediu fără plată (CFP)' },
+  { id: 'BLOOD_DONATION', label: 'Donare de sânge (DS)' },
 ];
 
 function weekdayLabel(date: string): string {

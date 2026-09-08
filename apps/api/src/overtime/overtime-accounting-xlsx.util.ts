@@ -378,7 +378,6 @@ export async function buildAccountingTimesheetXlsx(
       [COL.leave]: countIf(range, 'CO', 'CM', 'CP', 'DS'),
       [COL.absent]: countIf(range, 'AN'),
       [COL.unpaid]: countIf(range, 'CFP', 'CS'),
-      [COL.workingDays]: `SUM(${columnLetter(COL.worked)}${row}:${columnLetter(COL.unpaid)}${row})`,
       [COL.totalPay]: `${columnLetter(COL.net)}${row}+${columnLetter(COL.extraHours)}${row}*${columnLetter(COL.extraRate)}${row}+${columnLetter(COL.saturdays)}${row}*400`,
       [COL.edenred]: `${columnLetter(COL.worked)}${row}*30`,
       [COL.dashboardHours]: `${columnLetter(COL.worked)}${row}*9`,
@@ -400,6 +399,10 @@ export async function buildAccountingTimesheetXlsx(
       const formula = formulas[column];
       if (formula) {
         cell.value = { formula };
+      } else if (column === COL.workingDays) {
+        // Their column is the month's norm, not what the row adds up to: the
+        // gaps dialog has already made every working day account for itself.
+        cell.value = report.workingDays;
       } else if (column === COL.saturdays) {
         cell.value = line.saturdaysWorked;
       } else if (column === COL.extraHours) {
@@ -421,6 +424,7 @@ export async function buildAccountingTimesheetXlsx(
   const sumColumns: number[] = [
     COL.worked,
     COL.netCard,
+    COL.saturdays,
     COL.extraHours,
     COL.net,
     COL.totalPay,

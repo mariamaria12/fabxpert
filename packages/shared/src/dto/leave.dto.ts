@@ -2,7 +2,13 @@ import { z } from 'zod';
 import { DAILY_WORK_MINUTES } from '../overtime';
 import type { TimesheetSummaryPeriod } from './timesheet.dto';
 
-export const LEAVE_TYPE_VALUES = ['ODIHNA', 'MEDICAL', 'NEPLATIT', 'RECUPERARE'] as const;
+export const LEAVE_TYPE_VALUES = [
+  'ODIHNA',
+  'MEDICAL',
+  'NEPLATIT',
+  'RECUPERARE',
+  'BLOOD_DONATION',
+] as const;
 export const LEAVE_STATUS_VALUES = [
   'IN_ASTEPTARE',
   'APROBAT',
