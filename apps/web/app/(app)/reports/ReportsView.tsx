@@ -10,8 +10,12 @@ import {
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useState } from 'react';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { ActiveProjectsView } from './ActiveProjectsView';
+import { ActivityNormsView } from './ActivityNormsView';
+import { ProjectReportPanel } from './ProjectReportPanel';
 import { ReportPeriodFilter } from './ReportPeriodFilter';
 import { ReportKpiCards } from './ReportKpiCards';
+import { ReportTabs, type ReportTab } from './ReportTabs';
 import { ChartsSkeleton, KpiRowSkeleton } from './ReportsSkeleton';
 import { periodHeading } from './reportsFormat';
 
@@ -34,7 +38,11 @@ function EmptyState() {
   );
 }
 
-export function ReportsView() {
+function ProductivityTab({
+  onSelectProject,
+}: {
+  onSelectProject: (projectId: string) => void;
+}) {
   const [period, setPeriod] = useState<ReportPeriod>(DEFAULT_REPORT_PERIOD);
   const [report, setReport] = useState<ProductivityReportResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,22 +73,19 @@ export function ReportsView() {
   const isEmpty = !loading && !error && report !== null && report.kpis.completedCount === 0;
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="hidden text-xl font-semibold tracking-tight text-text-primary sm:block">
-            Rapoarte
-          </h1>
-          {report && (
-            <p className="text-sm text-text-muted">
-              {periodHeading(report.period, report.from, report.to)}
-            </p>
-          )}
-        </div>
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {report ? (
+          <p className="text-sm text-text-muted">
+            {periodHeading(report.period, report.from, report.to)}
+          </p>
+        ) : (
+          <span />
+        )}
         <ReportPeriodFilter value={period} onChange={setPeriod} />
       </div>
 
-      <div className="mt-3">
+      <div className="mt-2">
         {!periodReady && (
           <p className="text-sm text-text-muted">Selectează intervalul de date.</p>
         )}
@@ -110,10 +115,38 @@ export function ReportsView() {
         {periodReady && !error && !loading && report && !isEmpty && (
           <div className="space-y-2">
             <ReportKpiCards kpis={report.kpis} />
-            <ReportCharts report={report} />
+            <ReportCharts report={report} onSelectProject={onSelectProject} />
           </div>
         )}
       </div>
+    </>
+  );
+}
+
+export function ReportsView() {
+  const [tab, setTab] = useState<ReportTab>('productivity');
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+
+  return (
+    <div className="flex h-full flex-col">
+      <h1 className="hidden text-[22px] font-medium text-text-primary sm:block">Rapoarte</h1>
+
+      <div className="mt-4">
+        <ReportTabs value={tab} onChange={setTab} />
+      </div>
+
+      <div className="mt-6 flex-1">
+        {tab === 'productivity' && (
+          <ProductivityTab onSelectProject={setSelectedProjectId} />
+        )}
+        {tab === 'active' && <ActiveProjectsView onSelectProject={setSelectedProjectId} />}
+        {tab === 'norms' && <ActivityNormsView />}
+      </div>
+
+      <ProjectReportPanel
+        projectId={selectedProjectId}
+        onClose={() => setSelectedProjectId(null)}
+      />
     </div>
   );
 }

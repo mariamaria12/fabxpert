@@ -1,5 +1,6 @@
 import type { TimesheetDto } from '@fabxpert/shared';
 import { useEffect, useMemo, useState } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import { ActivityDot } from './ActivityDot';
 import { useMobileLookupCache } from '../context/MobileLookupCacheContext';
 import { useToast } from '../context/ToastContext';
@@ -34,9 +35,13 @@ function EntryProject({ project }: { project: TimesheetDto['project'] }) {
   );
 }
 
+/** Marks shown on a row before the rest fold behind "Vezi mai multe". */
+const VISIBLE_ASSEMBLY_COUNT = 3;
+
 /**
- * The marks this entry closed. On an activity that tracks assemblies, an entry
- * without any is a normal state — someone helping out — so it says so.
+ * The marks this entry closed. Long lists show the first few and a toggle for
+ * the rest. On an activity that tracks assemblies, an entry without any is a
+ * normal state — someone helping out — so it says so.
  */
 function EntryAssemblies({
   entry,
@@ -45,14 +50,35 @@ function EntryAssemblies({
   entry: TimesheetDto;
   tracksAssemblies: boolean;
 }) {
+  const [showAll, setShowAll] = useState(false);
+
   if (entry.assemblies.length > 0) {
+    const hiddenCount = entry.assemblies.length - VISIBLE_ASSEMBLY_COUNT;
+    const visible =
+      showAll || hiddenCount <= 0
+        ? entry.assemblies
+        : entry.assemblies.slice(0, VISIBLE_ASSEMBLY_COUNT);
+
     return (
       <span className="assembly-chip-row timesheet-entry-assemblies">
-        {entry.assemblies.map((link) => (
+        {visible.map((link) => (
           <span key={link.assemblyId} className="assembly-chip assembly-chip-mark">
             {link.name} ×{link.quantityDone}
           </span>
         ))}
+        {hiddenCount > 0 ? (
+          <button
+            type="button"
+            className="assembly-chip timesheet-entry-assemblies-toggle"
+            aria-expanded={showAll}
+            onClick={(event) => {
+              event.stopPropagation();
+              setShowAll((current) => !current);
+            }}
+          >
+            {showAll ? 'Vezi mai puține' : `Vezi mai multe (+${hiddenCount})`}
+          </button>
+        ) : null}
       </span>
     );
   }
@@ -62,6 +88,16 @@ function EntryAssemblies({
   }
 
   return <span className="timesheet-entry-no-assemblies">Fără ansamble</span>;
+}
+
+/** The observații typed on the entry, kept as written. */
+function EntryNotes({ notes }: { notes: string | null }) {
+  const text = notes?.trim();
+  if (!text) {
+    return null;
+  }
+
+  return <span className="timesheet-entry-notes">{text}</span>;
 }
 
 function ChevronRightIcon() {
@@ -85,6 +121,56 @@ function formatEntryDuration(entry: TimesheetDto): string {
   }
 
   return formatTodayWorkedTotal(minutes);
+}
+
+/**
+ * A div rather than a button so the "Vezi mai multe" toggle inside can be a
+ * real button. Today's entries open the edit form on tap or Enter/Space.
+ */
+function EntryRow({
+  entry,
+  editable,
+  onEdit,
+  children,
+}: {
+  entry: TimesheetDto;
+  editable: boolean;
+  onEdit: (entry: TimesheetDto) => void;
+  children: ReactNode;
+}) {
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.target !== event.currentTarget) {
+      return;
+    }
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onEdit(entry);
+    }
+  }
+
+  return (
+    <div
+      className={`timesheet-entry-row${editable ? ' timesheet-entry-row-editable' : ''}`}
+      role={editable ? 'button' : undefined}
+      tabIndex={editable ? 0 : undefined}
+      onClick={editable ? () => onEdit(entry) : undefined}
+      onKeyDown={editable ? handleKeyDown : undefined}
+    >
+      <span
+        className="option-color-bar option-color-bar-project"
+        style={{ background: entry.project.color ?? 'var(--color-border)' }}
+        aria-hidden="true"
+      />
+      <span className="timesheet-entry-body">{children}</span>
+      <span className="timesheet-entry-duration">{formatEntryDuration(entry)}</span>
+      {editable ? (
+        <span className="timesheet-entry-chevron">
+          <ChevronRightIcon />
+        </span>
+      ) : null}
+    </div>
+  );
 }
 
 export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
@@ -193,72 +279,19 @@ export function MyTimesheets({ onEditEntry }: MyTimesheetsProps) {
                     const tracksAssemblies =
                       entry.activityId !== null && assemblyActivityIds.has(entry.activityId);
 
-                    if (editable) {
-                      return (
-                        <li key={entry.id}>
-                          <button
-                            type="button"
-                            className="timesheet-entry-row timesheet-entry-row-editable"
-                            onClick={() => onEditEntry(entry)}
-                          >
-                            <span
-                              className="option-color-bar option-color-bar-project"
-                              style={{
-                                background: entry.project.color ?? 'var(--color-border)',
-                              }}
-                              aria-hidden="true"
-                            />
-                            <span className="timesheet-entry-body">
-                              <EntryProject project={entry.project} />
-                              {entry.activity ? (
-                                <span className="timesheet-entry-activity">
-                                  <ActivityDot color={entry.activity.color} />
-                                  {entry.activity.name}
-                                </span>
-                              ) : null}
-                              <EntryAssemblies
-                                entry={entry}
-                                tracksAssemblies={tracksAssemblies}
-                              />
-                            </span>
-                            <span className="timesheet-entry-duration">
-                              {formatEntryDuration(entry)}
-                            </span>
-                            <span className="timesheet-entry-chevron">
-                              <ChevronRightIcon />
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    }
-
                     return (
                       <li key={entry.id}>
-                        <div className="timesheet-entry-row">
-                          <span
-                            className="option-color-bar option-color-bar-project"
-                            style={{
-                              background: entry.project.color ?? 'var(--color-border)',
-                            }}
-                            aria-hidden="true"
-                          />
-                          <span className="timesheet-entry-body">
-                            <EntryProject project={entry.project} />
-                            {entry.activity ? (
-                              <span className="timesheet-entry-activity">
-                                <ActivityDot color={entry.activity.color} />
-                                {entry.activity.name}
-                              </span>
-                            ) : null}
-                            <EntryAssemblies
-                              entry={entry}
-                              tracksAssemblies={tracksAssemblies}
-                            />
-                          </span>
-                          <span className="timesheet-entry-duration">
-                            {formatEntryDuration(entry)}
-                          </span>
-                        </div>
+                        <EntryRow entry={entry} editable={editable} onEdit={onEditEntry}>
+                          <EntryProject project={entry.project} />
+                          {entry.activity ? (
+                            <span className="timesheet-entry-activity">
+                              <ActivityDot color={entry.activity.color} />
+                              {entry.activity.name}
+                            </span>
+                          ) : null}
+                          <EntryAssemblies entry={entry} tracksAssemblies={tracksAssemblies} />
+                          <EntryNotes notes={entry.notes} />
+                        </EntryRow>
                       </li>
                     );
                   })}

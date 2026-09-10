@@ -7,41 +7,12 @@ import type {
   ProductivityReportResponse,
   ProjectHoursComparisonRow,
 } from '@fabxpert/shared';
+import { EmptyHint, SectionCard } from './ReportSection';
 import { formatHours } from './reportsFormat';
 import { paletteColor, TOKEN, tint } from './reportColors';
 
 const MAX_PROJECT_CARDS = 12;
 const MAX_CLIENT_BARS = 6;
-
-function SectionCard({
-  title,
-  hint,
-  className,
-  children,
-}: {
-  title: string;
-  hint?: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section
-      className={`rounded-lg border border-border-subtle bg-surface p-3 ${className ?? ''}`}
-    >
-      <header className="mb-2 flex items-baseline justify-between gap-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
-          {title}
-        </h2>
-        {hint && <span className="shrink-0 text-[10px] text-text-muted">{hint}</span>}
-      </header>
-      {children}
-    </section>
-  );
-}
-
-function EmptyHint({ children }: { children: React.ReactNode }) {
-  return <p className="py-4 text-center text-xs text-text-muted">{children}</p>;
-}
 
 // --- Ore lucrate vs. estimate — compact cards, two parallel bars ------------
 
@@ -64,7 +35,13 @@ function MiniBar({ pct, value, color }: { pct: number; value: string; color: str
   );
 }
 
-function ProjectCard({ row }: { row: ProjectHoursComparisonRow }) {
+function ProjectCard({
+  row,
+  onSelect,
+}: {
+  row: ProjectHoursComparisonRow;
+  onSelect: () => void;
+}) {
   const efficiency =
     row.estimatedMinutes !== null && row.workedMinutes > 0
       ? Math.round((row.estimatedMinutes / row.workedMinutes) * 100)
@@ -78,7 +55,12 @@ function ProjectCard({ row }: { row: ProjectHoursComparisonRow }) {
   const estPct = row.estimatedMinutes !== null ? (row.estimatedMinutes / cardMax) * 100 : 0;
 
   return (
-    <div className="rounded-md border border-border-subtle bg-surface-raised/30 px-2.5 py-2">
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-label={`Deschide fișa proiectului ${row.label}`}
+      className="rounded-md border border-border-subtle bg-surface-raised/30 px-2.5 py-2 text-left transition-colors hover:border-accent/40 hover:bg-surface-raised focus:outline-none focus:ring-1 focus:ring-accent"
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <span className="block truncate text-xs font-medium text-text-primary" title={row.label}>
@@ -114,7 +96,7 @@ function ProjectCard({ row }: { row: ProjectHoursComparisonRow }) {
           <p className="pl-0.5 text-[10px] text-text-muted">fără estimare</p>
         )}
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -136,9 +118,11 @@ function LucratEstimatLegend() {
 function WorkedVsEstimatedSection({
   rows,
   className,
+  onSelectProject,
 }: {
   rows: ProjectHoursComparisonRow[];
   className?: string;
+  onSelectProject: (projectId: string) => void;
 }) {
   const shown = rows.slice(0, MAX_PROJECT_CARDS);
 
@@ -153,9 +137,13 @@ function WorkedVsEstimatedSection({
       ) : (
         <>
           <LucratEstimatLegend />
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 items-stretch gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {shown.map((row) => (
-              <ProjectCard key={row.id} row={row} />
+              <ProjectCard
+                key={row.id}
+                row={row}
+                onSelect={() => onSelectProject(row.id)}
+              />
             ))}
           </div>
         </>
@@ -321,10 +309,20 @@ function ByActivitySection({ rows, className }: { rows: ActivityHoursRow[]; clas
   );
 }
 
-export default function ReportCharts({ report }: { report: ProductivityReportResponse }) {
+export default function ReportCharts({
+  report,
+  onSelectProject,
+}: {
+  report: ProductivityReportResponse;
+  onSelectProject: (projectId: string) => void;
+}) {
   return (
     <div className="grid gap-2 lg:grid-cols-12">
-      <WorkedVsEstimatedSection rows={report.projectHours} className="lg:col-span-8" />
+      <WorkedVsEstimatedSection
+        rows={report.projectHours}
+        className="lg:col-span-8"
+        onSelectProject={onSelectProject}
+      />
 
       <div className="grid gap-2 lg:col-span-4">
         <SectionCard title="La termen vs. întârziate">

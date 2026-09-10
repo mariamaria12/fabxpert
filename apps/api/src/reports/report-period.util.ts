@@ -37,7 +37,7 @@ function parseDateOnly(value: string, field: string): Date {
   return date;
 }
 
-function formatDayKey(date: Date): string {
+export function formatDayKey(date: Date): string {
   const year = String(date.getFullYear()).padStart(4, '0');
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
@@ -117,4 +117,60 @@ export function parseReportPeriodQuery(
 export function isPastInterval(resolved: ResolvedReportPeriod, now = new Date()): boolean {
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
   return resolved.toExclusive.getTime() <= startOfToday.getTime();
+}
+
+export const DEFAULT_NORMS_MONTHS = 12;
+const MIN_NORMS_MONTHS = 1;
+const MAX_NORMS_MONTHS = 36;
+
+export type ResolvedNormsWindow = {
+  months: number;
+  from: Date;
+  toExclusive: Date;
+  fromDay: string;
+  toDay: string;
+};
+
+/**
+ * The window the norms are read over: whole months back from the current one,
+ * up to and including today. Ends at tomorrow so a project delivered this
+ * morning already counts.
+ */
+export function parseNormsWindow(
+  monthsRaw: string | undefined,
+  now = new Date(),
+): ResolvedNormsWindow {
+  const months = parseNormsMonths(monthsRaw);
+  const from = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1, 0, 0, 0, 0);
+  const toExclusive = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+    0,
+    0,
+    0,
+    0,
+  );
+
+  return {
+    months,
+    from,
+    toExclusive,
+    fromDay: formatDayKey(from),
+    toDay: formatDayKey(now),
+  };
+}
+
+function parseNormsMonths(monthsRaw: string | undefined): number {
+  if (monthsRaw === undefined || monthsRaw.trim() === '') {
+    return DEFAULT_NORMS_MONTHS;
+  }
+
+  const months = Number.parseInt(monthsRaw.trim(), 10);
+  if (!Number.isFinite(months) || months < MIN_NORMS_MONTHS || months > MAX_NORMS_MONTHS) {
+    throw new BadRequestException(
+      `months must be between ${MIN_NORMS_MONTHS} and ${MAX_NORMS_MONTHS}`,
+    );
+  }
+  return months;
 }

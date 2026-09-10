@@ -6,7 +6,12 @@ export { ApiError, configureApiClient, getApiClientBaseUrl } from './api/client'
 export { resolveApiBaseUrl } from './api/resolve-api-base-url';
 export { getMe, login, logout } from './api/auth';
 export type { MeResponse } from './api/auth';
-export { getProductivityReport } from './api/reports';
+export {
+  getActiveProjectsReport,
+  getActivityNorms,
+  getProductivityReport,
+  getProjectReport,
+} from './api/reports';
 export {
   DEFAULT_REPORT_PERIOD,
   reportPeriodToQuery,
@@ -23,6 +28,16 @@ export type {
   ClientHoursRow,
   ActivityHoursRow,
   ProductivityReportResponse,
+  AssemblyStepProgress,
+  ProjectReportActivityRow,
+  ProjectReportPersonRow,
+  ProjectReportTotals,
+  ProjectReportResponse,
+  ActiveProjectStepRow,
+  ActiveProjectRow,
+  ActiveProjectsReportResponse,
+  ActivityNormRow,
+  ActivityNormsResponse,
 } from './dto/report.dto';
 export {
   listCompanies,
@@ -147,6 +162,7 @@ export {
   PROJECT_STATUS_META,
   PROJECT_TERMINAL_STATUSES,
   PROJECT_COMPLETED_STATUSES,
+  PROJECT_ACTIVE_STATUSES,
   isProjectCompletedStatus,
   formatProjectDueDate,
   getProjectStatusBadgeClassName,

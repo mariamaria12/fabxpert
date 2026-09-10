@@ -3,6 +3,7 @@
 import { reportPeriodsEqual, type ReportPeriod } from '@fabxpert/shared';
 import { useEffect, useRef, useState } from 'react';
 import { DateField } from '@/components/DateField';
+import { filterChipClassName } from '@/components/filterChipStyles';
 
 const dateInputClassName =
   'rounded-md border border-border bg-surface-raised px-3 py-1.5 font-mono text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
@@ -86,13 +87,6 @@ export function ReportPeriodFilter({ value, onChange, className }: ReportPeriodF
     }
   }
 
-  const chipClassName = (selected: boolean) =>
-    `inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors ${
-      selected
-        ? 'border-accent/40 bg-accent/10 text-accent'
-        : 'border-border bg-surface text-text-secondary hover:bg-surface-raised hover:text-text-primary'
-    }`;
-
   return (
     <div className={className}>
       <div className="flex flex-wrap items-center gap-1.5">
@@ -104,7 +98,7 @@ export function ReportPeriodFilter({ value, onChange, className }: ReportPeriodF
               type="button"
               aria-pressed={selected}
               onClick={() => selectPreset(preset.kind)}
-              className={chipClassName(selected)}
+              className={filterChipClassName(selected)}
             >
               <span className="font-medium">{preset.label}</span>
             </button>
@@ -124,7 +118,7 @@ export function ReportPeriodFilter({ value, onChange, className }: ReportPeriodF
               setCustomMode(true);
               setCustomError(null);
             }}
-            className={chipClassName(value.kind === 'custom' || customMode)}
+            className={filterChipClassName(value.kind === 'custom' || customMode)}
           >
             <i className="ti ti-calendar-event text-sm" aria-hidden="true" />
             <span className="font-medium">Interval</span>

@@ -1,7 +1,7 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ReportsService } from './reports.service';
-import { parseReportPeriodQuery } from './report-period.util';
+import { parseNormsWindow, parseReportPeriodQuery } from './report-period.util';
 
 @Controller('reports')
 export class ReportsController {
@@ -12,5 +12,23 @@ export class ReportsController {
   productivity(@Query() query: Record<string, string>) {
     const resolved = parseReportPeriodQuery(query);
     return this.reportsService.getProductivityReport(resolved);
+  }
+
+  @Get('active-projects')
+  @Roles('ADMIN')
+  activeProjects() {
+    return this.reportsService.getActiveProjectsReport();
+  }
+
+  @Get('norms')
+  @Roles('ADMIN')
+  norms(@Query('months') months?: string) {
+    return this.reportsService.getActivityNorms(parseNormsWindow(months));
+  }
+
+  @Get('projects/:projectId')
+  @Roles('ADMIN')
+  projectReport(@Param('projectId') projectId: string) {
+    return this.reportsService.getProjectReport(projectId);
   }
 }

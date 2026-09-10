@@ -71,6 +71,17 @@ export const PROJECT_COMPLETED_STATUSES: readonly ProjectStatus[] = [
   'LIVRAT',
 ] as const;
 
+/**
+ * Work in the shop right now — what the "ore vs. piese" report watches. The
+ * quotation and draft stages are left out: nothing is being built yet, so
+ * there is no physical progress to compare hours against.
+ */
+export const PROJECT_ACTIVE_STATUSES: readonly ProjectStatus[] = [
+  'IN_PROIECTARE',
+  'IN_PRODUCTIE',
+  'PREGATIT_LIVRARE',
+] as const;
+
 export function isProjectCompletedStatus(status: ProjectStatus): boolean {
   return PROJECT_COMPLETED_STATUSES.includes(status);
 }

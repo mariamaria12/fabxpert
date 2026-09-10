@@ -81,3 +81,75 @@ export function efficiencySubLabel(pct: number | null): string {
   }
   return pct >= 100 ? 'sub buget' : 'peste buget';
 }
+
+const oneDecimalFormat = new Intl.NumberFormat('ro-RO', {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+
+/** Kilograms read as tonnes on screen — the unit the shop floor talks in. */
+export function formatTons(weightKg: number | null): string {
+  if (weightKg === null || weightKg <= 0) {
+    return '—';
+  }
+  return `${oneDecimalFormat.format(weightKg / 1000)} t`;
+}
+
+export function formatPct(pct: number | null): string {
+  return pct === null ? '—' : `${pct}%`;
+}
+
+/** The norm itself: "14,2 h/t". */
+export function formatHoursPerTon(value: number | null): string {
+  return value === null ? '—' : `${oneDecimalFormat.format(value)} h/t`;
+}
+
+/** "3 aug 2026" — for the first and last day worked on a project. */
+export function formatDayLabel(day: string | null): string {
+  if (!day) {
+    return '—';
+  }
+  const [year, month, date] = day.split('-').map((part) => Number.parseInt(part, 10));
+  return new Intl.DateTimeFormat('ro-RO', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(year, month - 1, date));
+}
+
+export type GapTone = 'good' | 'bad' | 'neutral';
+
+/**
+ * How far the hours are running ahead of the work. A gap under 15 points is
+ * noise — estimates and assembly lists are never that precise — so only a real
+ * divergence gets a colour.
+ */
+export function gapTone(gapPct: number | null): GapTone {
+  if (gapPct === null || Math.abs(gapPct) < 15) {
+    return 'neutral';
+  }
+  return gapPct > 0 ? 'bad' : 'good';
+}
+
+/** "+24 pp" — the gap is a difference between two percentages, not a ratio. */
+export function formatGap(gapPct: number | null): string {
+  if (gapPct === null) {
+    return '—';
+  }
+  return `${gapPct > 0 ? '+' : ''}${gapPct} pp`;
+}
+
+/** "peste 12 zile", "azi", "acum 3 zile" — the deadline, read from today. */
+export function formatDaysToDue(days: number | null): string {
+  if (days === null) {
+    return 'fără termen';
+  }
+  if (days === 0) {
+    return 'termen azi';
+  }
+  if (days > 0) {
+    return `${days} ${days === 1 ? 'zi' : 'zile'} până la termen`;
+  }
+  const late = Math.abs(days);
+  return `întârziat ${late} ${late === 1 ? 'zi' : 'zile'}`;
+}
