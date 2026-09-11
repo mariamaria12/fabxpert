@@ -37,6 +37,9 @@ import { readWorkbookPreview } from './assembly-workbook.util';
  */
 const MANUAL_PROGRESS_CHUNK = 500;
 
+/** Six parameters per row, so 500 rows stay far below the same limit. */
+const IMPORT_UPDATE_CHUNK = 500;
+
 function chunked<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = [];
   for (let index = 0; index < items.length; index += size) {
@@ -71,6 +74,42 @@ function buildManualProgressUpsert(
       "note" = EXCLUDED."note",
       "markedById" = EXCLUDED."markedById",
       "updatedAt" = NOW()
+  `;
+}
+
+type ImportUpdateRow = {
+  id: string;
+  quantity: number;
+  profile: string | null;
+  profileKey: string | null;
+  length: number | null;
+  weightPerPiece: number | null;
+};
+
+/**
+ * One statement for a whole batch of re-imported rows. A revised list mostly
+ * hits marks that already exist, and one update per mark was a round trip
+ * each — a few seconds on a two-hundred-mark drawing. Every value is cast so a
+ * null in the first row cannot make Postgres guess the column's type.
+ */
+function buildImportUpdate(rows: ImportUpdateRow[]): PrismaRuntime.Sql {
+  const values = rows.map(
+    (row) =>
+      PrismaRuntime.sql`(${row.id}::text, ${row.quantity}::int, ${row.profile}::text, ${row.profileKey}::text, ${row.length}::double precision, ${row.weightPerPiece}::double precision)`,
+  );
+
+  return PrismaRuntime.sql`
+    UPDATE "project_assemblies" AS pa SET
+      "deletedAt" = NULL,
+      "quantity" = v."quantity",
+      "profile" = v."profile",
+      "profileKey" = v."profileKey",
+      "length" = v."length",
+      "weightPerPiece" = v."weightPerPiece",
+      "updatedAt" = NOW()
+    FROM (VALUES ${PrismaRuntime.join(values)})
+      AS v("id", "quantity", "profile", "profileKey", "length", "weightPerPiece")
+    WHERE pa."id" = v."id"
   `;
 }
 
@@ -466,7 +505,7 @@ export class AssemblyService {
 
     let position = (lastPosition?.position ?? -1) + 1;
     const creates: Prisma.ProjectAssemblyCreateManyInput[] = [];
-    const updates: { id: string; data: Prisma.ProjectAssemblyUncheckedUpdateInput }[] = [];
+    const updates: ImportUpdateRow[] = [];
 
     parsed.rows.forEach((row, index) => {
       const profileKey = profileKeyByRow[index];
@@ -501,20 +540,17 @@ export class AssemblyService {
 
       updates.push({
         id: existing.id,
-        data: {
-          deletedAt: null,
-          quantity: row.quantity,
-          profile: row.profile,
-          profileKey,
-          length: row.length,
-          weightPerPiece: row.weightPerPiece,
-        },
+        quantity: row.quantity,
+        profile: row.profile,
+        profileKey,
+        length: row.length,
+        weightPerPiece: row.weightPerPiece,
       });
     });
 
-    // Two hundred rows must not be two hundred round trips: the catalogue and
-    // the new rows go in one statement each, and the updates travel as one
-    // batch. The whole list lands or none of it does.
+    // Two hundred rows must not be two hundred round trips: the catalogue, the
+    // new rows and the updated ones go in one statement each. The whole list
+    // lands or none of it does.
     let deleted = 0;
 
     await this.prisma.$transaction(
@@ -538,8 +574,8 @@ export class AssemblyService {
           await tx.projectAssembly.createMany({ data: creates });
         }
 
-        for (const update of updates) {
-          await tx.projectAssembly.update({ where: { id: update.id }, data: update.data });
+        for (const chunk of chunked(updates, IMPORT_UPDATE_CHUNK)) {
+          await tx.$executeRaw(buildImportUpdate(chunk));
         }
       },
       { timeout: 120_000 },
