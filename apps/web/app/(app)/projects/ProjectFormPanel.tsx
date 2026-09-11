@@ -39,6 +39,7 @@ import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { SearchableMultiSelect } from '@/components/SearchableMultiSelect';
 import { SearchableSelect, type SearchableSelectOption } from '@/components/SearchableSelect';
+import { SelectField } from '@/components/SelectField';
 import { TextField } from '@/components/TextField';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { useToast } from '@/context/ToastContext';
@@ -1031,20 +1032,13 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
           </div>
         )}
 
-        <SearchableSelect
+        <SelectField
           id="status"
           label="Status"
-          clearable={false}
-          placeholder="Caută status…"
-          emptyMessage="Niciun status găsit."
           value={values.status}
           options={statusOptions}
           disabled={isBusy}
-          onChange={(status) => {
-            if (status) {
-              updateField('status', status as ProjectStatus);
-            }
-          }}
+          onChange={(status) => updateField('status', status as ProjectStatus)}
         />
 
         <DateField

@@ -27,11 +27,13 @@ import {
 import { TimesheetAssemblyFields } from './TimesheetAssemblyFields';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { DateField } from '@/components/DateField';
+import { SearchableSelect } from '@/components/SearchableSelect';
 import { SelectField } from '@/components/SelectField';
 import { TextField } from '@/components/TextField';
 import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { FORM_FIELD_CLASS } from '@/components/formFieldStyles';
 import { useToast } from '@/context/ToastContext';
+import { loadAllPages } from '@/utils/loadAllPages';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 
 interface TimesheetFormValues {
@@ -137,6 +139,19 @@ export interface TimesheetFormPanelProps {
 
 const LOOKUP_PAGE_SIZE = 500;
 
+/** The list the project field offers: today's work, or everything ever. */
+type ProjectScope = 'ready' | 'all';
+
+function projectOptionLabel(project: {
+  code: string;
+  name: string;
+  company: { name: string };
+}): string {
+  return project.company.name
+    ? `${project.code || project.name} - ${project.company.name}`
+    : project.code || project.name;
+}
+
 export function TimesheetFormPanel({
   open,
   mode,
@@ -157,6 +172,9 @@ export function TimesheetFormPanel({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [persons, setPersons] = useState<PersonDto[]>([]);
   const [projects, setProjects] = useState<ProjectDto[]>([]);
+  const [projectScope, setProjectScope] = useState<ProjectScope>('ready');
+  const [allProjects, setAllProjects] = useState<ProjectDto[] | null>(null);
+  const [isLoadingAllProjects, setIsLoadingAllProjects] = useState(false);
   const [activities, setActivities] = useState<ActivityDto[]>([]);
 
   const isBusy = isSubmitting || isDeleting;
@@ -171,7 +189,12 @@ export function TimesheetFormPanel({
 
     Promise.all([
       listPersons({ page: 1, pageSize: LOOKUP_PAGE_SIZE }),
-      listProjects({ page: 1, pageSize: LOOKUP_PAGE_SIZE, compact: true }),
+      listProjects({
+        page: 1,
+        pageSize: LOOKUP_PAGE_SIZE,
+        compact: true,
+        readyForExecution: true,
+      }),
       listActivities(),
     ])
       .then(([personsResponse, projectsResponse, activitiesResponse]) => {
@@ -204,12 +227,32 @@ export function TimesheetFormPanel({
     setConfirmDelete(false);
     setIsSubmitting(false);
     setIsDeleting(false);
+    setProjectScope('ready');
     setValues(
       mode === 'edit' && timesheet
         ? timesheetToFormValues(timesheet)
         : createEmptyForm(createDefaults),
     );
   }, [open, mode, timesheet, createDefaults]);
+
+  async function showAllProjects() {
+    setProjectScope('all');
+    if (allProjects !== null || isLoadingAllProjects) {
+      return;
+    }
+
+    setIsLoadingAllProjects(true);
+    try {
+      setAllProjects(
+        await loadAllPages((page, pageSize) => listProjects({ page, pageSize, compact: true })),
+      );
+    } catch (caught) {
+      setProjectScope('ready');
+      showToast(apiErrorToastMessage(caught), 'error');
+    } finally {
+      setIsLoadingAllProjects(false);
+    }
+  }
 
   function updateAssemblies(assemblies: TimesheetAssemblyInput[]) {
     setValues((current) => ({ ...current, assemblies }));
@@ -357,11 +400,26 @@ export function TimesheetFormPanel({
     label: `${person.firstName} ${person.lastName}`,
   }));
 
-  const projectOptions = projects.map((project) => ({
+  const readyProjectOptions = projects.map((project) => ({
     id: project.id,
-    label: project.company.name
-      ? `${project.code || project.name} - ${project.company.name}`
-      : project.code || project.name,
+    label: projectOptionLabel(project),
+  }));
+  // The selected project may not be in execution — an older entry being
+  // edited, or one just picked from the full list — so it is added on top.
+  if (values.projectId && !readyProjectOptions.some((option) => option.id === values.projectId)) {
+    const selected =
+      timesheet?.projectId === values.projectId
+        ? timesheet.project
+        : allProjects?.find((project) => project.id === values.projectId);
+    if (selected) {
+      readyProjectOptions.unshift({ id: selected.id, label: projectOptionLabel(selected) });
+    }
+  }
+
+  const allProjectOptions = (allProjects ?? []).map((project) => ({
+    id: project.id,
+    label: projectOptionLabel(project),
+    description: project.denumireLucrare ?? undefined,
   }));
 
   const activityOptions = activities.map((activity) => ({
@@ -444,18 +502,54 @@ export function TimesheetFormPanel({
           onChange={(value) => updateField('personId', value)}
         />
 
-        <SelectField
-          id="projectId"
-          label="Proiect"
-          value={values.projectId}
-          error={fieldErrors.projectId}
-          disabled={isBusy}
-          required
-          allowEmpty
-          placeholder="Selectează proiectul"
-          options={projectOptions}
-          onChange={(value) => updateField('projectId', value)}
-        />
+        <div className="flex flex-col gap-1.5">
+          {projectScope === 'ready' ? (
+            <SelectField
+              id="projectId"
+              label="Proiect"
+              value={values.projectId}
+              error={fieldErrors.projectId}
+              disabled={isBusy}
+              required
+              allowEmpty
+              placeholder="Selectează proiectul"
+              options={readyProjectOptions}
+              onChange={(value) => updateField('projectId', value)}
+            />
+          ) : (
+            <SearchableSelect
+              id="projectId"
+              label="Proiect"
+              value={values.projectId || null}
+              error={fieldErrors.projectId}
+              disabled={isBusy || isLoadingAllProjects}
+              required
+              placeholder={isLoadingAllProjects ? 'Se încarcă proiectele…' : 'Caută proiectul…'}
+              emptyMessage="Niciun proiect găsit."
+              options={allProjectOptions}
+              onChange={(value) => updateField('projectId', value ?? '')}
+            />
+          )}
+          {projectScope === 'ready' ? (
+            <button
+              type="button"
+              disabled={isBusy}
+              onClick={() => void showAllProjects()}
+              className="self-start text-xs text-accent hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Caută în toate proiectele
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={isBusy}
+              onClick={() => setProjectScope('ready')}
+              className="self-start text-xs text-text-muted hover:text-text-secondary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Doar proiectele pregătite de execuție
+            </button>
+          )}
+        </div>
 
         <SelectField
           id="activityId"
