@@ -48,10 +48,8 @@ import { equalsSearchText } from '@/utils/searchText';
 import { parseEstimatedHoursInput } from '@/utils/projectEstimatedHours';
 import { parseWeightInput, weightKgToInput } from '@/utils/projectWeight';
 import {
-  companyOptionFromProjectCompany,
   getProjectFormCompanies,
   getProjectFormEmployeeRoles,
-  mergeProjectFormCompany,
   withProjectCompanyOption,
 } from '@/utils/projectFormLookups';
 import { buildStableIndexMap, getRolePaletteColor } from '@/components/roleColors';
@@ -309,12 +307,7 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
         if (controller.signal.aborted) {
           return;
         }
-        const linkedCompany = project?.company;
-        const companiesWithLinked = withProjectCompanyOption(companyRows, linkedCompany);
-        if (linkedCompany && !companyRows.some((entry) => entry.id === linkedCompany.id)) {
-          mergeProjectFormCompany(companyOptionFromProjectCompany(linkedCompany));
-        }
-        setCompanies(companiesWithLinked);
+        setCompanies(withProjectCompanyOption(companyRows, project?.company));
         setEmployeeRoles(roleRows);
       })
       .catch(() => {
@@ -563,7 +556,6 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
       }
 
       const created = await createCompany(parsed.data);
-      mergeProjectFormCompany(created);
       setCompanies((current) =>
         [...current, created].sort((left, right) => left.name.localeCompare(right.name, 'ro')),
       );

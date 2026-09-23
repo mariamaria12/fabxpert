@@ -8,67 +8,42 @@ import { loadAllPages } from './loadAllPages';
 
 const LOOKUP_PAGE_SIZE = 200;
 
-type LookupCache<T> = {
-  data: T | null;
-  inflight: Promise<T> | null;
-};
-
-const companiesCache: LookupCache<CompanyDto[]> = { data: null, inflight: null };
-const employeeRolesCache: LookupCache<EmployeeRoleDto[]> = { data: null, inflight: null };
+const companiesInflight: { promise: Promise<CompanyDto[]> | null } = { promise: null };
+const employeeRolesInflight: { promise: Promise<EmployeeRoleDto[]> | null } = { promise: null };
 
 /**
- * Deduplicates concurrent fetches (e.g. React StrictMode double-mount in dev) and
- * caches results for the session — companies/roles change rarely.
+ * Deduplicates concurrent fetches (e.g. React StrictMode double-mount in dev),
+ * without keeping the result: a company or role added meanwhile — here, on the
+ * admin pages, or by someone else — has to show up the next time a dropdown
+ * opens, and a session-long cache outlived even a logout.
  */
-function getOrFetch<T>(cache: LookupCache<T>, fetcher: () => Promise<T>): Promise<T> {
-  if (cache.data !== null) {
-    return Promise.resolve(cache.data);
+function dedupe<T>(inflight: { promise: Promise<T> | null }, fetcher: () => Promise<T>): Promise<T> {
+  if (inflight.promise) {
+    return inflight.promise;
   }
 
-  if (cache.inflight) {
-    return cache.inflight;
-  }
+  const promise = fetcher().finally(() => {
+    if (inflight.promise === promise) {
+      inflight.promise = null;
+    }
+  });
 
-  const promise = fetcher()
-    .then((data) => {
-      cache.data = data;
-      return data;
-    })
-    .finally(() => {
-      if (cache.inflight === promise) {
-        cache.inflight = null;
-      }
-    });
-
-  cache.inflight = promise;
+  inflight.promise = promise;
   return promise;
 }
 
 export function getProjectFormCompanies(): Promise<CompanyDto[]> {
-  return getOrFetch(companiesCache, () =>
+  return dedupe(companiesInflight, () =>
     loadAllPages((page, pageSize) => listCompanies({ page, pageSize }), LOOKUP_PAGE_SIZE),
   );
 }
 
 export function getProjectFormEmployeeRoles(): Promise<EmployeeRoleDto[]> {
-  return getOrFetch(employeeRolesCache, () => listEmployeeRoles());
+  return dedupe(employeeRolesInflight, () => listEmployeeRoles());
 }
 
 function sortCompanies(companies: CompanyDto[]): CompanyDto[] {
   return [...companies].sort((left, right) => left.name.localeCompare(right.name, 'ro'));
-}
-
-/** Keep session cache in sync after quick-add from the project form. */
-export function mergeProjectFormCompany(company: CompanyDto): void {
-  if (companiesCache.data === null) {
-    return;
-  }
-
-  if (companiesCache.data.some((entry) => entry.id === company.id)) {
-    return;
-  }
-
-  companiesCache.data = sortCompanies([...companiesCache.data, company]);
 }
 
 /** Ensures a project-linked company appears in dropdown options (minimal stub if needed). */
@@ -103,12 +78,4 @@ export function withProjectCompanyOption(
   }
 
   return sortCompanies([...companies, companyOptionFromProjectCompany(projectCompany)]);
-}
-
-/** Call after admin mutates companies or employee roles if dropdowns must refresh. */
-export function invalidateProjectFormLookups(): void {
-  companiesCache.data = null;
-  companiesCache.inflight = null;
-  employeeRolesCache.data = null;
-  employeeRolesCache.inflight = null;
 }
