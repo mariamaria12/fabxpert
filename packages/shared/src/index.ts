@@ -354,6 +354,8 @@ export type {
 } from './dto/leave.dto';
 export {
   DAILY_WORK_MINUTES,
+  MAX_DAILY_WORK_MINUTES,
+  dailyWorkMinutesOf,
   overtimeBalanceMinutes,
   overtimeDaysAvailable,
   settleOvertimeBalance,

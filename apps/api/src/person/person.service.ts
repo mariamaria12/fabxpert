@@ -48,6 +48,7 @@ function toPersonDto(person: PersonWithRole): PersonDto {
     employeeRole: person.employeeRole,
     annualLeaveDays: person.annualLeaveDays,
     autoPresence: person.autoPresence,
+    dailyWorkMinutes: person.dailyWorkMinutes,
     createdAt: person.createdAt.toISOString(),
     updatedAt: person.updatedAt.toISOString(),
   };

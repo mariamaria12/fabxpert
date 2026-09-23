@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_DAILY_WORK_MINUTES } from '../overtime';
 
 const optionalString = z.string().optional();
 
@@ -26,6 +27,14 @@ export const createPersonSchema = z.object({
 
 export const updatePersonSchema = createPersonSchema.partial().extend({
   annualLeaveDays: z.number().int().nonnegative().optional(),
+  /** Contractual working day in minutes. Null goes back to the default 9h. */
+  dailyWorkMinutes: z
+    .number()
+    .int('dailyWorkMinutes must be a whole number of minutes')
+    .min(60, 'dailyWorkMinutes must be at least 60')
+    .max(MAX_DAILY_WORK_MINUTES, `dailyWorkMinutes cannot exceed ${MAX_DAILY_WORK_MINUTES}`)
+    .nullable()
+    .optional(),
 }).refine(
   (data) => data.firstName === undefined || data.firstName.trim().length > 0,
   { message: 'First name cannot be empty', path: ['firstName'] },
@@ -53,6 +62,8 @@ export type PersonDto = {
   employeeRole: PersonEmployeeRoleDto | null;
   annualLeaveDays: number;
   autoPresence: boolean;
+  /** Contractual working day in minutes; null means the default 9h. */
+  dailyWorkMinutes: number | null;
   createdAt: string;
   updatedAt: string;
 };

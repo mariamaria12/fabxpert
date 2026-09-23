@@ -15,9 +15,9 @@ import type {
   SettleOvertimeMonthResponse,
 } from '@fabxpert/shared/dto/overtime.dto';
 import {
-  DAILY_WORK_MINUTES,
   accountingHours,
   countSaturdaysWorked,
+  dailyWorkMinutesOf,
   isMonthSettleable,
   latestSettleableMonth,
   overtimeBalanceMinutes,
@@ -107,9 +107,13 @@ function workingDaysInMonth(monthStart: Date): number {
 
 /**
  * Approved leave spread over the days it covers, keyed by day. A day already
- * paid for by leave must not also read as a short working day.
+ * paid for by leave must not also read as a short working day. A whole day
+ * off is worth the person's daily norm.
  */
-function leaveMinutesByDay(requests: ApprovedLeave[]): Map<string, number> {
+function leaveMinutesByDay(
+  requests: ApprovedLeave[],
+  dailyWorkMinutes: number,
+): Map<string, number> {
   const byDay = new Map<string, number>();
 
   const add = (day: Date, minutes: number) => {
@@ -127,7 +131,7 @@ function leaveMinutesByDay(requests: ApprovedLeave[]): Map<string, number> {
     const end = normalizeWorkDate(request.endDate);
     while (cursor.getTime() <= end.getTime()) {
       if (isWorkingDate(cursor)) {
-        add(cursor, DAILY_WORK_MINUTES);
+        add(cursor, dailyWorkMinutes);
       }
       cursor.setDate(cursor.getDate() + 1);
     }
@@ -172,6 +176,8 @@ type OvertimeSourceData = {
   usedByPersonMonth: Map<string, Map<string, number>>;
   /** Approved leave per person per day key, for the pontaj grid. */
   leaveTypesByPersonDay: Map<string, Map<string, LeaveType>>;
+  /** Norms set on the person; anyone missing here is on the default day. */
+  dailyWorkMinutesByPerson: Map<string, number>;
 };
 
 /** What one month produced for one person, before it is settled. */
@@ -220,7 +226,12 @@ export class OvertimeService {
       this.loadOvertimeSource({ personId }),
     ]);
 
-    return this.buildBalance(personId, settlements, this.monthlyActivity(personId, source));
+    return this.buildBalance(
+      personId,
+      settlements,
+      this.monthlyActivity(personId, source),
+      dailyWorkMinutesFor(source, personId),
+    );
   }
 
   /**
@@ -249,6 +260,7 @@ export class OvertimeService {
           person.id,
           settlementsByPerson.get(person.id) ?? [],
           this.monthlyActivity(person.id, source),
+          dailyWorkMinutesFor(source, person.id),
         ),
       })),
     };
@@ -687,6 +699,7 @@ export class OvertimeService {
     personId: string,
     settlements: { month: Date; carriedOutMinutes: number }[],
     activity: Map<string, MonthActivity>,
+    dailyWorkMinutes: number,
   ): OvertimeBalanceDto {
     const currentMonth = startOfMonth(new Date());
     const monthKey = formatMonth(currentMonth);
@@ -705,7 +718,7 @@ export class OvertimeService {
       usedMinutes: month.usedMinutes,
       saturdaysWorked: month.saturdaysWorked,
       remainingMinutes,
-      remainingDays: overtimeDaysAvailable(Math.max(0, remainingMinutes)),
+      remainingDays: overtimeDaysAvailable(Math.max(0, remainingMinutes), dailyWorkMinutes),
       settledThroughMonth: lastSettled ? formatMonth(lastSettled) : null,
     };
   }
@@ -755,12 +768,13 @@ export class OvertimeService {
       return created;
     };
 
+    const dailyWorkMinutes = dailyWorkMinutesFor(source, personId);
     const daysByMonth = groupBy(source.daysByPerson.get(personId) ?? [], (day) =>
       formatMonth(day.workDate),
     );
     for (const [key, days] of daysByMonth) {
       const month = entry(key);
-      month.earnedMinutes = overtimeBalanceMinutes(days);
+      month.earnedMinutes = overtimeBalanceMinutes(days, dailyWorkMinutes);
       month.saturdaysWorked = countSaturdaysWorked(days);
     }
 
@@ -840,7 +854,7 @@ export class OvertimeService {
           }
         : {};
 
-    const [dailyTotals, approvedLeave] = await Promise.all([
+    const [dailyTotals, approvedLeave, norms] = await Promise.all([
       this.prisma.timesheet.groupBy({
         by: ['personId', 'workDate'],
         where: { ...notDeleted(), ...personFilter, ...workDateFilter },
@@ -856,7 +870,19 @@ export class OvertimeService {
           durationMinutes: true,
         },
       }),
+      this.prisma.person.findMany({
+        where: {
+          dailyWorkMinutes: { not: null },
+          ...(scope.personId ? { id: scope.personId } : {}),
+        },
+        select: { id: true, dailyWorkMinutes: true },
+      }),
     ]);
+
+    const dailyWorkMinutesByPerson = new Map(
+      norms.map((row) => [row.id, dailyWorkMinutesOf(row.dailyWorkMinutes)]),
+    );
+    const normSource = { dailyWorkMinutesByPerson };
 
     // Any approved leave covers a day; only RECUPERARE spends the balance.
     const leaveRequestsByPerson = new Map<string, ApprovedLeave[]>();
@@ -873,7 +899,8 @@ export class OvertimeService {
         if (request.durationMinutes !== null) {
           addTo(byMonth, formatMonth(request.startDate), request.durationMinutes);
         } else {
-          for (const [dayKey, minutes] of leaveMinutesByDay([request])) {
+          const dailyWorkMinutes = dailyWorkMinutesFor(normSource, request.personId);
+          for (const [dayKey, minutes] of leaveMinutesByDay([request], dailyWorkMinutes)) {
             addTo(byMonth, dayKey.slice(0, 7), minutes);
           }
         }
@@ -884,7 +911,10 @@ export class OvertimeService {
     const leaveDaysByPerson = new Map<string, Map<string, number>>();
     const leaveTypesByPersonDay = new Map<string, Map<string, LeaveType>>();
     for (const [personId, requests] of leaveRequestsByPerson) {
-      leaveDaysByPerson.set(personId, leaveMinutesByDay(requests));
+      leaveDaysByPerson.set(
+        personId,
+        leaveMinutesByDay(requests, dailyWorkMinutesFor(normSource, personId)),
+      );
       leaveTypesByPersonDay.set(personId, leaveTypesByDay(requests));
     }
 
@@ -904,7 +934,7 @@ export class OvertimeService {
       daysByPerson.set(row.personId, days);
     }
 
-    return { daysByPerson, usedByPersonMonth, leaveTypesByPersonDay };
+    return { daysByPerson, usedByPersonMonth, leaveTypesByPersonDay, dailyWorkMinutesByPerson };
   }
 
   private async resolveActorPersonId(userId: string): Promise<string> {
@@ -945,6 +975,14 @@ function toBalancePerson(person: PersonRow): OvertimeBalancePersonDto {
 /** A person without a login is on the payroll like anyone else; external is an explicit flag. */
 function isExternalPerson(person: PersonRow): boolean {
   return person.user?.angajatExtern ?? false;
+}
+
+/** A person's working day, from the norms loaded with the overtime source. */
+function dailyWorkMinutesFor(
+  source: Pick<OvertimeSourceData, 'dailyWorkMinutesByPerson'>,
+  personId: string,
+): number {
+  return dailyWorkMinutesOf(source.dailyWorkMinutesByPerson.get(personId));
 }
 
 function addTo(map: Map<string, number>, key: string, minutes: number): void {

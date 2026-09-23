@@ -5,7 +5,9 @@ import {
   SATURDAY_WORK_MINUTES,
   accountingHours,
   countSaturdaysWorked,
+  dailyWorkMinutesOf,
   overtimeBalanceMinutes,
+  overtimeDaysAvailable,
   settleOvertimeBalance,
 } from './overtime';
 
@@ -19,6 +21,29 @@ test('a finished working day counts what it is over or short of the norm', () =>
   assert.equal(overtimeBalanceMinutes([workingDay(600)]), 60);
   assert.equal(overtimeBalanceMinutes([workingDay(DAILY_WORK_MINUTES)]), 0);
   assert.equal(overtimeBalanceMinutes([workingDay(480)]), -60);
+});
+
+test("a working day is measured against the person's own norm", () => {
+  // 6h contract: seven hours is +1h, five is −1h.
+  assert.equal(overtimeBalanceMinutes([workingDay(420)], 360), 60);
+  assert.equal(overtimeBalanceMinutes([workingDay(360)], 360), 0);
+  assert.equal(overtimeBalanceMinutes([workingDay(300)], 360), -60);
+});
+
+test('without a norm of their own a person is on the default 9h day', () => {
+  assert.equal(dailyWorkMinutesOf(null), DAILY_WORK_MINUTES);
+  assert.equal(dailyWorkMinutesOf(undefined), DAILY_WORK_MINUTES);
+  assert.equal(dailyWorkMinutesOf(360), 360);
+});
+
+test('a saturday stays a 7.5h day whatever the norm', () => {
+  const saturday = { loggedMinutes: 540, isWorkingDay: false, isSaturday: true };
+  assert.equal(overtimeBalanceMinutes([saturday], 360), 90);
+});
+
+test("a day off from the balance costs a day of the person's norm", () => {
+  assert.equal(overtimeDaysAvailable(720, 360), 2);
+  assert.equal(overtimeDaysAvailable(720), 1);
 });
 
 test('sunday work is overtime hour for hour', () => {

@@ -39,6 +39,7 @@ const userSelect = {
       firstName: true,
       lastName: true,
       autoPresence: true,
+      dailyWorkMinutes: true,
       employeeRole: {
         select: { name: true },
       },
@@ -64,6 +65,7 @@ function toUserDto(user: UserWithPerson): UserDto {
       lastName: user.person.lastName,
       employeeRole: user.person.employeeRole,
       autoPresence: user.person.autoPresence,
+      dailyWorkMinutes: user.person.dailyWorkMinutes,
     },
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),

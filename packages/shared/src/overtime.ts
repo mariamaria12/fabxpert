@@ -1,5 +1,16 @@
-/** Contractual working day. Anything logged past it accrues as overtime. */
+/**
+ * Default contractual working day, for anyone without a norm of their own.
+ * Anything logged past a person's norm accrues as overtime.
+ */
 export const DAILY_WORK_MINUTES = 540; // 9h
+
+/** Longest norm a contract can set — also the cap on hours off taken in one day. */
+export const MAX_DAILY_WORK_MINUTES = 720; // 12h
+
+/** A person's working day: their own norm, or the default when none is set. */
+export function dailyWorkMinutesOf(norm: number | null | undefined): number {
+  return norm ?? DAILY_WORK_MINUTES;
+}
 
 /** A worked Saturday is paid as a 7.5h day; only what is logged past it is overtime. */
 export const SATURDAY_WORK_MINUTES = 450;
@@ -8,7 +19,7 @@ export const SATURDAY_WORK_MINUTES = 450;
 export type OvertimeDay = {
   /** Minutes logged that day. */
   loggedMinutes: number;
-  /** Approved leave covering that day — a whole day off is DAILY_WORK_MINUTES. */
+  /** Approved leave covering that day — a whole day off is the person's daily norm. */
   leaveMinutes?: number;
   /** Weekend work is never a debt. Defaults to true. */
   isWorkingDay?: boolean;
@@ -24,8 +35,9 @@ export type OvertimeDay = {
 /**
  * Running overtime over a set of days.
  *
- * A working day counts for what it is short of, or over, the contractual day:
- * ten hours is +1h, eight is −1h. A Saturday is paid as a worked day of 7.5h,
+ * A working day counts for what it is short of, or over, the person's daily
+ * norm: on the default 9h, ten hours is +1h and eight is −1h; on a 6h contract,
+ * seven hours is +1h. A Saturday is paid as a worked day of 7.5h,
  * so only what is logged past that is overtime — nine hours on a Saturday is
  * +1h 30m, four hours is nothing. A Sunday has no norm at all: everything
  * logged on it is overtime.
@@ -42,7 +54,10 @@ export type OvertimeDay = {
  * of RECUPERARE is charged once (against the balance) and not a second time as
  * a short day.
  */
-export function overtimeBalanceMinutes(days: OvertimeDay[]): number {
+export function overtimeBalanceMinutes(
+  days: OvertimeDay[],
+  dailyWorkMinutes = DAILY_WORK_MINUTES,
+): number {
   return days.reduce((sum, day) => {
     if (day.isWorkingDay === false) {
       return (
@@ -53,7 +68,7 @@ export function overtimeBalanceMinutes(days: OvertimeDay[]): number {
       );
     }
 
-    const delta = day.loggedMinutes + (day.leaveMinutes ?? 0) - DAILY_WORK_MINUTES;
+    const delta = day.loggedMinutes + (day.leaveMinutes ?? 0) - dailyWorkMinutes;
     return sum + (day.isInProgress ? Math.max(0, delta) : delta);
   }, 0);
 }
@@ -95,9 +110,12 @@ export function settleOvertimeBalance(
   return { paidMinutes: balanceMinutes - reserve, carriedOutMinutes: reserve };
 }
 
-/** Whole days off a balance covers — one day off costs a full working day. */
-export function overtimeDaysAvailable(balanceMinutes: number): number {
-  return Math.floor(balanceMinutes / DAILY_WORK_MINUTES);
+/** Whole days off a balance covers — one day off costs a full day of the person's norm. */
+export function overtimeDaysAvailable(
+  balanceMinutes: number,
+  dailyWorkMinutes = DAILY_WORK_MINUTES,
+): number {
+  return Math.floor(balanceMinutes / dailyWorkMinutes);
 }
 
 /** Minutes as hours, no sign: "12h", "12h 30m", "30m". */

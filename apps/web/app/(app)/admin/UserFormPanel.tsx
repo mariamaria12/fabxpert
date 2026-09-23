@@ -2,6 +2,8 @@
 
 import {
   ApiError,
+  DAILY_WORK_MINUTES,
+  MAX_DAILY_WORK_MINUTES,
   createUser,
   createUserSchema,
   deleteUser,
@@ -39,7 +41,14 @@ interface UserFormValues {
    * separate call.
    */
   autoPresence: boolean;
+  /**
+   * Contractual working day in hours, as typed. Empty keeps the default 9h.
+   * Lives on the person, like autoPresence.
+   */
+  dailyWorkHours: string;
 }
+
+const DAILY_WORK_HOURS_ERROR = `Norma trebuie să fie între 1 și ${MAX_DAILY_WORK_MINUTES / 60} ore.`;
 
 const EMPTY_FORM: UserFormValues = {
   email: '',
@@ -51,7 +60,32 @@ const EMPTY_FORM: UserFormValues = {
   isOfficeUser: false,
   angajatExtern: false,
   autoPresence: false,
+  dailyWorkHours: '',
 };
+
+/** Minutes as the hours the admin types: 540 → "9", 450 → "7,5". Null stays empty. */
+function formatDailyWorkHours(minutes: number | null): string {
+  return minutes === null ? '' : String(minutes / 60).replace('.', ',');
+}
+
+/**
+ * The typed norm in minutes: null when left empty (the default day), undefined
+ * when it is not a number of hours a contract can set.
+ */
+function parseDailyWorkHours(value: string): number | null | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const hours = Number(trimmed.replace(',', '.'));
+  if (!Number.isFinite(hours)) {
+    return undefined;
+  }
+
+  const minutes = Math.round(hours * 60);
+  return minutes >= 60 && minutes <= MAX_DAILY_WORK_MINUTES ? minutes : undefined;
+}
 
 function userToFormValues(user: UserDto): UserFormValues {
   return {
@@ -64,6 +98,7 @@ function userToFormValues(user: UserDto): UserFormValues {
     isOfficeUser: user.isOfficeUser,
     angajatExtern: user.angajatExtern,
     autoPresence: user.person.autoPresence,
+    dailyWorkHours: formatDailyWorkHours(user.person.dailyWorkMinutes),
   };
 }
 
@@ -293,6 +328,12 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
     // demoting an account that had it turns it off with the same save.
     const autoPresence = values.role === 'ADMIN' && values.autoPresence;
 
+    const dailyWorkMinutes = parseDailyWorkHours(values.dailyWorkHours);
+    if (dailyWorkMinutes === undefined) {
+      setFieldErrors({ dailyWorkHours: DAILY_WORK_HOURS_ERROR });
+      return;
+    }
+
     if (mode === 'create') {
       const parsed = createUserSchema.safeParse({
         email: values.email,
@@ -313,8 +354,11 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
       setIsSubmitting(true);
       try {
         await createUser(parsed.data);
-        if (autoPresence) {
-          await updatePerson(values.personId, { autoPresence: true });
+        if (autoPresence || dailyWorkMinutes !== null) {
+          await updatePerson(values.personId, {
+            ...(autoPresence ? { autoPresence: true } : {}),
+            ...(dailyWorkMinutes !== null ? { dailyWorkMinutes } : {}),
+          });
         }
         showToast('Utilizator adăugat', 'success');
         onSaved();
@@ -341,16 +385,18 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
 
     const payload = buildUpdatePayload(user, values);
     const autoPresenceChanged = autoPresence !== user.person.autoPresence;
+    const dailyWorkMinutesChanged = dailyWorkMinutes !== user.person.dailyWorkMinutes;
+    const hasPersonChanges = autoPresenceChanged || dailyWorkMinutesChanged;
 
-    if (Object.keys(payload).length === 0 && !autoPresenceChanged) {
+    if (Object.keys(payload).length === 0 && !hasPersonChanges) {
       showToast('Nicio modificare de salvat', 'success');
       onClose();
       return;
     }
 
     // The account payload is validated only when there is one: the schema
-    // refuses an empty object, and a change to auto presence alone leaves it
-    // empty — that change goes to the person, not the account.
+    // refuses an empty object, and a change to auto presence or the norm alone
+    // leaves it empty — those go to the person, not the account.
     const hasAccountChanges = Object.keys(payload).length > 0;
     const parsed = hasAccountChanges ? updateUserSchema.safeParse(payload) : null;
     if (parsed && !parsed.success) {
@@ -361,9 +407,12 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
     setIsSubmitting(true);
     try {
       let saved = parsed?.success ? await updateUser(user.id, parsed.data) : user;
-      if (autoPresenceChanged) {
-        await updatePerson(values.personId, { autoPresence });
-        saved = { ...saved, person: { ...saved.person, autoPresence } };
+      if (hasPersonChanges) {
+        await updatePerson(values.personId, {
+          ...(autoPresenceChanged ? { autoPresence } : {}),
+          ...(dailyWorkMinutesChanged ? { dailyWorkMinutes } : {}),
+        });
+        saved = { ...saved, person: { ...saved.person, autoPresence, dailyWorkMinutes } };
       }
       showToast('Utilizator actualizat', 'success');
       onSaved(saved);
@@ -512,6 +561,24 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
           error={fieldErrors.personId}
           onChange={(personId) => updateField('personId', personId ?? '')}
         />
+
+        <div>
+          <TextField
+            id="dailyWorkHours"
+            label="Normă zilnică (ore)"
+            inputMode="decimal"
+            placeholder={String(DAILY_WORK_MINUTES / 60)}
+            value={values.dailyWorkHours}
+            error={fieldErrors.dailyWorkHours}
+            disabled={isBusy || !values.personId}
+            onChange={(value) => updateField('dailyWorkHours', value)}
+          />
+          <p className="mt-1 text-xs text-text-muted">
+            Orele de pontat pe zi, conform contractului. Ce e peste normă intră la ore
+            suplimentare, ce e sub normă se scade. Lasă gol pentru {DAILY_WORK_MINUTES / 60} ore.
+            Se salvează pe persoană, nu pe cont.
+          </p>
+        </div>
 
         <label className="inline-flex items-center gap-2 text-sm text-text-secondary">
           <input

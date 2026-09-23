@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DAILY_WORK_MINUTES } from '../overtime';
+import { MAX_DAILY_WORK_MINUTES } from '../overtime';
 import type { TimesheetSummaryPeriod } from './timesheet.dto';
 
 export const LEAVE_TYPE_VALUES = [
@@ -49,12 +49,15 @@ function endDateOnOrAfterStartDate(
   }
 }
 
-/** Partial-day RECUPERARE, capped at one working day (9h). */
+/**
+ * Partial-day RECUPERARE. Capped at the longest norm a contract can set; the
+ * form keeps it within the person's own day.
+ */
 const durationMinutesSchema = z
   .number()
   .int('durationMinutes must be a whole number of minutes')
   .min(15, 'durationMinutes must be at least 15')
-  .max(DAILY_WORK_MINUTES, `durationMinutes cannot exceed ${DAILY_WORK_MINUTES}`);
+  .max(MAX_DAILY_WORK_MINUTES, `durationMinutes cannot exceed ${MAX_DAILY_WORK_MINUTES}`);
 
 /** Hours off happen on a single day, so the range must not span dates. */
 function partialDayIsSingleDate(
@@ -163,6 +166,8 @@ export type LeaveBalanceDto = {
   annualLeaveDays: number;
   usedDays: number;
   remainingDays: number;
+  /** The person's working day in minutes — their own norm, or the default 9h. */
+  dailyWorkMinutes: number;
 };
 
 export type LeaveBalancePersonDto = {

@@ -22,6 +22,7 @@ import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
 import {
   countInclusiveLeaveDays,
 } from '@fabxpert/shared/leaveDays';
+import { dailyWorkMinutesOf } from '@fabxpert/shared/overtime';
 import { parseWorkDateString } from '@fabxpert/shared/workDate';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { PaginationParams } from '../common/pagination/parse-pagination.util';
@@ -152,6 +153,7 @@ export class LeaveService {
           firstName: true,
           lastName: true,
           annualLeaveDays: true,
+          dailyWorkMinutes: true,
           employeeRole: {
             select: { name: true },
           },
@@ -184,7 +186,7 @@ export class LeaveService {
 
     return {
       year,
-      rows: persons.map((person) => {
+      rows: persons.map(({ dailyWorkMinutes, ...person }) => {
         const usedDays = usedDaysByPerson.get(person.id) ?? 0;
         return {
           person,
@@ -193,6 +195,7 @@ export class LeaveService {
             annualLeaveDays: person.annualLeaveDays,
             usedDays,
             remainingDays: person.annualLeaveDays - usedDays,
+            dailyWorkMinutes: dailyWorkMinutesOf(dailyWorkMinutes),
           },
         };
       }),
@@ -464,7 +467,7 @@ export class LeaveService {
   ): Promise<LeaveBalanceDto> {
     const person = await this.prisma.person.findFirst({
       where: { id: personId, ...notDeleted() },
-      select: { annualLeaveDays: true },
+      select: { annualLeaveDays: true, dailyWorkMinutes: true },
     });
 
     if (!person) {
@@ -498,6 +501,7 @@ export class LeaveService {
       annualLeaveDays: person.annualLeaveDays,
       usedDays,
       remainingDays: person.annualLeaveDays - usedDays,
+      dailyWorkMinutes: dailyWorkMinutesOf(person.dailyWorkMinutes),
     };
   }
 

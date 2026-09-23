@@ -5,6 +5,7 @@ import { MobileHeaderAction } from '@/components/MobileHeaderAction';
 import { PanouContentViews } from './panou/PanouContentViews';
 import { PanouDashboardProvider } from './panou/PanouDashboardContext';
 import { PanouMetricCards } from './panou/PanouMetricCards';
+import { PanouPollBanner } from './panou/PanouPollBanner';
 import { PanouToolbar } from './panou/PanouToolbar';
 
 function formatUpdatedAt(date: Date): string {
@@ -50,6 +51,7 @@ function DashboardPageContent() {
       </div>
 
       <PanouMetricCards />
+      <PanouPollBanner />
       <PanouToolbar />
       <PanouContentViews />
     </div>

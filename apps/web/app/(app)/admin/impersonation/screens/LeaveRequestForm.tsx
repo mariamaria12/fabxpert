@@ -98,6 +98,9 @@ export function LeaveRequestForm({
     [startDate, effectiveEndDate],
   );
 
+  // Hours off go up to a day of the person's own norm; the default day until it loads.
+  const dailyWorkMinutes = balance?.dailyWorkMinutes ?? DAILY_WORK_MINUTES;
+
   const durationMinutes = useMemo(() => {
     if (!isHours) {
       return null;
@@ -109,8 +112,8 @@ export function LeaveRequestForm({
     }
 
     const minutes = Math.round(parsed * 60);
-    return minutes >= 15 && minutes <= DAILY_WORK_MINUTES ? minutes : null;
-  }, [isHours, hoursValue]);
+    return minutes >= 15 && minutes <= dailyWorkMinutes ? minutes : null;
+  }, [isHours, hoursValue, dailyWorkMinutes]);
 
   const datesInvalid = Boolean(!isHours && startDate && endDate && endDate < startDate);
   const canSubmit =
@@ -268,7 +271,7 @@ export function LeaveRequestForm({
                 inputMode="decimal"
                 step="0.5"
                 min="0.25"
-                max={DAILY_WORK_MINUTES / 60}
+                max={dailyWorkMinutes / 60}
                 value={hoursValue}
                 onChange={(event) => setHoursValue(event.target.value)}
               />
@@ -287,7 +290,7 @@ export function LeaveRequestForm({
 
         {isHours && durationMinutes === null ? (
           <p className="flow-inline-error" role="alert">
-            Introdu între 15 minute și {DAILY_WORK_MINUTES / 60} ore
+            Introdu între 15 minute și {(dailyWorkMinutes / 60).toLocaleString('ro-RO')} ore
           </p>
         ) : null}
 

@@ -137,6 +137,9 @@ model Person {
   /// every working day without approved leave as present, and overtime does
   /// not apply.
   autoPresence    Boolean   @default(false)
+  /// Contractual working day in minutes — what a day's pontaj is measured
+  /// against for overtime. Null means the default 9h (DAILY_WORK_MINUTES).
+  dailyWorkMinutes Int?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
