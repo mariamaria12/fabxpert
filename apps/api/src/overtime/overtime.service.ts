@@ -3,7 +3,9 @@ import type {
   AccountingExportDto,
   AccountingTimesheetLineDto,
   AccountingTimesheetResponse,
+  CreateOvertimeCorrectionInput,
   OvertimeApprovalsPendingResponse,
+  OvertimeCorrectionDto,
   ReopenAccountingMonthResponse,
   ResolveAccountingDaysInput,
   ResolveAccountingDaysResponse,
@@ -172,13 +174,37 @@ type DatedOvertimeDay = OvertimeDay & { workDate: Date };
 type OvertimeSourceData = {
   /** Days each person logged time on, ready for the balance rule. */
   daysByPerson: Map<string, DatedOvertimeDay[]>;
-  /** RECUPERARE per person per `YYYY-MM` — what the balance is spent on. */
-  usedByPersonMonth: Map<string, Map<string, number>>;
+  /** RECUPERARE per person per `YYYY-MM-DD` — what the balance is spent on. */
+  usedByPersonDay: Map<string, Map<string, number>>;
   /** Approved leave per person per day key, for the pontaj grid. */
   leaveTypesByPersonDay: Map<string, Map<string, LeaveType>>;
   /** Norms set on the person; anyone missing here is on the default day. */
   dailyWorkMinutesByPerson: Map<string, number>;
+  /** The latest balance an admin set by hand, per person. */
+  correctionByPerson: Map<string, OvertimeCorrectionRow>;
 };
+
+/** A balance set by hand: it stands in for everything before `effectiveDate`. */
+type OvertimeCorrectionRow = {
+  id: string;
+  effectiveDate: Date;
+  balanceMinutes: number;
+  previousBalanceMinutes: number;
+  note: string | null;
+  createdAt: Date;
+  createdBy: { person: { firstName: string; lastName: string } } | null;
+};
+
+const CORRECTION_SELECT = {
+  id: true,
+  personId: true,
+  effectiveDate: true,
+  balanceMinutes: true,
+  previousBalanceMinutes: true,
+  note: true,
+  createdAt: true,
+  createdBy: { select: { person: { select: { firstName: true, lastName: true } } } },
+} as const;
 
 /** What one month produced for one person, before it is settled. */
 type MonthActivity = {
@@ -226,11 +252,13 @@ export class OvertimeService {
       this.loadOvertimeSource({ personId }),
     ]);
 
+    const correction = source.correctionByPerson.get(personId) ?? null;
     return this.buildBalance(
       personId,
       settlements,
-      this.monthlyActivity(personId, source),
+      this.monthlyActivity(personId, source, correction),
       dailyWorkMinutesFor(source, personId),
+      correction,
     );
   }
 
@@ -254,15 +282,19 @@ export class OvertimeService {
     const source = await this.loadOvertimeSource(scanFrom(persons, settlementsByPerson));
 
     return {
-      rows: persons.map((person) => ({
-        person: toBalancePerson(person),
-        balance: this.buildBalance(
-          person.id,
-          settlementsByPerson.get(person.id) ?? [],
-          this.monthlyActivity(person.id, source),
-          dailyWorkMinutesFor(source, person.id),
-        ),
-      })),
+      rows: persons.map((person) => {
+        const correction = source.correctionByPerson.get(person.id) ?? null;
+        return {
+          person: toBalancePerson(person),
+          balance: this.buildBalance(
+            person.id,
+            settlementsByPerson.get(person.id) ?? [],
+            this.monthlyActivity(person.id, source, correction),
+            dailyWorkMinutesFor(source, person.id),
+            correction,
+          ),
+        };
+      }),
     };
   }
 
@@ -337,6 +369,40 @@ export class OvertimeService {
     };
   }
 
+  /**
+   * Sets a person's balance by hand. It replaces everything before today, a
+   * month still waiting for approval included; today's hours count on top,
+   * so work logged later in the day is never lost.
+   */
+  async createCorrection(
+    input: CreateOvertimeCorrectionInput,
+    actor: AuthenticatedUser,
+  ): Promise<OvertimeCorrectionDto> {
+    const current = await this.getBalanceForPerson(input.personId);
+
+    const correction = await this.prisma.overtimeCorrection.create({
+      data: {
+        personId: input.personId,
+        effectiveDate: todayWorkDate(),
+        balanceMinutes: input.balanceMinutes,
+        previousBalanceMinutes: current.remainingMinutes,
+        note: input.note ?? null,
+        createdByUserId: actor.id,
+      },
+      select: CORRECTION_SELECT,
+    });
+
+    return toCorrectionDto(correction);
+  }
+
+  /** Undoes a correction: the balance falls back to whatever stood before it. */
+  async deleteCorrection(id: string): Promise<void> {
+    const { count } = await this.prisma.overtimeCorrection.deleteMany({ where: { id } });
+    if (count === 0) {
+      throw new NotFoundException(`Overtime correction with id ${id} not found`);
+    }
+  }
+
   /** How many people still wait for the open month's approval — the sidebar badge. */
   async countPendingApprovals(): Promise<OvertimeApprovalsPendingResponse> {
     const monthStart = latestSettleableMonth();
@@ -399,7 +465,9 @@ export class OvertimeService {
       );
       const leaveByDay =
         source.leaveTypesByPersonDay.get(person.id) ?? new Map<string, LeaveType>();
-      const activity = this.monthlyActivity(person.id, source).get(monthKey) ?? NO_ACTIVITY;
+      // The hours were worked whatever the balance was corrected to, so the
+      // normal/overtime split reads them as they were logged.
+      const activity = this.monthlyActivity(person.id, source, null).get(monthKey) ?? NO_ACTIVITY;
       const settled = settledByPerson.get(person.id) ?? null;
       const pending = pendingByPerson.get(person.id) ?? null;
       const isExternal = isExternalPerson(person);
@@ -657,11 +725,24 @@ export class OvertimeService {
         continue;
       }
 
-      const activity = this.monthlyActivity(person.id, source);
+      const settled = settledByPerson.get(person.id) ?? null;
+
+      // A correction made after this month replaced its balance: nothing is
+      // left to approve. A month approved before the correction stays as it was.
+      const latestCorrection = source.correctionByPerson.get(person.id) ?? null;
+      const correctedLater =
+        latestCorrection !== null && formatMonth(latestCorrection.effectiveDate) > monthKey;
+      if (correctedLater && !settled) {
+        continue;
+      }
+      const correction = correctedLater ? null : latestCorrection;
+
+      const activity = this.monthlyActivity(person.id, source, correction);
       const carriedInMinutes = this.carriedInFor(
         settlementsByPerson.get(person.id) ?? [],
         activity,
         monthKey,
+        correction,
       );
       const month = activity.get(monthKey) ?? NO_ACTIVITY;
       const balanceMinutes = carriedInMinutes + month.earnedMinutes - month.usedMinutes;
@@ -670,7 +751,6 @@ export class OvertimeService {
         continue;
       }
 
-      const settled = settledByPerson.get(person.id) ?? null;
       const storedReserve = Math.max(settled?.carriedOutMinutes ?? 0, 0);
       const reserveMinutes = Math.max(reserveMinutesByPerson[person.id] ?? storedReserve, 0);
       const { paidMinutes, carriedOutMinutes } = settleOvertimeBalance(
@@ -700,11 +780,12 @@ export class OvertimeService {
     settlements: { month: Date; carriedOutMinutes: number }[],
     activity: Map<string, MonthActivity>,
     dailyWorkMinutes: number,
+    correction: OvertimeCorrectionRow | null,
   ): OvertimeBalanceDto {
     const currentMonth = startOfMonth(new Date());
     const monthKey = formatMonth(currentMonth);
 
-    const carriedInMinutes = this.carriedInFor(settlements, activity, monthKey);
+    const carriedInMinutes = this.carriedInFor(settlements, activity, monthKey, correction);
     const month = activity.get(monthKey) ?? NO_ACTIVITY;
     const remainingMinutes = carriedInMinutes + month.earnedMinutes - month.usedMinutes;
 
@@ -720,6 +801,7 @@ export class OvertimeService {
       remainingMinutes,
       remainingDays: overtimeDaysAvailable(Math.max(0, remainingMinutes), dailyWorkMinutes),
       settledThroughMonth: lastSettled ? formatMonth(lastSettled) : null,
+      correction: correction ? toCorrectionDto(correction) : null,
     };
   }
 
@@ -727,12 +809,36 @@ export class OvertimeService {
    * What `monthKey` starts from: the last settlement's carry-out, plus every
    * month between then and now that was never settled. A settlement that was
    * skipped costs accuracy on old data, never minutes.
+   *
+   * A correction is a fresh start: settlements before its month no longer
+   * count, and until one is made after it, it is what the months carry from.
    */
   private carriedInFor(
-    settlements: { month: Date; carriedOutMinutes: number }[],
+    allSettlements: { month: Date; carriedOutMinutes: number }[],
     activity: Map<string, MonthActivity>,
     monthKey: string,
+    correction: OvertimeCorrectionRow | null,
   ): number {
+    let settlements = allSettlements;
+    if (correction) {
+      const correctionKey = formatMonth(correction.effectiveDate);
+      if (correctionKey === monthKey) {
+        return correction.balanceMinutes;
+      }
+      if (correctionKey < monthKey) {
+        settlements = allSettlements.filter((row) => formatMonth(row.month) >= correctionKey);
+        if (settlements.length === 0) {
+          let unsettled = 0;
+          for (const [key, month] of activity) {
+            if (key >= correctionKey && key < monthKey) {
+              unsettled += month.earnedMinutes - month.usedMinutes;
+            }
+          }
+          return correction.balanceMinutes + unsettled;
+        }
+      }
+    }
+
     const lastSettled = latestMonth(settlements);
     const carriedOut = lastSettled
       ? (settlements.find((row) => row.month.getTime() === lastSettled.getTime())
@@ -751,10 +857,15 @@ export class OvertimeService {
     return carriedOut + unsettled;
   }
 
-  /** One person's timesheets and RECUPERARE, folded into a figure per month. */
+  /**
+   * One person's timesheets and RECUPERARE, folded into a figure per month.
+   * With a correction, days before it earn nothing — the correction stands in
+   * for them. Saturdays worked are counted either way.
+   */
   private monthlyActivity(
     personId: string,
     source: OvertimeSourceData,
+    correction: OvertimeCorrectionRow | null,
   ): Map<string, MonthActivity> {
     const byMonth = new Map<string, MonthActivity>();
 
@@ -772,14 +883,19 @@ export class OvertimeService {
     const daysByMonth = groupBy(source.daysByPerson.get(personId) ?? [], (day) =>
       formatMonth(day.workDate),
     );
+    const counted = (day: DatedOvertimeDay) =>
+      !correction || day.workDate.getTime() >= correction.effectiveDate.getTime();
     for (const [key, days] of daysByMonth) {
       const month = entry(key);
-      month.earnedMinutes = overtimeBalanceMinutes(days, dailyWorkMinutes);
+      month.earnedMinutes = overtimeBalanceMinutes(days.filter(counted), dailyWorkMinutes);
       month.saturdaysWorked = countSaturdaysWorked(days);
     }
 
-    for (const [key, minutes] of source.usedByPersonMonth.get(personId) ?? []) {
-      entry(key).usedMinutes = minutes;
+    const correctionDayKey = correction ? workDateToDayKey(correction.effectiveDate) : null;
+    for (const [dayKey, minutes] of source.usedByPersonDay.get(personId) ?? []) {
+      if (correctionDayKey === null || dayKey >= correctionDayKey) {
+        entry(dayKey.slice(0, 7)).usedMinutes += minutes;
+      }
     }
 
     return byMonth;
@@ -854,7 +970,7 @@ export class OvertimeService {
           }
         : {};
 
-    const [dailyTotals, approvedLeave, norms] = await Promise.all([
+    const [dailyTotals, approvedLeave, norms, corrections] = await Promise.all([
       this.prisma.timesheet.groupBy({
         by: ['personId', 'workDate'],
         where: { ...notDeleted(), ...personFilter, ...workDateFilter },
@@ -877,7 +993,19 @@ export class OvertimeService {
         },
         select: { id: true, dailyWorkMinutes: true },
       }),
+      this.prisma.overtimeCorrection.findMany({
+        where: personFilter,
+        select: CORRECTION_SELECT,
+        orderBy: [{ effectiveDate: 'desc' }, { createdAt: 'desc' }],
+      }),
     ]);
+
+    const correctionByPerson = new Map<string, OvertimeCorrectionRow>();
+    for (const { personId, ...correction } of corrections) {
+      if (!correctionByPerson.has(personId)) {
+        correctionByPerson.set(personId, correction);
+      }
+    }
 
     const dailyWorkMinutesByPerson = new Map(
       norms.map((row) => [row.id, dailyWorkMinutesOf(row.dailyWorkMinutes)]),
@@ -886,25 +1014,21 @@ export class OvertimeService {
 
     // Any approved leave covers a day; only RECUPERARE spends the balance.
     const leaveRequestsByPerson = new Map<string, ApprovedLeave[]>();
-    const usedByPersonMonth = new Map<string, Map<string, number>>();
+    const usedByPersonDay = new Map<string, Map<string, number>>();
     for (const request of approvedLeave) {
       const requests = leaveRequestsByPerson.get(request.personId) ?? [];
       requests.push(request);
       leaveRequestsByPerson.set(request.personId, requests);
 
       if (request.type === 'RECUPERARE') {
-        const byMonth = usedByPersonMonth.get(request.personId) ?? new Map();
+        const byDay = usedByPersonDay.get(request.personId) ?? new Map();
         // Hours are taken on startDate; whole days spread over the days they
         // cover, so a request crossing a month boundary lands on both months.
-        if (request.durationMinutes !== null) {
-          addTo(byMonth, formatMonth(request.startDate), request.durationMinutes);
-        } else {
-          const dailyWorkMinutes = dailyWorkMinutesFor(normSource, request.personId);
-          for (const [dayKey, minutes] of leaveMinutesByDay([request], dailyWorkMinutes)) {
-            addTo(byMonth, dayKey.slice(0, 7), minutes);
-          }
+        const dailyWorkMinutes = dailyWorkMinutesFor(normSource, request.personId);
+        for (const [dayKey, minutes] of leaveMinutesByDay([request], dailyWorkMinutes)) {
+          addTo(byDay, dayKey, minutes);
         }
-        usedByPersonMonth.set(request.personId, byMonth);
+        usedByPersonDay.set(request.personId, byDay);
       }
     }
 
@@ -934,7 +1058,13 @@ export class OvertimeService {
       daysByPerson.set(row.personId, days);
     }
 
-    return { daysByPerson, usedByPersonMonth, leaveTypesByPersonDay, dailyWorkMinutesByPerson };
+    return {
+      daysByPerson,
+      usedByPersonDay,
+      leaveTypesByPersonDay,
+      dailyWorkMinutesByPerson,
+      correctionByPerson,
+    };
   }
 
   private async resolveActorPersonId(userId: string): Promise<string> {
@@ -969,6 +1099,18 @@ function toBalancePerson(person: PersonRow): OvertimeBalancePersonDto {
     firstName: person.firstName,
     lastName: person.lastName,
     employeeRole: person.employeeRole,
+  };
+}
+
+function toCorrectionDto(correction: OvertimeCorrectionRow): OvertimeCorrectionDto {
+  return {
+    id: correction.id,
+    effectiveDate: workDateToDayKey(correction.effectiveDate),
+    balanceMinutes: correction.balanceMinutes,
+    previousBalanceMinutes: correction.previousBalanceMinutes,
+    note: correction.note,
+    createdAt: correction.createdAt.toISOString(),
+    createdBy: correction.createdBy?.person ?? null,
   };
 }
 

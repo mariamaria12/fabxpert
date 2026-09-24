@@ -29,7 +29,50 @@ export type OvertimeBalanceDto = {
   remainingDays: number;
   /** Last settled month as `YYYY-MM`; null when nothing is settled yet. */
   settledThroughMonth: string | null;
+  /** The balance an admin last set by hand; null when it was never corrected. */
+  correction: OvertimeCorrectionDto | null;
 };
+
+/**
+ * A balance set by hand. It replaces everything before `effectiveDate`, a
+ * month still waiting for approval included; days from then on count on top.
+ */
+export type OvertimeCorrectionDto = {
+  id: string;
+  /** First day counted on top of the correction, as `YYYY-MM-DD`. */
+  effectiveDate: string;
+  balanceMinutes: number;
+  /** What the balance read just before it was corrected. */
+  previousBalanceMinutes: number;
+  note: string | null;
+  createdAt: string;
+  createdBy: { firstName: string; lastName: string } | null;
+};
+
+/** Signed hours an admin can set: a debt as low as a month of full days, overtime as high. */
+export const MAX_OVERTIME_CORRECTION_MINUTES = 400 * 60;
+
+export const createOvertimeCorrectionSchema = z.object({
+  personId: z
+    .string()
+    .regex(
+      /^([0-9a-f]{8}|p[0-9a-f]{7})-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      'Invalid UUID format',
+    ),
+  balanceMinutes: z
+    .number()
+    .int()
+    .min(-MAX_OVERTIME_CORRECTION_MINUTES)
+    .max(MAX_OVERTIME_CORRECTION_MINUTES),
+  note: z
+    .string()
+    .trim()
+    .max(500)
+    .optional()
+    .transform((value) => (value ? value : undefined)),
+});
+
+export type CreateOvertimeCorrectionInput = z.infer<typeof createOvertimeCorrectionSchema>;
 
 export type OvertimeBalancePersonDto = {
   id: string;

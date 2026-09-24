@@ -9,7 +9,9 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { PersonName } from '@/components/PersonAvatar';
+import { editActionColumn } from '@/components/editActionColumn';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { OvertimeCorrectionPanel } from './OvertimeCorrectionPanel';
 import { StatTile, StatTileRow } from './StatTile';
 import { formatMonthLabel } from './timesheetMonths';
 
@@ -46,6 +48,7 @@ export function OvertimeBalancesTab({ active }: OvertimeBalancesTabProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<OvertimeBalanceRowDto | null>(null);
 
   const loadBalances = useCallback(async () => {
     setLoading(true);
@@ -134,10 +137,17 @@ export function OvertimeBalancesTab({ active }: OvertimeBalancesTabProps) {
       className: 'text-right tabular-nums',
       render: (row) => (
         <span
-          className={`font-medium ${
+          className={`inline-flex items-center justify-end gap-1 font-medium ${
             row.balance.remainingMinutes < 0 ? 'text-danger' : 'text-text-primary'
           }`}
         >
+          {row.balance.correction ? (
+            <i
+              className="ti ti-adjustments text-sm text-text-muted"
+              aria-label="Corectat manual"
+              title={`Corectat manual la ${formatOvertimeBalance(row.balance.correction.balanceMinutes)}`}
+            />
+          ) : null}
           {formatOvertimeBalance(row.balance.remainingMinutes)}
         </span>
       ),
@@ -149,6 +159,7 @@ export function OvertimeBalancesTab({ active }: OvertimeBalancesTabProps) {
       className: 'text-right tabular-nums text-text-secondary',
       render: (row) => row.balance.remainingDays,
     },
+    editActionColumn((row) => setEditing(row), 'Corectează soldul'),
   ];
 
   const positive = rows.filter((row) => row.balance.remainingMinutes > 0);
@@ -252,9 +263,19 @@ export function OvertimeBalancesTab({ active }: OvertimeBalancesTabProps) {
         <p className="mt-3 text-xs text-text-muted">
           Soldul acoperă doar luna curentă plus reportul din luna precedentă — orele mai vechi au
           fost deja plătite sau recuperate. O sâmbătă lucrată e o zi de 7,5 h: doar ce trece de ea
-          intră în sold; duminica intră oră cu oră. {settledThroughLabel(rows)}
+          intră în sold; duminica intră oră cu oră. Creionul setează soldul manual.{' '}
+          {settledThroughLabel(rows)}
         </p>
       ) : null}
+
+      <OvertimeCorrectionPanel
+        row={editing}
+        onClose={() => setEditing(null)}
+        onSaved={() => {
+          setEditing(null);
+          void loadBalances();
+        }}
+      />
     </div>
   );
 }

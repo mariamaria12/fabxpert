@@ -1,6 +1,8 @@
 import { request, requestBlob } from './client';
 import type {
   AccountingTimesheetResponse,
+  CreateOvertimeCorrectionInput,
+  OvertimeCorrectionDto,
   ReopenAccountingMonthResponse,
   ResolveAccountingDaysInput,
   ResolveAccountingDaysResponse,
@@ -91,4 +93,20 @@ export function reopenAccountingMonth(month: string) {
     `/overtime/accounting/export?month=${encodeURIComponent(month)}`,
     { method: 'DELETE' },
   );
+}
+
+/**
+ * Admin only. Sets a person's balance by hand: it replaces everything before
+ * today, an unapproved month included, and today's hours count on top.
+ */
+export function createOvertimeCorrection(input: CreateOvertimeCorrectionInput) {
+  return request<OvertimeCorrectionDto>('/overtime/corrections', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+/** Admin only. Undoes a correction; the balance falls back to the one before it. */
+export function deleteOvertimeCorrection(id: string) {
+  return request<void>(`/overtime/corrections/${id}`, { method: 'DELETE' });
 }

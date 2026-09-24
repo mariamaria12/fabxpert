@@ -14,7 +14,9 @@ import {
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import {
+  createOvertimeCorrectionSchema,
   resolveAccountingDaysSchema,
+  type CreateOvertimeCorrectionInput,
   type ResolveAccountingDaysInput,
 } from '@fabxpert/shared/dto/overtime.dto';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
@@ -61,6 +63,25 @@ export class OvertimeController {
   @Roles('ADMIN')
   getBalance(@Param('personId', new ZodValidationPipe(uuidParamSchema)) personId: string) {
     return this.overtimeService.getBalanceForPerson(personId);
+  }
+
+  /** Sets a person's balance by hand, replacing everything before today. */
+  @Post('corrections')
+  @Roles('ADMIN')
+  createCorrection(
+    @Body(new ZodValidationPipe(createOvertimeCorrectionSchema))
+    input: CreateOvertimeCorrectionInput,
+    @Req() req: Request & { user: AuthenticatedUser },
+  ) {
+    return this.overtimeService.createCorrection(input, req.user);
+  }
+
+  /** Undoes a correction. */
+  @Delete('corrections/:id')
+  @Roles('ADMIN')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteCorrection(@Param('id', new ZodValidationPipe(uuidParamSchema)) id: string) {
+    return this.overtimeService.deleteCorrection(id);
   }
 
   /** How many people still wait for last month's approval. */

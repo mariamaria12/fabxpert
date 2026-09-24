@@ -392,8 +392,15 @@ export {
   exportAccountingTimesheetXlsx,
   reopenAccountingMonth,
   resolveAccountingDays,
+  createOvertimeCorrection,
+  deleteOvertimeCorrection,
 } from './api/overtime';
-export { ACCOUNTING_DAY_RESOLUTIONS, resolveAccountingDaysSchema } from './dto/overtime.dto';
+export {
+  ACCOUNTING_DAY_RESOLUTIONS,
+  MAX_OVERTIME_CORRECTION_MINUTES,
+  createOvertimeCorrectionSchema,
+  resolveAccountingDaysSchema,
+} from './dto/overtime.dto';
 export type {
   AccountingDayResolution,
   ResolveAccountingDaysInput,
@@ -409,6 +416,8 @@ export type {
   OvertimeBalancePersonDto,
   OvertimeBalanceRowDto,
   OvertimeBalancesResponse,
+  OvertimeCorrectionDto,
+  CreateOvertimeCorrectionInput,
   OvertimeSettlementLineDto,
   OvertimeSettlementPreviewResponse,
   SettleOvertimeMonthResponse,

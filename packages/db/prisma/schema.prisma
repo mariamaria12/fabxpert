@@ -157,6 +157,7 @@ model Person {
   leaveRequests LeaveRequest[]
 
   overtimeSettlements OvertimeSettlement[]
+  overtimeCorrections OvertimeCorrection[]
   accountingPresences AccountingPresence[]
 
   @@map("persons")
@@ -200,6 +201,7 @@ model User {
   pollVotes    PollVote[]
 
   settledOvertimeMonths  OvertimeSettlement[]     @relation("OvertimeSettledBy")
+  overtimeCorrections    OvertimeCorrection[]     @relation("OvertimeCorrectedBy")
   accountingExports      AccountingExport[]       @relation("AccountingExportedBy")
   accountingPresences    AccountingPresence[]     @relation("AccountingPresenceMarkedBy")
   manualAssemblyProgress AssemblyManualProgress[]
@@ -409,6 +411,37 @@ model OvertimeSettlement {
   @@unique([personId, month])
   @@index([personId])
   @@map("overtime_settlements")
+}
+
+// ---------------------------------------------------------------------------
+// OvertimeCorrection
+// A balance an admin set by hand. It replaces everything the person had before
+// its day — earlier months still waiting for approval included — and the days
+// from `effectiveDate` on count on top of it as usual. Only the latest one per
+// person matters; older rows stay as the trail of who changed what.
+// ---------------------------------------------------------------------------
+
+model OvertimeCorrection {
+  id String @id @default(uuid())
+
+  /// First day counted on top of the correction, at midnight — same
+  /// convention as Timesheet.workDate. Everything before it is replaced.
+  effectiveDate DateTime
+  /// The balance the person starts `effectiveDate` with. Negative is a debt.
+  balanceMinutes         Int
+  /// What the balance read when it was corrected, kept for the record.
+  previousBalanceMinutes Int
+  note                   String?
+
+  personId String
+  person   Person @relation(fields: [personId], references: [id])
+
+  createdByUserId String?
+  createdBy       User?    @relation("OvertimeCorrectedBy", fields: [createdByUserId], references: [id])
+  createdAt       DateTime @default(now())
+
+  @@index([personId, effectiveDate])
+  @@map("overtime_corrections")
 }
 
 // ---------------------------------------------------------------------------
