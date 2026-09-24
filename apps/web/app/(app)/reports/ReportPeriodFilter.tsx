@@ -2,11 +2,8 @@
 
 import { reportPeriodsEqual, type ReportPeriod } from '@fabxpert/shared';
 import { useEffect, useRef, useState } from 'react';
-import { DateField } from '@/components/DateField';
+import { DateRangeCalendar } from '@/components/DateRangeCalendar';
 import { filterChipClassName } from '@/components/filterChipStyles';
-
-const dateInputClassName =
-  'rounded-md border border-border bg-surface-raised px-3 py-1.5 font-mono text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
 
 type PresetKind = 'lastMonth' | 'currentMonth';
 
@@ -23,20 +20,9 @@ export type ReportPeriodFilterProps = {
 
 export function ReportPeriodFilter({ value, onChange, className }: ReportPeriodFilterProps) {
   const [customMode, setCustomMode] = useState(false);
-  const [draftFrom, setDraftFrom] = useState('');
-  const [draftTo, setDraftTo] = useState('');
-  const [customError, setCustomError] = useState<string | null>(null);
   const customRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (value.kind === 'custom') {
-      setDraftFrom(value.from);
-      setDraftTo(value.to);
-      setCustomMode(false);
-    }
-  }, [value]);
-
-  // The range inputs float over the page, so they close like any other popover.
+  // The range calendar floats over the page, so they close like any other popover.
   useEffect(() => {
     if (!customMode) {
       return;
@@ -65,22 +51,11 @@ export function ReportPeriodFilter({ value, onChange, className }: ReportPeriodF
 
   function selectPreset(kind: PresetKind) {
     setCustomMode(false);
-    setCustomError(null);
     onChange({ kind });
   }
 
-  function applyCustomRange() {
-    if (!draftFrom || !draftTo) {
-      setCustomError('Selectează ambele date.');
-      return;
-    }
-    if (draftFrom > draftTo) {
-      setCustomError('Data de început trebuie să fie înainte sau egală cu data de sfârșit.');
-      return;
-    }
-
-    const next: ReportPeriod = { kind: 'custom', from: draftFrom, to: draftTo };
-    setCustomError(null);
+  function applyCustomRange(from: string, to: string) {
+    const next: ReportPeriod = { kind: 'custom', from, to };
     setCustomMode(false);
     if (!reportPeriodsEqual(value, next)) {
       onChange(next);
@@ -111,12 +86,7 @@ export function ReportPeriodFilter({ value, onChange, className }: ReportPeriodF
             aria-pressed={value.kind === 'custom'}
             aria-expanded={customMode}
             onClick={() => {
-              if (customMode) {
-                setCustomMode(false);
-                return;
-              }
-              setCustomMode(true);
-              setCustomError(null);
+              setCustomMode(!customMode);
             }}
             className={filterChipClassName(value.kind === 'custom' || customMode)}
           >
@@ -133,37 +103,12 @@ export function ReportPeriodFilter({ value, onChange, className }: ReportPeriodF
                 onClick={() => setCustomMode(false)}
                 aria-hidden="true"
               />
-              <div className="fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-strong bg-surface-popover p-3 shadow-popover sm:absolute sm:left-auto sm:right-0 sm:top-full sm:z-30 sm:mt-1.5 sm:w-max sm:max-w-[calc(100vw-2rem)] sm:translate-x-0 sm:translate-y-0">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                  <DateField
-                    id="report-period-from"
-                    label="De la"
-                    value={draftFrom}
-                    className={dateInputClassName}
-                    onChange={(next) => {
-                      setDraftFrom(next);
-                      setCustomError(null);
-                    }}
-                  />
-                  <DateField
-                    id="report-period-to"
-                    label="Până la"
-                    value={draftTo}
-                    className={dateInputClassName}
-                    onChange={(next) => {
-                      setDraftTo(next);
-                      setCustomError(null);
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={applyCustomRange}
-                    className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
-                  >
-                    Aplică
-                  </button>
-                </div>
-                {customError && <p className="mt-2 text-xs text-danger">{customError}</p>}
+              <div className="fixed left-1/2 top-1/2 z-50 w-max -translate-x-1/2 -translate-y-1/2 rounded-lg border border-strong bg-surface-popover p-3 shadow-popover sm:absolute sm:left-auto sm:right-0 sm:top-full sm:z-30 sm:mt-1.5 sm:translate-x-0 sm:translate-y-0">
+                <DateRangeCalendar
+                  from={value.kind === 'custom' ? value.from : ''}
+                  to={value.kind === 'custom' ? value.to : ''}
+                  onSelect={applyCustomRange}
+                />
               </div>
             </>
           )}

@@ -6,7 +6,7 @@ import {
   type Period,
 } from '@fabxpert/shared';
 import { useEffect, useRef, useState } from 'react';
-import { DateField } from '@/components/DateField';
+import { DateRangeCalendar } from '@/components/DateRangeCalendar';
 import {
   filterChipClassName,
   FILTER_CHIP_TOGGLE_CLASS,
@@ -23,9 +23,6 @@ const PERIOD_CARDS: { kind: PeriodKind; label: string }[] = [
   { kind: 'custom', label: 'Interval' },
 ];
 
-const dateInputClassName =
-  'rounded-md border border-border bg-surface-raised px-3 py-1.5 font-mono text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
-
 function isCardSelected(value: Period, kind: PeriodKind, customMode: boolean): boolean {
   if (kind === 'custom') {
     return value.kind === 'custom' || customMode;
@@ -34,30 +31,11 @@ function isCardSelected(value: Period, kind: PeriodKind, customMode: boolean): b
   return value.kind === kind && !customMode;
 }
 
-function cardSubLabel(
-  kind: PeriodKind,
-  value: Period,
-  customMode: boolean,
-  draftFrom: string,
-  draftTo: string,
-  now: Date,
-): string {
+function cardSubLabel(kind: PeriodKind, value: Period, now: Date): string {
   if (kind === 'custom') {
-    if (value.kind === 'custom' && !customMode) {
-      return formatPeriodCardSubLabel('custom', now, {
-        from: value.from,
-        to: value.to,
-      });
-    }
-
-    if (draftFrom && draftTo) {
-      return formatPeriodCardSubLabel('custom', now, {
-        from: draftFrom,
-        to: draftTo,
-      });
-    }
-
-    return formatPeriodCardSubLabel('custom', now);
+    return value.kind === 'custom'
+      ? formatPeriodCardSubLabel('custom', now, { from: value.from, to: value.to })
+      : formatPeriodCardSubLabel('custom', now);
   }
 
   return formatPeriodCardSubLabel(kind, now);
@@ -72,9 +50,6 @@ export type PeriodFilterProps = {
 export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) {
   const [now, setNow] = useState(() => new Date());
   const [customMode, setCustomMode] = useState(false);
-  const [draftFrom, setDraftFrom] = useState('');
-  const [draftTo, setDraftTo] = useState('');
-  const [customError, setCustomError] = useState<string | null>(null);
   const customRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [showAllPeriods, setShowAllPeriods] = useState(false);
@@ -86,7 +61,7 @@ export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) 
     return () => window.clearInterval(timer);
   }, []);
 
-  // The range inputs float over the page, so they close like any other popover.
+  // The range calendar floats over the page, so they close like any other popover.
   useEffect(() => {
     if (!customMode) {
       return;
@@ -113,50 +88,17 @@ export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) 
     };
   }, [customMode]);
 
-  useEffect(() => {
-    if (value.kind === 'custom') {
-      setDraftFrom(value.from);
-      setDraftTo(value.to);
-      setCustomMode(false);
-    }
-  }, [value]);
-
   function selectPreset(kind: 'today' | 'yesterday' | 'week' | 'month') {
     setCustomMode(false);
-    setCustomError(null);
     onChange({ kind });
   }
 
-  function selectCustom() {
-    setCustomMode(true);
-    setCustomError(null);
-    if (value.kind === 'custom') {
-      setDraftFrom(value.from);
-      setDraftTo(value.to);
-    }
-  }
-
-  function applyCustomRange() {
-    if (!draftFrom || !draftTo) {
-      setCustomError('Selectează ambele date.');
-      return;
-    }
-
-    if (draftFrom > draftTo) {
-      setCustomError('Data de început trebuie să fie înainte sau egală cu data de sfârșit.');
-      return;
-    }
-
-    const next: Period = { kind: 'custom', from: draftFrom, to: draftTo };
-    if (periodsEqual(value, next)) {
-      setCustomMode(false);
-      setCustomError(null);
-      return;
-    }
-
-    setCustomError(null);
+  function applyCustomRange(from: string, to: string) {
     setCustomMode(false);
-    onChange(next);
+    const next: Period = { kind: 'custom', from, to };
+    if (!periodsEqual(value, next)) {
+      onChange(next);
+    }
   }
 
   // Phones show only "Azi" and "Ieri" (plus whatever is selected); the rest sit
@@ -183,11 +125,7 @@ export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) 
               aria-expanded={card.kind === 'custom' ? customMode : undefined}
               onClick={() => {
                 if (card.kind === 'custom') {
-                  if (customMode) {
-                    setCustomMode(false);
-                    return;
-                  }
-                  selectCustom();
+                  setCustomMode(!customMode);
                   return;
                 }
                 selectPreset(card.kind);
@@ -196,7 +134,7 @@ export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) 
             >
               <span className="font-medium">{card.label}</span>
               <span className={selected ? 'text-accent/80' : 'text-text-muted'}>
-                {cardSubLabel(card.kind, value, customMode, draftFrom, draftTo, now)}
+                {cardSubLabel(card.kind, value, now)}
               </span>
             </button>
           );
@@ -211,40 +149,22 @@ export function PeriodFilter({ value, onChange, className }: PeriodFilterProps) 
               {chip}
 
               {customMode && (
-                <div className="absolute left-0 top-full z-30 mt-1.5 w-max rounded-lg border border-strong bg-surface-popover p-3 shadow-popover">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                    <DateField
-                      id="period-filter-from"
-                      label="De la"
-                      value={draftFrom}
-                      className={dateInputClassName}
-                      onChange={(value) => {
-                        setDraftFrom(value);
-                        setCustomError(null);
-                      }}
+                <>
+                  {/* Phones get a centred dialog over a dimmed page: <main> clips
+                      anything anchored to the chip with overflow-x-hidden. */}
+                  <div
+                    className="fixed inset-0 z-40 bg-bg/70 sm:hidden"
+                    onClick={() => setCustomMode(false)}
+                    aria-hidden="true"
+                  />
+                  <div className="fixed left-1/2 top-1/2 z-50 w-max -translate-x-1/2 -translate-y-1/2 rounded-lg border border-strong bg-surface-popover p-3 shadow-popover sm:absolute sm:left-0 sm:top-full sm:z-30 sm:mt-1.5 sm:translate-x-0 sm:translate-y-0">
+                    <DateRangeCalendar
+                      from={value.kind === 'custom' ? value.from : ''}
+                      to={value.kind === 'custom' ? value.to : ''}
+                      onSelect={applyCustomRange}
                     />
-                    <DateField
-                      id="period-filter-to"
-                      label="Până la"
-                      value={draftTo}
-                      className={dateInputClassName}
-                      onChange={(value) => {
-                        setDraftTo(value);
-                        setCustomError(null);
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={applyCustomRange}
-                      className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
-                    >
-                      Aplică
-                    </button>
                   </div>
-                  {customError && (
-                    <p className="mt-2 text-xs text-danger">{customError}</p>
-                  )}
-                </div>
+                </>
               )}
             </div>
           );
