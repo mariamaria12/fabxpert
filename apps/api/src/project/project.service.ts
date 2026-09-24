@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, ProjectStatus } from '@prisma/client';
@@ -22,6 +23,10 @@ import { notDeleted } from '../common/prisma/soft-delete.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { ProjectAvailabilityEventsService } from './project-availability-events.service';
+import {
+  loadProjectProgress,
+  recalibrateProjectProgress,
+} from '../assembly/project-progress.util';
 import {
   resolveEmployeeProjectVisibility,
   resolvePersonProjectVisibility,
@@ -169,16 +174,19 @@ function toProjectDto(
   project: ProjectWithRelations,
   compact?: false,
   assembliesWithoutWeight?: number,
+  progressPercent?: number | null,
 ): ProjectDto;
 function toProjectDto(
   project: ProjectListRow,
   compact: true,
   assembliesWithoutWeight?: number,
+  progressPercent?: number | null,
 ): ProjectDto;
 function toProjectDto(
   project: ProjectWithRelations | ProjectListRow,
   compact = false,
   assembliesWithoutWeight = 0,
+  progressPercent: number | null = null,
 ): ProjectDto {
   return {
     id: project.id,
@@ -202,6 +210,7 @@ function toProjectDto(
     visibleForRoles: compact ? [] : (project as ProjectWithRelations).visibleForRoles,
     assemblyCount: project._count.assemblies,
     assembliesWithoutWeight,
+    progressPercent,
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString(),
   };
@@ -244,6 +253,8 @@ function buildProjectOrderBy(
 
 @Injectable()
 export class ProjectService {
+  private readonly logger = new Logger(ProjectService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly availabilityEvents: ProjectAvailabilityEventsService,
@@ -295,15 +306,19 @@ export class ProjectService {
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-    const withoutWeight = await this.countAssembliesWithoutWeight(rows.map((row) => row.id));
+    const rowIds = rows.map((row) => row.id);
+    const [withoutWeight, progress] = await Promise.all([
+      this.countAssembliesWithoutWeight(rowIds),
+      loadProjectProgress(this.prisma, rowIds),
+    ]);
 
     return {
       data: compact
         ? (rows as ProjectListRow[]).map((row) =>
-            toProjectDto(row, true, withoutWeight.get(row.id)),
+            toProjectDto(row, true, withoutWeight.get(row.id), progress.get(row.id) ?? null),
           )
         : (rows as ProjectWithRelations[]).map((row) =>
-            toProjectDto(row, false, withoutWeight.get(row.id)),
+            toProjectDto(row, false, withoutWeight.get(row.id), progress.get(row.id) ?? null),
           ),
       meta: { page, pageSize, total, totalPages },
     };
@@ -317,8 +332,11 @@ export class ProjectService {
     if (!project) {
       throw new NotFoundException(`Project with id ${id} not found`);
     }
-    const withoutWeight = await this.countAssembliesWithoutWeight([id]);
-    return toProjectDto(project, false, withoutWeight.get(id));
+    const [withoutWeight, progress] = await Promise.all([
+      this.countAssembliesWithoutWeight([id]),
+      loadProjectProgress(this.prisma, [id]),
+    ]);
+    return toProjectDto(project, false, withoutWeight.get(id), progress.get(id) ?? null);
   }
 
   /**
@@ -444,6 +462,9 @@ export class ProjectService {
       if (project.readyForExecution) {
         this.availabilityEvents.emitChanged();
       }
+      if (isProjectCompletedStatus(project.status)) {
+        this.recalibrateProgress();
+      }
       return toProjectDto(project);
     } catch (error) {
       this.handleUniqueViolation(error);
@@ -523,6 +544,10 @@ export class ProjectService {
         include: projectInclude,
       });
 
+      if (wasCompleted !== isCompleted) {
+        this.recalibrateProgress();
+      }
+
       if (existing.readyForExecution !== project.readyForExecution) {
         this.availabilityEvents.emitChanged();
       } else if (
@@ -532,7 +557,12 @@ export class ProjectService {
         this.availabilityEvents.emitChanged();
       }
 
-      return toProjectDto(project, false, existing.assembliesWithoutWeight);
+      return toProjectDto(
+        project,
+        false,
+        existing.assembliesWithoutWeight,
+        existing.progressPercent,
+      );
     } catch (error) {
       this.handleUniqueViolation(error);
     }
@@ -589,6 +619,20 @@ export class ProjectService {
     if (existing.readyForExecution) {
       this.availabilityEvents.emitChanged();
     }
+    if (isProjectCompletedStatus(existing.status)) {
+      this.recalibrateProgress();
+    }
+  }
+
+  /**
+   * The set of delivered projects changed, so the progress formula is worked
+   * out again. Runs after the save and off its path: a failure leaves the
+   * previous figures in place and must not fail the edit.
+   */
+  private recalibrateProgress(): void {
+    recalibrateProjectProgress(this.prisma).catch((error: unknown) => {
+      this.logger.error('Progress recalibration failed', error instanceof Error ? error.stack : error);
+    });
   }
 
   /** Lines without a weight per piece, per project — what the computed weight leaves out. */

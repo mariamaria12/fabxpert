@@ -7,6 +7,7 @@ import type {
   ProjectSummaryResponse,
   TimesheetDayGroupDto,
   TimesheetDailyTotalsResponse,
+  TimesheetCalendarDaysResponse,
   TimesheetDto,
   TimesheetGroupSortBy,
   TimesheetListSortBy,
@@ -163,6 +164,18 @@ export function getTimesheetDailyTotals(params: { period: Period; search?: strin
   }
   return request<TimesheetDailyTotalsResponse>(
     `/timesheets/daily-totals?${searchParams.toString()}`,
+  );
+}
+
+/** Admin only. One row per person per day over `period`, totals only. */
+export function getTimesheetCalendarDays(params: { period: Period; search?: string }) {
+  const searchParams = new URLSearchParams();
+  appendPeriodQuery(searchParams, params.period);
+  if (params.search?.trim()) {
+    searchParams.set('search', params.search.trim());
+  }
+  return request<TimesheetCalendarDaysResponse>(
+    `/timesheets/calendar-days?${searchParams.toString()}`,
   );
 }
 

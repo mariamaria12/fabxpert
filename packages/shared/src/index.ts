@@ -228,6 +228,7 @@ export {
   listTimesheets,
   listTimesheetDayGroups,
   getTimesheetDailyTotals,
+  getTimesheetCalendarDays,
   listMyTimesheets,
   getTimesheet,
   updateTimesheet,
@@ -262,6 +263,8 @@ export type {
   TimesheetDayGroupActivityDto,
   TimesheetDailyTotalDto,
   TimesheetDailyTotalsResponse,
+  TimesheetCalendarDayDto,
+  TimesheetCalendarDaysResponse,
   TimesheetGroupSortBy,
   TimesheetSummaryPeriod,
   TimesheetSummaryParams,
@@ -543,8 +546,20 @@ export {
   isAssemblyOverDone,
   assemblyHasOverDoneActivity,
   assemblyListWeight,
+  assemblyEquivalentWeight,
+  projectProgressPercent,
+  formatProjectProgress,
 } from './assemblyProgress';
-export type { AssemblyListWeight } from './assemblyProgress';
+export type { AssemblyListWeight, ProjectProgressInput } from './assemblyProgress';
+export {
+  PROGRESS_CALIBRATION_BOUNDS,
+  computeProgressCalibration,
+  sharesForActivities,
+} from './progressCalibration';
+export type {
+  ProgressCalibrationSample,
+  ProgressCalibrationResult,
+} from './progressCalibration';
 export { normalizeProfileKey, toProfileKey } from './steelProfile';
 export { parseTsvRows } from './tsv';
 export type { TimesheetAssemblyDto, TimesheetAssemblyInput } from './dto/timesheet.dto';

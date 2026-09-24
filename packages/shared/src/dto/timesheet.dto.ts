@@ -140,6 +140,24 @@ export type TimesheetDailyTotalsResponse = {
   days: TimesheetDailyTotalDto[];
 };
 
+/**
+ * One person's day for the calendar: totals only, no entries — a month of
+ * entries with their projects is too heavy to draw a grid from.
+ */
+export type TimesheetCalendarDayDto = {
+  person: { id: string; firstName: string; lastName: string };
+  /** `YYYY-MM-DD`. */
+  workDate: string;
+  totalMinutes: number;
+  entryCount: number;
+  /** Colour of the activity with the most minutes that day; null when it has none. */
+  activityColor: string | null;
+};
+
+export type TimesheetCalendarDaysResponse = {
+  days: TimesheetCalendarDayDto[];
+};
+
 export const TIMESHEET_GROUP_SORT_BY_VALUES = [
   'date',
   'person',
@@ -223,6 +241,8 @@ export type PinnedProjectSummaryRow = {
   visibleForRoles: ProjectVisibleRoleDto[];
   /** Lines on the project's assembly list; 0 when none was imported. */
   assemblyCount: number;
+  /** Progress on the assembly list, 0–100 (see projectProgressPercent). Null without a list. */
+  progressPercent: number | null;
   totalMinutes: number;
   activities: ProjectSummaryActivityRow[];
 };

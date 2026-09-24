@@ -2,7 +2,7 @@
 
 import {
   previewAssembliesFromFile,
-  previewAssembliesFromText,
+  type AssemblyImportIssue,
   type AssemblyImportIssueCode,
   type AssemblyImportRowDto,
   type AssemblyPreviewDto,
@@ -33,6 +33,81 @@ function formatNumber(value: number | null | undefined): string {
   return value.toLocaleString('ro-RO', { maximumFractionDigits: 2 });
 }
 
+/** One row of the manual entry table, kept as typed until the preview. */
+type ManualRow = {
+  key: number;
+  name: string;
+  quantity: string;
+  profile: string;
+  length: string;
+  weightPerPiece: string;
+};
+
+function emptyManualRow(key: number): ManualRow {
+  return { key, name: '', quantity: '1', profile: '', length: '', weightPerPiece: '' };
+}
+
+/** Accepts a decimal comma as well as a point. Undefined when unreadable. */
+function parseDecimal(raw: string): number | null | undefined {
+  const trimmed = raw.trim();
+  if (trimmed === '') {
+    return null;
+  }
+  const value = Number(trimmed.replace(',', '.'));
+  return Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
+/**
+ * Turns the typed rows into the same preview the file import produces, with
+ * the same flags: blank rows are dropped, unreadable cells are flagged and
+ * left empty, and a repeated name keeps its last row.
+ */
+function previewManualRows(manualRows: ManualRow[]): AssemblyPreviewDto {
+  const issues: AssemblyImportIssue[] = [];
+  const byName = new Map<string, AssemblyImportRowDto>();
+
+  manualRows.forEach((manual, index) => {
+    const row = index + 1;
+    const name = manual.name.trim();
+    if (name === '') {
+      return;
+    }
+
+    let quantity = Number(manual.quantity.trim());
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      issues.push({ row, name, code: 'INVALID_QUANTITY', value: manual.quantity });
+      quantity = 1;
+    }
+
+    let length = parseDecimal(manual.length);
+    if (length === undefined) {
+      issues.push({ row, name, code: 'INVALID_LENGTH', value: manual.length });
+      length = null;
+    }
+
+    let weightPerPiece = parseDecimal(manual.weightPerPiece);
+    if (weightPerPiece === undefined) {
+      issues.push({ row, name, code: 'INVALID_WEIGHT', value: manual.weightPerPiece });
+      weightPerPiece = null;
+    }
+
+    if (byName.has(name)) {
+      issues.push({ row, name, code: 'DUPLICATE_NAME', value: null });
+      byName.delete(name);
+    }
+    byName.set(name, {
+      row,
+      name,
+      quantity,
+      profile: manual.profile.trim() || null,
+      length,
+      weightPerPiece,
+    });
+  });
+
+  return { sheets: [], sheetName: null, rows: [...byName.values()], issues, hasHeaderRow: true };
+}
+
 export interface AssemblyImportScreenProps {
   open: boolean;
   projectName: string;
@@ -52,7 +127,8 @@ export function AssemblyImportScreen({
   title = 'Adaugă ansamble',
   confirmLabel,
 }: AssemblyImportScreenProps) {
-  const [tsv, setTsv] = useState('');
+  const [manualRows, setManualRows] = useState<ManualRow[]>(() => [emptyManualRow(0)]);
+  const nextRowKey = useRef(1);
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [preview, setPreview] = useState<AssemblyPreviewDto | null>(null);
@@ -86,7 +162,23 @@ export function AssemblyImportScreen({
     return null;
   }
 
-  const canLoad = (file !== null || tsv.trim().length > 0) && !isLoading;
+  const hasManualRows = manualRows.some((row) => row.name.trim() !== '');
+  const canLoad = (file !== null || hasManualRows) && !isLoading;
+
+  function updateManualRow(key: number, field: Exclude<keyof ManualRow, 'key'>, value: string) {
+    setManualRows((rows) => rows.map((row) => (row.key === key ? { ...row, [field]: value } : row)));
+    setError(null);
+  }
+
+  function addManualRow() {
+    setManualRows((rows) => [...rows, emptyManualRow(nextRowKey.current++)]);
+  }
+
+  function removeManualRow(key: number) {
+    setManualRows((rows) =>
+      rows.length === 1 ? [emptyManualRow(nextRowKey.current++)] : rows.filter((row) => row.key !== key),
+    );
+  }
 
   async function runPreview(sheet?: string) {
     setIsLoading(true);
@@ -94,17 +186,14 @@ export function AssemblyImportScreen({
     setShowSheetPicker(false);
 
     try {
-      // The file wins when both are filled: it carries the real cell values,
-      // where a paste only carries what the sheet displayed.
+      // The file wins when both are filled; the table is disabled meanwhile.
       const result = file
         ? await previewAssembliesFromFile(file, sheet)
-        : await previewAssembliesFromText(tsv);
+        : previewManualRows(manualRows);
 
       setPreview(result);
       if (result.rows.length === 0 && result.sheetName !== null) {
         setError('Nu am găsit niciun ansamblu în foaia aleasă.');
-      } else if (result.rows.length === 0 && result.sheets.length === 0) {
-        setError('Nu am găsit niciun ansamblu în ce ai lipit.');
       }
     } catch (caught) {
       setError(apiErrorToastMessage(caught));
@@ -187,25 +276,102 @@ export function AssemblyImportScreen({
           {preview === null ? (
             <div className="flex flex-col gap-6">
               <div className="flex flex-col gap-2">
-                <label htmlFor="assembly-paste" className="text-sm text-text-secondary">
-                  Lipește lista din Excel
-                </label>
-                <textarea
-                  id="assembly-paste"
-                  rows={7}
-                  value={tsv}
+                <span className="text-sm text-text-secondary">Adaugă manual</span>
+                <div className="overflow-x-auto rounded-md border border-border-subtle">
+                  <table className="w-full min-w-[40rem] border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b border-border-subtle bg-surface-raised text-left text-xs text-text-secondary">
+                        <th className="px-2 py-2 font-medium">Ansamblu</th>
+                        <th className="w-24 px-2 py-2 text-right font-medium">Nr. bucăți</th>
+                        <th className="px-2 py-2 font-medium">Profil</th>
+                        <th className="w-28 px-2 py-2 text-right font-medium">Lungime</th>
+                        <th className="w-36 px-2 py-2 text-right font-medium">Greutate (kg/buc.)</th>
+                        <th className="w-10 px-2 py-2" aria-label="Acțiuni" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {manualRows.map((row, index) => (
+                        <tr key={row.key} className="border-b border-border-subtle last:border-b-0">
+                          <td className="px-2 py-1.5">
+                            <input
+                              aria-label={`Ansamblu, rândul ${index + 1}`}
+                              value={row.name}
+                              disabled={isLoading || file !== null}
+                              placeholder="GBAL/1"
+                              onChange={(event) => updateManualRow(row.key, 'name', event.target.value)}
+                              className="w-full rounded-md border border-border bg-surface-raised px-2 py-1.5 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input
+                              aria-label={`Nr. bucăți, rândul ${index + 1}`}
+                              inputMode="numeric"
+                              value={row.quantity}
+                              disabled={isLoading || file !== null}
+                              onChange={(event) => updateManualRow(row.key, 'quantity', event.target.value)}
+                              className="w-full rounded-md border border-border bg-surface-raised px-2 py-1.5 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50 text-right"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input
+                              aria-label={`Profil, rândul ${index + 1}`}
+                              value={row.profile}
+                              disabled={isLoading || file !== null}
+                              placeholder="HEA200"
+                              onChange={(event) => updateManualRow(row.key, 'profile', event.target.value)}
+                              className="w-full rounded-md border border-border bg-surface-raised px-2 py-1.5 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input
+                              aria-label={`Lungime, rândul ${index + 1}`}
+                              inputMode="decimal"
+                              value={row.length}
+                              disabled={isLoading || file !== null}
+                              onChange={(event) => updateManualRow(row.key, 'length', event.target.value)}
+                              className="w-full rounded-md border border-border bg-surface-raised px-2 py-1.5 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50 text-right"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input
+                              aria-label={`Greutate, rândul ${index + 1}`}
+                              inputMode="decimal"
+                              value={row.weightPerPiece}
+                              disabled={isLoading || file !== null}
+                              onChange={(event) =>
+                                updateManualRow(row.key, 'weightPerPiece', event.target.value)
+                              }
+                              className="w-full rounded-md border border-border bg-surface-raised px-2 py-1.5 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50 text-right"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5 text-center">
+                            <button
+                              type="button"
+                              aria-label={`Șterge rândul ${index + 1}`}
+                              disabled={isLoading || file !== null}
+                              onClick={() => removeManualRow(row.key)}
+                              className="rounded p-1 text-text-muted transition-colors hover:bg-surface-raised hover:text-danger disabled:opacity-40"
+                            >
+                              <i className="ti ti-trash text-base" aria-hidden="true" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <button
+                  type="button"
                   disabled={isLoading || file !== null}
-                  placeholder={'Nr. Crt.\tANSAMBLU\tNr. bucăți\tProfil\tLungime\n1\tGBAL/1\t1\tCFCHS48.3*3.6\t2.800'}
-                  onChange={(event) => {
-                    setTsv(event.target.value);
-                    setError(null);
-                  }}
-                  className="w-full rounded-md border border-border bg-surface-raised px-3 py-2 font-mono text-xs text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
-                />
+                  onClick={addManualRow}
+                  className="flex items-center gap-1 self-start text-sm text-accent disabled:opacity-40"
+                >
+                  <i className="ti ti-plus" aria-hidden="true" />
+                  Adaugă rând
+                </button>
                 {file !== null && (
                   <p className="text-xs text-text-muted">
-                    Fișierul are prioritate — lungimile din el sunt exacte, cele lipite sunt
-                    rotunjite de Excel.
+                    Fișierul are prioritate — elimină-l ca să adaugi ansamblele manual.
                   </p>
                 )}
               </div>
@@ -374,7 +540,7 @@ export function AssemblyImportScreen({
                 onClick={() => void runPreview()}
                 className="rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-accent-contrast disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Încarcă
+                Continuă
               </button>
               <button
                 type="button"

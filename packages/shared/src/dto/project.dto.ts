@@ -172,6 +172,8 @@ export type ProjectDto = {
   assemblyCount: number;
   /** Lines on the list with no weight per piece — the computed weight leaves them out. */
   assembliesWithoutWeight: number;
+  /** Progress on the assembly list, 0–100 (see projectProgressPercent). Null without a list. */
+  progressPercent: number | null;
   createdAt: string;
   updatedAt: string;
 };

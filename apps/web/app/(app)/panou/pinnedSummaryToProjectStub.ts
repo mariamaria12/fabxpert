@@ -24,6 +24,7 @@ export function pinnedSummaryToProjectStub(row: PinnedProjectSummaryRow): Projec
     visibleForRoles: row.visibleForRoles ?? [],
     assemblyCount: 0,
     assembliesWithoutWeight: 0,
+    progressPercent: row.progressPercent,
     createdAt: '',
     updatedAt: '',
   };

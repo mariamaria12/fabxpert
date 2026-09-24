@@ -39,6 +39,7 @@ import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 import { ProjectFormPanel } from '../projects/ProjectFormPanel';
 import { ProjectAssemblyCountCell } from '../projects/ProjectAssemblyCountCell';
+import { ProjectProgressCell } from '../projects/ProjectProgressCell';
 import {
   PanouPinnedProjectsSection,
   type PanouPinnedProjectsSectionHandle,
@@ -138,6 +139,12 @@ function useProjectTableColumns(options?: {
         className: 'overflow-hidden text-text-secondary',
         render: (row) =>
           row.finisaj ? <FinisajBadge value={row.finisaj} /> : nullableCell(null),
+      },
+      {
+        key: 'progress',
+        header: 'Progres',
+        width: '130px',
+        render: (row) => <ProjectProgressCell progressPercent={row.progressPercent} />,
       },
       {
         key: 'weight',

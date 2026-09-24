@@ -225,6 +225,13 @@ export class TimesheetController {
     );
   }
 
+  /** Person-days for the calendar's week and month views, totals only. */
+  @Get('calendar-days')
+  @Roles('ADMIN')
+  calendarDays(@Query() query: Record<string, string>) {
+    return this.timesheetService.calendarDays(parseListFilters(query));
+  }
+
   /** Per-day totals for the calendar's year view. */
   @Get('daily-totals')
   @Roles('ADMIN')

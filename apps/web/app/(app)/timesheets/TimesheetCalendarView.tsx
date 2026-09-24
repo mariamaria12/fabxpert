@@ -1,17 +1,19 @@
 'use client';
 
 import {
+  getTimesheetCalendarDays,
   getTimesheetDailyTotals,
   listLeaveRequests,
   listTimesheetDayGroups,
-  workDateToDayKey,
   type LeaveRequestDto,
+  type TimesheetCalendarDayDto,
   type TimesheetDailyTotalDto,
   type TimesheetDayGroupDto,
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarView, type CalendarItem } from '@/components/calendar/CalendarView';
 import { useCalendarState } from '@/components/calendar/useCalendarState';
+import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { loadAllPages } from '@/utils/loadAllPages';
 import {
@@ -44,32 +46,37 @@ function matchesSearch(person: { firstName: string; lastName: string }, search: 
 }
 
 function TimesheetDayChip({
-  group,
+  day,
+  opening,
   onOpen,
 }: {
-  group: TimesheetDayGroupDto;
-  onOpen: (group: TimesheetDayGroupDto) => void;
+  day: TimesheetCalendarDayDto;
+  opening: boolean;
+  onOpen: (day: TimesheetCalendarDayDto) => void;
 }) {
-  // The day's main activity colours the dot, as the list's activity totals do.
-  const mainActivity = group.activityTotals[0];
-
   return (
     <button
       type="button"
-      onClick={() => onOpen(group)}
-      title={`${group.person.firstName} ${group.person.lastName} — ${formatDurationMinutes(group.totalMinutes)}, ${
-        group.entryCount === 1 ? '1 pontaj' : `${group.entryCount} pontaje`
+      disabled={opening}
+      onClick={() => onOpen(day)}
+      title={`${day.person.firstName} ${day.person.lastName} — ${formatDurationMinutes(day.totalMinutes)}, ${
+        day.entryCount === 1 ? '1 pontaj' : `${day.entryCount} pontaje`
       }`}
-      className="flex w-full min-w-0 items-center gap-1 rounded border border-border-subtle bg-surface-raised px-1.5 py-0.5 text-left text-[11px] leading-4 text-text-primary transition-colors hover:border-border"
+      className="flex w-full min-w-0 items-center gap-1 rounded border border-border-subtle bg-surface-raised px-1.5 py-0.5 text-left text-[11px] leading-4 text-text-primary transition-colors hover:border-border disabled:opacity-60"
     >
+      {/* The day's main activity colours the dot, as the list's activity totals do. */}
       <span
         className="size-1.5 shrink-0 rounded-full"
-        style={{ backgroundColor: mainActivity?.activityColor ?? 'var(--color-text-muted)' }}
+        style={{ backgroundColor: day.activityColor ?? 'var(--color-text-muted)' }}
         aria-hidden="true"
       />
-      <span className="min-w-0 flex-1 truncate font-medium">{shortPersonName(group.person)}</span>
+      <span className="min-w-0 flex-1 truncate font-medium">{shortPersonName(day.person)}</span>
       <span className="shrink-0 tabular-nums text-text-secondary">
-        {formatDurationMinutes(group.totalMinutes)}
+        {opening ? (
+          <i className="ti ti-loader-2 animate-spin text-[11px]" aria-hidden="true" />
+        ) : (
+          formatDurationMinutes(day.totalMinutes)
+        )}
       </span>
     </button>
   );
@@ -85,7 +92,7 @@ interface TimesheetCalendarViewProps {
 /**
  * Pontaje and leave together, by week, month or year: who logged how much each
  * day, and who was off. Rejected leave is left out; pending leave is dashed.
- * The year view reads per-day totals only — a year of entries is too much.
+ * Only totals are loaded; a day's entries are fetched when its chip is opened.
  */
 export function TimesheetCalendarView({
   search,
@@ -93,10 +100,12 @@ export function TimesheetCalendarView({
   onOpenDay,
   onOpenLeave,
 }: TimesheetCalendarViewProps) {
+  const { showToast } = useToast();
   const calendar = useCalendarState('timesheets');
   const { mode } = calendar;
   const { from, to, days } = calendar.range;
-  const [groups, setGroups] = useState<TimesheetDayGroupDto[]>([]);
+  const [personDays, setPersonDays] = useState<TimesheetCalendarDayDto[]>([]);
+  const [openingKey, setOpeningKey] = useState<string | null>(null);
   const [yearTotals, setYearTotals] = useState<TimesheetDailyTotalDto[]>([]);
   const [leave, setLeave] = useState<LeaveRequestDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,16 +127,14 @@ export function TimesheetCalendarView({
           leavePromise,
         ]);
         setYearTotals(totals.days);
-        setGroups([]);
+        setPersonDays([]);
         setLeave(leaveRows.filter((request) => request.status !== 'RESPINS'));
       } else {
-        const [groupRows, leaveRows] = await Promise.all([
-          loadAllPages((page, pageSize) =>
-            listTimesheetDayGroups({ page, pageSize, period, ...(search ? { search } : {}) }),
-          ),
+        const [calendarDays, leaveRows] = await Promise.all([
+          getTimesheetCalendarDays({ period, ...(search ? { search } : {}) }),
           leavePromise,
         ]);
-        setGroups(groupRows);
+        setPersonDays(calendarDays.days);
         setYearTotals([]);
         setLeave(leaveRows.filter((request) => request.status !== 'RESPINS'));
       }
@@ -142,6 +149,33 @@ export function TimesheetCalendarView({
     void load();
   }, [load, refreshToken]);
 
+  // The panel edits whole entries, so the day is loaded in full only now.
+  const openDay = useCallback(
+    async (day: TimesheetCalendarDayDto) => {
+      const key = `${day.person.id}:${day.workDate}`;
+      setOpeningKey(key);
+      try {
+        const response = await listTimesheetDayGroups({
+          personId: day.person.id,
+          period: { kind: 'custom', from: day.workDate, to: day.workDate },
+          pageSize: 1,
+        });
+        const group = response.data[0];
+        if (group) {
+          onOpenDay(group);
+        } else {
+          showToast('Pontajul acestei zile nu mai există.', 'error');
+          void load();
+        }
+      } catch (caught) {
+        showToast(apiErrorToastMessage(caught), 'error');
+      } finally {
+        setOpeningKey(null);
+      }
+    },
+    [onOpenDay, showToast, load],
+  );
+
   const visibleLeave = useMemo(
     () => leave.filter((request) => matchesSearch(request.person, search)),
     [leave, search],
@@ -150,16 +184,22 @@ export function TimesheetCalendarView({
   const itemsByDay = useMemo(() => {
     const byDay = new Map<string, (CalendarItem & { sortKey: string })[]>();
 
-    for (const group of groups) {
-      const key = workDateToDayKey(group.workDate);
-      const items = byDay.get(key) ?? [];
+    for (const day of personDays) {
+      const items = byDay.get(day.workDate) ?? [];
+      const chipKey = `${day.person.id}:${day.workDate}`;
       items.push({
-        key: `day-${group.id}`,
-        sortKey: personSortKey(group.person),
-        color: group.activityTotals[0]?.activityColor ?? PONTAJ_COLOR,
-        node: <TimesheetDayChip group={group} onOpen={onOpenDay} />,
+        key: `day-${chipKey}`,
+        sortKey: personSortKey(day.person),
+        color: day.activityColor ?? PONTAJ_COLOR,
+        node: (
+          <TimesheetDayChip
+            day={day}
+            opening={openingKey === chipKey}
+            onOpen={(target) => void openDay(target)}
+          />
+        ),
       });
-      byDay.set(key, items);
+      byDay.set(day.workDate, items);
     }
 
     for (const [key, leaveItems] of leaveItemsByDay(visibleLeave, days, onOpenLeave)) {
@@ -171,7 +211,7 @@ export function TimesheetCalendarView({
       items.sort((a, b) => a.sortKey.localeCompare(b.sortKey, 'ro'));
     }
     return byDay;
-  }, [groups, visibleLeave, days, onOpenDay, onOpenLeave]);
+  }, [personDays, visibleLeave, days, openingKey, openDay, onOpenLeave]);
 
   /** People who logged and minutes, per day — from the groups, or the year's totals. */
   const totalsByDay = useMemo(() => {
@@ -179,16 +219,15 @@ export function TimesheetCalendarView({
     for (const day of yearTotals) {
       totals.set(day.date, { people: day.people, minutes: day.minutes });
     }
-    for (const group of groups) {
-      const key = workDateToDayKey(group.workDate);
-      const current = totals.get(key) ?? { people: 0, minutes: 0 };
-      totals.set(key, {
+    for (const day of personDays) {
+      const current = totals.get(day.workDate) ?? { people: 0, minutes: 0 };
+      totals.set(day.workDate, {
         people: current.people + 1,
-        minutes: current.minutes + group.totalMinutes,
+        minutes: current.minutes + day.totalMinutes,
       });
     }
     return totals;
-  }, [groups, yearTotals]);
+  }, [personDays, yearTotals]);
 
   const leaveCountByDay = useMemo(() => {
     const counts = new Map<string, number>();

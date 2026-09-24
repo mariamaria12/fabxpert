@@ -113,6 +113,10 @@
       "types": "./dist/assemblyProgress.d.ts",
       "default": "./dist/assemblyProgress.js"
     },
+    "./progressCalibration": {
+      "types": "./dist/progressCalibration.d.ts",
+      "default": "./dist/progressCalibration.js"
+    },
     "./steelProfile": {
       "types": "./dist/steelProfile.d.ts",
       "default": "./dist/steelProfile.js"

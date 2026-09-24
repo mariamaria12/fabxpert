@@ -14,6 +14,7 @@ import type {
   DashboardMetricsResponse,
   TimesheetDayGroupDto,
   TimesheetDailyTotalsResponse,
+  TimesheetCalendarDaysResponse,
   TimesheetAssemblyInput,
   TimesheetDto,
   TimesheetGroupSortBy,
@@ -55,6 +56,7 @@ import {
   type ProjectSummaryAssemblyTotalSqlRow,
   type ProjectSummarySqlRow,
 } from './timesheet-project-summary.util';
+import { loadProjectProgress } from '../assembly/project-progress.util';
 import {
   buildPersonSummaryAssemblyQuery,
   buildPersonSummaryQuery,
@@ -385,6 +387,83 @@ export class TimesheetService {
   }
 
   /**
+   * The calendar's person-days: one aggregate by person, day and activity,
+   * then names and colours in two small lookups. No entries are loaded.
+   */
+  async calendarDays(filters: TimesheetListFilters): Promise<TimesheetCalendarDaysResponse> {
+    const rows = await this.prisma.timesheet.groupBy({
+      by: ['personId', 'workDate', 'activityId'],
+      where: this.buildListWhere(filters),
+      _sum: { durationMinutes: true },
+      _count: { _all: true },
+    });
+
+    const byPersonDay = new Map<
+      string,
+      {
+        personId: string;
+        workDate: string;
+        totalMinutes: number;
+        entryCount: number;
+        topActivityId: string | null;
+        topMinutes: number;
+      }
+    >();
+    for (const row of rows) {
+      const workDate = workDateToDayKey(row.workDate);
+      const key = `${row.personId}:${workDate}`;
+      const minutes = row._sum.durationMinutes ?? 0;
+      const day = byPersonDay.get(key) ?? {
+        personId: row.personId,
+        workDate,
+        totalMinutes: 0,
+        entryCount: 0,
+        topActivityId: null,
+        topMinutes: -1,
+      };
+      day.totalMinutes += minutes;
+      day.entryCount += row._count._all;
+      if (minutes > day.topMinutes) {
+        day.topMinutes = minutes;
+        day.topActivityId = row.activityId;
+      }
+      byPersonDay.set(key, day);
+    }
+
+    const days = [...byPersonDay.values()];
+    const activityIds = [
+      ...new Set(days.map((day) => day.topActivityId).filter((id): id is string => id !== null)),
+    ];
+    const [personNames, activities] = await Promise.all([
+      this.getPersonNames(days.map((day) => day.personId)),
+      activityIds.length > 0
+        ? this.prisma.activity.findMany({
+            where: { id: { in: activityIds } },
+            select: { id: true, color: true },
+          })
+        : Promise.resolve([]),
+    ]);
+    const colorByActivity = new Map(activities.map((activity) => [activity.id, activity.color]));
+
+    return {
+      days: days
+        .filter((day) => personNames.has(day.personId))
+        .map((day) => {
+          const names = personNames.get(day.personId)!;
+          return {
+            person: { id: day.personId, firstName: names.firstName, lastName: names.lastName },
+            workDate: day.workDate,
+            totalMinutes: day.totalMinutes,
+            entryCount: day.entryCount,
+            activityColor: day.topActivityId
+              ? (colorByActivity.get(day.topActivityId) ?? null)
+              : null,
+          };
+        }),
+    };
+  }
+
+  /**
    * The Pontaje list: one row per person per day. Pagination counts days, so the
    * aggregate runs first and only the current page's entries are then loaded.
    */
@@ -535,6 +614,7 @@ export class TimesheetService {
     }
 
     const projectIds = summary.projects.map((project) => project.id);
+    const progress = await loadProjectProgress(this.prisma, projectIds);
     const projectsWithMeta = await this.prisma.project.findMany({
       where: {
         id: { in: projectIds },
@@ -567,6 +647,7 @@ export class TimesheetService {
           ...project,
           readyForExecution: meta?.readyForExecution ?? false,
           visibleForRoles: meta?.visibleForRoles ?? [],
+          progressPercent: progress.get(project.id) ?? null,
         };
       }),
     };

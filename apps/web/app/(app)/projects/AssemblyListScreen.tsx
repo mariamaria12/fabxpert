@@ -838,6 +838,28 @@ export function AssemblyListScreen({
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-1">
+              {/* On phones the footer sits under the keyboard while a field is
+                  being edited, so the edit actions move up here. */}
+              {tab !== 'overwrite' && editing && !logging && (
+                <div className="flex items-center gap-1 sm:hidden">
+                  <button
+                    type="button"
+                    disabled={isBusy}
+                    onClick={cancelEditing}
+                    className="rounded-md border border-border px-2.5 py-1.5 text-xs text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Anulează
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => void handleSave()}
+                    className="rounded-md bg-accent px-2.5 py-1.5 text-xs font-medium text-accent-contrast disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isSaving ? 'Se salvează…' : 'Salvează'}
+                  </button>
+                </div>
+              )}
               {isProgress && !editing && !logging && (
                 <>
                   <button
@@ -1188,7 +1210,11 @@ export function AssemblyListScreen({
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2 border-t border-border-subtle px-6 py-4">
+          <div
+            className={`flex-wrap gap-2 border-t border-border-subtle px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] ${
+              tab !== 'overwrite' && editing ? 'hidden sm:flex' : 'flex'
+            }`}
+          >
             {tab !== 'overwrite' && editing ? (
               <>
                 <button

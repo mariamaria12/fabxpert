@@ -183,6 +183,7 @@ export function PinnedProjectCard({
       }
       timeline={timeline}
       totalMinutes={project.totalMinutes}
+      progressPercent={project.progressPercent}
       expanded={expanded}
       onToggle={onToggle}
       leadingSlot={

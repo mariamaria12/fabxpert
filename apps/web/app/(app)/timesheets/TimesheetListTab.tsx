@@ -162,15 +162,20 @@ export function TimesheetListTab() {
     }
   }, [page, debouncedSearch, period, sortBy, sortOrder]);
 
+  // The calendar loads its own data; the table is fetched only while shown.
   useEffect(() => {
-    void loadTimesheets();
-  }, [loadTimesheets]);
+    if (view === 'table') {
+      void loadTimesheets();
+    }
+  }, [loadTimesheets, view]);
 
   async function refreshAll() {
     setRefreshing(true);
     setCalendarToken((token) => token + 1);
     try {
-      await loadTimesheets();
+      if (view === 'table') {
+        await loadTimesheets();
+      }
       setLastUpdated(new Date());
     } finally {
       setRefreshing(false);
@@ -202,7 +207,9 @@ export function TimesheetListTab() {
   // Editing an entry can move it to another day or change the day's totals, so
   // the grouped page is always refetched rather than patched in place.
   function handleSaved() {
-    void loadTimesheets();
+    if (view === 'table') {
+      void loadTimesheets();
+    }
     setCalendarToken((token) => token + 1);
   }
 

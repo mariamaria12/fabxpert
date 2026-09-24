@@ -3,6 +3,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuthUser } from '@/context/AuthUserContext';
 
+function readStored<T extends string>(storageKey: string | null, allowed: readonly T[]): T | null {
+  if (!storageKey || typeof window === 'undefined') {
+    return null;
+  }
+  try {
+    const stored = window.localStorage.getItem(storageKey);
+    return stored && (allowed as readonly string[]).includes(stored) ? (stored as T) : null;
+  } catch {
+    // Storage blocked: the default view is fine.
+    return null;
+  }
+}
+
 /**
  * A screen's chosen view (table, calendar…), remembered per user like the
  * column preferences. Falls back to `defaultView` when nothing valid is stored
@@ -15,19 +28,17 @@ export function useViewPreference<T extends string>(
 ): [T, (next: T) => void] {
   const user = useAuthUser();
   const storageKey = user?.id ? `view:${user.id}:${viewId}` : null;
-  const [view, setViewState] = useState<T>(defaultView);
+  // Read up front, so a screen does not load its default view first and then
+  // load again once the stored one arrives.
+  const [view, setViewState] = useState<T>(() => readStored(storageKey, allowed) ?? defaultView);
 
   useEffect(() => {
     if (!storageKey) {
       return;
     }
-    try {
-      const stored = window.localStorage.getItem(storageKey);
-      if (stored && (allowed as readonly string[]).includes(stored)) {
-        setViewState(stored as T);
-      }
-    } catch {
-      // Storage blocked: the default view is fine.
+    const stored = readStored(storageKey, allowed);
+    if (stored) {
+      setViewState(stored);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);

@@ -2,6 +2,7 @@
 
 import type { ProjectStatus } from '@fabxpert/shared';
 import {
+  formatProjectProgress,
   getProjectStatusBadgeClassName,
   getProjectStatusLabel,
 } from '@fabxpert/shared';
@@ -30,6 +31,7 @@ export function PanouProjectCard({
   metaContent,
   timeline,
   totalMinutes,
+  progressPercent = null,
   expanded,
   onToggle,
   onTitleClick,
@@ -56,6 +58,8 @@ export function PanouProjectCard({
   metaContent?: ReactNode;
   timeline?: PanouProjectCardTimeline | null;
   totalMinutes: number;
+  /** Shown instead of the logged total when the project has an assembly list. */
+  progressPercent?: number | null;
   expanded: boolean;
   onToggle: () => void;
   /** Defaults to `onToggle`. Use for opening edit while keeping expand on hours/chevron. */
@@ -83,9 +87,13 @@ export function PanouProjectCard({
         className="text-right transition-colors hover:opacity-90"
       >
         <span className="block font-mono text-xs font-medium tabular-nums text-text-primary">
-          {formatDurationMinutes(totalMinutes)}
+          {progressPercent !== null
+            ? formatProjectProgress(progressPercent)
+            : formatDurationMinutes(totalMinutes)}
         </span>
-        <span className="block text-[10px] text-text-muted">total logat</span>
+        <span className="block text-[10px] text-text-muted">
+          {progressPercent !== null ? 'progres' : 'total logat'}
+        </span>
       </button>
       <button
         type="button"

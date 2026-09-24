@@ -71,3 +71,43 @@ export function assemblyListWeight(
 
   return { weightKg: weighed > 0 ? weightKg : null, withoutWeight };
 }
+
+/** Kilograms one piece counts for in the progress base. A missing weight counts only the fixed part. */
+export function assemblyEquivalentWeight(weightPerPiece: number | null, fixedWeightKg: number): number {
+  return (weightPerPiece ?? 0) + fixedWeightKg;
+}
+
+export type ProjectProgressInput = {
+  /** Equivalent kilograms closed per tracked activity id. */
+  doneEquivalentKgByActivity: Record<string, number>;
+  /** Equivalent kilograms the list holds — what each activity has to close. */
+  totalEquivalentKg: number;
+  /** Share per tracked activity id, summing to 1 (see sharesForActivities). */
+  activityShares: Record<string, number>;
+};
+
+/**
+ * How far the project is, 0–100: each tracked activity closes the whole list,
+ * weighted by its share. Null when there is no list or nothing is tracked.
+ */
+export function projectProgressPercent({
+  doneEquivalentKgByActivity,
+  totalEquivalentKg,
+  activityShares,
+}: ProjectProgressInput): number | null {
+  const activityIds = Object.keys(activityShares);
+  if (totalEquivalentKg <= 0 || activityIds.length === 0) {
+    return null;
+  }
+  const done = activityIds.reduce(
+    (total, id) =>
+      total + activityShares[id] * Math.min(1, (doneEquivalentKgByActivity[id] ?? 0) / totalEquivalentKg),
+    0,
+  );
+  return Math.min(100, Math.max(0, done * 100));
+}
+
+/** Rounded down, so a project is never shown as done before it is. */
+export function formatProjectProgress(percent: number): string {
+  return `${Math.floor(percent)}%`;
+}

@@ -445,6 +445,31 @@ model OvertimeCorrection {
 }
 
 // ---------------------------------------------------------------------------
+// ProgressCalibration
+// The figures the project progress formula runs on, worked out from delivered
+// projects. A row is added whenever a project is delivered or taken back; the
+// latest one is read, the older ones are the history of how the formula moved.
+// ---------------------------------------------------------------------------
+
+model ProgressCalibration {
+  id                      String   @id @default(uuid())
+  /// Kilograms each piece counts for on top of its own weight.
+  fixedWeightKg           Float
+  /// False when there were too few delivered projects and the default was used.
+  fixedWeightFromData     Boolean
+  /// Share of the progress per activity id, summing to 1.
+  activityWeights         Json
+  activityWeightsFromData Boolean
+  /// Delivered projects the figures came from, and those left out as outliers.
+  projectCount            Int
+  excludedProjectCount    Int
+  createdAt               DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("progress_calibrations")
+}
+
+// ---------------------------------------------------------------------------
 // AccountingExport
 // One row per month whose pontaj document was generated for accounting. The
 // month reads as closed while the row exists — generating again refreshes the

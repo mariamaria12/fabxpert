@@ -26,6 +26,7 @@ import {
 } from '@/components/ProjectNameCell';
 import { FinisajBadge } from '@/components/FinisajBadge';
 import { ProjectAssemblyCountCell } from './ProjectAssemblyCountCell';
+import { ProjectProgressCell } from './ProjectProgressCell';
 import { Pagination } from '@/components/Pagination';
 import { FiltersToggle } from '@/components/FiltersToggle';
 import { ProjectListFilters } from '@/components/ProjectListFilters';
@@ -187,6 +188,12 @@ export default function ProjectsPage() {
         className: 'overflow-hidden text-text-secondary',
         render: (row) =>
           row.finisaj ? <FinisajBadge value={row.finisaj} /> : nullableCell(null),
+      },
+      {
+        key: 'progress',
+        header: 'Progres',
+        width: '130px',
+        render: (row) => <ProjectProgressCell progressPercent={row.progressPercent} />,
       },
       {
         key: 'weight',
