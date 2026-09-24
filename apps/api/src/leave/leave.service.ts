@@ -59,6 +59,9 @@ export interface LeaveRequestListFilters {
   status?: LeaveStatus;
   type?: LeaveType;
   personId?: string;
+  /** Only requests overlapping these calendar days, both inclusive. */
+  from?: Date;
+  to?: Date;
 }
 
 function toLeaveDateString(date: Date): string {
@@ -537,6 +540,8 @@ export class LeaveService {
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.type ? { type: filters.type } : {}),
       ...(filters.personId ? { personId: filters.personId } : {}),
+      ...(filters.to ? { startDate: { lte: filters.to } } : {}),
+      ...(filters.from ? { endDate: { gte: filters.from } } : {}),
     };
   }
 

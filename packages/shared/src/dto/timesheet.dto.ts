@@ -127,6 +127,19 @@ export type TimesheetDayGroupDto = {
   activityTotals: TimesheetDayGroupActivityDto[];
 };
 
+/** What was logged on one day, over everyone — the year view of the calendar. */
+export type TimesheetDailyTotalDto = {
+  /** `YYYY-MM-DD`. */
+  date: string;
+  /** People who logged time that day. */
+  people: number;
+  minutes: number;
+};
+
+export type TimesheetDailyTotalsResponse = {
+  days: TimesheetDailyTotalDto[];
+};
+
 export const TIMESHEET_GROUP_SORT_BY_VALUES = [
   'date',
   'person',

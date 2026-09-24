@@ -19,6 +19,9 @@ export type ListLeaveRequestsParams = {
   status?: LeaveStatus;
   type?: LeaveType;
   personId?: string;
+  /** Only requests overlapping `from`..`to` (`YYYY-MM-DD`, both inclusive). */
+  from?: string;
+  to?: string;
   page?: number;
   pageSize?: number;
 };
@@ -36,6 +39,12 @@ function buildListQuery(params?: ListLeaveRequestsParams): string {
   }
   if (params.personId !== undefined) {
     searchParams.set('personId', params.personId);
+  }
+  if (params.from !== undefined) {
+    searchParams.set('from', params.from);
+  }
+  if (params.to !== undefined) {
+    searchParams.set('to', params.to);
   }
   if (params.page !== undefined) {
     searchParams.set('page', String(params.page));

@@ -3,6 +3,7 @@
 import {
   listActivities,
   listTimesheetDayGroups,
+  type LeaveRequestDto,
   type Period,
   type TimesheetDayGroupDto,
   type TimesheetDto,
@@ -22,6 +23,15 @@ import {
 } from './timesheetFormat';
 import { WorkDateText } from './WorkDateText';
 import { TimesheetDayGroupPanel } from './TimesheetDayGroupPanel';
+import { TimesheetCalendarView } from './TimesheetCalendarView';
+import { LeaveFormPanel } from '../concedii/LeaveFormPanel';
+import { LeaveReviewPanel } from '../concedii/LeaveReviewPanel';
+import {
+  TABLE_CALENDAR_VIEW_IDS,
+  TABLE_CALENDAR_VIEWS,
+  ViewToggle,
+} from '@/components/ViewToggle';
+import { useViewPreference } from '@/hooks/useViewPreference';
 import { PanouActivityProgressBar } from '@/app/(app)/panou/PanouActivityProgressBar';
 import { PersonName } from '@/components/PersonAvatar';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
@@ -85,6 +95,11 @@ export function TimesheetListTab() {
   const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [view, setView] = useViewPreference('timesheets', TABLE_CALENDAR_VIEW_IDS, 'table');
+  // Bumped after any change, so the calendar reloads the month it shows.
+  const [calendarToken, setCalendarToken] = useState(0);
+  const [leaveReview, setLeaveReview] = useState<LeaveRequestDto | null>(null);
+  const [leaveEdit, setLeaveEdit] = useState<LeaveRequestDto | null>(null);
   /** Which activities ask for assemblies — an entry without any then says so. */
   const [assemblyActivityIds, setAssemblyActivityIds] = useState<Set<string>>(new Set());
 
@@ -153,6 +168,7 @@ export function TimesheetListTab() {
 
   async function refreshAll() {
     setRefreshing(true);
+    setCalendarToken((token) => token + 1);
     try {
       await loadTimesheets();
       setLastUpdated(new Date());
@@ -187,6 +203,7 @@ export function TimesheetListTab() {
   // the grouped page is always refetched rather than patched in place.
   function handleSaved() {
     void loadTimesheets();
+    setCalendarToken((token) => token + 1);
   }
 
   const tableEmptyMessage = hasActiveFilters
@@ -461,7 +478,8 @@ export function TimesheetListTab() {
       )}
 
       <div className="mt-4 space-y-4">
-        <PeriodFilter value={period} onChange={setPeriod} />
+        {/* The calendar walks month by month on its own. */}
+        {view === 'table' ? <PeriodFilter value={period} onChange={setPeriod} /> : null}
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-[14rem] max-w-md flex-1">
@@ -475,9 +493,20 @@ export function TimesheetListTab() {
               {...businessAutofill}
             />
           </div>
+          <ViewToggle options={TABLE_CALENDAR_VIEWS} value={view} onChange={setView} />
         </div>
       </div>
 
+      {view === 'calendar' ? (
+        <div className="mt-6">
+          <TimesheetCalendarView
+            search={debouncedSearch}
+            refreshToken={calendarToken}
+            onOpenDay={openDayGroup}
+            onOpenLeave={setLeaveReview}
+          />
+        </div>
+      ) : (
       <div className="mt-6">
         <DataTable
           storageKey="timesheets-day-groups"
@@ -495,6 +524,34 @@ export function TimesheetListTab() {
           <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
         )}
       </div>
+      )}
+
+      {leaveReview && (
+        <LeaveReviewPanel
+          open
+          request={leaveReview}
+          onClose={() => setLeaveReview(null)}
+          onReviewed={() => {
+            setLeaveReview(null);
+            setCalendarToken((token) => token + 1);
+          }}
+          onEdit={(request) => {
+            setLeaveReview(null);
+            setLeaveEdit(request);
+          }}
+        />
+      )}
+
+      {leaveEdit && (
+        <LeaveFormPanel
+          open
+          mode="edit"
+          request={leaveEdit}
+          onClose={() => setLeaveEdit(null)}
+          onSaved={() => setCalendarToken((token) => token + 1)}
+          onDeleted={() => setCalendarToken((token) => token + 1)}
+        />
+      )}
 
       {panel.open && (
         <TimesheetFormPanel

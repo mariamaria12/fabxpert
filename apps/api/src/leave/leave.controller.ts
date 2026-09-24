@@ -25,6 +25,7 @@ import {
   type UpdateLeaveRequestInput,
   type ReviewLeaveRequestInput,
 } from '@fabxpert/shared/dto/leave.dto';
+import { parseWorkDateString } from '@fabxpert/shared/workDate';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { parsePagination } from '../common/pagination/parse-pagination.util';
@@ -41,10 +42,24 @@ const uuidQuerySchema = z
     'Invalid UUID format',
   );
 
+const dayQuerySchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .transform((value, context) => {
+    try {
+      return parseWorkDateString(value);
+    } catch {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid date' });
+      return z.NEVER;
+    }
+  });
+
 const listFiltersSchema = z.object({
   status: z.enum(LEAVE_STATUS_VALUES).optional(),
   type: z.enum(LEAVE_TYPE_VALUES).optional(),
   personId: uuidQuerySchema.optional(),
+  from: dayQuerySchema.optional(),
+  to: dayQuerySchema.optional(),
 });
 
 function parseListFilters(query: Record<string, string>): LeaveRequestListFilters {
@@ -52,6 +67,8 @@ function parseListFilters(query: Record<string, string>): LeaveRequestListFilter
     status: query.status,
     type: query.type,
     personId: query.personId,
+    from: query.from,
+    to: query.to,
   });
   return result.success ? { ...result.data } : {};
 }

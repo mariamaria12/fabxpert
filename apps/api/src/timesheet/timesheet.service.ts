@@ -13,6 +13,7 @@ import type {
   NotLoggedResponse,
   DashboardMetricsResponse,
   TimesheetDayGroupDto,
+  TimesheetDailyTotalsResponse,
   TimesheetAssemblyInput,
   TimesheetDto,
   TimesheetGroupSortBy,
@@ -20,7 +21,11 @@ import type {
   UpdateTimesheetInput,
 } from '@fabxpert/shared/dto/timesheet.dto';
 import type { SortOrder } from '@fabxpert/shared/dto/project.dto';
-import { parseWorkDateString, todayWorkDate } from '@fabxpert/shared/workDate';
+import {
+  parseWorkDateString,
+  todayWorkDate,
+  workDateToDayKey,
+} from '@fabxpert/shared/workDate';
 import { dayGroupKey, shapeDayGroup } from './timesheet-day-group.util';
 import type { ResolvedSummaryPeriod } from './timesheet-summary-period.util';
 import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
@@ -348,6 +353,34 @@ export class TimesheetService {
     return {
       data: rows.map(toTimesheetDto),
       meta: { page, pageSize, total, totalPages },
+    };
+  }
+
+  /** Per day, how many people logged time and how much — no entries loaded. */
+  async dailyTotals(filters: TimesheetListFilters): Promise<TimesheetDailyTotalsResponse> {
+    const groups = await this.prisma.timesheet.groupBy({
+      by: ['personId', 'workDate'],
+      where: this.buildListWhere(filters),
+      _sum: { durationMinutes: true },
+    });
+
+    const byDay = new Map<string, { people: number; minutes: number }>();
+    for (const group of groups) {
+      const minutes = group._sum.durationMinutes ?? 0;
+      if (minutes <= 0) {
+        continue;
+      }
+      const key = workDateToDayKey(group.workDate);
+      const day = byDay.get(key) ?? { people: 0, minutes: 0 };
+      day.people += 1;
+      day.minutes += minutes;
+      byDay.set(key, day);
+    }
+
+    return {
+      days: [...byDay.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, day]) => ({ date, ...day })),
     };
   }
 

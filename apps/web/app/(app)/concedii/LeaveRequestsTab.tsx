@@ -10,6 +10,7 @@ import {
   type LeaveType,
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { LeaveCalendarView } from './LeaveCalendarView';
 import { LeaveFormPanel } from './LeaveFormPanel';
 import { LeaveReviewPanel } from './LeaveReviewPanel';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
@@ -20,9 +21,15 @@ import {
   FILTER_CHIP_TOGGLE_CLASS,
 } from '@/components/filterChipStyles';
 import { PersonName } from '@/components/PersonAvatar';
+import {
+  TABLE_CALENDAR_VIEW_IDS,
+  TABLE_CALENDAR_VIEWS,
+  ViewToggle,
+} from '@/components/ViewToggle';
 import { useLeavePendingCount } from '@/context/LeavePendingCountContext';
 import { useToast } from '@/context/ToastContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { useViewPreference } from '@/hooks/useViewPreference';
 import { loadAllPages } from '@/utils/loadAllPages';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { removeById, replaceById } from '@/utils/replaceById';
@@ -80,7 +87,7 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
   const { refreshPendingCount } = useLeavePendingCount();
   const isMobile = useIsMobile();
   const [showAllStatuses, setShowAllStatuses] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('IN_ASTEPTARE');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [typeFilter, setTypeFilter] = useState<LeaveType | null>(null);
   const [personId, setPersonId] = useState<string | null>(null);
   const [personOptions, setPersonOptions] = useState<{ id: string; label: string }[]>([]);
@@ -92,6 +99,9 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
   const [panel, setPanel] = useState<PanelState>({ open: false });
   const [editRequest, setEditRequest] = useState<LeaveRequestDto | null>(null);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [view, setView] = useViewPreference('leave-requests', TABLE_CALENDAR_VIEW_IDS, 'table');
+  // Bumped after any change, so the calendar reloads the month it shows.
+  const [calendarToken, setCalendarToken] = useState(0);
 
   useEffect(() => {
     void loadAllPages((targetPage, pageSize) => listPersons({ page: targetPage, pageSize }))
@@ -178,6 +188,7 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
       setTotal((current) => Math.max(0, current - 1));
     }
 
+    setCalendarToken((token) => token + 1);
     void refreshPendingCount();
     onBalancesRefresh?.();
   }
@@ -195,6 +206,7 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
   // page is reloaded instead of patched in place.
   function handleEdited() {
     void loadRequests(page, statusFilter, typeFilter, personId);
+    setCalendarToken((token) => token + 1);
     void refreshPendingCount();
     onBalancesRefresh?.();
   }
@@ -202,6 +214,7 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
   function handleDeleted(deletedId: string) {
     setRequests((current) => removeById(current, deletedId).items);
     setTotal((current) => Math.max(0, current - 1));
+    setCalendarToken((token) => token + 1);
     void refreshPendingCount();
     onBalancesRefresh?.();
   }
@@ -370,6 +383,13 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
   return (
     <div>
       <div className="flex flex-wrap items-center gap-1.5">
+        <ViewToggle
+          options={TABLE_CALENDAR_VIEWS}
+          value={view}
+          onChange={setView}
+          className="order-last ml-auto"
+        />
+
         {visibleStatusFilters.map((filter) => {
           const selected = statusFilter === filter.id;
 
@@ -426,7 +446,7 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
         />
       </div>
 
-      {error ? (
+      {view === 'table' && error ? (
         <div className="mt-4 flex items-center justify-between gap-4 rounded-md border border-border-subtle bg-[var(--color-toast-error-bg)] px-4 py-3">
           <p className="text-sm text-danger">{error}</p>
           <button
@@ -439,25 +459,37 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
         </div>
       ) : null}
 
-      <div className="mt-6">
-        <DataTable
-          storageKey="leave-requests-list"
-          columns={columns}
-          data={requests}
-          rowKey={(row) => row.id}
-          loading={loading}
-          emptyMessage={emptyMessageForFilter(statusFilter)}
-          onRowClick={loading ? undefined : openReview}
-        />
-        {!loading && total > 0 ? (
-          <Pagination
-            page={page}
-            pageSize={PAGE_SIZE}
-            total={total}
-            onPageChange={setPage}
+      {view === 'calendar' ? (
+        <div className="mt-6">
+          <LeaveCalendarView
+            status={statusFilter === 'ALL' ? null : statusFilter}
+            type={typeFilter}
+            personId={personId}
+            refreshToken={refreshToken + calendarToken}
+            onOpen={openReview}
           />
-        ) : null}
-      </div>
+        </div>
+      ) : (
+        <div className="mt-6">
+          <DataTable
+            storageKey="leave-requests-list"
+            columns={columns}
+            data={requests}
+            rowKey={(row) => row.id}
+            loading={loading}
+            emptyMessage={emptyMessageForFilter(statusFilter)}
+            onRowClick={loading ? undefined : openReview}
+          />
+          {!loading && total > 0 ? (
+            <Pagination
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={total}
+              onPageChange={setPage}
+            />
+          ) : null}
+        </div>
+      )}
 
       {panel.open ? (
         <LeaveReviewPanel

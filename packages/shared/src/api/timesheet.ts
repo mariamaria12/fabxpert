@@ -6,6 +6,7 @@ import type {
   PersonSummaryResponse,
   ProjectSummaryResponse,
   TimesheetDayGroupDto,
+  TimesheetDailyTotalsResponse,
   TimesheetDto,
   TimesheetGroupSortBy,
   TimesheetListSortBy,
@@ -150,6 +151,18 @@ export function listTimesheetDayGroups(params: ListTimesheetDayGroupsParams = {}
   const query = searchParams.toString();
   return request<PaginatedResponse<TimesheetDayGroupDto>>(
     `/timesheets/grouped${query ? `?${query}` : ''}`,
+  );
+}
+
+/** Admin only. Per day, how many people logged time and how much, over `period`. */
+export function getTimesheetDailyTotals(params: { period: Period; search?: string }) {
+  const searchParams = new URLSearchParams();
+  appendPeriodQuery(searchParams, params.period);
+  if (params.search?.trim()) {
+    searchParams.set('search', params.search.trim());
+  }
+  return request<TimesheetDailyTotalsResponse>(
+    `/timesheets/daily-totals?${searchParams.toString()}`,
   );
 }
 
