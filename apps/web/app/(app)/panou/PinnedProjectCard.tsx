@@ -7,6 +7,7 @@ import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { FinisajBadge } from '@/components/FinisajBadge';
+import { ProjectComplexityBadge } from '@/components/ProjectComplexityBadge';
 import { AssemblyListScreen } from '@/app/(app)/projects/AssemblyListScreen';
 import { ActivityBreakdownRows } from './ActivityBreakdownRows';
 import { NEUTRAL_ACCENT, panouAccentTint } from './panouColors';
@@ -163,7 +164,12 @@ export function PinnedProjectCard({
       title={project.code}
       status={project.status}
       titleSubline={project.denumireLucrare}
-      infoContent={<FinisajBadge value={project.finisaj} />}
+      infoContent={
+        <span className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
+          <FinisajBadge value={project.finisaj} />
+          <ProjectComplexityBadge piecesPerTon={project.piecesPerTon} />
+        </span>
+      }
       sideActions={
         project.assemblyCount > 0 ? (
           <PinnedProjectAssembliesButton

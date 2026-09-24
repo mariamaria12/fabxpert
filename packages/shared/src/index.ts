@@ -561,6 +561,12 @@ export type {
   ProgressCalibrationSample,
   ProgressCalibrationResult,
 } from './progressCalibration';
+export {
+  PROJECT_COMPLEXITY_LEVELS,
+  projectComplexityLevel,
+  formatProjectComplexity,
+} from './projectComplexity';
+export type { ProjectComplexityLevel } from './projectComplexity';
 export { normalizeProfileKey, toProfileKey } from './steelProfile';
 export { parseTsvRows } from './tsv';
 export type { TimesheetAssemblyDto, TimesheetAssemblyInput } from './dto/timesheet.dto';

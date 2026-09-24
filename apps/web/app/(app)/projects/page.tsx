@@ -25,6 +25,7 @@ import {
   TruncatedTableCell,
 } from '@/components/ProjectNameCell';
 import { FinisajBadge } from '@/components/FinisajBadge';
+import { ProjectComplexityBadge } from '@/components/ProjectComplexityBadge';
 import { ProjectAssemblyCountCell } from './ProjectAssemblyCountCell';
 import { ProjectProgressCell } from './ProjectProgressCell';
 import { Pagination } from '@/components/Pagination';
@@ -37,6 +38,7 @@ import { STATUS_FILTER_OPTIONS } from '@/utils/projectStatusFilter';
 import { replaceById } from '@/utils/replaceById';
 import { formatProjectEstimatedHours } from '@/utils/projectEstimatedHours';
 import { formatProjectWeight } from '@/utils/projectWeight';
+import { formatProjectWeldLength } from '@/utils/projectWeldLength';
 import { ProjectVisibleForCell } from '../panou/panouProjectVisibility';
 
 const PAGE_SIZE = 20;
@@ -203,6 +205,29 @@ export default function ProjectsPage() {
         className: 'text-right tabular-nums text-text-secondary',
         render: (row) =>
           row.weight === null ? nullableCell(null) : formatProjectWeight(row.weight),
+      },
+      {
+        key: 'piecesPerTon',
+        header: 'Complexitate',
+        sortKey: 'piecesPerTon',
+        width: '160px',
+        render: (row) =>
+          row.piecesPerTon === null ? (
+            nullableCell(null)
+          ) : (
+            <ProjectComplexityBadge piecesPerTon={row.piecesPerTon} showValue />
+          ),
+      },
+      {
+        key: 'weldLengthMeters',
+        header: 'Sudură',
+        sortKey: 'weldLengthMeters',
+        width: '110px',
+        className: 'text-right tabular-nums text-text-secondary',
+        render: (row) =>
+          row.weldLengthMeters === null
+            ? nullableCell(null)
+            : formatProjectWeldLength(row.weldLengthMeters),
       },
       {
         key: 'estimatedHours',

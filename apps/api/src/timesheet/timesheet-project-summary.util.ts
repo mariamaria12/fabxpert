@@ -517,6 +517,7 @@ export function shapePinnedProjectsSummary(
         visibleForRoles: [],
         assemblyCount: assemblyIndex?.assemblyCountByProject.get(row.projectId) ?? 0,
         progressPercent: null,
+        piecesPerTon: null,
         totalMinutes: 0,
         activities: [],
       };

@@ -623,6 +623,7 @@ export class TimesheetService {
         select: {
           id: true,
           readyForExecution: true,
+          piecesPerTon: true,
           visibleForRoles: {
             select: { id: true, name: true },
             orderBy: { name: 'asc' },
@@ -637,6 +638,7 @@ export class TimesheetService {
         project.id,
         {
           readyForExecution: project.readyForExecution,
+          piecesPerTon: project.piecesPerTon,
           visibleForRoles: project.visibleForRoles,
         },
       ]),
@@ -650,6 +652,7 @@ export class TimesheetService {
           readyForExecution: meta?.readyForExecution ?? false,
           visibleForRoles: meta?.visibleForRoles ?? [],
           progressPercent: progress.get(project.id) ?? null,
+          piecesPerTon: meta?.piecesPerTon ?? null,
         };
       }),
     };

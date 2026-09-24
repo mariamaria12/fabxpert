@@ -243,6 +243,8 @@ export type PinnedProjectSummaryRow = {
   assemblyCount: number;
   /** Progress on the assembly list, 0–100 (see projectProgressPercent). Null without a list. */
   progressPercent: number | null;
+  /** Parts per ton typed in on the project — the card's complexity class. */
+  piecesPerTon: number | null;
   totalMinutes: number;
   activities: ProjectSummaryActivityRow[];
 };

@@ -47,6 +47,9 @@ import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { equalsSearchText } from '@/utils/searchText';
 import { parseEstimatedHoursInput } from '@/utils/projectEstimatedHours';
 import { parseWeightInput, weightKgToInput } from '@/utils/projectWeight';
+import { parseDecimalInput } from '@/utils/decimalInput';
+import { formatComplexityScale } from '@/utils/projectComplexity';
+import { ProjectComplexityBadge } from '@/components/ProjectComplexityBadge';
 import {
   getProjectFormCompanies,
   getProjectFormEmployeeRoles,
@@ -63,6 +66,10 @@ interface ProjectFormValues {
   weight: string;
   /** Kept as raw input text; parsed to a number on submit. */
   estimatedHours: string;
+  /** Kept as raw input text; parsed to a number on submit. */
+  piecesPerTon: string;
+  /** Kept as raw input text; parsed to a number on submit. */
+  weldLengthMeters: string;
   notes: string;
   code: string;
   companyId: string;
@@ -80,6 +87,8 @@ const EMPTY_FORM: ProjectFormValues = {
   finisaj: '',
   weight: '',
   estimatedHours: '',
+  piecesPerTon: '',
+  weldLengthMeters: '',
   notes: '',
   code: '',
   companyId: '',
@@ -98,6 +107,8 @@ function projectToFormValues(project: ProjectDto): ProjectFormValues {
     finisaj: project.finisaj ?? '',
     weight: weightKgToInput(project.weight),
     estimatedHours: project.estimatedHours === null ? '' : String(project.estimatedHours),
+    piecesPerTon: project.piecesPerTon === null ? '' : String(project.piecesPerTon),
+    weldLengthMeters: project.weldLengthMeters === null ? '' : String(project.weldLengthMeters),
     notes: project.notes ?? '',
     code: project.code,
     companyId: project.companyId,
@@ -112,6 +123,9 @@ function projectToFormValues(project: ProjectDto): ProjectFormValues {
 
 const WEIGHT_ERROR_MESSAGE = 'Greutatea trebuie să fie un număr pozitiv.';
 const ESTIMATED_HOURS_ERROR_MESSAGE = 'Orele estimate trebuie să fie un număr pozitiv.';
+const PIECES_PER_TON_ERROR_MESSAGE = 'Piesele pe tonă trebuie să fie un număr pozitiv.';
+const WELD_LENGTH_ERROR_MESSAGE = 'Metrii de sudură trebuie să fie un număr pozitiv.';
+const COMPLEXITY_SCALE_TEXT = formatComplexityScale();
 
 function mapApiFormError(message: string): string {
   if (message === 'A project with this code already exists') {
@@ -150,6 +164,12 @@ function mapZodFieldErrors(error: {
   if (flat.estimatedHours?.[0]) {
     mapped.estimatedHours = ESTIMATED_HOURS_ERROR_MESSAGE;
   }
+  if (flat.piecesPerTon?.[0]) {
+    mapped.piecesPerTon = PIECES_PER_TON_ERROR_MESSAGE;
+  }
+  if (flat.weldLengthMeters?.[0]) {
+    mapped.weldLengthMeters = WELD_LENGTH_ERROR_MESSAGE;
+  }
 
   return mapped;
 }
@@ -178,22 +198,34 @@ function mapApiValidationErrors(
     if (error.path === 'estimatedHours' && !mapped.estimatedHours) {
       mapped.estimatedHours = ESTIMATED_HOURS_ERROR_MESSAGE;
     }
+    if (error.path === 'piecesPerTon' && !mapped.piecesPerTon) {
+      mapped.piecesPerTon = PIECES_PER_TON_ERROR_MESSAGE;
+    }
+    if (error.path === 'weldLengthMeters' && !mapped.weldLengthMeters) {
+      mapped.weldLengthMeters = WELD_LENGTH_ERROR_MESSAGE;
+    }
   }
 
   return mapped;
 }
 
-function buildCreatePayload(
-  values: ProjectFormValues,
-  weight: number | null,
-  estimatedHours: number | null,
-) {
+/** The number fields, already parsed from what was typed. */
+type ProjectFormNumbers = {
+  weight: number | null;
+  estimatedHours: number | null;
+  piecesPerTon: number | null;
+  weldLengthMeters: number | null;
+};
+
+function buildCreatePayload(values: ProjectFormValues, numbers: ProjectFormNumbers) {
   return {
     name: values.name,
     denumireLucrare: values.denumireLucrare.trim() || null,
     finisaj: values.finisaj.trim() || null,
-    weight,
-    estimatedHours,
+    weight: numbers.weight,
+    estimatedHours: numbers.estimatedHours,
+    piecesPerTon: numbers.piecesPerTon,
+    weldLengthMeters: numbers.weldLengthMeters,
     notes: values.notes.trim() || null,
     code: values.code,
     companyId: values.companyId,
@@ -206,17 +238,15 @@ function buildCreatePayload(
   };
 }
 
-function buildUpdatePayload(
-  values: ProjectFormValues,
-  weight: number | null,
-  estimatedHours: number | null,
-) {
+function buildUpdatePayload(values: ProjectFormValues, numbers: ProjectFormNumbers) {
   return {
     name: values.name,
     denumireLucrare: values.denumireLucrare.trim() || null,
     finisaj: values.finisaj.trim() || null,
-    weight,
-    estimatedHours,
+    weight: numbers.weight,
+    estimatedHours: numbers.estimatedHours,
+    piecesPerTon: numbers.piecesPerTon,
+    weldLengthMeters: numbers.weldLengthMeters,
     notes: values.notes.trim() || null,
     code: values.code,
     companyId: values.companyId,
@@ -292,6 +322,7 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
   const weightFieldValue = pendingListWeight
     ? weightKgToInput(pendingListWeight.weightKg)
     : values.weight;
+  const typedPiecesPerTon = parseDecimalInput(values.piecesPerTon);
 
   useEffect(() => {
     if (!open) {
@@ -602,9 +633,28 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
       return;
     }
 
+    const piecesPerTon = parseDecimalInput(values.piecesPerTon);
+    if (!piecesPerTon.ok) {
+      setFieldErrors({ piecesPerTon: PIECES_PER_TON_ERROR_MESSAGE });
+      return;
+    }
+
+    const weldLengthMeters = parseDecimalInput(values.weldLengthMeters);
+    if (!weldLengthMeters.ok) {
+      setFieldErrors({ weldLengthMeters: WELD_LENGTH_ERROR_MESSAGE });
+      return;
+    }
+
+    const numbers: ProjectFormNumbers = {
+      weight: weight.value,
+      estimatedHours: estimatedHours.value,
+      piecesPerTon: piecesPerTon.value,
+      weldLengthMeters: weldLengthMeters.value,
+    };
+
     if (mode === 'create') {
       const parsed = createProjectSchema.safeParse(
-        buildCreatePayload(values, weight.value, estimatedHours.value),
+        buildCreatePayload(values, numbers),
       );
       if (!parsed.success) {
         setFieldErrors(mapZodFieldErrors(parsed.error));
@@ -641,7 +691,7 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
     }
 
     const parsed = updateProjectSchema.safeParse(
-      buildUpdatePayload(values, weight.value, estimatedHours.value),
+      buildUpdatePayload(values, numbers),
     );
     if (!parsed.success) {
       setFieldErrors(mapZodFieldErrors(parsed.error));
@@ -946,6 +996,38 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
             </p>
           )}
         </div>
+
+        <div>
+          <TextField
+            id="piecesPerTon"
+            label="Complexitate (piese/t)"
+            placeholder="120"
+            inputMode="decimal"
+            value={values.piecesPerTon}
+            error={fieldErrors.piecesPerTon}
+            disabled={isBusy}
+            onChange={(value) => updateField('piecesPerTon', value)}
+          />
+          {!fieldErrors.piecesPerTon && (
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-muted">
+              {typedPiecesPerTon.ok && (
+                <ProjectComplexityBadge piecesPerTon={typedPiecesPerTon.value} />
+              )}
+              <span>{COMPLEXITY_SCALE_TEXT}</span>
+            </p>
+          )}
+        </div>
+
+        <TextField
+          id="weldLengthMeters"
+          label="Sudură (m liniari)"
+          placeholder="850"
+          inputMode="decimal"
+          value={values.weldLengthMeters}
+          error={fieldErrors.weldLengthMeters}
+          disabled={isBusy}
+          onChange={(value) => updateField('weldLengthMeters', value)}
+        />
 
         <TextField
           id="estimatedHours"

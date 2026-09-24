@@ -198,6 +198,8 @@ function toProjectDto(
     finisaj: project.finisaj,
     weight: project.weight,
     estimatedHours: project.estimatedHours,
+    piecesPerTon: project.piecesPerTon,
+    weldLengthMeters: project.weldLengthMeters,
     notes: project.notes,
     code: project.code,
     status: project.status,
@@ -240,6 +242,10 @@ function buildProjectOrderBy(
       return [{ weight: { sort: sortOrder, nulls: 'last' } }, tiebreaker];
     case 'estimatedHours':
       return [{ estimatedHours: { sort: sortOrder, nulls: 'last' } }, tiebreaker];
+    case 'piecesPerTon':
+      return [{ piecesPerTon: { sort: sortOrder, nulls: 'last' } }, tiebreaker];
+    case 'weldLengthMeters':
+      return [{ weldLengthMeters: { sort: sortOrder, nulls: 'last' } }, tiebreaker];
     case 'code':
       return [{ code: sortOrder }, tiebreaker];
     case 'company':

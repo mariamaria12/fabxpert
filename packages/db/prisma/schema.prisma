@@ -245,6 +245,11 @@ model Project {
   weight            Float?
   /// Estimated hours of work for the project; null until filled in.
   estimatedHours    Float?
+  /// Parts per ton, typed in by hand — the project's complexity class (C1–C4).
+  /// Not derived from the assembly list: the list counts assemblies, not parts.
+  piecesPerTon      Float?
+  /// Linear meters of weld, typed in by hand when someone has measured them.
+  weldLengthMeters  Float?
   /// Free-text admin notes about the project.
   notes             String?
   /// Derived in Postgres (GENERATED ALWAYS AS ... STORED) from `status`: rank for the

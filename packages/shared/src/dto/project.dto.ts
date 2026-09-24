@@ -19,6 +19,8 @@ export const PROJECT_LIST_SORT_BY_VALUES = [
   'finisaj',
   'weight',
   'estimatedHours',
+  'piecesPerTon',
+  'weldLengthMeters',
   'code',
   'company',
   'startDate',
@@ -87,12 +89,34 @@ const estimatedHoursSchema = z.union([
   z.null(),
 ]);
 
+/** Parts per ton — the complexity class; empty is stored as null so "not filled in" stays a single state. */
+const piecesPerTonSchema = z.union([
+  z
+    .number()
+    .finite('Pieces per ton must be a number')
+    .nonnegative('Pieces per ton cannot be negative')
+    .max(1_000_000, 'Pieces per ton must be at most 1000000'),
+  z.null(),
+]);
+
+/** Linear meters of weld; empty is stored as null so "not measured" stays a single state. */
+const weldLengthMetersSchema = z.union([
+  z
+    .number()
+    .finite('Weld length must be a number')
+    .nonnegative('Weld length cannot be negative')
+    .max(1_000_000, 'Weld length must be at most 1000000 m'),
+  z.null(),
+]);
+
 export const createProjectSchema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
   denumireLucrare: denumireLucrareSchema.optional(),
   finisaj: finisajSchema.optional(),
   weight: weightSchema.optional(),
   estimatedHours: estimatedHoursSchema.optional(),
+  piecesPerTon: piecesPerTonSchema.optional(),
+  weldLengthMeters: weldLengthMetersSchema.optional(),
   notes: notesSchema.optional(),
   code: z.string().trim().min(1, 'Code is required'),
   companyId: companyIdSchema,
@@ -147,6 +171,13 @@ export type ProjectDto = {
   weight: number | null;
   /** Estimated work hours; null until filled in. */
   estimatedHours: number | null;
+  /**
+   * Parts per ton, typed in by hand; its class is projectComplexityLevel.
+   * Null until filled in.
+   */
+  piecesPerTon: number | null;
+  /** Linear meters of weld, typed in by hand; null until someone measures them. */
+  weldLengthMeters: number | null;
   /** Free-text admin notes; null when empty. */
   notes: string | null;
   code: string;
