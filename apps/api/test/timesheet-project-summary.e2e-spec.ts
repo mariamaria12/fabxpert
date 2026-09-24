@@ -91,7 +91,7 @@ describe('Timesheet project summary (e2e)', () => {
     );
 
     expect(readyProject.totalMinutes).toBe(210);
-    expect(readyProject.status).toBe('CIORNA');
+    expect(readyProject.status).toBe('IN_PREGATIRE');
     expect(finalizedProject.totalMinutes).toBe(60);
     expect(finalizedProject.status).toBe('FINALIZAT');
 
@@ -111,13 +111,13 @@ describe('Timesheet project summary (e2e)', () => {
     await request(app.getHttpServer())
       .patch(`/projects/${FIXTURES.projects.roleRestricted.id}`)
       .set(authHeader(adminCookie))
-      .send({ status: 'LIVRAT' })
+      .send({ status: 'FINALIZAT' })
       .expect(200);
 
     await request(app.getHttpServer())
       .patch(`/projects/${FIXTURES.projects.notReady.id}`)
       .set(authHeader(adminCookie))
-      .send({ status: 'ANULAT' })
+      .send({ status: 'SUSPENDAT' })
       .expect(200);
 
     await request(app.getHttpServer())
@@ -159,12 +159,12 @@ describe('Timesheet project summary (e2e)', () => {
 
     expect(deliveredProject).toMatchObject({
       id: FIXTURES.projects.roleRestricted.id,
-      status: 'LIVRAT',
+      status: 'FINALIZAT',
       totalMinutes: 45,
     });
     expect(cancelledProject).toMatchObject({
       id: FIXTURES.projects.notReady.id,
-      status: 'ANULAT',
+      status: 'SUSPENDAT',
       totalMinutes: 90,
     });
   });

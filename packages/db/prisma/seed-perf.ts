@@ -134,7 +134,7 @@ async function seedProjects() {
     let dueDate = addDays(startDate, 20 + (index % 60));
 
     // ~15 overdue in-progress projects
-    if (index % 7 === 0 && !['FINALIZAT', 'ANULAT', 'LIVRAT'].includes(status)) {
+    if (index % 7 === 0 && !['FINALIZAT', 'SUSPENDAT'].includes(status)) {
       dueDate = daysAgo(3 + (index % 20));
     }
 

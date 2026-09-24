@@ -194,7 +194,7 @@ export function ActivityNormsView() {
               sub="ore pe tonă"
             />
             <Kpi label="Proiecte în bază" value={String(report.projectCount)} />
-            <Kpi label="Tone livrate" value={`${tonsFormat.format(report.totalTons)} t`} />
+            <Kpi label="Tone finalizate" value={`${tonsFormat.format(report.totalTons)} t`} />
             <Kpi label="Ore lucrate" value={formatHours(report.totalWorkedMinutes)} />
           </div>
 
@@ -204,7 +204,7 @@ export function ActivityNormsView() {
           >
             {report.activities.length === 0 ? (
               <EmptyHint>
-                Niciun proiect livrat cu greutate și ore pontate în intervalul ales.
+                Niciun proiect finalizat cu greutate și ore pontate în intervalul ales.
               </EmptyHint>
             ) : (
               <>
@@ -238,8 +238,8 @@ export function ActivityNormsView() {
                       {' '}
                       {report.skippedWithoutWeight}{' '}
                       {report.skippedWithoutWeight === 1
-                        ? 'proiect livrat nu are greutate și a rămas pe dinafară'
-                        : 'proiecte livrate nu au greutate și au rămas pe dinafară'}
+                        ? 'proiect finalizat nu are greutate și a rămas pe dinafară'
+                        : 'proiecte finalizate nu au greutate și au rămas pe dinafară'}
                       .
                     </>
                   )}

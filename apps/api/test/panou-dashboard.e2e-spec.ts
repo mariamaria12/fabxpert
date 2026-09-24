@@ -326,7 +326,7 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
     await request(app.getHttpServer())
       .patch(`/projects/${FIXTURES.projects.roleRestricted.id}`)
       .set(authHeader(adminCookie))
-      .send({ status: 'LIVRAT' })
+      .send({ status: 'FINALIZAT' })
       .expect(200);
 
     await request(app.getHttpServer())
@@ -352,7 +352,7 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
     );
     expect(deliveredProject).toMatchObject({
       id: FIXTURES.projects.roleRestricted.id,
-      status: 'LIVRAT',
+      status: 'FINALIZAT',
       totalMinutes: 45,
     });
 
@@ -369,7 +369,7 @@ describe('Panou dashboard metrics and summaries (e2e)', () => {
       employee1Row.activities.some(
         (activity: { projectId: string; projectStatus: string; minutes: number }) =>
           activity.projectId === FIXTURES.projects.roleRestricted.id &&
-          activity.projectStatus === 'LIVRAT' &&
+          activity.projectStatus === 'FINALIZAT' &&
           activity.minutes === 45,
       ),
     ).toBe(true);

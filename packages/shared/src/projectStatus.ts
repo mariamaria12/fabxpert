@@ -8,33 +8,13 @@ export type ProjectStatusMeta = {
 
 /** Romanian labels and token-based badge classes for each ProjectStatus value. */
 export const PROJECT_STATUS_META: Record<ProjectStatus, ProjectStatusMeta> = {
-  CIORNA: {
-    label: 'Ciornă',
-    badgeClassName: 'border border-status-ciorna-border bg-status-ciorna-bg text-status-ciorna-text',
-  },
-  IN_OFERTARE: {
-    label: 'În ofertare',
-    badgeClassName: 'border border-status-in-ofertare-border bg-status-in-ofertare-bg text-status-in-ofertare-text',
-  },
-  CASTIGAT: {
-    label: 'Câștigat',
-    badgeClassName: 'border border-status-castigat-border bg-status-castigat-bg text-status-castigat-text',
-  },
-  IN_PROIECTARE: {
-    label: 'În proiectare',
-    badgeClassName: 'border border-status-in-proiectare-border bg-status-in-proiectare-bg text-status-in-proiectare-text',
+  IN_PREGATIRE: {
+    label: 'În pregătire',
+    badgeClassName: 'border border-status-in-pregatire-border bg-status-in-pregatire-bg text-status-in-pregatire-text',
   },
   IN_PRODUCTIE: {
     label: 'În producție',
     badgeClassName: 'border border-status-in-productie-border bg-status-in-productie-bg text-status-in-productie-text',
-  },
-  PREGATIT_LIVRARE: {
-    label: 'Pregătit livrare',
-    badgeClassName: 'border border-status-pregatit-livrare-border bg-status-pregatit-livrare-bg text-status-pregatit-livrare-text',
-  },
-  LIVRAT: {
-    label: 'Livrat',
-    badgeClassName: 'border border-status-livrat-border bg-status-livrat-bg text-status-livrat-text',
   },
   FINALIZAT: {
     label: 'Finalizat',
@@ -44,42 +24,37 @@ export const PROJECT_STATUS_META: Record<ProjectStatus, ProjectStatusMeta> = {
     label: 'Suspendat',
     badgeClassName: 'border border-status-suspendat-border bg-status-suspendat-bg text-status-suspendat-text',
   },
-  ANULAT: {
-    label: 'Anulat',
-    badgeClassName: 'border border-status-anulat-border bg-status-anulat-bg text-status-anulat-text',
-  },
 };
 
-/** Statuses where an overdue due date is no longer highlighted. */
+/**
+ * Statuses where an overdue due date is no longer highlighted: finished work,
+ * and work stopped on purpose — a suspended project is not late.
+ */
 export const PROJECT_TERMINAL_STATUSES: readonly ProjectStatus[] = [
-  'LIVRAT',
   'FINALIZAT',
-  'ANULAT',
+  'SUSPENDAT',
 ] as const;
 
 /**
  * Statuses that count as finished work, and the ones the Rapoarte analytics
  * cover. `completedAt` is stamped when a project enters this set and cleared
- * when it leaves; reaching FINALIZAT always rewrites it, because that is the
- * date the work was actually finished. Shipping is an external step that can
- * sit for days, so a LIVRAT date is only a stand-in until then.
- *
- * ANULAT is terminal but not finished: cancelled work was never completed.
+ * when it leaves.
  */
-export const PROJECT_COMPLETED_STATUSES: readonly ProjectStatus[] = [
-  'FINALIZAT',
-  'LIVRAT',
-] as const;
+export const PROJECT_COMPLETED_STATUSES: readonly ProjectStatus[] = ['FINALIZAT'] as const;
 
 /**
- * Work in the shop right now — what the "ore vs. piese" report watches. The
- * quotation and draft stages are left out: nothing is being built yet, so
- * there is no physical progress to compare hours against.
+ * Work in the shop right now — what the "ore vs. piese" report watches.
+ * Preparation is left out: nothing is being built yet, so there is no
+ * physical progress to compare hours against.
  */
-export const PROJECT_ACTIVE_STATUSES: readonly ProjectStatus[] = [
-  'IN_PROIECTARE',
-  'IN_PRODUCTIE',
-  'PREGATIT_LIVRARE',
+export const PROJECT_ACTIVE_STATUSES: readonly ProjectStatus[] = ['IN_PRODUCTIE'] as const;
+
+/**
+ * Statuses left out of the Panou "Proiecte în curs" section. Suspended projects
+ * stay in it on purpose.
+ */
+export const PROJECT_IN_PROGRESS_EXCLUDED_STATUSES: readonly ProjectStatus[] = [
+  'FINALIZAT',
 ] as const;
 
 export function isProjectCompletedStatus(status: ProjectStatus): boolean {

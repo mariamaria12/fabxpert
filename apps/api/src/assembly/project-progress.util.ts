@@ -12,6 +12,14 @@ type Db = PrismaClient | Prisma.TransactionClient;
 /** How far back delivered projects are read when the formula is recalibrated. */
 const CALIBRATION_WINDOW_MONTHS = 24;
 
+/**
+ * The stored figures only change when a project is delivered, so they are kept
+ * in memory instead of read on every list. The time limit is a safety net for
+ * a second API instance that did not run the recalibration itself.
+ */
+const CALIBRATION_CACHE_MS = 10 * 60 * 1000;
+let cachedCalibration: { value: StoredProgressCalibration; loadedAt: number } | null = null;
+
 const completedStatuses = Prisma.join(
   PROJECT_COMPLETED_STATUSES.map((status) => Prisma.sql`${status}::"ProjectStatus"`),
 );
@@ -91,6 +99,7 @@ export async function recalibrateProjectProgress(db: Db): Promise<StoredProgress
   }));
   const result = computeProgressCalibration(samples, activityIds);
 
+  const stored = { fixedWeightKg: result.fixedWeightKg, activityWeights: result.activityWeights };
   await db.progressCalibration.create({
     data: {
       fixedWeightKg: result.fixedWeightKg,
@@ -102,11 +111,15 @@ export async function recalibrateProjectProgress(db: Db): Promise<StoredProgress
     },
   });
 
-  return { fixedWeightKg: result.fixedWeightKg, activityWeights: result.activityWeights };
+  cachedCalibration = { value: stored, loadedAt: Date.now() };
+  return stored;
 }
 
 /** The latest stored figures; the first read on an empty table works them out once. */
 async function loadProgressCalibration(db: Db): Promise<StoredProgressCalibration> {
+  if (cachedCalibration && Date.now() - cachedCalibration.loadedAt < CALIBRATION_CACHE_MS) {
+    return cachedCalibration.value;
+  }
   const latest = await db.progressCalibration.findFirst({
     orderBy: { createdAt: 'desc' },
     select: { fixedWeightKg: true, activityWeights: true },
@@ -114,14 +127,17 @@ async function loadProgressCalibration(db: Db): Promise<StoredProgressCalibratio
   if (!latest) {
     return recalibrateProjectProgress(db);
   }
-  return {
+  const value = {
     fixedWeightKg: latest.fixedWeightKg,
     activityWeights: latest.activityWeights as Record<string, number>,
   };
+  cachedCalibration = { value, loadedAt: Date.now() };
+  return value;
 }
 
 type ProjectProgressSqlRow = {
-  projectId: string;
+  /** Null on the rows that only name a tracked activity. */
+  projectId: string | null;
   /** Null on the row that only carries the list total. */
   activityId: string | null;
   equivalentKg: number | null;
@@ -144,10 +160,7 @@ export async function loadProjectProgress(
     return progress;
   }
 
-  const [calibration, activityIds] = await Promise.all([
-    loadProgressCalibration(db),
-    trackedActivityIds(db),
-  ]);
+  const calibration = await loadProgressCalibration(db);
   const fixedWeightKg = calibration.fixedWeightKg;
 
   const rows = await db.$queryRaw<ProjectProgressSqlRow[]>(Prisma.sql`
@@ -155,26 +168,33 @@ export async function loadProjectProgress(
       SELECT id FROM activities
       WHERE "tracksAssemblies" AND "isActive" AND "deletedAt" IS NULL
     ),
-    done AS (
-      SELECT src."assemblyId", src."activityId", SUM(src.quantity) AS quantity
-      FROM (
-        SELECT ta."assemblyId", ta."activityId", ta."quantityDone" AS quantity
-        FROM timesheet_assemblies ta
-        INNER JOIN timesheets t ON t.id = ta."timesheetId" AND t."deletedAt" IS NULL
-        UNION ALL
-        SELECT amp."assemblyId", amp."activityId", amp."quantityDone" AS quantity
-        FROM assembly_manual_progress amp
-      ) src
-      INNER JOIN tracked a ON a.id = src."activityId"
-      GROUP BY src."assemblyId", src."activityId"
-    ),
     list AS (
       SELECT pa.id, pa."projectId", pa.quantity,
         COALESCE(pa."weightPerPiece", 0) + ${fixedWeightKg} AS "pieceKg"
       FROM project_assemblies pa
       WHERE pa."deletedAt" IS NULL
         AND pa."projectId" IN (${Prisma.join(projectIds)})
+    ),
+    -- Read only the assemblies on this page's lists, not the whole table.
+    done AS (
+      SELECT src."assemblyId", src."activityId", SUM(src.quantity) AS quantity
+      FROM (
+        SELECT ta."assemblyId", ta."activityId", ta."quantityDone" AS quantity
+        FROM timesheet_assemblies ta
+        INNER JOIN list ON list.id = ta."assemblyId"
+        INNER JOIN timesheets t ON t.id = ta."timesheetId" AND t."deletedAt" IS NULL
+        UNION ALL
+        SELECT amp."assemblyId", amp."activityId", amp."quantityDone" AS quantity
+        FROM assembly_manual_progress amp
+        INNER JOIN list ON list.id = amp."assemblyId"
+      ) src
+      INNER JOIN tracked a ON a.id = src."activityId"
+      GROUP BY src."assemblyId", src."activityId"
     )
+    -- The tracked activities ride along, so the shares need no second trip.
+    SELECT NULL AS "projectId", tracked.id AS "activityId", NULL::float AS "equivalentKg"
+    FROM tracked
+    UNION ALL
     SELECT list."projectId", NULL AS "activityId",
       SUM(list.quantity * list."pieceKg")::float AS "equivalentKg"
     FROM list
@@ -187,9 +207,16 @@ export async function loadProjectProgress(
     GROUP BY list."projectId", done."activityId"
   `);
 
+  const activityIds: string[] = [];
   const totals = new Map<string, number>();
   const doneByProject = new Map<string, Record<string, number>>();
   for (const row of rows) {
+    if (row.projectId === null) {
+      if (row.activityId !== null) {
+        activityIds.push(row.activityId);
+      }
+      continue;
+    }
     if (row.activityId === null) {
       totals.set(row.projectId, row.equivalentKg ?? 0);
       continue;

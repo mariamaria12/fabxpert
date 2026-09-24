@@ -90,6 +90,11 @@ const config: Config = {
             text: 'var(--status-ciorna-text)',
             border: 'var(--status-ciorna-border)',
           },
+          'in-pregatire': {
+            bg: 'var(--status-in-pregatire-bg)',
+            text: 'var(--status-in-pregatire-text)',
+            border: 'var(--status-in-pregatire-border)',
+          },
           'in-ofertare': {
             bg: 'var(--status-in-ofertare-bg)',
             text: 'var(--status-in-ofertare-text)',

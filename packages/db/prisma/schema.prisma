@@ -27,16 +27,10 @@ enum Role {
 }
 
 enum ProjectStatus {
-  CIORNA // Draft
-  IN_OFERTARE // Quotation
-  CASTIGAT // Awarded
-  IN_PROIECTARE // Engineering
+  IN_PREGATIRE // Preparation — the default for a new project
   IN_PRODUCTIE // In Production
-  PREGATIT_LIVRARE // Ready for Delivery
-  LIVRAT // Delivered
   FINALIZAT // Completed
   SUSPENDAT // On Hold
-  ANULAT // Cancelled
 }
 
 enum LeaveType {
@@ -255,20 +249,18 @@ model Project {
   notes             String?
   /// Derived in Postgres (GENERATED ALWAYS AS ... STORED) from `status`: rank for the
   /// default list order — IN_PRODUCTIE first, FINALIZAT last. Never write it from the app;
-  /// keep the generation expression when editing this column (see the 20260811230000 migration).
+  /// keep the generation expression when editing this column (see the 20260924200000 migration).
   /// `dbgenerated()` is what keeps Prisma from putting the column in INSERTs — Postgres
   /// rejects any explicit value for a generated column (SQLSTATE 428C9). The expression
   /// below mirrors how Prisma introspects the column, so the schema stays drift-free.
-  statusRank        Int           @default(dbgenerated("\nCASE status\n    WHEN 'IN_PRODUCTIE'::\"ProjectStatus\" THEN 0\n    WHEN 'CIORNA'::\"ProjectStatus\" THEN 1\n    WHEN 'IN_OFERTARE'::\"ProjectStatus\" THEN 2\n    WHEN 'CASTIGAT'::\"ProjectStatus\" THEN 3\n    WHEN 'IN_PROIECTARE'::\"ProjectStatus\" THEN 4\n    WHEN 'PREGATIT_LIVRARE'::\"ProjectStatus\" THEN 5\n    WHEN 'LIVRAT'::\"ProjectStatus\" THEN 6\n    WHEN 'SUSPENDAT'::\"ProjectStatus\" THEN 7\n    WHEN 'ANULAT'::\"ProjectStatus\" THEN 8\n    WHEN 'FINALIZAT'::\"ProjectStatus\" THEN 9\n    ELSE 99\nEND"))
+  statusRank        Int           @default(dbgenerated("\nCASE status\n    WHEN 'IN_PRODUCTIE'::\"ProjectStatus\" THEN 0\n    WHEN 'IN_PREGATIRE'::\"ProjectStatus\" THEN 1\n    WHEN 'SUSPENDAT'::\"ProjectStatus\" THEN 2\n    WHEN 'FINALIZAT'::\"ProjectStatus\" THEN 3\n    ELSE 99\nEND"))
   code              String        @unique
-  status            ProjectStatus @default(CIORNA)
+  status            ProjectStatus @default(IN_PREGATIRE)
   startDate         DateTime?
   dueDate           DateTime?
-  /// Set when the project enters LIVRAT or FINALIZAT, and cleared if it leaves
-  /// both. Reaching FINALIZAT always rewrites it — that is the date the work
-  /// was finished, while a LIVRAT date only stands in until then. Backfilled
-  /// once from `updatedAt`. Drives the Rapoarte analytics: a project is in an
-  /// interval when `completedAt` falls inside it.
+  /// Set when the project enters FINALIZAT, and cleared if it leaves it.
+  /// Backfilled once from `updatedAt`. Drives the Rapoarte analytics: a project
+  /// is in an interval when `completedAt` falls inside it.
   completedAt       DateTime?
   readyForExecution Boolean       @default(false)
   isPinned          Boolean       @default(false)

@@ -117,6 +117,9 @@
   --status-ciorna-bg: #1e293b;
   --status-ciorna-text: #cbd5e1;
   --status-ciorna-border: #334155;
+  --status-in-pregatire-bg: var(--status-ciorna-bg);
+  --status-in-pregatire-text: var(--status-ciorna-text);
+  --status-in-pregatire-border: var(--status-ciorna-border);
   --status-in-ofertare-bg: #083344;
   --status-in-ofertare-text: #67e8f9;
   --status-in-ofertare-border: #155e75;
@@ -259,6 +262,9 @@
   --status-ciorna-bg: #f1f5f9;
   --status-ciorna-text: #475569;
   --status-ciorna-border: #e2e8f0;
+  --status-in-pregatire-bg: var(--status-ciorna-bg);
+  --status-in-pregatire-text: var(--status-ciorna-text);
+  --status-in-pregatire-border: var(--status-ciorna-border);
   --status-in-ofertare-bg: #ecfeff;
   --status-in-ofertare-text: #155e75;
   --status-in-ofertare-border: #a5f3fc;

@@ -1,4 +1,5 @@
 import {
+  PROJECT_IN_PROGRESS_EXCLUDED_STATUSES,
   PROJECT_STATUS_META,
   PROJECT_STATUS_VALUES,
   type ProjectStatus,
@@ -24,7 +25,7 @@ export const STATUS_FILTER_OPTIONS: SearchableSelectOption[] = PROJECT_STATUS_VA
 );
 
 /** Statuses excluded from Panou "Proiecte în curs" (matches API statusGroup=in_progress). */
-const IN_PROGRESS_EXCLUDED = new Set<ProjectStatus>(['FINALIZAT', 'ANULAT']);
+const IN_PROGRESS_EXCLUDED = new Set<ProjectStatus>(PROJECT_IN_PROGRESS_EXCLUDED_STATUSES);
 
 export const IN_PROGRESS_STATUS_FILTER_OPTIONS: SearchableSelectOption[] =
   STATUS_FILTER_OPTIONS.filter((option) => !IN_PROGRESS_EXCLUDED.has(option.id as ProjectStatus));

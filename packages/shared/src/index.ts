@@ -163,6 +163,7 @@ export {
   PROJECT_TERMINAL_STATUSES,
   PROJECT_COMPLETED_STATUSES,
   PROJECT_ACTIVE_STATUSES,
+  PROJECT_IN_PROGRESS_EXCLUDED_STATUSES,
   isProjectCompletedStatus,
   formatProjectDueDate,
   getProjectStatusBadgeClassName,

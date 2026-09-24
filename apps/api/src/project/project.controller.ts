@@ -17,6 +17,7 @@ import {
   createProjectSchema,
   updateProjectSchema,
   PROJECT_LIST_SORT_BY_VALUES,
+  PROJECT_STATUS_VALUES,
   type CreateProjectInput,
   type UpdateProjectInput,
 } from '@fabxpert/shared/dto/project.dto';
@@ -35,18 +36,7 @@ import { ProjectService } from './project.service';
 
 const idParamSchema = z.string().trim().min(1);
 const statusGroupSchema = z.enum(['in_progress', 'completed']);
-const statusSchema = z.enum([
-  'CIORNA',
-  'IN_OFERTARE',
-  'CASTIGAT',
-  'IN_PROIECTARE',
-  'IN_PRODUCTIE',
-  'PREGATIT_LIVRARE',
-  'LIVRAT',
-  'FINALIZAT',
-  'SUSPENDAT',
-  'ANULAT',
-]);
+const statusSchema = z.enum(PROJECT_STATUS_VALUES);
 const roleIdSchema = z
   .string()
   .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);

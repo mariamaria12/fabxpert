@@ -139,7 +139,7 @@ export function buildProjectSummaryQuery(
 
   const periodFilter = buildPeriodFilter(from, toDate);
 
-  // All non-deleted project statuses are included (incl. LIVRAT, FINALIZAT, ANULAT).
+  // All non-deleted project statuses are included (incl. FINALIZAT and SUSPENDAT).
   return Prisma.sql`
     SELECT
       p.id AS "projectId",

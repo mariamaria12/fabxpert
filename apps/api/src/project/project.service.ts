@@ -16,7 +16,10 @@ import type {
   UpdateProjectInput,
 } from '@fabxpert/shared/dto/project.dto';
 import { pickRandomProjectColor } from '@fabxpert/shared/projectColor';
-import { isProjectCompletedStatus } from '@fabxpert/shared/projectStatus';
+import {
+  isProjectCompletedStatus,
+  PROJECT_IN_PROGRESS_EXCLUDED_STATUSES,
+} from '@fabxpert/shared/projectStatus';
 import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
 import { PaginationParams } from '../common/pagination/parse-pagination.util';
 import { notDeleted } from '../common/prisma/soft-delete.util';
@@ -64,7 +67,7 @@ const projectInclude = {
 type ProjectWithRelations = Prisma.ProjectGetPayload<{ include: typeof projectInclude }>;
 type ProjectListRow = Prisma.ProjectGetPayload<{ include: typeof projectCompanyInclude }>;
 
-const IN_PROGRESS_EXCLUDED_STATUSES: ProjectStatus[] = ['FINALIZAT', 'ANULAT'];
+const IN_PROGRESS_EXCLUDED_STATUSES: ProjectStatus[] = [...PROJECT_IN_PROGRESS_EXCLUDED_STATUSES];
 
 function pushAndClause(
   where: Prisma.ProjectWhereInput,
@@ -504,21 +507,14 @@ export class ProjectService {
       panouColumn = null;
     }
 
-    // Track the completion date across status transitions.
-    //
-    // FINALIZAT is the authoritative date: shipping is an external step that
-    // can sit for days, so the day the truck left says little about when the
-    // work was actually done. A project that only reached LIVRAT still gets a
-    // date — otherwise it would fall outside every reporting interval — but
-    // that one is provisional and is rewritten the moment it is finalized.
+    // Track the completion date across status transitions: stamped on entering
+    // FINALIZAT, cleared on leaving it.
     const nextStatus = scalarInput.status ?? existing.status;
     const wasCompleted = isProjectCompletedStatus(existing.status);
     const isCompleted = isProjectCompletedStatus(nextStatus);
-    const enteringCompleted = isCompleted && !wasCompleted;
-    const enteringFinalized = nextStatus === 'FINALIZAT' && existing.status !== 'FINALIZAT';
 
     let completedAt: Date | null | undefined;
-    if (enteringCompleted || enteringFinalized) {
+    if (isCompleted && !wasCompleted) {
       completedAt = new Date();
     } else if (!isCompleted && wasCompleted) {
       completedAt = null;

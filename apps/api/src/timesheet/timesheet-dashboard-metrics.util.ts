@@ -38,7 +38,7 @@ export async function queryDashboardMetrics(
       SELECT COUNT(*)::int AS count
       FROM projects p
       WHERE p."deletedAt" IS NULL
-        AND p.status NOT IN ('FINALIZAT', 'ANULAT')
+        AND p.status <> 'FINALIZAT'
     `,
     prisma.$queryRaw<MinutesRow[]>`
       SELECT COALESCE(SUM(t."durationMinutes"), 0)::int AS minutes

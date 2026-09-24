@@ -1,16 +1,10 @@
 import { z } from 'zod';
 
 export const PROJECT_STATUS_VALUES = [
-  'CIORNA',
-  'IN_OFERTARE',
-  'CASTIGAT',
-  'IN_PROIECTARE',
+  'IN_PREGATIRE',
   'IN_PRODUCTIE',
-  'PREGATIT_LIVRARE',
-  'LIVRAT',
   'FINALIZAT',
   'SUSPENDAT',
-  'ANULAT',
 ] as const;
 
 export type ProjectStatus = (typeof PROJECT_STATUS_VALUES)[number];

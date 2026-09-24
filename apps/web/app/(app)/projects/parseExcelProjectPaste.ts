@@ -24,7 +24,7 @@ export type ParsedExcelProjectValues = {
   clientName: string;
   startDate: string;
   dueDate: string;
-  status: 'CIORNA';
+  status: 'IN_PREGATIRE';
 };
 
 export type ParseExcelProjectPasteResult =
@@ -85,7 +85,7 @@ export function parseExcelProjectPaste(text: string): ParseExcelProjectPasteResu
       clientName,
       startDate: parseRomanianExcelDate(cellAt(dataRow, COL.startDate)),
       dueDate: parseRomanianExcelDate(cellAt(dataRow, COL.dueDate)),
-      status: 'CIORNA',
+      status: 'IN_PREGATIRE',
     },
     usedFirstRowOnly: hasTrailingDataRows(rows, dataRowIndex),
     extraColumnsIgnored: dataRow.length > MIN_COLUMNS,

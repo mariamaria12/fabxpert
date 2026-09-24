@@ -19,7 +19,7 @@ describe('Project list statusGroup filter (e2e)', () => {
     await app.close();
   });
 
-  it('filters in_progress vs completed and excludes ANULAT from both', async () => {
+  it('filters in_progress vs completed and keeps SUSPENDAT in progress', async () => {
     await request(app.getHttpServer())
       .patch(`/projects/${FIXTURES.projects.ready.id}`)
       .set(authHeader(adminCookie))
@@ -29,7 +29,7 @@ describe('Project list statusGroup filter (e2e)', () => {
     await request(app.getHttpServer())
       .patch(`/projects/${FIXTURES.projects.notReady.id}`)
       .set(authHeader(adminCookie))
-      .send({ status: 'ANULAT' })
+      .send({ status: 'SUSPENDAT' })
       .expect(200);
 
     const inProgress = await request(app.getHttpServer())
@@ -38,9 +38,10 @@ describe('Project list statusGroup filter (e2e)', () => {
       .set(authHeader(adminCookie))
       .expect(200);
 
-    expect(inProgress.body.meta.total).toBe(1);
-    expect(inProgress.body.data).toHaveLength(1);
-    expect(inProgress.body.data[0].id).toBe(FIXTURES.projects.roleRestricted.id);
+    expect(inProgress.body.meta.total).toBe(2);
+    expect(inProgress.body.data.map((project: { id: string }) => project.id).sort()).toEqual(
+      [FIXTURES.projects.roleRestricted.id, FIXTURES.projects.notReady.id].sort(),
+    );
 
     const completed = await request(app.getHttpServer())
       .get('/projects')
@@ -93,12 +94,12 @@ describe('Project list statusGroup filter (e2e)', () => {
     await request(app.getHttpServer())
       .patch(`/projects/${FIXTURES.projects.notReady.id}`)
       .set(authHeader(adminCookie))
-      .send({ status: 'CIORNA' })
+      .send({ status: 'IN_PREGATIRE' })
       .expect(200);
 
     const filtered = await request(app.getHttpServer())
       .get('/projects')
-      .query({ status: 'IN_PRODUCTIE,CIORNA', pageSize: '20' })
+      .query({ status: 'IN_PRODUCTIE,IN_PREGATIRE', pageSize: '20' })
       .set(authHeader(adminCookie))
       .expect(200);
 
@@ -106,7 +107,7 @@ describe('Project list statusGroup filter (e2e)', () => {
     expect(
       filtered.body.data.every(
         (project: { status: string }) =>
-          project.status === 'IN_PRODUCTIE' || project.status === 'CIORNA',
+          project.status === 'IN_PRODUCTIE' || project.status === 'IN_PREGATIRE',
       ),
     ).toBe(true);
   });

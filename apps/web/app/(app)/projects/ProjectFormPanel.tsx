@@ -83,7 +83,7 @@ const EMPTY_FORM: ProjectFormValues = {
   notes: '',
   code: '',
   companyId: '',
-  status: 'CIORNA',
+  status: 'IN_PREGATIRE',
   startDate: '',
   dueDate: '',
   color: null,

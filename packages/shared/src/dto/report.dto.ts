@@ -1,5 +1,5 @@
 // Types for the Rapoarte productivity analytics. The page covers delivered
-// work — LIVRAT and FINALIZAT projects — grouped by the interval their
+// work — FINALIZAT projects — grouped by the interval their
 // completion date falls into. See PROJECT_COMPLETED_STATUSES.
 
 import type { ProjectStatus } from './project.dto';
@@ -8,7 +8,7 @@ export const REPORT_PERIOD_KINDS = ['lastMonth', 'currentMonth', 'custom'] as co
 export type ReportPeriodKind = (typeof REPORT_PERIOD_KINDS)[number];
 
 export type ProductivityKpis = {
-  /** LIVRAT and FINALIZAT projects whose completion date is inside the interval. */
+  /** FINALIZAT projects whose completion date is inside the interval. */
   completedCount: number;
   /** Completed on or before the deadline (by calendar day). */
   onTimeCount: number;
