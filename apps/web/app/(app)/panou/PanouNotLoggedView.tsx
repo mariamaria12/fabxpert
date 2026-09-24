@@ -1,6 +1,12 @@
 'use client';
 
-import { getNotLogged, listUsers, type NotLoggedPersonRow, type UserDto } from '@fabxpert/shared';
+import {
+  getNotLogged,
+  listUsers,
+  type NotLoggedPersonRow,
+  type Period,
+  type UserDto,
+} from '@fabxpert/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { PersonName } from '@/components/PersonAvatar';
@@ -20,12 +26,52 @@ const DEFAULT_DURATION = '9h';
 /** Employee accounts only — admins are never impersonated. */
 const USERS_PAGE_SIZE = 200;
 
+/** Days listed by name before the rest collapse into "+N". */
+const MISSING_DAYS_SHOWN = 5;
+
+/** A period spanning more than one day — the only kind where the missing days need naming. */
+function isMultiDayPeriod(period: Period): boolean {
+  return (
+    period.kind === 'week' ||
+    period.kind === 'month' ||
+    (period.kind === 'custom' && period.from !== period.to)
+  );
+}
+
+/** `YYYY-MM-DD` as "lun. 22". */
+function formatMissingDay(dayKey: string): string {
+  const [year, month, day] = dayKey.split('-').map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString('ro-RO', {
+    weekday: 'short',
+    day: 'numeric',
+  });
+}
+
+function MissingDays({ days }: { days: string[] }) {
+  const shown = days.slice(0, MISSING_DAYS_SHOWN).map(formatMissingDay).join(', ');
+  const rest = days.length - MISSING_DAYS_SHOWN;
+
+  return (
+    <span title={days.map(formatMissingDay).join(', ')}>
+      <span className="tabular-nums text-text-primary">
+        {days.length} {days.length === 1 ? 'zi' : 'zile'}
+      </span>
+      <span className="text-text-muted">
+        {' '}
+        · {shown}
+        {rest > 0 ? ` +${rest}` : ''}
+      </span>
+    </span>
+  );
+}
+
 function useNotLoggedColumns(
   onAddTimesheet: (person: NotLoggedPersonRow) => void,
   onImpersonate: (person: NotLoggedPersonRow) => void,
   userByPersonId: Map<string, UserDto>,
   onSendReminder: (person: NotLoggedPersonRow) => void,
   isMobile: boolean,
+  showMissingDays: boolean,
 ): DataTableColumn<NotLoggedPersonRow>[] {
   return useMemo(
     (): DataTableColumn<NotLoggedPersonRow>[] => [
@@ -46,6 +92,16 @@ function useNotLoggedColumns(
               render: (row: NotLoggedPersonRow) => row.employeeRoleName ?? '—',
             },
           ]),
+      ...(showMissingDays
+        ? [
+            {
+              key: 'missingDays',
+              header: 'Zile fără pontaj',
+              className: 'text-text-secondary',
+              render: (row: NotLoggedPersonRow) => <MissingDays days={row.missingDays} />,
+            },
+          ]
+        : []),
       {
         key: 'actions',
         header: '',
@@ -89,7 +145,7 @@ function useNotLoggedColumns(
         ),
       },
     ],
-    [onAddTimesheet, onImpersonate, userByPersonId, onSendReminder, isMobile],
+    [onAddTimesheet, onImpersonate, userByPersonId, onSendReminder, isMobile, showMissingDays],
   );
 }
 
@@ -104,7 +160,7 @@ export function PanouNotLoggedView() {
   const [persons, setPersons] = useState<NotLoggedPersonRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [addForPersonId, setAddForPersonId] = useState<string | null>(null);
+  const [addFor, setAddFor] = useState<NotLoggedPersonRow | null>(null);
   const [userByPersonId, setUserByPersonId] = useState<Map<string, UserDto>>(new Map());
   const [impersonatedUser, setImpersonatedUser] = useState<UserDto | null>(null);
   const [reminderTarget, setReminderTarget] = useState<NotLoggedPersonRow | null>(null);
@@ -115,7 +171,7 @@ export function PanouNotLoggedView() {
   }, []);
 
   const openAddTimesheet = useCallback((person: NotLoggedPersonRow) => {
-    setAddForPersonId(person.id);
+    setAddFor(person);
   }, []);
 
   const openImpersonation = useCallback(
@@ -160,12 +216,14 @@ export function PanouNotLoggedView() {
     };
   }, []);
 
-  // Drop the row right away — the person has logged time now, so they belong
-  // under "au pontat". refreshAll then resyncs the metric cards and the other
-  // panou views against the server.
+  // With a single day missing, drop the row right away — the person has
+  // logged time now. With more, it stays until refreshAll resyncs this list,
+  // the metric cards and the other panou views against the server.
   const handleTimesheetSaved = useCallback(
-    (personId: string) => {
-      setPersons((current) => removeById(current, personId).items);
+    (person: NotLoggedPersonRow) => {
+      if (person.missingDays.length <= 1) {
+        setPersons((current) => removeById(current, person.id).items);
+      }
       void refreshAll();
     },
     [refreshAll],
@@ -177,11 +235,17 @@ export function PanouNotLoggedView() {
     userByPersonId,
     openSendReminder,
     isMobile,
+    isMultiDayPeriod(period),
   );
 
+  // The first missing day is the one to fill; without one, the form's own today.
   const createDefaults = useMemo(
-    () => ({ personId: addForPersonId ?? '', duration: DEFAULT_DURATION }),
-    [addForPersonId],
+    () => ({
+      personId: addFor?.id ?? '',
+      duration: DEFAULT_DURATION,
+      workDate: addFor?.missingDays[0],
+    }),
+    [addFor],
   );
 
   const loadNotLogged = useCallback(
@@ -246,8 +310,9 @@ export function PanouNotLoggedView() {
       {!error && !waitingForCustomRange && (
         <>
           <p className="text-xs text-text-muted">
-            Conturile de administrator, conturile office și persoanele aflate în concediu
-            aprobat nu sunt incluse.
+            Apare oricine are cel puțin o zi lucrătoare din perioadă fără pontaj, până azi
+            inclusiv. Zilele de concediu aprobat nu contează ca lipsă. Conturile de administrator și
+            cele office nu sunt incluse.
           </p>
 
           {PANOU_PERSON_GROUPS.filter(
@@ -275,7 +340,7 @@ export function PanouNotLoggedView() {
                   loading={loading}
                   loadingRowCount={3}
                   showColumnMenu={false}
-                  emptyMessage="Toată lumea din această categorie a pontat în perioada selectată."
+                  emptyMessage="Toată lumea din această categorie a pontat în fiecare zi din perioada selectată."
                 />
               </div>
             );
@@ -322,14 +387,14 @@ export function PanouNotLoggedView() {
         />
       )}
 
-      {addForPersonId && (
+      {addFor && (
         <TimesheetFormPanel
           open
           mode="create"
           timesheet={null}
           createDefaults={createDefaults}
-          onClose={() => setAddForPersonId(null)}
-          onSaved={() => handleTimesheetSaved(addForPersonId)}
+          onClose={() => setAddFor(null)}
+          onSaved={() => handleTimesheetSaved(addFor)}
         />
       )}
     </section>

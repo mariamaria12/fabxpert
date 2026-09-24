@@ -263,6 +263,12 @@ export type NotLoggedPersonRow = {
   lastName: string;
   employeeRoleName: string | null;
   group: PersonAccountGroup;
+  /**
+   * Days in the period with neither a pontaj nor approved leave, as
+   * `YYYY-MM-DD`. Empty for the whole-history view, which only lists people
+   * who never logged at all.
+   */
+  missingDays: string[];
 };
 
 export type NotLoggedResponse = {

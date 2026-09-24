@@ -26,6 +26,7 @@ export async function queryDashboardMetrics(
   to: Date,
   includeExternal = false,
 ): Promise<DashboardMetricsResponse> {
+  const notLoggedCountQuery = buildNotLoggedCountQuery(from, to, includeExternal);
   const [
     projectCountRows,
     minutesRows,
@@ -70,7 +71,9 @@ export async function queryDashboardMetrics(
         AND lr."startDate" < ${to}
         AND lr."endDate" >= ${from}
     `,
-    prisma.$queryRaw<CountRow[]>(buildNotLoggedCountQuery(from, to, includeExternal)),
+    notLoggedCountQuery
+      ? prisma.$queryRaw<CountRow[]>(notLoggedCountQuery)
+      : Promise.resolve<CountRow[]>([]),
   ]);
 
   return {

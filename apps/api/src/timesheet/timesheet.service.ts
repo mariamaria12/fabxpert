@@ -555,10 +555,13 @@ export class TimesheetService {
     resolved: ResolvedSummaryPeriod,
     includeExternal = false,
   ): Promise<NotLoggedResponse> {
-    const rows = await this.prisma.$queryRaw<NotLoggedSqlRow[]>(
-      buildNotLoggedPersonsQuery(resolved.from, resolved.to, includeExternal),
+    const { days, query } = buildNotLoggedPersonsQuery(
+      resolved.from,
+      resolved.to,
+      includeExternal,
     );
-    return shapeNotLogged(rows, resolved.period);
+    const rows = query ? await this.prisma.$queryRaw<NotLoggedSqlRow[]>(query) : [];
+    return shapeNotLogged(rows, days, resolved.period);
   }
 
   async getDashboardMetrics(
