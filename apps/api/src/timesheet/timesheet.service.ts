@@ -606,29 +606,31 @@ export class TimesheetService {
         to: resolved.to,
       }),
     );
-    const assemblyIndex = await this.loadProjectAssemblyProgress(rows, 'all');
-    const summary = shapePinnedProjectsSummary(rows, assemblyIndex);
-
-    if (summary.projects.length === 0) {
-      return summary;
+    const projectIds = [...new Set(rows.map((row) => row.projectId))];
+    if (projectIds.length === 0) {
+      return shapePinnedProjectsSummary(rows);
     }
 
-    const projectIds = summary.projects.map((project) => project.id);
-    const progress = await loadProjectProgress(this.prisma, projectIds);
-    const projectsWithMeta = await this.prisma.project.findMany({
-      where: {
-        id: { in: projectIds },
-        ...notDeleted(),
-      },
-      select: {
-        id: true,
-        readyForExecution: true,
-        visibleForRoles: {
-          select: { id: true, name: true },
-          orderBy: { name: 'asc' },
+    // Independent reads, so they share one round trip to the database.
+    const [assemblyIndex, progress, projectsWithMeta] = await Promise.all([
+      this.loadProjectAssemblyProgress(rows, 'all'),
+      loadProjectProgress(this.prisma, projectIds),
+      this.prisma.project.findMany({
+        where: {
+          id: { in: projectIds },
+          ...notDeleted(),
         },
-      },
-    });
+        select: {
+          id: true,
+          readyForExecution: true,
+          visibleForRoles: {
+            select: { id: true, name: true },
+            orderBy: { name: 'asc' },
+          },
+        },
+      }),
+    ]);
+    const summary = shapePinnedProjectsSummary(rows, assemblyIndex);
 
     const metaByProjectId = new Map(
       projectsWithMeta.map((project) => [
