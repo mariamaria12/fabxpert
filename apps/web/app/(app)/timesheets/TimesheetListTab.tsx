@@ -17,10 +17,10 @@ import { TimesheetExportPanel } from './TimesheetExportPanel';
 import {
   formatAssemblyChip,
   formatDurationMinutes,
-  formatRomanianDate,
   formatTimesheetDuration,
   summarizeDayAssemblies,
 } from './timesheetFormat';
+import { WorkDateText } from './WorkDateText';
 import { TimesheetDayGroupPanel } from './TimesheetDayGroupPanel';
 import { PanouActivityProgressBar } from '@/app/(app)/panou/PanouActivityProgressBar';
 import { PersonName } from '@/components/PersonAvatar';
@@ -207,7 +207,7 @@ export function TimesheetListTab() {
       sortKey: 'date',
       width: '110px',
       className: 'text-text-secondary',
-      render: (row) => formatRomanianDate(row.workDate),
+      render: (row) => <WorkDateText iso={row.workDate} />,
     },
     {
       key: 'entries',

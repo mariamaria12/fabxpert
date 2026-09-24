@@ -18,9 +18,9 @@ import { EXPORT_PREVIEW_FETCH_SIZE, sortTimesheetsForExport } from './timesheetF
 import {
   formatExportHours,
   formatExportWorkerName,
-  formatRomanianDate,
   workDateMonthNumber,
 } from './timesheetFormat';
+import { WorkDateText } from './WorkDateText';
 
 interface TimesheetExportPanelProps {
   open: boolean;
@@ -62,7 +62,7 @@ const previewColumns: DataTableColumn<TimesheetDto>[] = [
     header: 'Data',
     width: '88px',
     className: 'text-text-secondary',
-    render: (row) => formatRomanianDate(row.workDate),
+    render: (row) => <WorkDateText iso={row.workDate} />,
   },
   {
     key: 'hours',

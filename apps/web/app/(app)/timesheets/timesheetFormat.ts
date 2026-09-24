@@ -1,5 +1,5 @@
 import type { TimesheetDto } from '@fabxpert/shared';
-import { formatDateDisplay, workDateToDayKey } from '@fabxpert/shared';
+import { formatDateDisplay, isPublicHoliday, workDateToDayKey } from '@fabxpert/shared';
 
 /** Payroll export format: NUME PRENUME (uppercase). */
 export function formatExportWorkerName(person: { firstName: string; lastName: string }): string {
@@ -29,8 +29,34 @@ const PLAIN_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
  * calendar day — the one the grouping and the edit form already use.
  */
 export function formatRomanianDate(iso: string): string {
+  return formatDateDisplay(localDayKey(iso));
+}
+
+/** The local calendar day of a workDate, however it arrived. */
+function localDayKey(iso: string): string {
   const trimmed = iso.trim();
-  return formatDateDisplay(PLAIN_DATE_PATTERN.test(trimmed) ? trimmed : workDateToDayKey(trimmed));
+  return PLAIN_DATE_PATTERN.test(trimmed) ? trimmed : workDateToDayKey(trimmed);
+}
+
+/** A day that is not an ordinary working one, called out on the pontaj lists. */
+export type SpecialWorkDay = { className: string; label: string };
+
+/**
+ * Saturdays and public holidays read differently on a pontaj: neither is a
+ * normal working day, and the hours on them are not counted like normal ones.
+ */
+export function specialWorkDay(iso: string): SpecialWorkDay | null {
+  const dayKey = localDayKey(iso);
+
+  if (isPublicHoliday(dayKey)) {
+    return { className: 'text-danger-text', label: 'Sărbătoare legală' };
+  }
+
+  if (new Date(`${dayKey}T00:00:00`).getDay() === 6) {
+    return { className: 'text-warning-text', label: 'Sâmbătă' };
+  }
+
+  return null;
 }
 
 /** One mark and the pieces it carries on a pontaj: "GBAL/25 ×2". */
