@@ -14,7 +14,8 @@ export type OvertimeBalanceDto = {
   month: string;
   /**
    * Brought in from the last settled month: a reserve when positive, a debt to
-   * work back when negative. Months settled late are folded in here too.
+   * work back when negative. Months settled late are folded in here too, and so
+   * is anything logged in the last settled month after it was approved.
    */
   carriedInMinutes: number;
   /** Earned this month, computed live from timesheets. */
@@ -23,7 +24,9 @@ export type OvertimeBalanceDto = {
   usedMinutes: number;
   /** Saturdays with time logged this month — paid as days, not as overtime. */
   saturdaysWorked: number;
-  /** carriedInMinutes + earnedMinutes − usedMinutes. */
+  /** Approved for pay already: non-zero only once this month is approved before it ends. */
+  paidMinutes: number;
+  /** carriedInMinutes + earnedMinutes − usedMinutes − paidMinutes. */
   remainingMinutes: number;
   /** Whole days off `remainingMinutes` covers. */
   remainingDays: number;
@@ -107,6 +110,13 @@ export type OvertimeSettlementLineDto = {
   carriedOutMinutes: number;
   /** When this person's month was approved, as ISO; null while it still waits. */
   settledAt: string | null;
+  /** What the approval put up for pay; null while the month still waits. */
+  approvedPaidMinutes: number | null;
+  /**
+   * How far the balance moved since the approval — hours logged after it or
+   * pontaje corrected. Non-zero means the line waits to be approved again.
+   */
+  changeSinceApprovalMinutes: number;
 };
 
 /** What a month would settle to, without committing anything. */

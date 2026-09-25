@@ -220,9 +220,10 @@ export function ActiveProjectsView({
         hint={`${rows.length} ${rows.length === 1 ? 'proiect' : 'proiecte'}`}
       >
         <p className="text-[11px] leading-relaxed text-text-muted">
-          Orele sunt pontajul raportat la estimare. Execuția e media pașilor începuți,
-          măsurată în kilograme din lista de ansamble. Diferența pozitivă înseamnă că
-          orele merg înaintea lucrului — proiectele cu cea mai mare diferență sunt primele.
+          Ore consumate: orele pontate din cele estimate. Execuție: media pașilor începuți,
+          în kilograme făcute din lista de ansamble. Diferența pozitivă înseamnă că s-au
+          pontat mai multe ore decât justifică lucrul făcut, deci estimarea poate fi
+          depășită. Proiectele cu diferența cea mai mare sunt primele.
         </p>
       </SectionCard>
 

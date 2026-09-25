@@ -110,6 +110,38 @@ export function settleOvertimeBalance(
   return { paidMinutes: balanceMinutes - reserve, carriedOutMinutes: reserve };
 }
 
+/** A month as it was approved: what it earned and spent then, and what it carried on. */
+export type ApprovedMonth = {
+  earnedMinutes: number;
+  usedMinutes: number;
+  carriedOutMinutes: number;
+};
+
+/**
+ * What an approved month carries on once its hours moved after the approval:
+ * days logged after an early approval, a pontaj corrected, time off taken.
+ * The pay stays as approved, so the difference rides along with the carry and
+ * is never lost — a reapproval pays it, a later approval takes it on.
+ */
+export function approvedMonthCarry(
+  approved: ApprovedMonth,
+  live: { earnedMinutes: number; usedMinutes: number },
+): number {
+  return (
+    approved.carriedOutMinutes +
+    (live.earnedMinutes - approved.earnedMinutes) -
+    (live.usedMinutes - approved.usedMinutes)
+  );
+}
+
+/** A settlement line waits while it was never approved, or its hours moved since. */
+export function isOvertimeLineAwaitingApproval(line: {
+  settledAt: string | null;
+  changeSinceApprovalMinutes: number;
+}): boolean {
+  return line.settledAt === null || line.changeSinceApprovalMinutes !== 0;
+}
+
 /** Whole days off a balance covers — one day off costs a full day of the person's norm. */
 export function overtimeDaysAvailable(
   balanceMinutes: number,

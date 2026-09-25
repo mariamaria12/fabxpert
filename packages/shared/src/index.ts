@@ -367,6 +367,8 @@ export {
   overtimeBalanceMinutes,
   overtimeDaysAvailable,
   settleOvertimeBalance,
+  approvedMonthCarry,
+  isOvertimeLineAwaitingApproval,
   formatOvertimeHours,
   formatOvertimeBalance,
   accountingHours,

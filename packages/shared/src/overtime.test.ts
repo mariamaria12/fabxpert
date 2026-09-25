@@ -4,6 +4,7 @@ import {
   DAILY_WORK_MINUTES,
   SATURDAY_WORK_MINUTES,
   accountingHours,
+  approvedMonthCarry,
   countSaturdaysWorked,
   dailyWorkMinutesOf,
   overtimeBalanceMinutes,
@@ -163,6 +164,24 @@ test('settling holds carriedIn + earned − used = paid + carriedOut', () => {
     assert.equal(paidMinutes + carriedOutMinutes, balance);
     assert.ok(paidMinutes >= 0, 'a payout is never negative');
   }
+});
+
+test('an approved month with nothing new carries what it was approved with', () => {
+  const approved = { earnedMinutes: 240, usedMinutes: 0, carriedOutMinutes: 60 };
+  assert.equal(approvedMonthCarry(approved, { earnedMinutes: 240, usedMinutes: 0 }), 60);
+});
+
+test('hours logged after an early approval ride along with the carry', () => {
+  // Approved at +4h with 1h kept; two more hours logged before the month ended.
+  const approved = { earnedMinutes: 240, usedMinutes: 0, carriedOutMinutes: 60 };
+  assert.equal(approvedMonthCarry(approved, { earnedMinutes: 360, usedMinutes: 0 }), 180);
+});
+
+test('time off or hours taken back after the approval come off the carry', () => {
+  const approved = { earnedMinutes: 240, usedMinutes: 0, carriedOutMinutes: 60 };
+  assert.equal(approvedMonthCarry(approved, { earnedMinutes: 240, usedMinutes: 60 }), 0);
+  // A pontaj cut by 3h after 3h were paid: the person now owes 2h.
+  assert.equal(approvedMonthCarry(approved, { earnedMinutes: 60, usedMinutes: 0 }), -120);
 });
 
 test('accounting splits a month into normal hours and the overtime approved for pay', () => {

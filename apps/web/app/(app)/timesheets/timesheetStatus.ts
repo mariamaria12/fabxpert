@@ -20,12 +20,22 @@ export function accountingStatusBadgeClassName(status: AccountingTimesheetStatus
   }
 }
 
-/** A settlement line is either approved (a row exists) or still waiting. */
-export function approvalBadge(settledAt: string | null): { label: string; className: string } {
-  return settledAt === null
-    ? {
-        label: 'În așteptare',
-        className: 'bg-status-in-productie-bg text-status-in-productie-text',
-      }
-    : { label: 'Aprobat', className: 'bg-status-livrat-bg text-status-livrat-text' };
+/**
+ * A settlement line is waiting, approved, or approved but with hours that
+ * moved since — then it waits to be approved again.
+ */
+export function approvalBadge(line: {
+  settledAt: string | null;
+  changeSinceApprovalMinutes: number;
+}): { label: string; className: string } {
+  if (line.settledAt === null) {
+    return {
+      label: 'În așteptare',
+      className: 'bg-status-in-productie-bg text-status-in-productie-text',
+    };
+  }
+  if (line.changeSinceApprovalMinutes !== 0) {
+    return { label: 'De reaprobat', className: 'bg-warning-bg text-warning-text' };
+  }
+  return { label: 'Aprobat', className: 'bg-status-livrat-bg text-status-livrat-text' };
 }

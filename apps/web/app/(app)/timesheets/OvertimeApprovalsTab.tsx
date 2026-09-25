@@ -3,6 +3,7 @@
 import {
   formatOvertimeBalance,
   formatOvertimeHours,
+  isOvertimeLineAwaitingApproval,
   previewOvertimeSettlement,
   settleOvertimeMonth,
   type OvertimeSettlementLineDto,
@@ -16,6 +17,7 @@ import { useOvertimePendingCount } from '@/context/OvertimePendingCountContext';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { MonthPicker } from './MonthPicker';
+import { OvertimeApprovalsInfo } from './OvertimeInfo';
 import { StatTile, StatTileRow } from './StatTile';
 import { formatRomanianDate } from './timesheetFormat';
 import { currentMonth, formatMonthLabel, latestSettleableMonth } from './timesheetMonths';
@@ -147,10 +149,16 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
   }
 
   const lines = preview?.lines ?? [];
-  const pending = lines.filter((line) => line.settledAt === null);
-  const approved = lines.filter((line) => line.settledAt !== null);
+  // Someone whose hours moved after the approval is back to waiting.
+  const pending = lines.filter(isOvertimeLineAwaitingApproval);
+  const approved = lines.filter((line) => !isOvertimeLineAwaitingApproval(line));
+  const settled = lines.filter((line) => line.settledAt !== null);
+  // On a line approved before, only what the reapproval adds is still to pay.
   const pendingPaid = pending.reduce(
-    (sum, line) => sum + paidWithReserve(line, reserves[line.person.id] ?? ''),
+    (sum, line) =>
+      sum +
+      paidWithReserve(line, reserves[line.person.id] ?? '') -
+      (line.approvedPaidMinutes ?? 0),
     0,
   );
   const pendingCarried = pending.reduce(
@@ -161,7 +169,7 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
         : line.balanceMinutes - paidWithReserve(line, reserves[line.person.id] ?? '')),
     0,
   );
-  const approvedPaid = approved.reduce((sum, line) => sum + line.paidMinutes, 0);
+  const approvedPaid = settled.reduce((sum, line) => sum + (line.approvedPaidMinutes ?? 0), 0);
 
   const visibleLines =
     statusFilter === 'pending' ? pending : statusFilter === 'approved' ? approved : lines;
@@ -272,13 +280,15 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
       header: 'Status',
       width: '150px',
       render: (line) => {
-        const badge = approvalBadge(line.settledAt);
+        const badge = approvalBadge(line);
         return (
           <div>
             <span className={`${STATUS_BADGE_CLASS} ${badge.className}`}>{badge.label}</span>
             {line.settledAt ? (
               <div className="mt-1 text-[11px] text-text-muted">
-                {formatRomanianDate(line.settledAt)}
+                {line.changeSinceApprovalMinutes !== 0
+                  ? `${formatOvertimeBalance(line.changeSinceApprovalMinutes)} după aprobarea din ${formatRomanianDate(line.settledAt)}`
+                  : formatRomanianDate(line.settledAt)}
               </div>
             ) : null}
           </div>
@@ -293,6 +303,7 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
       render: (line) => {
         const isBusy = busy === line.person.id || busy === 'all';
         const approvedAlready = line.settledAt !== null;
+        const needsApproval = isOvertimeLineAwaitingApproval(line);
 
         return (
           <div className="flex items-center justify-end gap-1.5">
@@ -312,9 +323,9 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
               disabled={busy !== null}
               onClick={() => void approve([line], line.person.id)}
               className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
-                approvedAlready
-                  ? 'border-border text-text-secondary hover:bg-surface-raised hover:text-text-primary'
-                  : 'border-success-border bg-success-bg text-success-text hover:opacity-90'
+                needsApproval
+                  ? 'border-success-border bg-success-bg text-success-text hover:opacity-90'
+                  : 'border-border text-text-secondary hover:bg-surface-raised hover:text-text-primary'
               }`}
             >
               <i
@@ -333,7 +344,10 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
     <div className="flex flex-col">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-[22px] font-medium text-text-primary">Aprobări ore suplimentare</h1>
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-[22px] font-medium text-text-primary">Aprobări ore suplimentare</h1>
+            <OvertimeApprovalsInfo />
+          </div>
           <p className="mt-0.5 text-sm text-text-muted">
             În ultima săptămână a lunii aprobi ce rămâne de plată. Doar ce aprobi aici intră în
             pontajul pentru contabilitate.
@@ -392,8 +406,9 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
           <i className="ti ti-info-circle mt-0.5 shrink-0 text-base" aria-hidden="true" />
           <div>
             <span className="font-semibold">Luna e încă în curs.</span> Poți aproba de pe acum, cu
-            orele pontate până azi. Orele din zilele rămase intră doar dacă reaprobi după ultima zi
-            a lunii.
+            orele pontate până azi. Cine mai pontează după aprobare reapare la „În așteptare”,
+            marcat „De reaprobat”: reaprobă după ultima zi a lunii ca să plătești și orele acelea,
+            altfel trec în luna următoare.
           </div>
         </div>
       ) : null}
@@ -424,7 +439,7 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
             label="Aprobate deja"
             icon="ti-checks"
             value={loading ? '—' : formatOvertimeHours(approvedPaid)}
-            hint={approved.length === 1 ? '1 persoană' : `${approved.length} persoane`}
+            hint={settled.length === 1 ? '1 persoană' : `${settled.length} persoane`}
           />
         </StatTileRow>
       </div>
@@ -457,7 +472,7 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
         <p className="mt-3 text-xs text-text-muted">
           Se plătește tot soldul, mai puțin orele pe care le lași fiecăruia de recuperat. Datoriile
           nu se plătesc — se reportează întregi în luna următoare. O lună aprobată se poate
-          reaproba: valorile se rescriu, iar diferența se reportează.
+          reaproba: valorile se rescriu cu orele de acum, iar orele păstrate rămân aceleași.
         </p>
       ) : null}
     </div>

@@ -12,6 +12,7 @@ import { PersonName } from '@/components/PersonAvatar';
 import { editActionColumn } from '@/components/editActionColumn';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { OvertimeCorrectionPanel } from './OvertimeCorrectionPanel';
+import { OvertimeRulesInfo } from './OvertimeInfo';
 import { StatTile, StatTileRow } from './StatTile';
 import { formatMonthLabel } from './timesheetMonths';
 
@@ -131,6 +132,14 @@ export function OvertimeBalancesTab({ active }: OvertimeBalancesTabProps) {
       render: (row) => (row.balance.saturdaysWorked === 0 ? '—' : row.balance.saturdaysWorked),
     },
     {
+      key: 'paid',
+      header: 'Aprobate la plată',
+      width: '130px',
+      className: 'text-right tabular-nums text-text-secondary',
+      render: (row) =>
+        row.balance.paidMinutes === 0 ? '—' : formatOvertimeHours(row.balance.paidMinutes),
+    },
+    {
       key: 'remaining',
       header: 'Sold',
       width: '110px',
@@ -173,9 +182,12 @@ export function OvertimeBalancesTab({ active }: OvertimeBalancesTabProps) {
     <div className="flex flex-col">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-[22px] font-medium text-text-primary">Ore suplimentare</h1>
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-[22px] font-medium text-text-primary">Ore suplimentare</h1>
+            <OvertimeRulesInfo />
+          </div>
           <p className="mt-0.5 text-sm text-text-muted">
-            Soldul fiecăruia peste programul de 9 ore
+            Soldul fiecăruia peste norma zilnică
             {currentMonthLabel ? `, ${currentMonthLabel.toLowerCase()}` : ''}. Se aprobă pentru
             plată la final de lună.
           </p>

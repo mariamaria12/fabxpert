@@ -18,9 +18,11 @@ import type {
 } from '@fabxpert/shared/dto/overtime.dto';
 import {
   accountingHours,
+  approvedMonthCarry,
   countSaturdaysWorked,
   dailyWorkMinutesOf,
   isMonthSettleable,
+  isOvertimeLineAwaitingApproval,
   latestSettleableMonth,
   overtimeBalanceMinutes,
   overtimeDaysAvailable,
@@ -215,6 +217,49 @@ type MonthActivity = {
 
 const NO_ACTIVITY: MonthActivity = { earnedMinutes: 0, usedMinutes: 0, saturdaysWorked: 0 };
 
+/** An approved month, read back to carry from it. */
+type SettlementRow = {
+  month: Date;
+  carriedInMinutes: number;
+  earnedMinutes: number;
+  usedMinutes: number;
+  paidMinutes: number;
+  carriedOutMinutes: number;
+  settledAt: Date;
+};
+
+const SETTLEMENT_SELECT = {
+  month: true,
+  carriedInMinutes: true,
+  earnedMinutes: true,
+  usedMinutes: true,
+  paidMinutes: true,
+  carriedOutMinutes: true,
+  settledAt: true,
+} as const;
+
+/** What a month starts from, and the approval it carries from. */
+type CarryIn = {
+  minutes: number;
+  /** The latest approval before the month, with its hours as they stand now. */
+  lastApproval: { row: SettlementRow; live: MonthActivity } | null;
+};
+
+/**
+ * One line of a month's settlement. `previousApproval` is the person's
+ * previous approval rewritten to carry what moved in it since it was given,
+ * so approving this line takes those hours on exactly once.
+ */
+type SettlementLine = {
+  dto: OvertimeSettlementLineDto;
+  previousApproval: {
+    month: Date;
+    earnedMinutes: number;
+    usedMinutes: number;
+    carriedOutMinutes: number;
+  } | null;
+};
+
 @Injectable()
 export class OvertimeService {
   constructor(private readonly prisma: PrismaService) {}
@@ -246,7 +291,7 @@ export class OvertimeService {
     const [settlements, source] = await Promise.all([
       this.prisma.overtimeSettlement.findMany({
         where: { personId },
-        select: { month: true, carriedOutMinutes: true },
+        select: SETTLEMENT_SELECT,
         orderBy: { month: 'desc' },
       }),
       this.loadOvertimeSource({ personId }),
@@ -273,7 +318,7 @@ export class OvertimeService {
     const [persons, settlements] = await Promise.all([
       this.listPersons(),
       this.prisma.overtimeSettlement.findMany({
-        select: { personId: true, month: true, carriedOutMinutes: true },
+        select: { personId: true, ...SETTLEMENT_SELECT },
         orderBy: { month: 'desc' },
       }),
     ]);
@@ -303,7 +348,7 @@ export class OvertimeService {
     const monthStart = startOfMonth(month);
     this.assertSettleable(monthStart);
 
-    const lines = await this.buildSettlementLines(monthStart, {});
+    const lines = (await this.buildSettlementLines(monthStart, {})).map((line) => line.dto);
     const existing = await this.prisma.overtimeSettlement.count({
       where: { month: monthStart },
     });
@@ -332,10 +377,15 @@ export class OvertimeService {
     const monthStart = startOfMonth(month);
     this.assertSettleable(monthStart);
 
-    const lines = await this.buildSettlementLines(monthStart, reserveMinutesByPerson, personIds);
+    const settlementLines = await this.buildSettlementLines(
+      monthStart,
+      reserveMinutesByPerson,
+      personIds,
+    );
+    const lines = settlementLines.map((line) => line.dto);
 
-    await this.prisma.$transaction(
-      lines.map((line) =>
+    await this.prisma.$transaction([
+      ...lines.map((line) =>
         this.prisma.overtimeSettlement.upsert({
           where: { personId_month: { personId: line.person.id, month: monthStart } },
           create: {
@@ -359,7 +409,25 @@ export class OvertimeService {
           },
         }),
       ),
-    );
+      // What moved in the previous approval now travels in this month's
+      // carry-in, so that approval carries it too — its pay stays as it was.
+      ...settlementLines.flatMap(({ dto, previousApproval }) =>
+        previousApproval
+          ? [
+              this.prisma.overtimeSettlement.update({
+                where: {
+                  personId_month: { personId: dto.person.id, month: previousApproval.month },
+                },
+                data: {
+                  earnedMinutes: previousApproval.earnedMinutes,
+                  usedMinutes: previousApproval.usedMinutes,
+                  carriedOutMinutes: previousApproval.carriedOutMinutes,
+                },
+              }),
+            ]
+          : [],
+      ),
+    ]);
 
     return {
       month: formatMonth(monthStart),
@@ -403,14 +471,17 @@ export class OvertimeService {
     }
   }
 
-  /** How many people still wait for the open month's approval — the sidebar badge. */
+  /**
+   * How many people still wait for the open month's approval — the sidebar
+   * badge. Someone whose hours moved after they were approved waits again.
+   */
   async countPendingApprovals(): Promise<OvertimeApprovalsPendingResponse> {
     const monthStart = latestSettleableMonth();
     const lines = await this.buildSettlementLines(monthStart, {});
 
     return {
       month: formatMonth(monthStart),
-      count: lines.filter((line) => line.settledAt === null).length,
+      count: lines.filter(({ dto }) => isOvertimeLineAwaitingApproval(dto)).length,
     };
   }
 
@@ -454,7 +525,10 @@ export class OvertimeService {
 
     const settledByPerson = new Map(settledRows.map((row) => [row.personId, row]));
     const pendingByPerson = new Map(
-      pendingLines.filter((line) => line.settledAt === null).map((line) => [line.person.id, line]),
+      pendingLines
+        .map((line) => line.dto)
+        .filter(isOvertimeLineAwaitingApproval)
+        .map((line) => [line.person.id, line]),
     );
     const today = todayWorkDate();
 
@@ -513,10 +587,11 @@ export class OvertimeService {
         paidMinutes: settled?.paidMinutes ?? null,
       });
 
-      // A line waits while its settlement is missing; a month whose approvals
-      // have not opened waits as a whole, and one with nothing to settle is ready.
+      // A line waits while its settlement is missing or its hours moved since
+      // the approval; a month whose approvals have not opened waits as a
+      // whole, and one with nothing to settle is ready.
       const waiting = !settlementOpen || pending !== null;
-      const status = exportRow ? 'EXPORTAT' : settled || !waiting ? 'GATA_EXPORT' : 'IN_PREGATIRE';
+      const status = exportRow ? 'EXPORTAT' : waiting ? 'IN_PREGATIRE' : 'GATA_EXPORT';
 
       return {
         person: toBalancePerson(person),
@@ -527,7 +602,11 @@ export class OvertimeService {
         saturdaysWorked: activity.saturdaysWorked,
         dayCodes,
         missingWorkingDays,
-        pendingBalanceMinutes: pending?.balanceMinutes ?? null,
+        pendingBalanceMinutes: pending
+          ? pending.settledAt === null
+            ? pending.balanceMinutes
+            : pending.changeSinceApprovalMinutes
+          : null,
         status,
         settledAt: settled?.settledAt.toISOString() ?? null,
       };
@@ -684,7 +763,8 @@ export class OvertimeService {
   /**
    * One line per person who has something to settle. People with no activity
    * and nothing carried in are skipped — a settlement row of all zeroes says
-   * nothing and would only make the month look busier than it was.
+   * nothing and would only make the month look busier than it was — unless
+   * they were approved already.
    *
    * `personIds` narrows the lines to those people, so one person can be
    * approved on their own. Someone already approved keeps the reserve from
@@ -695,13 +775,13 @@ export class OvertimeService {
     monthStart: Date,
     reserveMinutesByPerson: Record<string, number>,
     personIds?: string[],
-  ): Promise<OvertimeSettlementLineDto[]> {
+  ): Promise<SettlementLine[]> {
     const monthKey = formatMonth(monthStart);
     const [persons, settlements, source] = await Promise.all([
       this.listPersons(),
       this.prisma.overtimeSettlement.findMany({
         where: { month: { lte: monthStart } },
-        select: { personId: true, month: true, carriedOutMinutes: true, settledAt: true },
+        select: { personId: true, ...SETTLEMENT_SELECT },
         orderBy: { month: 'desc' },
       }),
       this.loadOvertimeSource({ to: startOfNextMonth(monthStart) }),
@@ -718,7 +798,7 @@ export class OvertimeService {
         .map((row) => [row.personId, row]),
     );
     const wanted = personIds ? new Set(personIds) : null;
-    const lines: OvertimeSettlementLineDto[] = [];
+    const lines: SettlementLine[] = [];
 
     for (const person of persons) {
       if (wanted && !wanted.has(person.id)) {
@@ -738,16 +818,19 @@ export class OvertimeService {
       const correction = correctedLater ? null : latestCorrection;
 
       const activity = this.monthlyActivity(person.id, source, correction);
-      const carriedInMinutes = this.carriedInFor(
+      const carryIn = this.carriedInFor(
         settlementsByPerson.get(person.id) ?? [],
         activity,
         monthKey,
         correction,
       );
+      const carriedInMinutes = carryIn.minutes;
       const month = activity.get(monthKey) ?? NO_ACTIVITY;
       const balanceMinutes = carriedInMinutes + month.earnedMinutes - month.usedMinutes;
 
-      if (balanceMinutes === 0 && carriedInMinutes === 0) {
+      // An approved line stays even once its balance came back to nothing, so
+      // the change since the approval can still be seen and approved.
+      if (!settled && balanceMinutes === 0 && carriedInMinutes === 0) {
         continue;
       }
 
@@ -758,17 +841,44 @@ export class OvertimeService {
         reserveMinutes,
       );
 
+      // Hours logged or corrected after the approval move the balance away
+      // from what was approved. A correction made since replaced them.
+      const changeSinceApprovalMinutes =
+        settled && !isSupersededBy(settled, latestCorrection)
+          ? balanceMinutes -
+            (settled.carriedInMinutes + settled.earnedMinutes - settled.usedMinutes)
+          : 0;
+
+      const lastApproval = correctedLater ? null : carryIn.lastApproval;
+      const previousApprovalMoved =
+        lastApproval !== null &&
+        (lastApproval.live.earnedMinutes !== lastApproval.row.earnedMinutes ||
+          lastApproval.live.usedMinutes !== lastApproval.row.usedMinutes);
+
       lines.push({
-        person: toBalancePerson(person),
-        carriedInMinutes,
-        earnedMinutes: month.earnedMinutes,
-        usedMinutes: month.usedMinutes,
-        saturdaysWorked: month.saturdaysWorked,
-        balanceMinutes,
-        reserveMinutes: carriedOutMinutes > 0 ? carriedOutMinutes : 0,
-        paidMinutes,
-        carriedOutMinutes,
-        settledAt: settled?.settledAt.toISOString() ?? null,
+        dto: {
+          person: toBalancePerson(person),
+          carriedInMinutes,
+          earnedMinutes: month.earnedMinutes,
+          usedMinutes: month.usedMinutes,
+          saturdaysWorked: month.saturdaysWorked,
+          balanceMinutes,
+          reserveMinutes: carriedOutMinutes > 0 ? carriedOutMinutes : 0,
+          paidMinutes,
+          carriedOutMinutes,
+          settledAt: settled?.settledAt.toISOString() ?? null,
+          approvedPaidMinutes: settled?.paidMinutes ?? null,
+          changeSinceApprovalMinutes,
+        },
+        previousApproval:
+          lastApproval && previousApprovalMoved
+            ? {
+                month: lastApproval.row.month,
+                earnedMinutes: lastApproval.live.earnedMinutes,
+                usedMinutes: lastApproval.live.usedMinutes,
+                carriedOutMinutes: approvedMonthCarry(lastApproval.row, lastApproval.live),
+              }
+            : null,
       });
     }
 
@@ -777,17 +887,27 @@ export class OvertimeService {
 
   private buildBalance(
     personId: string,
-    settlements: { month: Date; carriedOutMinutes: number }[],
+    settlements: SettlementRow[],
     activity: Map<string, MonthActivity>,
     dailyWorkMinutes: number,
     correction: OvertimeCorrectionRow | null,
   ): OvertimeBalanceDto {
     const currentMonth = startOfMonth(new Date());
     const monthKey = formatMonth(currentMonth);
-
-    const carriedInMinutes = this.carriedInFor(settlements, activity, monthKey, correction);
     const month = activity.get(monthKey) ?? NO_ACTIVITY;
-    const remainingMinutes = carriedInMinutes + month.earnedMinutes - month.usedMinutes;
+
+    // Approved before it ended, the month has paid part of its hours already:
+    // the person keeps what the approval carried, plus whatever came after it.
+    const approvedNow =
+      settlements.find(
+        (row) => formatMonth(row.month) === monthKey && !isSupersededBy(row, correction),
+      ) ?? null;
+    const carriedInMinutes = approvedNow
+      ? approvedNow.carriedInMinutes
+      : this.carriedInFor(settlements, activity, monthKey, correction).minutes;
+    const paidMinutes = approvedNow?.paidMinutes ?? 0;
+    const remainingMinutes =
+      carriedInMinutes + month.earnedMinutes - month.usedMinutes - paidMinutes;
 
     const lastSettled = latestMonth(settlements);
 
@@ -798,6 +918,7 @@ export class OvertimeService {
       earnedMinutes: month.earnedMinutes,
       usedMinutes: month.usedMinutes,
       saturdaysWorked: month.saturdaysWorked,
+      paidMinutes,
       remainingMinutes,
       remainingDays: overtimeDaysAvailable(Math.max(0, remainingMinutes), dailyWorkMinutes),
       settledThroughMonth: lastSettled ? formatMonth(lastSettled) : null,
@@ -806,55 +927,57 @@ export class OvertimeService {
   }
 
   /**
-   * What `monthKey` starts from: the last settlement's carry-out, plus every
-   * month between then and now that was never settled. A settlement that was
-   * skipped costs accuracy on old data, never minutes.
+   * What `monthKey` starts from: what the last settlement before it carried
+   * on, plus every month between then and now that was never settled. A
+   * settlement that was skipped costs accuracy on old data, never minutes.
    *
-   * A correction is a fresh start: settlements before its month no longer
-   * count, and until one is made after it, it is what the months carry from.
+   * That last settlement is read with its hours as they stand now, so what
+   * was logged or corrected in its month after the approval rides along
+   * instead of being lost. Older settlements are taken as they were approved.
+   *
+   * A correction is a fresh start: settlements before it no longer count, and
+   * until one is made after it, it is what the months carry from.
    */
   private carriedInFor(
-    allSettlements: { month: Date; carriedOutMinutes: number }[],
+    allSettlements: SettlementRow[],
     activity: Map<string, MonthActivity>,
     monthKey: string,
     correction: OvertimeCorrectionRow | null,
-  ): number {
-    let settlements = allSettlements;
+  ): CarryIn {
+    let settlements = allSettlements.filter((row) => formatMonth(row.month) < monthKey);
     if (correction) {
       const correctionKey = formatMonth(correction.effectiveDate);
       if (correctionKey === monthKey) {
-        return correction.balanceMinutes;
+        return { minutes: correction.balanceMinutes, lastApproval: null };
       }
       if (correctionKey < monthKey) {
-        settlements = allSettlements.filter((row) => formatMonth(row.month) >= correctionKey);
+        settlements = settlements.filter(
+          (row) => formatMonth(row.month) >= correctionKey && !isSupersededBy(row, correction),
+        );
         if (settlements.length === 0) {
-          let unsettled = 0;
-          for (const [key, month] of activity) {
-            if (key >= correctionKey && key < monthKey) {
-              unsettled += month.earnedMinutes - month.usedMinutes;
-            }
-          }
-          return correction.balanceMinutes + unsettled;
+          return {
+            minutes:
+              correction.balanceMinutes +
+              sumMonths(activity, (key) => key >= correctionKey && key < monthKey),
+            lastApproval: null,
+          };
         }
       }
     }
 
-    const lastSettled = latestMonth(settlements);
-    const carriedOut = lastSettled
-      ? (settlements.find((row) => row.month.getTime() === lastSettled.getTime())
-          ?.carriedOutMinutes ?? 0)
-      : 0;
-
-    const lastSettledKey = lastSettled ? formatMonth(lastSettled) : null;
-    let unsettled = 0;
-    for (const [key, month] of activity) {
-      const afterLastSettled = lastSettledKey === null || key > lastSettledKey;
-      if (afterLastSettled && key < monthKey) {
-        unsettled += month.earnedMinutes - month.usedMinutes;
-      }
+    const lastSettled = latestSettlement(settlements);
+    if (!lastSettled) {
+      return { minutes: sumMonths(activity, (key) => key < monthKey), lastApproval: null };
     }
 
-    return carriedOut + unsettled;
+    const lastSettledKey = formatMonth(lastSettled.month);
+    const live = activity.get(lastSettledKey) ?? NO_ACTIVITY;
+    return {
+      minutes:
+        approvedMonthCarry(lastSettled, live) +
+        sumMonths(activity, (key) => key > lastSettledKey && key < monthKey),
+      lastApproval: { row: lastSettled, live },
+    };
   }
 
   /**
@@ -1152,10 +1275,40 @@ function latestMonth(rows: { month: Date }[]): Date | null {
   );
 }
 
+function latestSettlement<T extends { month: Date }>(rows: T[]): T | null {
+  return rows.reduce<T | null>(
+    (latest, row) => (!latest || row.month > latest.month ? row : latest),
+    null,
+  );
+}
+
+/** earned − used over the months `include` picks. */
+function sumMonths(
+  activity: Map<string, MonthActivity>,
+  include: (monthKey: string) => boolean,
+): number {
+  let minutes = 0;
+  for (const [key, month] of activity) {
+    if (include(key)) {
+      minutes += month.earnedMinutes - month.usedMinutes;
+    }
+  }
+  return minutes;
+}
+
+/** A balance set by hand after an approval replaces whatever that approval left. */
+function isSupersededBy(
+  settlement: { settledAt: Date },
+  correction: OvertimeCorrectionRow | null,
+): boolean {
+  return correction !== null && correction.createdAt.getTime() > settlement.settledAt.getTime();
+}
+
 /**
- * How far back the timesheet scan has to reach: the month after the earliest
- * last-settled month across everyone. Anyone never settled pulls it back to the
- * beginning, because their whole history still has to be recomputed.
+ * How far back the timesheet scan has to reach: the earliest last-settled
+ * month across everyone, which is read again for what moved in it after its
+ * approval. Anyone never settled pulls it back to the beginning, because their
+ * whole history still has to be recomputed.
  */
 function scanFrom(
   persons: { id: string }[],
@@ -1169,7 +1322,7 @@ function scanFrom(
       return {};
     }
 
-    const start = new Date(lastSettled.getFullYear(), lastSettled.getMonth() + 1, 1);
+    const start = new Date(lastSettled.getFullYear(), lastSettled.getMonth(), 1);
     if (!earliest || start < earliest) {
       earliest = start;
     }

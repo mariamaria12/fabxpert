@@ -473,12 +473,11 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
           <div className="min-w-0 flex-1">
             <span className="font-semibold">
               {totals.pendingCount === 1
-                ? '1 persoană așteaptă aprobarea'
-                : `${totals.pendingCount} persoane așteaptă aprobarea`}{' '}
-              ({formatOvertimeHours(totals.pendingBalanceMinutes)})
+                ? '1 persoană așteaptă aprobarea orelor suplimentare'
+                : `${totals.pendingCount} persoane așteaptă aprobarea orelor suplimentare`}{' '}
+              ({formatOvertimeHours(totals.pendingBalanceMinutes)}).
             </span>{' '}
-            și orele lor suplimentare nu sunt incluse în totaluri. Orele suplimentare intră în
-            contabilitate doar după aprobare.
+            Dacă nu le aprobați, acestea nu se transmit în documentul de contabilitate.
           </div>
           <button
             type="button"
