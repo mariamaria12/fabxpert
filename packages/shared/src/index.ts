@@ -519,6 +519,7 @@ export type {
   ProjectAssemblyDto,
   AssemblyProgressDto,
   AssemblyImportRowDto,
+  AssemblyPartsDto,
   AssemblyPreviewDto,
 
   AssemblyListStatus,

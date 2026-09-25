@@ -10,14 +10,17 @@ import {
   importProjectAssemblies,
   updateProjectAssembly,
   type AssemblyImportRowDto,
+  type AssemblyPartsDto,
   type CreateProjectAssemblyInput,
   type ProjectAssemblyDto,
   type UpdateProjectAssemblyInput,
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ProjectComplexityBadge } from '@/components/ProjectComplexityBadge';
 import { WeldingLoader } from '@/components/WeldingLoader';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { formatWorkbookParts } from '@/utils/projectComplexity';
 import { formatProjectWeight } from '@/utils/projectWeight';
 import { AssemblyImportScreen } from './AssemblyImportScreen';
 import { AssemblyLogView } from './AssemblyLogView';
@@ -341,8 +344,12 @@ export interface AssemblyListScreenProps {
   startInEdit?: boolean;
   /** Adds the "Suprascrie" tab, which replaces the whole list in one go. */
   allowOverwrite?: boolean;
-  /** Fired after the list changed on the server, so counts upstream can catch up. */
-  onChanged?: () => void;
+  /**
+   * Fired after the list changed on the server, so counts upstream can catch up.
+   * A list replaced from a workbook hands over the parts it read — the project's
+   * complexity was saved from them along with the list.
+   */
+  onChanged?: (parts?: AssemblyPartsDto) => void;
   /**
    * `progress` splits the list into "De făcut" and "Realizate" with a column
    * per activity, and moves the edit control up into the header. `list` is
@@ -384,6 +391,7 @@ export function AssemblyListScreen({
   /** Set while the log view writes; drives the blocking loader over the panel. */
   const [logBusyLabel, setLogBusyLabel] = useState<string | null>(null);
   const [pendingRows, setPendingRows] = useState<AssemblyImportRowDto[] | null>(null);
+  const [pendingParts, setPendingParts] = useState<AssemblyPartsDto | null>(null);
   const [isOverwriting, setIsOverwriting] = useState(false);
   const newRowCounter = useRef(0);
 
@@ -417,6 +425,7 @@ export function AssemblyListScreen({
     setRemovedIds(new Set());
     setInvalidCells({});
     setPendingRows(null);
+    setPendingParts(null);
     setImportOpen(false);
     setLogging(false);
     setLogBusyLabel(null);
@@ -665,6 +674,7 @@ export function AssemblyListScreen({
       const result = await importProjectAssemblies(projectId, {
         rows: pendingRows,
         replace: true,
+        ...(pendingParts ? { piecesPerTon: pendingParts.piecesPerTon } : {}),
       });
       const kept = result.created + result.updated;
       showToast(
@@ -674,12 +684,13 @@ export function AssemblyListScreen({
         'success',
       );
       setPendingRows(null);
+      setPendingParts(null);
       setEditing(false);
       setNewIds([]);
       setRemovedIds(new Set());
       setTab(isProgress ? 'pending' : 'list');
       await load();
-      onChanged?.();
+      onChanged?.(pendingParts ?? undefined);
     } catch (caught) {
       setError(apiErrorToastMessage(caught));
     } finally {
@@ -973,6 +984,15 @@ export function AssemblyListScreen({
                         <li className="text-text-muted">
                           {impact.removedWithProgress} dintre ele au ore raportate — orele
                           rămân în pontaje.
+                        </li>
+                      )}
+                      {pendingParts && (
+                        <li className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span>Complexitatea proiectului devine</span>
+                          <ProjectComplexityBadge piecesPerTon={pendingParts.piecesPerTon} showValue />
+                          <span className="text-xs text-text-muted">
+                            {formatWorkbookParts(pendingParts)}
+                          </span>
                         </li>
                       )}
                     </ul>
@@ -1291,8 +1311,9 @@ export function AssemblyListScreen({
           setImportOpen(false);
           onClose();
         }}
-        onConfirm={(rows) => {
+        onConfirm={(rows, parts) => {
           setPendingRows(rows);
+          setPendingParts(parts);
           setImportOpen(false);
           setTab('overwrite');
         }}

@@ -71,12 +71,35 @@ export const importProjectAssembliesSchema = z
      * from an explicit "overwrite" action; a plain import leaves them alone.
      */
     replace: z.boolean().optional(),
+    /**
+     * Parts per ton read off the same workbook (see AssemblyPartsDto). When
+     * given, it becomes the project's complexity along with the list.
+     */
+    piecesPerTon: z
+      .number()
+      .finite('Pieces per ton must be a number')
+      .nonnegative('Pieces per ton cannot be negative')
+      .max(1_000_000, 'Pieces per ton must be at most 1000000')
+      .optional(),
   })
   .refine((input) => (input.tsv === undefined) !== (input.rows === undefined), {
     message: 'Provide either tsv or rows, not both',
   });
 
 export type AssemblyImportRowDto = z.infer<typeof assemblyImportRowSchema>;
+
+/**
+ * The workbook's parts breakdown, added up — where a project's complexity
+ * comes from. Counted the way the workbook counts its own "Nr. piese/to".
+ */
+export type AssemblyPartsDto = {
+  /** Parts (repere) across the list: parts in each assembly times its quantity. */
+  pieces: number;
+  /** What those parts weigh, in kilograms. */
+  weightKg: number;
+  /** Parts per ton, to one decimal. */
+  piecesPerTon: number;
+};
 
 /** What the upload screen shows before anything is saved. */
 export type AssemblyPreviewDto = {
@@ -90,6 +113,8 @@ export type AssemblyPreviewDto = {
   rows: AssemblyImportRowDto[];
   issues: AssemblyImportIssue[];
   hasHeaderRow: boolean;
+  /** Off the "Detaliere ansamble" sheet. Null for a paste, or a workbook without one. */
+  parts: AssemblyPartsDto | null;
 };
 
 export type CreateProjectAssemblyInput = z.infer<typeof createProjectAssemblySchema>;

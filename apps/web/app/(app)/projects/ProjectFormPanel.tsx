@@ -15,6 +15,7 @@ import {
   updateProject,
   updateProjectSchema,
   type AssemblyImportRowDto,
+  type AssemblyPartsDto,
   type CompanyDto,
   type EmployeeRoleDto,
   type ProjectDto,
@@ -48,7 +49,7 @@ import { equalsSearchText } from '@/utils/searchText';
 import { parseEstimatedHoursInput } from '@/utils/projectEstimatedHours';
 import { parseWeightInput, weightKgToInput } from '@/utils/projectWeight';
 import { parseDecimalInput } from '@/utils/decimalInput';
-import { formatComplexityScale } from '@/utils/projectComplexity';
+import { formatComplexityScale, formatWorkbookParts } from '@/utils/projectComplexity';
 import { ProjectComplexityBadge } from '@/components/ProjectComplexityBadge';
 import {
   getProjectFormCompanies,
@@ -289,6 +290,8 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
   const [assemblyScreenOpen, setAssemblyScreenOpen] = useState(false);
   const [assemblyListOpen, setAssemblyListOpen] = useState(false);
   const [assemblyEditOpen, setAssemblyEditOpen] = useState(false);
+  /** The workbook the complexity was just filled in from; cleared once it is typed over. */
+  const [workbookParts, setWorkbookParts] = useState<AssemblyPartsDto | null>(null);
   const [colorDraftInvalid, setColorDraftInvalid] = useState(false);
   const [companies, setCompanies] = useState<CompanyDto[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(false);
@@ -371,6 +374,7 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
     setConfirmDelete(false);
     setIsSubmitting(false);
     setAssemblyRows([]);
+    setWorkbookParts(null);
     setAssemblyScreenOpen(false);
     setAssemblyListOpen(false);
     setAssemblyEditOpen(false);
@@ -503,6 +507,12 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
     });
     return () => window.cancelAnimationFrame(frame);
   }, [open, mode, isMobile, editProject]);
+
+  /** A workbook with a parts breakdown fills the complexity in; typing over it still wins. */
+  function applyWorkbookParts(parts: AssemblyPartsDto) {
+    setWorkbookParts(parts);
+    updateField('piecesPerTon', String(parts.piecesPerTon));
+  }
 
   function updateField<K extends keyof ProjectFormValues>(field: K, value: ProjectFormValues[K]) {
     setValues((current) => ({ ...current, [field]: value }));
@@ -1006,14 +1016,19 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
             value={values.piecesPerTon}
             error={fieldErrors.piecesPerTon}
             disabled={isBusy}
-            onChange={(value) => updateField('piecesPerTon', value)}
+            onChange={(value) => {
+              setWorkbookParts(null);
+              updateField('piecesPerTon', value);
+            }}
           />
           {!fieldErrors.piecesPerTon && (
             <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-muted">
               {typedPiecesPerTon.ok && (
                 <ProjectComplexityBadge piecesPerTon={typedPiecesPerTon.value} />
               )}
-              <span>{COMPLEXITY_SCALE_TEXT}</span>
+              <span>
+                {workbookParts ? formatWorkbookParts(workbookParts) : COMPLEXITY_SCALE_TEXT}
+              </span>
             </p>
           )}
         </div>
@@ -1184,7 +1199,12 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
         projectName={values.name}
         startInEdit={assemblyEditOpen}
         allowOverwrite={assemblyEditOpen}
-        onChanged={() => void refreshEditProject()}
+        onChanged={(parts) => {
+          void refreshEditProject();
+          if (parts) {
+            applyWorkbookParts(parts);
+          }
+        }}
         onClose={() => {
           setAssemblyListOpen(false);
           setAssemblyEditOpen(false);
@@ -1196,8 +1216,11 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
       open={assemblyScreenOpen}
       projectName={values.name}
       onClose={() => setAssemblyScreenOpen(false)}
-      onConfirm={(rows) => {
+      onConfirm={(rows, parts) => {
         setAssemblyRows(rows);
+        if (parts) {
+          applyWorkbookParts(parts);
+        }
         setAssemblyScreenOpen(false);
       }}
     />

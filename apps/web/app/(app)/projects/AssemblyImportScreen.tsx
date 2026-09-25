@@ -5,11 +5,14 @@ import {
   type AssemblyImportIssue,
   type AssemblyImportIssueCode,
   type AssemblyImportRowDto,
+  type AssemblyPartsDto,
   type AssemblyPreviewDto,
 } from '@fabxpert/shared';
 import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { ProjectComplexityBadge } from '@/components/ProjectComplexityBadge';
 import { WeldingLoader } from '@/components/WeldingLoader';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { formatWorkbookParts } from '@/utils/projectComplexity';
 
 const ISSUE_LABELS: Record<AssemblyImportIssueCode, string> = {
   NO_HEADER_ROW: 'Nu am găsit rândul de antet — am citit coloanele în ordine.',
@@ -105,14 +108,22 @@ function previewManualRows(manualRows: ManualRow[]): AssemblyPreviewDto {
     });
   });
 
-  return { sheets: [], sheetName: null, rows: [...byName.values()], issues, hasHeaderRow: true };
+  return {
+    sheets: [],
+    sheetName: null,
+    rows: [...byName.values()],
+    issues,
+    hasHeaderRow: true,
+    parts: null,
+  };
 }
 
 export interface AssemblyImportScreenProps {
   open: boolean;
   projectName: string;
   onClose: () => void;
-  onConfirm: (rows: AssemblyImportRowDto[]) => void;
+  /** `parts` is the workbook's parts count, when the file had one to read. */
+  onConfirm: (rows: AssemblyImportRowDto[], parts: AssemblyPartsDto | null) => void;
   /** Heading, when the list is being read for something other than adding. */
   title?: string;
   /** Confirm button copy, for the same reason. Gets the row count. */
@@ -466,6 +477,12 @@ export function AssemblyImportScreen({
                     )}
                   </p>
                   {showSheetPicker && <div className="flex flex-wrap gap-2">{sheetButtons}</div>}
+                  {preview.parts && (
+                    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-muted">
+                      <ProjectComplexityBadge piecesPerTon={preview.parts.piecesPerTon} showValue />
+                      <span>{formatWorkbookParts(preview.parts)}</span>
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -556,7 +573,7 @@ export function AssemblyImportScreen({
               <button
                 type="button"
                 disabled={isLoading || preview.rows.length === 0}
-                onClick={() => onConfirm(preview.rows)}
+                onClick={() => onConfirm(preview.rows, preview.parts)}
                 className="rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-accent-contrast disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {confirmLabel

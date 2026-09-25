@@ -424,6 +424,7 @@ export class AssemblyService {
       rows: parsed.rows,
       issues: parsed.issues,
       hasHeaderRow: parsed.hasHeaderRow,
+      parts: null,
     };
   }
 
@@ -438,6 +439,13 @@ export class AssemblyService {
       rows: parsed.rows,
       issues: parsed.issues,
       hasHeaderRow: parsed.hasHeaderRow,
+      parts: workbook.parts
+        ? {
+            ...workbook.parts,
+            piecesPerTon:
+              Math.round((workbook.parts.pieces / (workbook.parts.weightKg / 1000)) * 10) / 10,
+          }
+        : null,
     };
   }
 
@@ -576,6 +584,14 @@ export class AssemblyService {
 
         for (const chunk of chunked(updates, IMPORT_UPDATE_CHUNK)) {
           await tx.$executeRaw(buildImportUpdate(chunk));
+        }
+
+        // The workbook's parts count travels with its list.
+        if (input.piecesPerTon !== undefined) {
+          await tx.project.update({
+            where: { id: projectId },
+            data: { piecesPerTon: input.piecesPerTon },
+          });
         }
       },
       { timeout: 120_000 },

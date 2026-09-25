@@ -1,4 +1,9 @@
-import { formatProjectComplexity, PROJECT_COMPLEXITY_LEVELS } from '@fabxpert/shared';
+import {
+  formatProjectComplexity,
+  PROJECT_COMPLEXITY_LEVELS,
+  type AssemblyPartsDto,
+} from '@fabxpert/shared';
+import { formatProjectWeight } from './projectWeight';
 
 const piecesPerTonFormat = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 });
 
@@ -17,4 +22,11 @@ export function formatComplexityScale(): string {
     return `${label} > ${PROJECT_COMPLEXITY_LEVELS[index - 1]?.maxPiecesPerTon ?? 0}`;
   });
   return `${steps.join(' · ')} piese/t`;
+}
+
+const piecesFormat = new Intl.NumberFormat('ro-RO');
+
+/** Where a figure read off a workbook came from, in the workbook's own words. */
+export function formatWorkbookParts(parts: AssemblyPartsDto): string {
+  return `din foaia „Detaliere ansamble” (Nr. piese ${piecesFormat.format(parts.pieces)} · ${formatProjectWeight(parts.weightKg)})`;
 }

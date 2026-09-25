@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import type { AssemblyCell } from '@fabxpert/shared/assemblyImport';
+import { parseAssemblyNumber, type AssemblyCell } from '@fabxpert/shared/assemblyImport';
 
 /**
  * The cell's own value, not what Excel draws in it. The displayed text of a
@@ -49,16 +49,39 @@ function sheetToRows(sheet: ExcelJS.Worksheet): AssemblyCell[][] {
   return rows;
 }
 
+export type WorkbookParts = {
+  /** Parts across the list: parts in each assembly times its quantity. */
+  pieces: number;
+  /** What those parts weigh, in kilograms. */
+  weightKg: number;
+};
+
 export type WorkbookPreview = {
   /** Every sheet name in the workbook, in order. */
   sheets: string[];
   /** Cells of the chosen sheet, ready for parseAssemblyRows. Empty when none. */
   rows: AssemblyCell[][];
   sheetName: string | null;
+  /** The parts breakdown added up; null when the workbook has none to read. */
+  parts: WorkbookParts | null;
 };
 
 /** The sheet a project workbook keeps its assembly list on. */
 const ASSEMBLY_SHEET_NAME = 'ANSAMBLE';
+
+/** The sheet that breaks every assembly down into its parts. */
+const PARTS_SHEET_NAME = 'DETALIEREANSAMBLE';
+
+/**
+ * Its columns, normalized like sheet names. The part mark is "Piesa" in the
+ * Tekla export and "Reper" in the hand-made template.
+ */
+const PART_MARK_HEADERS = ['PIESA', 'REPER'];
+const PART_COUNT_HEADER = 'NRTOTALDEREPERE';
+const PART_WEIGHT_HEADER = 'MASATOTALAKG';
+
+/** What an assembly's own row holds in the part column of the hand-made template. */
+const ASSEMBLY_ROW_MARK = /^buc\.?$/i;
 
 /** Uppercase, strip diacritics and anything that is not a letter or digit. */
 function normalizeSheetName(name: string): string {
@@ -70,6 +93,51 @@ function normalizeSheetName(name: string): string {
 }
 
 /**
+ * Parts per ton the way the workbook counts its own "Nr. piese/to": every row
+ * that names a part adds its "NR. TOTAL DE REPERE" and its "Masa totală (kg)".
+ * Assembly rows name no part (or say "buc."), so they add nothing. Null when
+ * the sheet is missing, laid out differently, or adds up to nothing — the
+ * complexity is then typed in by hand, never guessed from the assembly count.
+ */
+function readWorkbookParts(workbook: ExcelJS.Workbook): WorkbookParts | null {
+  const sheet = workbook.worksheets.find(
+    (candidate) => normalizeSheetName(candidate.name) === PARTS_SHEET_NAME,
+  );
+  if (!sheet) {
+    return null;
+  }
+
+  const rows = sheetToRows(sheet);
+  const headerIndex = rows.findIndex((row) =>
+    row.some((cell) => normalizeSheetName(String(cell)) === PART_COUNT_HEADER),
+  );
+  if (headerIndex === -1) {
+    return null;
+  }
+
+  const header = rows[headerIndex].map((cell) => normalizeSheetName(String(cell)));
+  const markColumn = header.findIndex((name) => PART_MARK_HEADERS.includes(name));
+  const countColumn = header.indexOf(PART_COUNT_HEADER);
+  const weightColumn = header.indexOf(PART_WEIGHT_HEADER);
+  if (markColumn === -1 || weightColumn === -1) {
+    return null;
+  }
+
+  let pieces = 0;
+  let weightKg = 0;
+  for (const row of rows.slice(headerIndex + 1)) {
+    const mark = String(row[markColumn] ?? '').trim();
+    if (!mark || ASSEMBLY_ROW_MARK.test(mark)) {
+      continue;
+    }
+    pieces += parseAssemblyNumber(row[countColumn] ?? '') ?? 0;
+    weightKg += parseAssemblyNumber(row[weightColumn] ?? '') ?? 0;
+  }
+
+  return pieces > 0 && weightKg > 0 ? { pieces, weightKg } : null;
+}
+
+/**
  * Read an uploaded workbook and take the assembly list off the ANSAMBLE sheet.
  *
  * The sheet is found by name, not by guessing at content. A project workbook
@@ -78,6 +146,8 @@ function normalizeSheetName(name: string): string {
  * come out a row longer than the real one. Rather than pick a winner on a
  * heuristic, a workbook that does not have an ANSAMBLE sheet comes back with
  * its sheet names and no rows, so the admin says which one it is.
+ *
+ * The parts breakdown is added up alongside, whichever sheet the list came from.
  */
 export async function readWorkbookPreview(
   buffer: Buffer,
@@ -98,5 +168,6 @@ export async function readWorkbookPreview(
     sheets,
     rows: chosen ? sheetToRows(chosen) : [],
     sheetName: chosen?.name ?? null,
+    parts: readWorkbookParts(workbook),
   };
 }
