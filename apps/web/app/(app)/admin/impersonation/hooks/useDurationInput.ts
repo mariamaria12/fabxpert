@@ -21,6 +21,7 @@ export function useDurationInput(initialTotalHours: number) {
   const [selectedMinutes, setSelectedMinutes] = useState<DurationMinutePreset>(
     initialParts.minutes,
   );
+  const [editedByHand, setEditedByHand] = useState(false);
 
   const parsedDurationHours = resolveDurationHours(hoursInput, selectedMinutes);
   const canSave = parsedDurationHours !== null;
@@ -34,27 +35,41 @@ export function useDurationInput(initialTotalHours: number) {
   }
 
   function setHoursPreset(value: number) {
+    setEditedByHand(true);
     setSelectedMinutes(0);
     syncInput(value, 0);
   }
 
   function adjustHours(delta: number) {
+    setEditedByHand(true);
     const current = getWholeHoursFromInput(hoursInput);
     syncInput(clampStepperHours(current + delta), selectedMinutes);
   }
 
   function handleHoursInputChange(value: string) {
+    setEditedByHand(true);
     setHoursInput(value);
     setSelectedMinutes(getPresetMinutesFromInput(value));
   }
 
   function setMinutePreset(minutes: DurationMinutePreset) {
+    setEditedByHand(true);
     const nextMinutes =
       minutes === 0 ? 0 : selectedMinutes === minutes ? 0 : minutes;
     const wholeHours = getWholeHoursFromInput(hoursInput);
 
     setSelectedMinutes(nextMinutes);
     syncInput(wholeHours, nextMinutes);
+  }
+
+  /** Swaps in another default duration — never over one set by hand. */
+  function applyDefaultHours(totalHours: number) {
+    if (editedByHand) {
+      return;
+    }
+    const parts = durationPartsFromTotalHours(totalHours);
+    setSelectedMinutes(parts.minutes);
+    syncInput(parts.hours, parts.minutes);
   }
 
   const parsedParts = parseDurationInputParts(hoursInput);
@@ -72,5 +87,6 @@ export function useDurationInput(initialTotalHours: number) {
     setHoursPreset,
     setMinutePreset,
     activeHourPreset,
+    applyDefaultHours,
   };
 }

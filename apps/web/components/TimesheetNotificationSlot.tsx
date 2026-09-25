@@ -46,15 +46,18 @@ export function TimesheetNotificationSlot() {
     return null;
   }
 
+  // Bottom-right and under panels and dialogs: across the top it covered the
+  // page's first row — the pontaj steps — and took their clicks for ten seconds.
+  // Above the toasts on phones, beside them from `sm` up.
   return (
     <div
-      className="pointer-events-none absolute inset-x-0 top-0 z-50 px-6 pt-6"
+      className="pointer-events-none fixed inset-x-4 bottom-20 z-40 flex justify-end sm:inset-x-auto sm:bottom-6 sm:right-6"
       aria-live="polite"
     >
       <button
         type="button"
         onClick={dismissEarly}
-        className="pointer-events-auto flex w-full items-center gap-2 rounded-md border border-accent/30 bg-surface px-3 py-2.5 text-left text-sm text-text-primary shadow-popover transition-opacity hover:opacity-90"
+        className="pointer-events-auto flex min-w-0 max-w-sm items-center gap-2 rounded-md border border-accent/30 bg-surface px-3 py-2.5 text-left text-sm text-text-primary shadow-popover transition-opacity hover:opacity-90"
       >
         <i className="ti ti-bell shrink-0 text-base text-accent" aria-hidden="true" />
         <span className="min-w-0 truncate">{timesheetEventMessage(notification)}</span>

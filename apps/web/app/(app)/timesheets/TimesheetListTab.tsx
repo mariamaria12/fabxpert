@@ -10,7 +10,7 @@ import {
   type TimesheetGroupSortBy,
   type SortOrder,
 } from '@fabxpert/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MobileHeaderAction } from '@/components/MobileHeaderAction';
 import { PeriodFilter } from '@/components/PeriodFilter';
 import { TimesheetFormPanel } from './TimesheetFormPanel';
@@ -35,7 +35,6 @@ import { useViewPreference } from '@/hooks/useViewPreference';
 import { PanouActivityProgressBar } from '@/app/(app)/panou/PanouActivityProgressBar';
 import { PersonName } from '@/components/PersonAvatar';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
-import { Pagination } from '@/components/Pagination';
 import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 
@@ -66,6 +65,15 @@ function formatEntryCount(count: number): string {
   return count === 1 ? '1 pontaj' : `${count} pontaje`;
 }
 
+/** Adds a page to the list; a day already shown — pushed along by a new pontaj — stays once. */
+function appendGroups(
+  shown: TimesheetDayGroupDto[],
+  page: TimesheetDayGroupDto[],
+): TimesheetDayGroupDto[] {
+  const shownIds = new Set(shown.map((group) => group.id));
+  return [...shown, ...page.filter((group) => !shownIds.has(group.id))];
+}
+
 /** The day at a glance: what was worked on, in the order it was logged. */
 function formatGroupDetails(group: TimesheetDayGroupDto): string {
   return group.entries
@@ -80,14 +88,20 @@ function formatGroupDetails(group: TimesheetDayGroupDto): string {
 /** Step 1 of the flow: the day-by-day pontaje, as logged. */
 export function TimesheetListTab() {
   const businessAutofill = useBusinessAutofillProps();
-  const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [period, setPeriod] = useState<Period>({ kind: 'month' });
   const [groups, setGroups] = useState<TimesheetDayGroupDto[]>([]);
   const [total, setTotal] = useState(0);
+  /** Pages of PAGE_SIZE shown so far; reaching the end of the list loads the next. */
+  const [loadedPages, setLoadedPages] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreFailed, setLoadMoreFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Bumped whenever the list starts over, so answers for the old one are dropped. */
+  const listGenerationRef = useRef(0);
+  const endOfListRef = useRef<HTMLDivElement | null>(null);
   const [panel, setPanel] = useState<PanelState>({ open: false });
   const [exportOpen, setExportOpen] = useState(false);
   const [dayGroup, setDayGroup] = useState<TimesheetDayGroupDto | null>(null);
@@ -134,33 +148,121 @@ export function TimesheetListTab() {
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, period]);
-
   const hasActiveFilters = debouncedSearch.length > 0 || period.kind !== 'month';
+  const hasMore = loadedPages * PAGE_SIZE < total;
 
+  const listQuery = useMemo(
+    () => ({
+      period,
+      sortBy,
+      sortOrder,
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
+    }),
+    [period, sortBy, sortOrder, debouncedSearch],
+  );
+
+  /** Starts the list over from its first page — a new search, period or sort. */
   const loadTimesheets = useCallback(async () => {
+    const generation = ++listGenerationRef.current;
     setLoading(true);
+    setLoadingMore(false);
+    setLoadMoreFailed(false);
     setError(null);
 
     try {
       const response = await listTimesheetDayGroups({
-        page,
+        page: 1,
         pageSize: PAGE_SIZE,
-        period,
-        sortBy,
-        sortOrder,
-        ...(debouncedSearch ? { search: debouncedSearch } : {}),
+        ...listQuery,
       });
+      if (generation !== listGenerationRef.current) {
+        return;
+      }
       setGroups(response.data);
       setTotal(response.meta.total);
+      setLoadedPages(1);
     } catch (caught) {
-      setError(apiErrorToastMessage(caught));
+      if (generation === listGenerationRef.current) {
+        // The old list must not stay behind: scrolling would append the new
+        // search's pages to it.
+        setGroups([]);
+        setTotal(0);
+        setLoadedPages(0);
+        setError(apiErrorToastMessage(caught));
+      }
     } finally {
-      setLoading(false);
+      if (generation === listGenerationRef.current) {
+        setLoading(false);
+      }
     }
-  }, [page, debouncedSearch, period, sortBy, sortOrder]);
+  }, [listQuery]);
+
+  /**
+   * Fetches every page already shown again, in place, so an edit or a refresh
+   * deep in the list does not throw it back to the top.
+   */
+  const reloadLoadedPages = useCallback(async () => {
+    const pages = Math.max(loadedPages, 1);
+    const generation = ++listGenerationRef.current;
+    setLoadingMore(false);
+    setLoadMoreFailed(false);
+    setError(null);
+
+    try {
+      const responses = await Promise.all(
+        Array.from({ length: pages }, (_, index) =>
+          listTimesheetDayGroups({ page: index + 1, pageSize: PAGE_SIZE, ...listQuery }),
+        ),
+      );
+      if (generation !== listGenerationRef.current) {
+        return;
+      }
+      setGroups(
+        responses.reduce<TimesheetDayGroupDto[]>(
+          (shown, response) => appendGroups(shown, response.data),
+          [],
+        ),
+      );
+      setTotal(responses[0].meta.total);
+      setLoadedPages(pages);
+    } catch (caught) {
+      if (generation === listGenerationRef.current) {
+        setError(apiErrorToastMessage(caught));
+      }
+    }
+  }, [listQuery, loadedPages]);
+
+  const loadMore = useCallback(async () => {
+    if (loading || loadingMore || !hasMore) {
+      return;
+    }
+    const generation = listGenerationRef.current;
+    const nextPage = loadedPages + 1;
+    setLoadingMore(true);
+    setLoadMoreFailed(false);
+
+    try {
+      const response = await listTimesheetDayGroups({
+        page: nextPage,
+        pageSize: PAGE_SIZE,
+        ...listQuery,
+      });
+      if (generation !== listGenerationRef.current) {
+        return;
+      }
+      setGroups((shown) => appendGroups(shown, response.data));
+      setTotal(response.meta.total);
+      setLoadedPages(nextPage);
+    } catch {
+      if (generation === listGenerationRef.current) {
+        setLoadMoreFailed(true);
+      }
+    } finally {
+      if (generation === listGenerationRef.current) {
+        setLoadingMore(false);
+      }
+    }
+  }, [loading, loadingMore, hasMore, loadedPages, listQuery]);
 
   // The calendar loads its own data; the table is fetched only while shown.
   useEffect(() => {
@@ -169,12 +271,32 @@ export function TimesheetListTab() {
     }
   }, [loadTimesheets, view]);
 
+  // The end of the list coming near the screen loads the next page. Stops on a
+  // failure until "Reîncearcă", so a dropped connection is not hammered.
+  useEffect(() => {
+    const element = endOfListRef.current;
+    if (!element || view !== 'table' || !hasMore || loading || loadingMore || loadMoreFailed) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          void loadMore();
+        }
+      },
+      { rootMargin: '400px' },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [view, hasMore, loading, loadingMore, loadMoreFailed, loadMore]);
+
   async function refreshAll() {
     setRefreshing(true);
     setCalendarToken((token) => token + 1);
     try {
       if (view === 'table') {
-        await loadTimesheets();
+        await reloadLoadedPages();
       }
       setLastUpdated(new Date());
     } finally {
@@ -185,7 +307,6 @@ export function TimesheetListTab() {
   function handleSortChange(nextSortBy: string, nextSortOrder: SortOrder) {
     setSortBy(nextSortBy as TimesheetGroupSortBy);
     setSortOrder(nextSortOrder);
-    setPage(1);
   }
 
   function openCreate() {
@@ -205,10 +326,10 @@ export function TimesheetListTab() {
   }
 
   // Editing an entry can move it to another day or change the day's totals, so
-  // the grouped page is always refetched rather than patched in place.
+  // the pages shown are always refetched rather than patched in place.
   function handleSaved() {
     if (view === 'table') {
-      void loadTimesheets();
+      void reloadLoadedPages();
     }
     setCalendarToken((token) => token + 1);
   }
@@ -527,8 +648,31 @@ export function TimesheetListTab() {
           onSortChange={handleSortChange}
           renderExpandedRow={renderGroupEntries}
         />
-        {!loading && total > 0 && (
-          <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
+        {!loading && groups.length > 0 && (
+          <div
+            ref={endOfListRef}
+            className="flex justify-center py-4 text-xs text-text-muted"
+            aria-live="polite"
+          >
+            {loadingMore ? (
+              <span className="inline-flex items-center gap-2">
+                <i className="ti ti-loader-2 animate-spin text-sm" aria-hidden="true" />
+                Se încarcă…
+              </span>
+            ) : hasMore ? (
+              <button
+                type="button"
+                onClick={() => void loadMore()}
+                className="rounded-md border border-border px-3 py-1.5 text-xs text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary"
+              >
+                {loadMoreFailed
+                  ? 'Nu s-au putut încărca. Reîncearcă'
+                  : `Încarcă mai multe (${groups.length} din ${total})`}
+              </button>
+            ) : (
+              <span>{total === 1 ? '1 rezultat' : `Toate cele ${total} rezultate`}</span>
+            )}
+          </div>
         )}
       </div>
       )}

@@ -1,4 +1,4 @@
-import { todayDateInputValue } from '@fabxpert/shared';
+import { parseWorkDateString, SATURDAY_WORK_MINUTES, todayDateInputValue } from '@fabxpert/shared';
 import type { ActivityDto, ProjectOptionDto } from '@fabxpert/shared';
 import { useMemo, useState, useId } from 'react';
 import { AssemblySummary } from './AssemblySummary';
@@ -14,6 +14,12 @@ import { createTimesheet } from '../impersonationApi';
 import { requestImpersonationConfirm } from '../impersonationSession';
 
 const DEFAULT_HOURS = 9;
+
+/** A Saturday is worked as a 7.5h day, so its pontaj starts from that. */
+function defaultHoursFor(workDate: string): number {
+  const isSaturday = workDate !== '' && parseWorkDateString(workDate).getDay() === 6;
+  return isSaturday ? SATURDAY_WORK_MINUTES / 60 : DEFAULT_HOURS;
+}
 
 interface TimeEntryProps {
   project: ProjectOptionDto;
@@ -38,6 +44,7 @@ export function TimeEntry({
     [autofillTrapId],
   );
   const { refreshMyTimesheetsPage1 } = useMobileLookupCache();
+  const [workDate, setWorkDate] = useState(todayDateInputValue);
   const {
     hoursInput,
     setHoursInput,
@@ -49,10 +56,15 @@ export function TimeEntry({
     setHoursPreset,
     setMinutePreset,
     activeHourPreset,
-  } = useDurationInput(DEFAULT_HOURS);
+    applyDefaultHours,
+  } = useDurationInput(defaultHoursFor(workDate));
   const [notes, setNotes] = useState('');
-  const [workDate, setWorkDate] = useState(todayDateInputValue);
   const [isSaving, setIsSaving] = useState(false);
+
+  function handleWorkDateChange(value: string) {
+    setWorkDate(value);
+    applyDefaultHours(defaultHoursFor(value));
+  }
 
   async function handleSave() {
     if (!parsedDurationHours || isSaving) {
@@ -113,7 +125,7 @@ export function TimeEntry({
           label="Data"
           value={workDate}
           required
-          onChange={setWorkDate}
+          onChange={handleWorkDateChange}
         />
 
         <DurationInput
