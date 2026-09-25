@@ -444,6 +444,7 @@ function upsertProjectRow(
       color: row.projectColor,
       status: row.projectStatus as ProjectStatus,
       company: { id: row.companyId, name: row.companyName },
+      progressPercent: null,
       totalMinutes: 0,
       activities: [],
     };

@@ -222,7 +222,10 @@ export function PinnedProjectCard({
       durationTopActions={<PinnedProjectEditButton onEdit={onEdit} />}
       expandedContent={
         project.activities.length > 0 ? (
-          <ActivityBreakdownRows activities={project.activities} />
+          <ActivityBreakdownRows
+            activities={project.activities}
+            progressPercent={project.progressPercent}
+          />
         ) : (
           <p className="text-sm text-text-muted">
             {formatDurationMinutes(project.totalMinutes)} total logat

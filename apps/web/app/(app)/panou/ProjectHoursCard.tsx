@@ -14,6 +14,8 @@ export type ProjectHoursCardProject = {
   color: string | null;
   status: ProjectStatus;
   company: { name: string };
+  /** Progress on the assembly list, 0–100; null without one. */
+  progressPercent: number | null;
   totalMinutes: number;
   activities: ProjectSummaryActivityRow[];
 };
@@ -52,7 +54,12 @@ export function ProjectHoursCard({
           <i className="ti ti-tools text-base" />
         </span>
       }
-      expandedContent={<ActivityBreakdownRows activities={project.activities} />}
+      expandedContent={
+        <ActivityBreakdownRows
+          activities={project.activities}
+          progressPercent={project.progressPercent}
+        />
+      }
     />
   );
 }

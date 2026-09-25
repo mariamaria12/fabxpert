@@ -215,6 +215,11 @@ export type ProjectSummaryProjectRow = {
   color: string | null;
   status: ProjectStatus;
   company: { id: string; name: string };
+  /**
+   * Progress on the assembly list, 0–100 (see projectProgressPercent) — the
+   * figure the pinned card shows. Null without a list or a tracked activity.
+   */
+  progressPercent: number | null;
   totalMinutes: number;
   activities: ProjectSummaryActivityRow[];
 };

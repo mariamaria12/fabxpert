@@ -1,6 +1,7 @@
 'use client';
 
 import type { ProjectSummaryActivityRow } from '@fabxpert/shared';
+import { formatProjectProgress } from '@fabxpert/shared';
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
 import { formatProjectWeight } from '@/utils/projectWeight';
 import { PanouActivityProgressBar } from './PanouActivityProgressBar';
@@ -159,41 +160,51 @@ function ActivityHoursCells({
 }
 
 /**
- * The whole fabrication flow in one line: every tracked activity has to cover
- * the same list, so the denominator is the list once per activity.
+ * The project's progress — the same figure as on the card, not the average of
+ * the rows above: each piece counts with a fixed part on top of its weight,
+ * each activity with its calibrated share, and a line reported past its
+ * quantity stops at it. Only the hand-ticked slice of the bar is read off the
+ * tonnes above, as the share of the done work nobody pontaged.
  */
-function AssemblyTotalCells({ activities }: { activities: ProjectSummaryActivityRow[] }) {
+function AssemblyTotalCells({
+  activities,
+  progressPercent,
+}: {
+  activities: ProjectSummaryActivityRow[];
+  progressPercent: number;
+}) {
   const sum = (pick: (progress: NonNullable<ProjectSummaryActivityRow['assemblyProgress']>) => number) =>
     activities.reduce(
       (total, activity) => total + (activity.assemblyProgress ? pick(activity.assemblyProgress) : 0),
       0,
     );
-  const { percent, manualPercent, label, hasList } = progressFigures({
-    piecesDone: sum((progress) => progress.piecesDone),
-    piecesTotal: sum((progress) => progress.piecesTotal),
-    weightDoneKg: sum((progress) => progress.weightDoneKg ?? 0),
-    weightTotalKg: sum((progress) => progress.weightTotalKg ?? 0),
-    piecesManual: sum((progress) => progress.piecesManual ?? 0),
-    weightManualKg: sum((progress) => progress.weightManualKg ?? 0),
-  });
+  const weightDone = sum((progress) => progress.weightDoneKg ?? 0);
+  const piecesDone = sum((progress) => progress.piecesDone);
+  const manualShare =
+    weightDone > 0
+      ? sum((progress) => progress.weightManualKg ?? 0) / weightDone
+      : piecesDone > 0
+        ? sum((progress) => progress.piecesManual ?? 0) / piecesDone
+        : 0;
 
   return (
     <>
-      <span className={`${NAME_CELL} truncate pl-[14px] text-xs text-text-muted`}>
+      <span
+        className={`${NAME_CELL} truncate pl-[14px] text-xs text-text-muted`}
+        title="Aceeași cifră ca pe card: fiecare bucată contează cu greutatea ei plus o parte fixă, iar activitățile au ponderi diferite — nu e media rândurilor de mai sus."
+      >
         Progres total ansamble
       </span>
       <span className="text-right text-[11px] tabular-nums text-text-muted">
-        {hasList ? `${percent}%` : ''}
+        {formatProjectProgress(progressPercent)}
       </span>
       <PanouActivityProgressBar
         className="w-full"
         color="var(--color-success-icon)"
-        percent={percent}
-        manualPercent={manualPercent}
+        percent={progressPercent}
+        manualPercent={progressPercent * manualShare}
       />
-      <span className="whitespace-nowrap font-mono text-[11px] tabular-nums text-text-muted">
-        {label}
-      </span>
+      <span aria-hidden="true" />
       <span aria-hidden="true" />
     </>
   );
@@ -221,8 +232,11 @@ function WithoutWeightNote({ activities }: { activities: ProjectSummaryActivityR
 
 export function ActivityBreakdownRows({
   activities,
+  progressPercent,
 }: {
   activities: ProjectSummaryActivityRow[];
+  /** The project's progress (see projectProgressPercent); null hides the total line. */
+  progressPercent: number | null;
 }) {
   const assemblyActivities = activities.filter(hasAssemblyInfo);
   const hoursActivities = activities.filter((activity) => !hasAssemblyInfo(activity));
@@ -249,10 +263,13 @@ export function ActivityBreakdownRows({
             <AssemblyActivityCells key={activity.activityId ?? 'none'} activity={activity} />
           ))}
 
-          {assemblyActivities.length > 1 && (
+          {assemblyActivities.length > 1 && progressPercent !== null && (
             <>
               <hr className={`${FULL_ROW} border-t border-border-subtle`} />
-              <AssemblyTotalCells activities={assemblyActivities} />
+              <AssemblyTotalCells
+                activities={assemblyActivities}
+                progressPercent={progressPercent}
+              />
             </>
           )}
 

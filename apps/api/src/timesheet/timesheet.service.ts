@@ -591,8 +591,23 @@ export class TimesheetService {
     const rows = await this.prisma.$queryRaw<ProjectSummarySqlRow[]>(
       buildProjectSummaryQuery(resolved.from, resolved.to),
     );
-    const assemblyIndex = await this.loadProjectAssemblyProgress(rows);
-    return shapeProjectSummary(rows, resolved.period, assemblyIndex);
+    // Only a breakdown with a tracked activity has a progress line to fill.
+    const trackedProjectIds = [
+      ...new Set(rows.filter((row) => row.activityTracksAssemblies).map((row) => row.projectId)),
+    ];
+    const [assemblyIndex, progress] = await Promise.all([
+      this.loadProjectAssemblyProgress(rows),
+      loadProjectProgress(this.prisma, trackedProjectIds),
+    ]);
+    const summary = shapeProjectSummary(rows, resolved.period, assemblyIndex);
+
+    return {
+      ...summary,
+      projects: summary.projects.map((project) => ({
+        ...project,
+        progressPercent: progress.get(project.id) ?? null,
+      })),
+    };
   }
 
   async getPinnedProjectsSummary(
