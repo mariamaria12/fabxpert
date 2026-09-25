@@ -258,6 +258,14 @@ describe('Project list statusGroup filter (e2e)', () => {
   });
 
   it('filters by readyForExecution', async () => {
+    // The status changes above re-derived the flag; set it by hand so the
+    // filter still has a ready project to find.
+    await request(app.getHttpServer())
+      .patch(`/projects/${FIXTURES.projects.ready.id}`)
+      .set(authHeader(adminCookie))
+      .send({ readyForExecution: true })
+      .expect(200);
+
     const ready = await request(app.getHttpServer())
       .get('/projects')
       .query({ readyForExecution: 'true', pageSize: '50' })

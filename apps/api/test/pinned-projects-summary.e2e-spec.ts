@@ -103,10 +103,11 @@ describe('Pinned projects summary (e2e)', () => {
   });
 
   it('returns pinned projects including zero-hour projects with activity breakdown', async () => {
+    // Pinned and in production, so it stays visible to employees.
     await request(app.getHttpServer())
       .patch(`/projects/${FIXTURES.projects.ready.id}`)
       .set(authHeader(adminCookie))
-      .send({ isPinned: true })
+      .send({ isPinned: true, status: 'IN_PRODUCTIE' })
       .expect(200);
 
     await request(app.getHttpServer())
@@ -182,18 +183,19 @@ describe('Pinned projects summary (e2e)', () => {
     ]);
   });
 
-  it('does not emit availability SSE when toggling isPinned only', async () => {
+  it('does not emit availability SSE when a pin toggle leaves the project hidden', async () => {
     const listener = listenForAvailabilityChanged(app, adminCookie);
     await sleep(300);
 
+    // Still in preparation, so neither toggle makes it visible.
     await request(app.getHttpServer())
-      .patch(`/projects/${FIXTURES.projects.ready.id}`)
+      .patch(`/projects/${FIXTURES.projects.notReady.id}`)
       .set(authHeader(adminCookie))
       .send({ isPinned: false })
       .expect(200);
 
     await request(app.getHttpServer())
-      .patch(`/projects/${FIXTURES.projects.ready.id}`)
+      .patch(`/projects/${FIXTURES.projects.notReady.id}`)
       .set(authHeader(adminCookie))
       .send({ isPinned: true })
       .expect(200);
@@ -201,5 +203,21 @@ describe('Pinned projects summary (e2e)', () => {
     const result = await listener.promise;
     listener.close();
     expect(result).toBe('timeout');
+  });
+
+  it('emits availability SSE when unpinning a visible project', async () => {
+    const listener = listenForAvailabilityChanged(app, adminCookie);
+    await sleep(300);
+
+    const response = await request(app.getHttpServer())
+      .patch(`/projects/${FIXTURES.projects.ready.id}`)
+      .set(authHeader(adminCookie))
+      .send({ isPinned: false })
+      .expect(200);
+    expect(response.body.readyForExecution).toBe(false);
+
+    const result = await listener.promise;
+    listener.close();
+    expect(result).toBe('changed');
   });
 });

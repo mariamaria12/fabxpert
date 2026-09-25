@@ -9,6 +9,7 @@ import {
   deleteProject,
   getProject,
   importProjectAssemblies,
+  isProjectAutoReadyForExecution,
   PROJECT_STATUS_META,
   PROJECT_STATUS_VALUES,
   pickRandomProjectColor,
@@ -239,7 +240,11 @@ function buildCreatePayload(values: ProjectFormValues, numbers: ProjectFormNumbe
   };
 }
 
-function buildUpdatePayload(values: ProjectFormValues, numbers: ProjectFormNumbers) {
+function buildUpdatePayload(
+  values: ProjectFormValues,
+  numbers: ProjectFormNumbers,
+  readyForExecutionTouched: boolean,
+) {
   return {
     name: values.name,
     denumireLucrare: values.denumireLucrare.trim() || null,
@@ -252,7 +257,8 @@ function buildUpdatePayload(values: ProjectFormValues, numbers: ProjectFormNumbe
     code: values.code,
     companyId: values.companyId,
     status: values.status,
-    readyForExecution: values.readyForExecution,
+    // Left out unless ticked by hand, so a status change lets the server set it.
+    ...(readyForExecutionTouched ? { readyForExecution: values.readyForExecution } : {}),
     visibleForRoleIds: values.visibleForRoleIds,
     ...(values.startDate ? { startDate: values.startDate } : {}),
     ...(values.dueDate ? { dueDate: values.dueDate } : {}),
@@ -299,6 +305,7 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
   const [employeeRolesLoading, setEmployeeRolesLoading] = useState(false);
   const [editProject, setEditProject] = useState<ProjectDto | null>(null);
   const [editProjectLoading, setEditProjectLoading] = useState(false);
+  const [readyForExecutionTouched, setReadyForExecutionTouched] = useState(false);
   const nameFieldRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [excelPasteText, setExcelPasteText] = useState('');
@@ -380,6 +387,7 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
     setAssemblyEditOpen(false);
     setIsDeleting(false);
     setEditProject(null);
+    setReadyForExecutionTouched(false);
 
     if (mode === 'create') {
       setValues({ ...EMPTY_FORM, color: pickRandomProjectColor() });
@@ -528,6 +536,26 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
       return next;
     });
     setFormError(null);
+  }
+
+  /**
+   * Until the checkbox is ticked by hand, it shows what the server will set:
+   * the automatic value for a new status, the saved one when it is set back.
+   */
+  function handleStatusChange(status: ProjectStatus) {
+    updateField('status', status);
+
+    const saved = editProject ?? project;
+    if (mode !== 'edit' || !saved || readyForExecutionTouched) {
+      return;
+    }
+
+    updateField(
+      'readyForExecution',
+      status === saved.status
+        ? saved.readyForExecution
+        : isProjectAutoReadyForExecution(saved.isPinned, status),
+    );
   }
 
   function applyExcelProjectPaste(text: string) {
@@ -701,7 +729,7 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
     }
 
     const parsed = updateProjectSchema.safeParse(
-      buildUpdatePayload(values, numbers),
+      buildUpdatePayload(values, numbers, readyForExecutionTouched),
     );
     if (!parsed.success) {
       setFieldErrors(mapZodFieldErrors(parsed.error));
@@ -939,13 +967,18 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
               type="checkbox"
               checked={values.readyForExecution}
               disabled={isBusy}
-              onChange={(event) => updateField('readyForExecution', event.target.checked)}
+              onChange={(event) => {
+                updateField('readyForExecution', event.target.checked);
+                setReadyForExecutionTouched(true);
+              }}
               className="size-4 rounded border-border accent-accent"
             />
             Gata de execuție
           </label>
           <p className="mt-1.5 text-xs text-text-muted">
-            Proiectele gata de execuție apar angajaților în aplicația mobilă.
+            Proiectele gata de execuție apar angajaților în aplicația mobilă. La fixarea pe
+            panou, la anularea fixării și la schimbarea statusului se setează automat: bifat
+            dacă proiectul e fixat și în producție, altfel debifat. Poți schimba oricând manual.
           </p>
         </div>
 
@@ -1127,7 +1160,7 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
           value={values.status}
           options={statusOptions}
           disabled={isBusy}
-          onChange={(status) => updateField('status', status as ProjectStatus)}
+          onChange={(status) => handleStatusChange(status as ProjectStatus)}
         />
 
         <DateField

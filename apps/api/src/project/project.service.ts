@@ -17,6 +17,7 @@ import type {
 } from '@fabxpert/shared/dto/project.dto';
 import { pickRandomProjectColor } from '@fabxpert/shared/projectColor';
 import {
+  isProjectAutoReadyForExecution,
   isProjectCompletedStatus,
   PROJECT_IN_PROGRESS_EXCLUDED_STATUSES,
 } from '@fabxpert/shared/projectStatus';
@@ -526,6 +527,16 @@ export class ProjectService {
       completedAt = null;
     }
 
+    // Pinning, unpinning and status changes decide who sees the project in the
+    // mobile app. A readyForExecution sent in the same request wins, so the
+    // flag stays editable by hand.
+    const nextIsPinned = isPinned ?? existing.isPinned;
+    const autoReadyForExecution =
+      scalarInput.readyForExecution === undefined &&
+      (nextIsPinned !== existing.isPinned || nextStatus !== existing.status)
+        ? isProjectAutoReadyForExecution(nextIsPinned, nextStatus)
+        : undefined;
+
     try {
       const project = await this.prisma.project.update({
         where: { id },
@@ -535,6 +546,9 @@ export class ProjectService {
           ...(indexPanou !== undefined ? { indexPanou } : {}),
           ...(panouColumn !== undefined ? { panouColumn } : {}),
           ...(completedAt !== undefined ? { completedAt } : {}),
+          ...(autoReadyForExecution !== undefined
+            ? { readyForExecution: autoReadyForExecution }
+            : {}),
           ...(visibleForRoleIds !== undefined
             ? {
                 visibleForRoles: {

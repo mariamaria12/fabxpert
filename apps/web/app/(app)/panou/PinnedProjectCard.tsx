@@ -12,6 +12,7 @@ import { AssemblyListScreen } from '@/app/(app)/projects/AssemblyListScreen';
 import { ActivityBreakdownRows } from './ActivityBreakdownRows';
 import { NEUTRAL_ACCENT, panouAccentTint } from './panouColors';
 import { PanouProjectCard } from './PanouProjectCard';
+import { pinToggleToastMessage } from './ProjectPinButton';
 import type { DraggableAttributes } from '@dnd-kit/core';
 import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities';
 import {
@@ -31,7 +32,7 @@ function PinnedProjectPinButton({
   project,
   onUnpinned,
 }: {
-  project: Pick<PinnedProjectSummaryRow, 'id' | 'color'>;
+  project: Pick<PinnedProjectSummaryRow, 'id' | 'color' | 'readyForExecution'>;
   onUnpinned: (updated: ProjectDto) => void;
 }) {
   const { showToast } = useToast();
@@ -47,7 +48,7 @@ function PinnedProjectPinButton({
     try {
       const updated = await updateProject(project.id, { isPinned: false });
       onUnpinned(updated);
-      showToast('Fixare anulată', 'success');
+      showToast(pinToggleToastMessage(updated, project.readyForExecution), 'success');
     } catch (caught) {
       showToast(apiErrorToastMessage(caught), 'error');
     } finally {

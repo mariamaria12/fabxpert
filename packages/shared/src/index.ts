@@ -165,6 +165,7 @@ export {
   PROJECT_ACTIVE_STATUSES,
   PROJECT_IN_PROGRESS_EXCLUDED_STATUSES,
   isProjectCompletedStatus,
+  isProjectAutoReadyForExecution,
   formatProjectDueDate,
   getProjectStatusBadgeClassName,
   getProjectStatusLabel,

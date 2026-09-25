@@ -5,7 +5,22 @@ import { useState } from 'react';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 
-export type ProjectPinTarget = Pick<ProjectDto, 'id' | 'isPinned'>;
+export type ProjectPinTarget = Pick<ProjectDto, 'id' | 'isPinned' | 'readyForExecution'>;
+
+/** Pinning moves the project in or out of the mobile app, so the toast says when it did. */
+export function pinToggleToastMessage(
+  updated: ProjectDto,
+  wasReadyForExecution: boolean,
+): string {
+  if (updated.readyForExecution === wasReadyForExecution) {
+    return updated.isPinned ? 'Proiect fixat' : 'Fixare anulată';
+  }
+
+  const visibility = updated.readyForExecution ? 'vizibil' : 'ascuns';
+  return updated.isPinned
+    ? `Proiect fixat și ${visibility} angajaților`
+    : `Fixare anulată, proiect ${visibility} angajaților`;
+}
 
 export function ProjectPinButton({
   project,
@@ -27,7 +42,7 @@ export function ProjectPinButton({
     try {
       const updated = await updateProject(project.id, { isPinned: !project.isPinned });
       onToggled(updated);
-      showToast(updated.isPinned ? 'Proiect fixat' : 'Fixare anulată', 'success');
+      showToast(pinToggleToastMessage(updated, project.readyForExecution), 'success');
     } catch (caught) {
       showToast(apiErrorToastMessage(caught), 'error');
     } finally {

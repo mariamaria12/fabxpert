@@ -61,6 +61,18 @@ export function isProjectCompletedStatus(status: ProjectStatus): boolean {
   return PROJECT_COMPLETED_STATUSES.includes(status);
 }
 
+/**
+ * What `readyForExecution` is set to whenever a project is pinned, unpinned or
+ * changes status: visible to employees only while it is on the panou and in
+ * production. Admins can still change it by hand until the next such change.
+ */
+export function isProjectAutoReadyForExecution(
+  isPinned: boolean,
+  status: ProjectStatus,
+): boolean {
+  return isPinned && status === 'IN_PRODUCTIE';
+}
+
 export function getProjectStatusLabel(status: ProjectStatus): string {
   return PROJECT_STATUS_META[status].label;
 }
