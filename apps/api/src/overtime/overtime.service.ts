@@ -311,24 +311,43 @@ export class OvertimeService {
    * The same balance for everyone, without a query per person. External
    * collaborators are left out unless INCLUDE_EXTERNAL_EMPLOYEES says otherwise.
    *
-   * The timesheet scan is bounded by the earliest month still unsettled on
-   * anyone, so a history that is settled up to date stays cheap to read.
+   * `month` looks back at a past month as it stands now; it defaults to the
+   * current one. The timesheet scan is bounded by the earliest month still
+   * unsettled on anyone, so a history that is settled up to date stays cheap
+   * to read.
    */
-  async computeAllBalances(): Promise<OvertimeBalancesResponse> {
+  async computeAllBalances(month?: Date): Promise<OvertimeBalancesResponse> {
+    const currentMonth = startOfMonth(new Date());
+    const monthStart = month ? startOfMonth(month) : currentMonth;
+    if (monthStart.getTime() > currentMonth.getTime()) {
+      throw new BadRequestException('month cannot be in the future');
+    }
+    const monthKey = formatMonth(monthStart);
+
     const [persons, settlements] = await Promise.all([
       this.listPersons(),
       this.prisma.overtimeSettlement.findMany({
+        where: { month: { lte: monthStart } },
         select: { personId: true, ...SETTLEMENT_SELECT },
         orderBy: { month: 'desc' },
       }),
     ]);
 
     const settlementsByPerson = groupBy(settlements, (row) => row.personId);
-    const source = await this.loadOvertimeSource(scanFrom(persons, settlementsByPerson));
+    const source = await this.loadOvertimeSource({
+      ...scanFrom(persons, settlementsByPerson),
+      to: startOfNextMonth(monthStart),
+    });
 
     return {
       rows: persons.map((person) => {
-        const correction = source.correctionByPerson.get(person.id) ?? null;
+        // A correction made after the month did not exist then, so the month
+        // reads as it was.
+        const latestCorrection = source.correctionByPerson.get(person.id) ?? null;
+        const correction =
+          latestCorrection && formatMonth(latestCorrection.effectiveDate) > monthKey
+            ? null
+            : latestCorrection;
         return {
           person: toBalancePerson(person),
           balance: this.buildBalance(
@@ -337,6 +356,7 @@ export class OvertimeService {
             this.monthlyActivity(person.id, source, correction),
             dailyWorkMinutesFor(source, person.id),
             correction,
+            monthStart,
           ),
         };
       }),
@@ -891,13 +911,13 @@ export class OvertimeService {
     activity: Map<string, MonthActivity>,
     dailyWorkMinutes: number,
     correction: OvertimeCorrectionRow | null,
+    monthStart = startOfMonth(new Date()),
   ): OvertimeBalanceDto {
-    const currentMonth = startOfMonth(new Date());
-    const monthKey = formatMonth(currentMonth);
+    const monthKey = formatMonth(monthStart);
     const month = activity.get(monthKey) ?? NO_ACTIVITY;
 
-    // Approved before it ended, the month has paid part of its hours already:
-    // the person keeps what the approval carried, plus whatever came after it.
+    // An approved month has paid part of its hours already: the person keeps
+    // what the approval carried, plus whatever came after it.
     const approvedNow =
       settlements.find(
         (row) => formatMonth(row.month) === monthKey && !isSupersededBy(row, correction),

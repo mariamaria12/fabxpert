@@ -6,15 +6,16 @@ import {
   formatOvertimeHours,
   type OvertimeBalanceRowDto,
 } from '@fabxpert/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { PersonName } from '@/components/PersonAvatar';
 import { editActionColumn } from '@/components/editActionColumn';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { MonthPicker } from './MonthPicker';
 import { OvertimeCorrectionPanel } from './OvertimeCorrectionPanel';
 import { OvertimeRulesInfo } from './OvertimeInfo';
 import { StatTile, StatTileRow } from './StatTile';
-import { formatMonthLabel } from './timesheetMonths';
+import { currentMonth, formatMonthLabel } from './timesheetMonths';
 
 interface OvertimeBalancesTabProps {
   active: boolean;
@@ -42,28 +43,42 @@ function formatUpdatedAt(date: Date): string {
   return date.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
 }
 
-/** Step 2 of the flow: the running overtime balance of everyone, this month. */
+/**
+ * Step 2 of the flow: the running overtime balance of everyone, this month —
+ * or a past month looked back at, where the balance can no longer be corrected.
+ */
 export function OvertimeBalancesTab({ active }: OvertimeBalancesTabProps) {
+  const [month, setMonth] = useState(currentMonth);
   const [rows, setRows] = useState<OvertimeBalanceRowDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<OvertimeBalanceRowDto | null>(null);
+  const loadSeqRef = useRef(0);
+  const isCurrentMonth = month === currentMonth();
 
   const loadBalances = useCallback(async () => {
+    // Paging through months fast must not let an older answer land last.
+    const seq = ++loadSeqRef.current;
     setLoading(true);
     setError(null);
 
     try {
-      const response = await listOvertimeBalances();
-      setRows(response.rows);
+      const response = await listOvertimeBalances(month);
+      if (seq === loadSeqRef.current) {
+        setRows(response.rows);
+      }
     } catch (caught) {
-      setError(apiErrorToastMessage(caught));
+      if (seq === loadSeqRef.current) {
+        setError(apiErrorToastMessage(caught));
+      }
     } finally {
-      setLoading(false);
+      if (seq === loadSeqRef.current) {
+        setLoading(false);
+      }
     }
-  }, []);
+  }, [month]);
 
   useEffect(() => {
     void loadBalances();
@@ -112,7 +127,7 @@ export function OvertimeBalancesTab({ active }: OvertimeBalancesTabProps) {
     },
     {
       key: 'earned',
-      header: 'Luna aceasta',
+      header: isCurrentMonth ? 'Luna aceasta' : 'Luna',
       width: '120px',
       className: 'text-right tabular-nums text-text-secondary',
       render: (row) => formatOvertimeBalance(row.balance.earnedMinutes),
@@ -168,7 +183,10 @@ export function OvertimeBalancesTab({ active }: OvertimeBalancesTabProps) {
       className: 'text-right tabular-nums text-text-secondary',
       render: (row) => row.balance.remainingDays,
     },
-    editActionColumn((row) => setEditing(row), 'Corectează soldul'),
+    // A correction sets today's balance, so it is offered on the current month only.
+    ...(isCurrentMonth
+      ? [editActionColumn<OvertimeBalanceRowDto>((row) => setEditing(row), 'Corectează soldul')]
+      : []),
   ];
 
   const positive = rows.filter((row) => row.balance.remainingMinutes > 0);
@@ -176,7 +194,7 @@ export function OvertimeBalancesTab({ active }: OvertimeBalancesTabProps) {
   const totalPositive = positive.reduce((sum, row) => sum + row.balance.remainingMinutes, 0);
   const totalDebt = debts.reduce((sum, row) => sum + row.balance.remainingMinutes, 0);
   const totalUsed = rows.reduce((sum, row) => sum + row.balance.usedMinutes, 0);
-  const currentMonthLabel = rows[0] ? formatMonthLabel(rows[0].balance.month) : null;
+  const anyApproved = rows.some((row) => row.balance.paidMinutes > 0);
 
   return (
     <div className="flex flex-col">
@@ -187,9 +205,8 @@ export function OvertimeBalancesTab({ active }: OvertimeBalancesTabProps) {
             <OvertimeRulesInfo />
           </div>
           <p className="mt-0.5 text-sm text-text-muted">
-            Soldul fiecăruia peste norma zilnică
-            {currentMonthLabel ? `, ${currentMonthLabel.toLowerCase()}` : ''}. Se aprobă pentru
-            plată la final de lună.
+            Soldul fiecăruia peste norma zilnică, {formatMonthLabel(month).toLowerCase()}. Se
+            aprobă pentru plată la final de lună.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -215,7 +232,11 @@ export function OvertimeBalancesTab({ active }: OvertimeBalancesTabProps) {
         </div>
       </div>
 
-      <div className="mt-5">
+      <div className="mt-5 flex flex-wrap items-center gap-3">
+        <MonthPicker value={month} onChange={setMonth} max={currentMonth()} />
+      </div>
+
+      <div className="mt-4">
         <StatTileRow>
           <StatTile
             label="Cu sold de plată"
@@ -228,10 +249,10 @@ export function OvertimeBalancesTab({ active }: OvertimeBalancesTabProps) {
             icon="ti-flame"
             accent
             value={loading ? '—' : formatOvertimeHours(totalPositive)}
-            hint="peste program, neaprobat încă"
+            hint={anyApproved ? 'după orele aprobate la plată' : 'peste program, neaprobat încă'}
           />
           <StatTile
-            label="Folosite luna aceasta"
+            label={isCurrentMonth ? 'Folosite luna aceasta' : 'Folosite în lună'}
             icon="ti-calendar-off"
             value={loading ? '—' : formatOvertimeHours(totalUsed)}
             hint="recuperări aprobate"
@@ -273,9 +294,10 @@ export function OvertimeBalancesTab({ active }: OvertimeBalancesTabProps) {
 
       {!loading && !error && rows.length > 0 ? (
         <p className="mt-3 text-xs text-text-muted">
-          Soldul acoperă doar luna curentă plus reportul din luna precedentă — orele mai vechi au
+          Soldul acoperă doar luna afișată plus reportul din luna dinainte — orele mai vechi au
           fost deja plătite sau recuperate. O sâmbătă lucrată e o zi de 7,5 h: doar ce trece de ea
-          intră în sold; duminica intră oră cu oră. Creionul setează soldul manual.{' '}
+          intră în sold; duminica intră oră cu oră.{' '}
+          {isCurrentMonth ? 'Creionul setează soldul manual. ' : ''}
           {settledThroughLabel(rows)}
         </p>
       ) : null}

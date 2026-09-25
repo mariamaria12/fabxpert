@@ -53,10 +53,11 @@ export class OvertimeController {
     return this.overtimeService.getMyBalance(req.user);
   }
 
+  /** Everyone's balance for `month` (`YYYY-MM`, never ahead of now); the current month when absent. */
   @Get('balances')
   @Roles('ADMIN')
-  listBalances() {
-    return this.overtimeService.computeAllBalances();
+  listBalances(@Query('month') month?: string) {
+    return this.overtimeService.computeAllBalances(month ? parseMonthString(month) : undefined);
   }
 
   @Get('balance/:personId')

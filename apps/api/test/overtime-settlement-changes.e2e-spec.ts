@@ -187,6 +187,48 @@ describe('Overtime settlement after the approval (e2e)', () => {
     expect((await balance()).carriedInMinutes).toBe(0);
   });
 
+  it('lists everyone for a past month as it stands, and refuses a future one', async () => {
+    const lastMonth = monthStart(-1);
+    const days = workingDaysOf(lastMonth);
+    await logLongDay(days[0]);
+    await logLongDay(days[1]);
+
+    const balanceIn = async (month?: string) => {
+      const response = await request(app.getHttpServer())
+        .get(`/overtime/balances${month ? `?month=${month}` : ''}`)
+        .set(authHeader(adminCookie))
+        .expect(200);
+      return response.body.rows.find(
+        (row: { person: { id: string } }) => row.person.id === personId,
+      ).balance;
+    };
+
+    const unapproved = await balanceIn(monthKey(lastMonth));
+    expect(unapproved.month).toBe(monthKey(lastMonth));
+    expect(unapproved.earnedMinutes).toBe(240);
+    expect(unapproved.remainingMinutes).toBe(240);
+
+    await settle(monthKey(lastMonth), 60);
+    const approved = await balanceIn(monthKey(lastMonth));
+    expect(approved.paidMinutes).toBe(180);
+    expect(approved.remainingMinutes).toBe(60);
+    expect((await balanceIn()).carriedInMinutes).toBe(60);
+
+    // A correction made today replaces the balance from here on, not last month's figures.
+    await request(app.getHttpServer())
+      .post('/overtime/corrections')
+      .set(authHeader(adminCookie))
+      .send({ personId, balanceMinutes: 0 })
+      .expect(201);
+    expect((await balanceIn(monthKey(lastMonth))).earnedMinutes).toBe(240);
+    expect((await balanceIn()).remainingMinutes).toBe(0);
+
+    await request(app.getHttpServer())
+      .get(`/overtime/balances?month=${monthKey(monthStart(1))}`)
+      .set(authHeader(adminCookie))
+      .expect(400);
+  });
+
   it('a correction made after an approval replaces what moved in that month', async () => {
     const twoMonthsAgo = monthStart(-2);
     const days = workingDaysOf(twoMonthsAgo);

@@ -21,9 +21,10 @@ export function getOvertimeBalance(personId: string) {
   return request<OvertimeBalanceDto>(`/overtime/balance/${personId}`);
 }
 
-/** Admin only. Overtime balance for every person, in one call. */
-export function listOvertimeBalances() {
-  return request<OvertimeBalancesResponse>('/overtime/balances');
+/** Admin only. Overtime balance for every person, in one call — for `month` (`YYYY-MM`) or the current one. */
+export function listOvertimeBalances(month?: string) {
+  const query = month ? `?month=${encodeURIComponent(month)}` : '';
+  return request<OvertimeBalancesResponse>(`/overtime/balances${query}`);
 }
 
 /** Admin only. What settling `month` would pay out, before committing to it. */
