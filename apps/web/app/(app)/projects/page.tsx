@@ -15,8 +15,8 @@ import {
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ProjectFormPanel } from './ProjectFormPanel';
+import { projectActionsColumn } from './projectActionsColumn';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
-import { editActionColumn } from '@/components/editActionColumn';
 import {
   ProjectNameCell,
   projectClientTableColumnLayout,
@@ -32,6 +32,7 @@ import { Pagination } from '@/components/Pagination';
 import { FiltersToggle } from '@/components/FiltersToggle';
 import { ProjectListFilters } from '@/components/ProjectListFilters';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { useOpenReportParam } from '@/hooks/useOpenReportParam';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { panouPathFromProjectEditReturn } from '@/utils/projectEditNavigation';
 import { STATUS_FILTER_OPTIONS } from '@/utils/projectStatusFilter';
@@ -40,6 +41,7 @@ import { formatProjectEstimatedHours } from '@/utils/projectEstimatedHours';
 import { formatProjectWeight } from '@/utils/projectWeight';
 import { formatProjectWeldLength } from '@/utils/projectWeldLength';
 import { ProjectVisibleForCell } from '../panou/panouProjectVisibility';
+import { ProjectReportPanel } from '../reports/ProjectReportPanel';
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -93,6 +95,7 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [panel, setPanel] = useState<PanelState>({ open: false });
+  const [reportProjectId, setReportProjectId] = useOpenReportParam();
   const [sortBy, setSortBy] = useState<ProjectListSortBy>(DEFAULT_SORT_BY);
   const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
   const [statusFilters, setStatusFilters] = useState<ProjectStatus[]>([]);
@@ -317,9 +320,9 @@ export default function ProjectsPage() {
           />
         ),
       },
-      editActionColumn<ProjectDto>(openEdit, 'Editează proiectul'),
+      projectActionsColumn(openEdit, setReportProjectId),
     ];
-  }, [openEdit]);
+  }, [openEdit, setReportProjectId]);
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
@@ -512,6 +515,11 @@ export default function ProjectsPage() {
           onSaved={handleSaved}
         />
       )}
+
+      <ProjectReportPanel
+        projectId={reportProjectId}
+        onClose={() => setReportProjectId(null)}
+      />
     </div>
   );
 }

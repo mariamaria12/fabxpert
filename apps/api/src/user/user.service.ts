@@ -17,6 +17,7 @@ import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
 import { PaginationParams } from '../common/pagination/parse-pagination.util';
 import { notDeleted } from '../common/prisma/soft-delete.util';
 import { AuthUserCache } from '../auth/auth-user-cache.service';
+import { SessionRevocationService } from '../auth/session-revocation.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProjectAvailabilityEventsService } from '../project/project-availability-events.service';
 
@@ -119,6 +120,7 @@ export class UserService {
     private readonly prisma: PrismaService,
     private readonly availabilityEvents: ProjectAvailabilityEventsService,
     private readonly authUserCache: AuthUserCache,
+    private readonly sessionRevocation: SessionRevocationService,
   ) {}
 
   async findAll(
@@ -248,6 +250,10 @@ export class UserService {
       });
       // Role or isActive may have changed — the guard must not trust its copy.
       this.authUserCache.invalidate(id);
+      // A deactivated account is logged out now, not on its next request.
+      if (existing.isActive && !user.isActive) {
+        this.sessionRevocation.revoke(id);
+      }
       if (restrictedProjectsChanged) {
         this.availabilityEvents.emitChanged();
       }

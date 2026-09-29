@@ -10,6 +10,7 @@ import {
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { matchesSearchText } from '@/utils/searchText';
 import { Bar, EmptyHint, SectionCard } from './ReportSection';
 import { paletteColor, TOKEN, tint } from './reportColors';
 import {
@@ -168,8 +169,10 @@ function ProjectCard({
 }
 
 export function ActiveProjectsView({
+  projectSearch,
   onSelectProject,
 }: {
+  projectSearch: string;
   onSelectProject: (projectId: string) => void;
 }) {
   const [report, setReport] = useState<ActiveProjectsReportResponse | null>(null);
@@ -211,13 +214,21 @@ export function ActiveProjectsView({
     );
   }
 
-  const rows = report?.rows ?? [];
+  const allRows = report?.rows ?? [];
+  const searching = projectSearch.trim().length > 0;
+  const rows = searching
+    ? allRows.filter((row) => matchesSearchText(`${row.label} ${row.code}`, projectSearch))
+    : allRows;
 
   return (
     <div className="space-y-2">
       <SectionCard
         title="Ore consumate vs. execuție"
-        hint={`${rows.length} ${rows.length === 1 ? 'proiect' : 'proiecte'}`}
+        hint={
+          searching
+            ? `${rows.length} din ${allRows.length}`
+            : `${rows.length} ${rows.length === 1 ? 'proiect' : 'proiecte'}`
+        }
       >
         <p className="text-[11px] leading-relaxed text-text-muted">
           Ore consumate: orele pontate din cele estimate. Execuție: media pașilor începuți,
@@ -230,7 +241,9 @@ export function ActiveProjectsView({
       {rows.length === 0 ? (
         <SectionCard title="Proiecte active">
           <EmptyHint>
-            Niciun proiect activ cu estimare sau listă de ansamble.
+            {searching
+              ? 'Niciun proiect găsit.'
+              : 'Niciun proiect activ cu estimare sau listă de ansamble.'}
           </EmptyHint>
         </SectionCard>
       ) : (

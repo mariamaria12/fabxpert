@@ -32,6 +32,7 @@ import { FinisajBadge } from '@/components/FinisajBadge';
 import { ProjectComplexityBadge } from '@/components/ProjectComplexityBadge';
 import { Pagination } from '@/components/Pagination';
 import { ProjectListFilters } from '@/components/ProjectListFilters';
+import { useOpenReportParam } from '@/hooks/useOpenReportParam';
 import { STATUS_FILTER_OPTIONS } from '@/utils/projectStatusFilter';
 import { replaceById } from '@/utils/replaceById';
 import { formatProjectEstimatedHours } from '@/utils/projectEstimatedHours';
@@ -42,6 +43,8 @@ import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 import { ProjectFormPanel } from '../projects/ProjectFormPanel';
 import { ProjectAssemblyCountCell } from '../projects/ProjectAssemblyCountCell';
 import { ProjectProgressCell } from '../projects/ProjectProgressCell';
+import { projectActionsColumn } from '../projects/projectActionsColumn';
+import { ProjectReportPanel } from '../reports/ProjectReportPanel';
 import {
   PanouPinnedProjectsSection,
   type PanouPinnedProjectsSectionHandle,
@@ -90,9 +93,15 @@ function DueDateCell({ project }: { project: ProjectDto }) {
 function useProjectTableColumns(options?: {
   showPinColumn?: boolean;
   onPinToggled?: (updated: ProjectDto) => void;
+  /** Adds the trailing report + pencil column. */
+  rowActions?: {
+    onEdit: (project: ProjectDto) => void;
+    onOpenReport: (projectId: string) => void;
+  };
 }): DataTableColumn<ProjectDto>[] {
   const showPinColumn = options?.showPinColumn;
   const onPinToggled = options?.onPinToggled;
+  const rowActions = options?.rowActions;
 
   return useMemo((): DataTableColumn<ProjectDto>[] => {
     const columns: DataTableColumn<ProjectDto>[] = [];
@@ -256,8 +265,12 @@ function useProjectTableColumns(options?: {
       },
     );
 
+    if (rowActions) {
+      columns.push(projectActionsColumn(rowActions.onEdit, rowActions.onOpenReport));
+    }
+
     return columns;
-  }, [onPinToggled, showPinColumn]);
+  }, [onPinToggled, rowActions, showPinColumn]);
 }
 
 export type ProjectTableSectionHandle = {
@@ -271,13 +284,23 @@ const ProjectTableSection = forwardRef<
     title: string;
     statusGroup: 'in_progress' | 'completed';
     showPinColumn?: boolean;
+    /** Given, each row ends in report + pencil buttons. */
+    onOpenReport?: (projectId: string) => void;
     /** Comes from the panou toolbar; the completed table stays unfiltered. */
     readyForExecution: boolean | null;
     onPinToggled?: (updated: ProjectDto) => void;
     onProjectUpdated?: (updated: ProjectDto) => void;
   }
 >(function ProjectTableSection(
-  { title, statusGroup, showPinColumn = false, readyForExecution, onPinToggled, onProjectUpdated },
+  {
+    title,
+    statusGroup,
+    showPinColumn = false,
+    onOpenReport,
+    readyForExecution,
+    onPinToggled,
+    onProjectUpdated,
+  },
   ref,
 ) {
   const [page, setPage] = useState(1);
@@ -432,6 +455,7 @@ const ProjectTableSection = forwardRef<
   const columnsWithPin = useProjectTableColumns({
     showPinColumn,
     onPinToggled: handlePinToggled,
+    rowActions: onOpenReport ? { onEdit: openEdit, onOpenReport } : undefined,
   });
 
   const hasActiveFilters =
@@ -537,9 +561,11 @@ export function PanouProjectsView() {
   const pinnedSectionRef = useRef<PanouPinnedProjectsSectionHandle>(null);
   const inProgressTableRef = useRef<ProjectTableSectionHandle>(null);
   const completedTableRef = useRef<ProjectTableSectionHandle>(null);
+  const [reportProjectId, setReportProjectId] = useOpenReportParam();
   // Collapsed by default: the completed table is the rarely-read one, and while
-  // it's closed it isn't mounted, so it costs no fetch.
-  const [completedOpen, setCompletedOpen] = useState(false);
+  // it's closed it isn't mounted, so it costs no fetch. Coming back to an open
+  // report reopens it, since that report was opened from there.
+  const [completedOpen, setCompletedOpen] = useState(() => reportProjectId !== null);
 
   const handlePinToggled = useCallback((updated: ProjectDto) => {
     if (updated.isPinned) {
@@ -617,11 +643,17 @@ export function PanouProjectsView() {
             ref={completedTableRef}
             title="Proiecte finalizate"
             statusGroup="completed"
+            onOpenReport={setReportProjectId}
             readyForExecution={null}
             onProjectUpdated={handleTableProjectUpdated}
           />
         )}
       </div>
+
+      <ProjectReportPanel
+        projectId={reportProjectId}
+        onClose={() => setReportProjectId(null)}
+      />
     </section>
   );
 }

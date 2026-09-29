@@ -8,12 +8,14 @@ import {
   type Period,
   type TimesheetDto,
 } from '@fabxpert/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { PeriodFilter } from '@/components/PeriodFilter';
+import { SearchableSelect, type SearchableSelectOption } from '@/components/SearchableSelect';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { loadAllProjects, toProjectOption } from './projectOptions';
 import { EXPORT_PREVIEW_FETCH_SIZE, sortTimesheetsForExport } from './timesheetFilters';
 import {
   formatExportHours,
@@ -25,6 +27,13 @@ import { WorkDateText } from './WorkDateText';
 interface TimesheetExportPanelProps {
   open: boolean;
   initialPeriod: Period;
+  /** The list's project filter; none exports every project. */
+  initialProjectId?: string | null;
+  /**
+   * The caller's project list, when it already has one — null while it is still
+   * loading. Left out, the panel loads its own.
+   */
+  projectOptions?: SearchableSelectOption[] | null;
   onClose: () => void;
 }
 
@@ -90,22 +99,62 @@ const previewColumns: DataTableColumn<TimesheetDto>[] = [
   },
 ];
 
-export function TimesheetExportPanel({ open, initialPeriod, onClose }: TimesheetExportPanelProps) {
+export function TimesheetExportPanel({
+  open,
+  initialPeriod,
+  initialProjectId = null,
+  projectOptions,
+  onClose,
+}: TimesheetExportPanelProps) {
   const { showToast } = useToast();
   const [period, setPeriod] = useState<Period>(initialPeriod);
+  const [projectId, setProjectId] = useState<string | null>(initialProjectId);
+  const [ownProjectOptions, setOwnProjectOptions] = useState<SearchableSelectOption[] | null>(null);
+  const loadsOwnProjectOptions = projectOptions === undefined;
+  const availableProjectOptions = loadsOwnProjectOptions ? ownProjectOptions : projectOptions;
   const [isExporting, setIsExporting] = useState(false);
   const [previewRows, setPreviewRows] = useState<TimesheetDto[]>([]);
   const [previewTotal, setPreviewTotal] = useState(0);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const previewRequestRef = useRef(0);
 
   useEffect(() => {
     if (open) {
       setPeriod(initialPeriod);
+      setProjectId(initialProjectId);
     }
-  }, [open, initialPeriod]);
+  }, [open, initialPeriod, initialProjectId]);
 
-  const loadPreview = useCallback(async (activePeriod: Period) => {
+  useEffect(() => {
+    if (!loadsOwnProjectOptions) {
+      return;
+    }
+
+    let cancelled = false;
+
+    loadAllProjects()
+      .then((projects) => {
+        if (!cancelled) {
+          setOwnProjectOptions(projects.map(toProjectOption));
+        }
+      })
+      .catch(() => {
+        // Without the list the export still covers every project.
+        if (!cancelled) {
+          setOwnProjectOptions([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadsOwnProjectOptions]);
+
+  const loadPreview = useCallback(async (activePeriod: Period, activeProjectId: string | null) => {
+    // The preview must match the file: an answer for an earlier choice is dropped.
+    const request = ++previewRequestRef.current;
+
     if (!isPeriodQueryReady(activePeriod)) {
       setPreviewRows([]);
       setPreviewTotal(0);
@@ -122,16 +171,25 @@ export function TimesheetExportPanel({ open, initialPeriod, onClose }: Timesheet
         page: 1,
         pageSize: EXPORT_PREVIEW_FETCH_SIZE,
         period: activePeriod,
+        ...(activeProjectId ? { projectId: activeProjectId } : {}),
       });
+      if (request !== previewRequestRef.current) {
+        return;
+      }
 
       setPreviewRows(sortTimesheetsForExport(response.data));
       setPreviewTotal(response.meta.total);
     } catch (caught) {
+      if (request !== previewRequestRef.current) {
+        return;
+      }
       setPreviewRows([]);
       setPreviewTotal(0);
       setPreviewError(apiErrorToastMessage(caught));
     } finally {
-      setPreviewLoading(false);
+      if (request === previewRequestRef.current) {
+        setPreviewLoading(false);
+      }
     }
   }, []);
 
@@ -140,8 +198,8 @@ export function TimesheetExportPanel({ open, initialPeriod, onClose }: Timesheet
       return;
     }
 
-    void loadPreview(period);
-  }, [open, period, loadPreview]);
+    void loadPreview(period, projectId);
+  }, [open, period, projectId, loadPreview]);
 
   async function handleDownload() {
     if (!isPeriodQueryReady(period) || isExporting) {
@@ -151,7 +209,10 @@ export function TimesheetExportPanel({ open, initialPeriod, onClose }: Timesheet
     setIsExporting(true);
 
     try {
-      const { blob, filename } = await exportTimesheetsXlsx({ period });
+      const { blob, filename } = await exportTimesheetsXlsx({
+        period,
+        ...(projectId ? { projectId } : {}),
+      });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
@@ -173,7 +234,9 @@ export function TimesheetExportPanel({ open, initialPeriod, onClose }: Timesheet
   const previewTruncated = previewTotal > previewRows.length;
   const previewTotalMinutes = previewRows.reduce((sum, row) => sum + row.durationMinutes, 0);
   const previewEmptyMessage = periodReady
-    ? 'Nu există pontaje în perioada selectată.'
+    ? projectId
+      ? 'Nu există pontaje pe acest proiect în perioada selectată.'
+      : 'Nu există pontaje în perioada selectată.'
     : 'Selectează o perioadă completă pentru previzualizare.';
 
   return (
@@ -207,9 +270,24 @@ export function TimesheetExportPanel({ open, initialPeriod, onClose }: Timesheet
       }
     >
       <p className="mb-4 text-sm text-text-secondary">
-        Alege perioada pentru export. Previzualizarea reflectă datele incluse în fișierul Excel.
+        Alege perioada și, opțional, proiectul pentru export. Previzualizarea reflectă datele
+        incluse în fișierul Excel.
       </p>
       <PeriodFilter value={period} onChange={setPeriod} />
+      <div className="mt-4 max-w-md">
+        <SearchableSelect
+          id="timesheet-export-project"
+          label="Proiect"
+          placeholder="Toate proiectele"
+          emptyMessage={
+            availableProjectOptions ? 'Niciun proiect găsit.' : 'Se încarcă proiectele…'
+          }
+          value={projectId}
+          options={availableProjectOptions ?? []}
+          disabled={isExporting}
+          onChange={setProjectId}
+        />
+      </div>
 
       <div className="mt-6">
         <div className="mb-3 flex items-center justify-between gap-3">
@@ -229,7 +307,7 @@ export function TimesheetExportPanel({ open, initialPeriod, onClose }: Timesheet
             <p className="text-sm text-danger">{previewError}</p>
             <button
               type="button"
-              onClick={() => void loadPreview(period)}
+              onClick={() => void loadPreview(period, projectId)}
               className="shrink-0 rounded-md border border-border px-2.5 py-1 text-xs text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary"
             >
               Reîncearcă
@@ -252,7 +330,7 @@ export function TimesheetExportPanel({ open, initialPeriod, onClose }: Timesheet
         {previewTruncated && !previewLoading && (
           <p className="mt-2 text-xs text-text-muted">
             Afișate primele {previewRows.length} din {previewTotal} înregistrări. Exportul include
-            toate pontajele din perioadă.
+            toate pontajele{projectId ? ' proiectului' : ''} din perioadă.
           </p>
         )}
       </div>

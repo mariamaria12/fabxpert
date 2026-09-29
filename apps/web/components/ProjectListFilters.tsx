@@ -9,7 +9,7 @@ import {
   SearchableSelect,
   type SearchableSelectOption,
 } from '@/components/SearchableSelect';
-import { useBusinessAutofillProps } from '@/components/inputAutofill';
+import { useSearchAutofillProps } from '@/components/inputAutofill';
 import {
   buildStableIndexMap,
   getRolePaletteColor,
@@ -59,7 +59,7 @@ export function ProjectListFilters({
   className,
   mobileOpen,
 }: ProjectListFiltersProps) {
-  const businessAutofill = useBusinessAutofillProps();
+  const searchAutofill = useSearchAutofillProps();
   const isMobile = useIsMobile();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [visibilityOptions, setVisibilityOptions] = useState<SearchableSelectOption[]>([
@@ -132,7 +132,7 @@ export function ProjectListFilters({
             placeholder={search.placeholder ?? 'Caută după denumire, cod sau client...'}
             aria-label={search['aria-label'] ?? 'Caută după denumire, cod sau client'}
             className={searchInputClassName}
-            {...businessAutofill}
+            {...searchAutofill}
           />
         </div>
       )}

@@ -23,9 +23,52 @@ export class ApiError extends Error {
 }
 
 let baseUrl: string | null = null;
+let unauthorizedHandler: (() => void) | null = null;
+
+/** A 401 here is a wrong password, not a lost session. */
+const LOGIN_PATH = '/auth/login';
 
 export function configureApiClient(url: string): void {
   baseUrl = url.replace(/\/+$/, '');
+}
+
+/**
+ * What to do when the API refuses a request with 401: the session is over —
+ * the account was deactivated, or the cookie expired or was cleared. Apps pass
+ * their "back to login"; null removes it. The request still throws as usual.
+ */
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  unauthorizedHandler = handler;
+}
+
+function notifyIfUnauthorized(path: string, status: number): void {
+  if (status === 401 && path !== LOGIN_PATH) {
+    unauthorizedHandler?.();
+  }
+}
+
+/**
+ * Checks the session once whenever `source` drops after being open. The API
+ * ends a deactivated account's streams, and EventSource never reports the 401
+ * its reconnect gets — this check's 401 is what reaches the unauthorized
+ * handler. EventSource keeps reconnecting on its own either way.
+ */
+export function checkSessionWhenStreamDrops(source: EventSource): void {
+  let open = false;
+
+  source.addEventListener('open', () => {
+    open = true;
+  });
+
+  source.addEventListener('error', () => {
+    if (!open) {
+      return;
+    }
+    open = false;
+    void request('/auth/me').catch(() => {
+      // A 401 has already gone to the handler; anything else is not a lost session.
+    });
+  });
 }
 
 /** Returns the configured API base URL (for EventSource and other non-fetch clients). */
@@ -96,6 +139,7 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
     } catch {
       // Body wasn't parseable JSON — keep the generic message.
     }
+    notifyIfUnauthorized(path, response.status);
     throw new ApiError(response.status, message, validationErrors);
   }
 
@@ -166,6 +210,7 @@ export async function requestBlob(path: string, options: RequestInit = {}): Prom
     } catch {
       // Body wasn't parseable JSON — keep the generic message.
     }
+    notifyIfUnauthorized(path, response.status);
     throw new ApiError(response.status, message);
   }
 

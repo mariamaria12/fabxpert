@@ -35,6 +35,8 @@ export interface SearchableSelectOption {
 export interface SearchableSelectProps {
   id: string;
   label: string;
+  /** Label for screen readers only — in a filter row the placeholder says what the field is. */
+  hideLabel?: boolean;
   value: string | null;
   options: SearchableSelectOption[];
   onChange: (value: string | null) => void;
@@ -56,6 +58,7 @@ export interface SearchableSelectProps {
 export function SearchableSelect({
   id,
   label,
+  hideLabel = false,
   value,
   options,
   onChange,
@@ -344,7 +347,7 @@ export function SearchableSelect({
 
   return (
     <div ref={containerRef} className="relative">
-      <label id={`${id}-label`} htmlFor={id} className={FORM_LABEL_CLASS}>
+      <label id={`${id}-label`} htmlFor={id} className={hideLabel ? 'sr-only' : FORM_LABEL_CLASS}>
         {label}
         {required && <span className="text-danger"> *</span>}
       </label>

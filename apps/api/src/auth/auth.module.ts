@@ -5,6 +5,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AuthUserCache } from './auth-user-cache.service';
 import { JwtStrategy } from './jwt.strategy';
+import { SessionRevocationService } from './session-revocation.service';
 
 @Module({
   imports: [
@@ -23,7 +24,7 @@ import { JwtStrategy } from './jwt.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthUserCache, JwtStrategy],
-  exports: [AuthService, AuthUserCache],
+  providers: [AuthService, AuthUserCache, JwtStrategy, SessionRevocationService],
+  exports: [AuthService, AuthUserCache, SessionRevocationService],
 })
 export class AuthModule {}

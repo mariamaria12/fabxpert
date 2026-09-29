@@ -580,16 +580,24 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
           </p>
         </div>
 
-        <label className="inline-flex items-center gap-2 text-sm text-text-secondary">
-          <input
-            type="checkbox"
-            checked={values.isActive}
-            disabled={isBusy}
-            onChange={(event) => updateField('isActive', event.target.checked)}
-            className="size-4 rounded border-border accent-accent"
-          />
-          Activ
-        </label>
+        <div>
+          <label className="inline-flex items-center gap-2 text-sm text-text-secondary">
+            <input
+              type="checkbox"
+              checked={values.isActive}
+              disabled={isBusy}
+              onChange={(event) => updateField('isActive', event.target.checked)}
+              className="size-4 rounded border-border accent-accent"
+            />
+            Activ
+          </label>
+          {!values.isActive && (
+            <p className="mt-1 text-xs text-text-muted">
+              Contul inactiv este deconectat imediat și nu se mai poate conecta. Apare la
+              „Conturi inactive”.
+            </p>
+          )}
+        </div>
 
         <label className="inline-flex items-start gap-2 text-sm text-text-secondary">
           <input

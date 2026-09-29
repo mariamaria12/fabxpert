@@ -15,7 +15,7 @@ import { FiltersToggle } from '@/components/FiltersToggle';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { Pagination } from '@/components/Pagination';
 import { PersonAvatar } from '@/components/PersonAvatar';
-import { useBusinessAutofillProps } from '@/components/inputAutofill';
+import { useSearchAutofillProps } from '@/components/inputAutofill';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { replaceById } from '@/utils/replaceById';
 
@@ -74,7 +74,7 @@ type PanelState =
   | { open: true; mode: 'edit'; person: PersonDto };
 
 export default function PeoplePage() {
-  const businessAutofill = useBusinessAutofillProps();
+  const searchAutofill = useSearchAutofillProps();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const isMobile = useIsMobile();
@@ -216,7 +216,7 @@ export default function PeoplePage() {
             placeholder="Caută după nume, e-mail, telefon sau funcție..."
             aria-label="Caută după nume, e-mail, telefon sau funcție"
             className={searchInputClassName}
-            {...businessAutofill}
+            {...searchAutofill}
           />
         </div>
       )}

@@ -1,4 +1,4 @@
-import { getApiClientBaseUrl, request } from './client';
+import { checkSessionWhenStreamDrops, getApiClientBaseUrl, request } from './client';
 import type {
   CreateProjectInput,
   ProjectDto,
@@ -136,6 +136,7 @@ export function subscribeToAvailableProjects(
   const source = new EventSource(`${getApiClientBaseUrl()}/projects/available/stream`, {
     withCredentials: true,
   });
+  checkSessionWhenStreamDrops(source);
 
   source.onmessage = (message) => {
     try {

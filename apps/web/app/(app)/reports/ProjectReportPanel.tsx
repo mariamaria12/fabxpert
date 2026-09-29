@@ -9,10 +9,13 @@ import {
   type ProjectReportPersonRow,
   type ProjectReportResponse,
 } from '@fabxpert/shared';
+import Link, { useLinkStatus } from 'next/link';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { InitialsAvatar } from '@/components/PersonAvatar';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { buildTimesheetListHref } from '@/utils/timesheetListNavigation';
 import { Bar, EmptyHint } from './ReportSection';
 import { paletteColor, TOKEN, tint } from './reportColors';
 import {
@@ -114,59 +117,92 @@ function ActivityRow({
   );
 }
 
+/**
+ * Spins on the row being opened. The delay keeps it from flashing when the
+ * page is already prefetched and opens at once.
+ */
+function OpeningSpinner() {
+  const { pending } = useLinkStatus();
+  return (
+    <i
+      className={`ti ti-loader-2 animate-spin text-xs text-text-muted transition-opacity ${
+        pending ? 'opacity-100 delay-150' : 'opacity-0'
+      }`}
+      aria-hidden="true"
+    />
+  );
+}
+
 function PersonRow({
   row,
   scale,
   activityNames,
+  timesheetsHref,
 }: {
   row: ProjectReportPersonRow;
   scale: number;
   activityNames: Map<string, string>;
+  /** The pontaje behind this row: this person, this project, the report's dates. */
+  timesheetsHref: string;
 }) {
   const widthPct = scale > 0 ? (row.workedMinutes / scale) * 100 : 0;
 
   return (
-    <li className="rounded-md border border-border-subtle bg-surface-raised/30 px-2.5 py-2">
-      <div className="flex items-center gap-2">
-        <InitialsAvatar initials={initialsOf(row.personName)} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="truncate text-xs font-medium text-text-primary">
-              {row.personName}
-            </span>
-            <span
-              className="shrink-0 text-xs font-medium tabular-nums text-text-primary"
-              title={formatExactDuration(row.workedMinutes)}
-            >
-              {formatHours(row.workedMinutes)}
+    <li>
+      <Link
+        href={timesheetsHref}
+        aria-label={`Deschide pontajele pentru ${row.personName} pe acest proiect`}
+        className="block rounded-md border border-border-subtle bg-surface-raised/30 px-2.5 py-2 transition-colors hover:border-accent/40 hover:bg-surface-raised focus:outline-none focus:ring-1 focus:ring-accent"
+      >
+        <div className="flex items-center gap-2">
+          <InitialsAvatar initials={initialsOf(row.personName)} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="truncate text-xs font-medium text-text-primary">
+                {row.personName}
+              </span>
+              <span className="flex shrink-0 items-center gap-1.5">
+                <OpeningSpinner />
+                <span
+                  className="text-xs font-medium tabular-nums text-text-primary"
+                  title={formatExactDuration(row.workedMinutes)}
+                >
+                  {formatHours(row.workedMinutes)}
+                </span>
+              </span>
+            </div>
+            <span className="block truncate text-[10px] text-text-muted">
+              {row.roleName ?? 'Fără rol'}
             </span>
           </div>
-          <span className="block truncate text-[10px] text-text-muted">
-            {row.roleName ?? 'Fără rol'}
-          </span>
         </div>
-      </div>
 
-      <Bar pct={widthPct} color={TOKEN.accent} className="mt-1.5" />
+        <Bar pct={widthPct} color={TOKEN.accent} className="mt-1.5" />
 
-      <div className="mt-1.5 flex flex-wrap gap-1">
-        {row.byActivity.map((cell) => (
-          <span
-            key={cell.activityId ?? 'none'}
-            className="rounded px-1.5 py-px text-[10px] text-text-secondary"
-            style={{ backgroundColor: tint(TOKEN.muted, '14%') }}
-          >
-            {activityNames.get(cell.activityId ?? '') ?? 'Activitate'}{' '}
-            <span className="font-medium tabular-nums">{formatHours(cell.minutes)}</span>
-          </span>
-        ))}
-      </div>
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {row.byActivity.map((cell) => (
+            <span
+              key={cell.activityId ?? 'none'}
+              className="rounded px-1.5 py-px text-[10px] text-text-secondary"
+              style={{ backgroundColor: tint(TOKEN.muted, '14%') }}
+            >
+              {activityNames.get(cell.activityId ?? '') ?? 'Activitate'}{' '}
+              <span className="font-medium tabular-nums">{formatHours(cell.minutes)}</span>
+            </span>
+          ))}
+        </div>
+      </Link>
     </li>
   );
 }
 
 function ReportBody({ report }: { report: ProjectReportResponse }) {
   const { project, totals } = report;
+  // Where "Înapoi" on the pontaje leads: this page, whose address reopens this
+  // report (every page showing it keeps it there).
+  const pathname = usePathname();
+  const search = useSearchParams().toString();
+  const returnTo = search ? `${pathname}?${search}` : pathname;
   const tone = efficiencyTone(totals.efficiencyPct);
   const efficiencyColor =
     tone === 'good' ? TOKEN.success : tone === 'bad' ? TOKEN.danger : TOKEN.muted;
@@ -251,6 +287,13 @@ function ReportBody({ report }: { report: ProjectReportResponse }) {
                 row={row}
                 scale={personScale}
                 activityNames={activityNames}
+                timesheetsHref={buildTimesheetListHref({
+                  personId: row.personId,
+                  projectId: project.id,
+                  from: totals.firstWorkDay,
+                  to: totals.lastWorkDay,
+                  returnTo,
+                })}
               />
             ))}
           </ul>

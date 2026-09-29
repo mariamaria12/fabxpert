@@ -163,4 +163,58 @@ describe('User security (e2e)', () => {
       .set(authHeader(adminCookie))
       .send({ isActive: true });
   });
+
+  it('deactivating an account ends its open live stream', async () => {
+    const { cookieHeader } = await login(
+      app,
+      FIXTURES.users.employee2.email,
+      E2E_PASSWORD,
+    );
+
+    let markOpen!: (statusCode: number) => void;
+    const openStatus = new Promise<number>((resolve) => {
+      markOpen = resolve;
+    });
+    let timeoutRef: NodeJS.Timeout | undefined;
+
+    const outcome = new Promise<'ended' | 'timeout'>((resolve) => {
+      const req = request(app.getHttpServer())
+        .get('/projects/available/stream')
+        .set(authHeader(cookieHeader))
+        .buffer(false)
+        .parse((res, callback) => {
+          // Reading keeps the stream flowing, so its end is seen.
+          res.on('data', () => undefined);
+          res.on('end', () => {
+            resolve('ended');
+            callback(null, '');
+          });
+        });
+
+      req.on('response', (res: { statusCode: number }) => markOpen(res.statusCode));
+      timeoutRef = setTimeout(() => {
+        req.abort();
+        resolve('timeout');
+      }, 5000);
+      req.end();
+    });
+
+    try {
+      expect(await openStatus).toBe(200);
+
+      await request(app.getHttpServer())
+        .patch(`/users/${FIXTURES.users.employee2.id}`)
+        .set(authHeader(adminCookie))
+        .send({ isActive: false })
+        .expect(200);
+
+      expect(await outcome).toBe('ended');
+    } finally {
+      clearTimeout(timeoutRef);
+      await request(app.getHttpServer())
+        .patch(`/users/${FIXTURES.users.employee2.id}`)
+        .set(authHeader(adminCookie))
+        .send({ isActive: true });
+    }
+  });
 });

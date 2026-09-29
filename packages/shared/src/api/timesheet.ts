@@ -1,4 +1,9 @@
-import { getApiClientBaseUrl, request, requestBlob } from './client';
+import {
+  checkSessionWhenStreamDrops,
+  getApiClientBaseUrl,
+  request,
+  requestBlob,
+} from './client';
 import type {
   CreateTimesheetInput,
   DashboardMetricsResponse,
@@ -155,25 +160,35 @@ export function listTimesheetDayGroups(params: ListTimesheetDayGroupsParams = {}
   );
 }
 
-/** Admin only. Per day, how many people logged time and how much, over `period`. */
-export function getTimesheetDailyTotals(params: { period: Period; search?: string }) {
-  const searchParams = new URLSearchParams();
+export interface TimesheetCalendarParams {
+  period: Period;
+  search?: string;
+  projectId?: string;
+}
+
+function appendCalendarQuery(searchParams: URLSearchParams, params: TimesheetCalendarParams): void {
   appendPeriodQuery(searchParams, params.period);
   if (params.search?.trim()) {
     searchParams.set('search', params.search.trim());
   }
+  if (params.projectId !== undefined) {
+    searchParams.set('projectId', params.projectId);
+  }
+}
+
+/** Admin only. Per day, how many people logged time and how much, over `period`. */
+export function getTimesheetDailyTotals(params: TimesheetCalendarParams) {
+  const searchParams = new URLSearchParams();
+  appendCalendarQuery(searchParams, params);
   return request<TimesheetDailyTotalsResponse>(
     `/timesheets/daily-totals?${searchParams.toString()}`,
   );
 }
 
 /** Admin only. One row per person per day over `period`, totals only. */
-export function getTimesheetCalendarDays(params: { period: Period; search?: string }) {
+export function getTimesheetCalendarDays(params: TimesheetCalendarParams) {
   const searchParams = new URLSearchParams();
-  appendPeriodQuery(searchParams, params.period);
-  if (params.search?.trim()) {
-    searchParams.set('search', params.search.trim());
-  }
+  appendCalendarQuery(searchParams, params);
   return request<TimesheetCalendarDaysResponse>(
     `/timesheets/calendar-days?${searchParams.toString()}`,
   );
@@ -291,6 +306,7 @@ export function subscribeToTimesheets(
   const source = new EventSource(`${getApiClientBaseUrl()}/timesheets/stream`, {
     withCredentials: true,
   });
+  checkSessionWhenStreamDrops(source);
 
   source.onmessage = (message) => {
     try {

@@ -24,6 +24,7 @@ import {
   durationMinutesToHoursInput,
   parseDurationMinutesInput,
 } from './timesheetFormat';
+import { loadAllProjects, projectOptionLabel, toProjectOption } from './projectOptions';
 import { TimesheetAssemblyFields } from './TimesheetAssemblyFields';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { DateField } from '@/components/DateField';
@@ -33,7 +34,6 @@ import { TextField } from '@/components/TextField';
 import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { FORM_FIELD_CLASS } from '@/components/formFieldStyles';
 import { useToast } from '@/context/ToastContext';
-import { loadAllPages } from '@/utils/loadAllPages';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 
 interface TimesheetFormValues {
@@ -142,16 +142,6 @@ const LOOKUP_PAGE_SIZE = 500;
 /** The list the project field offers: today's work, or everything ever. */
 type ProjectScope = 'ready' | 'all';
 
-function projectOptionLabel(project: {
-  code: string;
-  name: string;
-  company: { name: string };
-}): string {
-  return project.company.name
-    ? `${project.code || project.name} - ${project.company.name}`
-    : project.code || project.name;
-}
-
 export function TimesheetFormPanel({
   open,
   mode,
@@ -243,9 +233,7 @@ export function TimesheetFormPanel({
 
     setIsLoadingAllProjects(true);
     try {
-      setAllProjects(
-        await loadAllPages((page, pageSize) => listProjects({ page, pageSize, compact: true })),
-      );
+      setAllProjects(await loadAllProjects());
     } catch (caught) {
       setProjectScope('ready');
       showToast(apiErrorToastMessage(caught), 'error');
@@ -416,11 +404,7 @@ export function TimesheetFormPanel({
     }
   }
 
-  const allProjectOptions = (allProjects ?? []).map((project) => ({
-    id: project.id,
-    label: projectOptionLabel(project),
-    description: project.denumireLucrare ?? undefined,
-  }));
+  const allProjectOptions = (allProjects ?? []).map(toProjectOption);
 
   const activityOptions = activities.map((activity) => ({
     id: activity.id,

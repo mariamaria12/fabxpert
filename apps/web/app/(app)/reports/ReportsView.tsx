@@ -1,14 +1,15 @@
 'use client';
 
 import {
-  DEFAULT_REPORT_PERIOD,
   getProductivityReport,
   isReportPeriodReady,
   type ProductivityReportResponse,
   type ReportPeriod,
 } from '@fabxpert/shared';
 import dynamic from 'next/dynamic';
+import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchAutofillProps } from '@/components/inputAutofill';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { ActiveProjectsView } from './ActiveProjectsView';
 import { ActivityNormsView } from './ActivityNormsView';
@@ -18,6 +19,7 @@ import { ReportKpiCards } from './ReportKpiCards';
 import { ReportTabs, type ReportTab } from './ReportTabs';
 import { ChartsSkeleton, KpiRowSkeleton } from './ReportsSkeleton';
 import { periodHeading } from './reportsFormat';
+import { buildReportsHref, readReportsLocation } from './reportsLocation';
 
 // Charts carry no external dependency, but loading them on demand keeps the
 // visualization code out of everything but this route.
@@ -25,6 +27,9 @@ const ReportCharts = dynamic(() => import('./ReportCharts'), {
   ssr: false,
   loading: () => <ChartsSkeleton />,
 });
+
+const searchInputClassName =
+  'w-full rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
 
 function EmptyState() {
   return (
@@ -39,11 +44,16 @@ function EmptyState() {
 }
 
 function ProductivityTab({
+  period,
+  onPeriodChange,
+  projectSearch,
   onSelectProject,
 }: {
+  period: ReportPeriod;
+  onPeriodChange: (period: ReportPeriod) => void;
+  projectSearch: string;
   onSelectProject: (projectId: string) => void;
 }) {
-  const [period, setPeriod] = useState<ReportPeriod>(DEFAULT_REPORT_PERIOD);
   const [report, setReport] = useState<ProductivityReportResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +92,7 @@ function ProductivityTab({
         ) : (
           <span />
         )}
-        <ReportPeriodFilter value={period} onChange={setPeriod} />
+        <ReportPeriodFilter value={period} onChange={onPeriodChange} />
       </div>
 
       <div className="mt-2">
@@ -115,7 +125,11 @@ function ProductivityTab({
         {periodReady && !error && !loading && report && !isEmpty && (
           <div className="space-y-2">
             <ReportKpiCards kpis={report.kpis} />
-            <ReportCharts report={report} onSelectProject={onSelectProject} />
+            <ReportCharts
+              report={report}
+              projectSearch={projectSearch}
+              onSelectProject={onSelectProject}
+            />
           </div>
         )}
       </div>
@@ -124,8 +138,25 @@ function ProductivityTab({
 }
 
 export function ReportsView() {
-  const [tab, setTab] = useState<ReportTab>('productivity');
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const searchAutofill = useSearchAutofillProps();
+  // Read once on arrival; from then on the address follows the state.
+  const [initialLocation] = useState(() => readReportsLocation(searchParams));
+  const [tab, setTab] = useState<ReportTab>(initialLocation.tab);
+  const [period, setPeriod] = useState<ReportPeriod>(initialLocation.period);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
+    initialLocation.projectId,
+  );
+  const [projectSearch, setProjectSearch] = useState('');
+
+  // Tab, period and the open report stay in the address, so Back from the
+  // pontaje a report links to lands on this same view.
+  useEffect(() => {
+    const href = buildReportsHref({ tab, period, projectId: selectedProjectId });
+    if (href !== `${window.location.pathname}${window.location.search}`) {
+      window.history.replaceState(null, '', href);
+    }
+  }, [tab, period, selectedProjectId]);
 
   return (
     <div className="flex h-full flex-col">
@@ -135,11 +166,36 @@ export function ReportsView() {
         <ReportTabs value={tab} onChange={setTab} />
       </div>
 
+      {/* Filters the projects already on the tab; Normative lists none. */}
+      {tab !== 'norms' && (
+        <div className="mt-4 max-w-md">
+          <input
+            type="search"
+            value={projectSearch}
+            onChange={(event) => setProjectSearch(event.target.value)}
+            placeholder="Caută după denumire sau cod..."
+            aria-label="Caută după denumire sau cod"
+            className={searchInputClassName}
+            {...searchAutofill}
+          />
+        </div>
+      )}
+
       <div className="mt-6 flex-1">
         {tab === 'productivity' && (
-          <ProductivityTab onSelectProject={setSelectedProjectId} />
+          <ProductivityTab
+            period={period}
+            onPeriodChange={setPeriod}
+            projectSearch={projectSearch}
+            onSelectProject={setSelectedProjectId}
+          />
         )}
-        {tab === 'active' && <ActiveProjectsView onSelectProject={setSelectedProjectId} />}
+        {tab === 'active' && (
+          <ActiveProjectsView
+            projectSearch={projectSearch}
+            onSelectProject={setSelectedProjectId}
+          />
+        )}
         {tab === 'norms' && <ActivityNormsView />}
       </div>
 

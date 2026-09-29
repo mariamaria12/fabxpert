@@ -1,8 +1,11 @@
 'use client';
 
 import {
+  getPerson,
+  getProject,
   listActivities,
   listTimesheetDayGroups,
+  workDateToDayKey,
   type LeaveRequestDto,
   type Period,
   type TimesheetDayGroupDto,
@@ -10,11 +13,15 @@ import {
   type TimesheetGroupSortBy,
   type SortOrder,
 } from '@fabxpert/shared';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FiltersToggle } from '@/components/FiltersToggle';
 import { MobileHeaderAction } from '@/components/MobileHeaderAction';
 import { PeriodFilter } from '@/components/PeriodFilter';
+import { SearchableSelect, type SearchableSelectOption } from '@/components/SearchableSelect';
 import { TimesheetFormPanel } from './TimesheetFormPanel';
 import { TimesheetExportPanel } from './TimesheetExportPanel';
+import { loadAllProjects, projectOptionLabel, toProjectOption } from './projectOptions';
 import {
   formatAssemblyChip,
   formatDurationMinutes,
@@ -31,12 +38,18 @@ import {
   TABLE_CALENDAR_VIEWS,
   ViewToggle,
 } from '@/components/ViewToggle';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { useViewPreference } from '@/hooks/useViewPreference';
 import { PanouActivityProgressBar } from '@/app/(app)/panou/PanouActivityProgressBar';
-import { PersonName } from '@/components/PersonAvatar';
+import { formatPersonName, PersonName } from '@/components/PersonAvatar';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
-import { useBusinessAutofillProps } from '@/components/inputAutofill';
+import { useSearchAutofillProps } from '@/components/inputAutofill';
+import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import {
+  readTimesheetListLink,
+  TIMESHEET_LIST_LINK_PARAMS,
+} from '@/utils/timesheetListNavigation';
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -53,8 +66,9 @@ function formatUpdatedAt(date: Date): string {
   });
 }
 
+// Same box as the project combobox beside it, so the two filters match.
 const searchInputClassName =
-  'w-full min-w-[14rem] max-w-md rounded-md border border-border bg-surface-raised px-3 py-[10px] text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
+  'w-full min-h-[42px] rounded-md border border-border bg-surface-raised px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted transition-colors hover:border-text-muted/40 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25';
 
 type PanelState =
   | { open: false }
@@ -87,10 +101,25 @@ function formatGroupDetails(group: TimesheetDayGroupDto): string {
 
 /** Step 1 of the flow: the day-by-day pontaje, as logged. */
 export function TimesheetListTab() {
-  const businessAutofill = useBusinessAutofillProps();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  // A report's "Pe om" row opens the list on one person, project and date range.
+  const [link] = useState(() => readTimesheetListLink(searchParams));
+  const { showToast } = useToast();
+  const searchAutofill = useSearchAutofillProps();
+  const isMobile = useIsMobile();
+  // Folded on phones, unless a link just set filters worth seeing.
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(
+    link.personId !== null || link.projectId !== null,
+  );
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [period, setPeriod] = useState<Period>({ kind: 'month' });
+  /** The exact person a link asked for; typing in the search box drops it. */
+  const [linkedPersonId, setLinkedPersonId] = useState<string | null>(link.personId);
+  const [projectId, setProjectId] = useState<string | null>(link.projectId);
+  /** Every project, for the filter; null until loaded. */
+  const [projectOptions, setProjectOptions] = useState<SearchableSelectOption[] | null>(null);
+  const [period, setPeriod] = useState<Period>(link.period ?? { kind: 'month' });
   const [groups, setGroups] = useState<TimesheetDayGroupDto[]>([]);
   const [total, setTotal] = useState(0);
   /** Pages of PAGE_SIZE shown so far; reaching the end of the list loads the next. */
@@ -105,11 +134,23 @@ export function TimesheetListTab() {
   const [panel, setPanel] = useState<PanelState>({ open: false });
   const [exportOpen, setExportOpen] = useState(false);
   const [dayGroup, setDayGroup] = useState<TimesheetDayGroupDto | null>(null);
+  /** The row whose full day is being fetched before the day panel opens. */
+  const [openingDayId, setOpeningDayId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<TimesheetGroupSortBy>(DEFAULT_SORT_BY);
   const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [view, setView] = useViewPreference('timesheets', TABLE_CALENDAR_VIEW_IDS, 'table');
+  const [savedView, setSavedView] = useViewPreference(
+    'timesheets',
+    TABLE_CALENDAR_VIEW_IDS,
+    'table',
+  );
+  // A report link is about a date range, which only the table honours. The
+  // saved view is left alone and comes back once the toggle is used.
+  const [linkShowsTable, setLinkShowsTable] = useState(link.period !== null);
+  const view = linkShowsTable ? 'table' : savedView;
+  /** The project a link filtered on, labelled before the full project list arrives. */
+  const [linkedProjectLabel, setLinkedProjectLabel] = useState<string | undefined>();
   // Bumped after any change, so the calendar reloads the month it shows.
   const [calendarToken, setCalendarToken] = useState(0);
   const [leaveReview, setLeaveReview] = useState<LeaveRequestDto | null>(null);
@@ -142,26 +183,133 @@ export function TimesheetListTab() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
+    loadAllProjects()
+      .then((projects) => {
+        if (!cancelled) {
+          setProjectOptions(projects.map(toProjectOption));
+        }
+      })
+      .catch(() => {
+        // The project filter is optional — the list works without it.
+        if (!cancelled) {
+          setProjectOptions([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // The filters now live in state; left in the address, a reload would bring
+  // them back after they were cleared. A history swap rather than a router
+  // navigation, so landing here doesn't render the page a second time.
+  useEffect(() => {
+    if (!TIMESHEET_LIST_LINK_PARAMS.some((name) => searchParams.has(name))) {
+      return;
+    }
+
+    const params = new URLSearchParams(searchParams.toString());
+    for (const name of TIMESHEET_LIST_LINK_PARAMS) {
+      params.delete(name);
+    }
+    const query = params.toString();
+    window.history.replaceState(null, '', query ? `/timesheets?${query}` : '/timesheets');
+  }, [searchParams]);
+
+  // Through history when the report is the page before, so it comes back with
+  // its address — and its open fișa — as left; a fresh tab goes by the link.
+  function goBackToReport() {
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+    if (link.returnTo) {
+      router.push(link.returnTo);
+    }
+  }
+
+  // The linked person's name goes in the search box: it shows whose pontaje
+  // these are, and clearing it lifts the filter.
+  useEffect(() => {
+    if (!link.personId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    getPerson(link.personId)
+      .then((person) => {
+        if (!cancelled) {
+          const name = formatPersonName(person);
+          setSearchInput((current) => current || name);
+          setDebouncedSearch((current) => current || name);
+        }
+      })
+      .catch(() => {
+        // The rows still name the person; only the search box stays empty.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [link.personId]);
+
+  // Every project can take a while to load; the linked one alone is quick, so
+  // the filter doesn't sit empty while the list behind it is already filtered.
+  useEffect(() => {
+    if (!link.projectId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    getProject(link.projectId)
+      .then((project) => {
+        if (!cancelled) {
+          setLinkedProjectLabel(projectOptionLabel(project));
+        }
+      })
+      .catch(() => {
+        // The full project list labels it once loaded.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [link.projectId]);
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedSearch(searchInput.trim());
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
-  const hasActiveFilters = debouncedSearch.length > 0 || period.kind !== 'month';
+  const hasActiveFilters =
+    debouncedSearch.length > 0 ||
+    linkedPersonId !== null ||
+    projectId !== null ||
+    period.kind !== 'month';
   const hasMore = loadedPages * PAGE_SIZE < total;
 
+  // A linked person is matched by id; the name in the search box is only a label.
+  const textSearch = linkedPersonId ? '' : debouncedSearch;
   const listQuery = useMemo(
     () => ({
       period,
       sortBy,
       sortOrder,
-      ...(debouncedSearch ? { search: debouncedSearch } : {}),
+      ...(textSearch ? { search: textSearch } : {}),
+      ...(linkedPersonId ? { personId: linkedPersonId } : {}),
+      ...(projectId ? { projectId } : {}),
     }),
-    [period, sortBy, sortOrder, debouncedSearch],
+    [period, sortBy, sortOrder, textSearch, linkedPersonId, projectId],
   );
 
-  /** Starts the list over from its first page — a new search, period or sort. */
+  /** Starts the list over from its first page — a new search, filter, period or sort. */
   const loadTimesheets = useCallback(async () => {
     const generation = ++listGenerationRef.current;
     setLoading(true);
@@ -325,6 +473,42 @@ export function TimesheetListTab() {
     setDayGroup(group);
   }
 
+  /**
+   * The day panel edits the whole day — a new date moves every entry — but under
+   * a project filter the row holds only that project's entries, so the day is
+   * fetched again in full first.
+   */
+  async function editDayGroup(group: TimesheetDayGroupDto) {
+    if (!projectId) {
+      openDayGroup(group);
+      return;
+    }
+    if (openingDayId !== null) {
+      return;
+    }
+
+    setOpeningDayId(group.id);
+    try {
+      const day = workDateToDayKey(group.workDate);
+      const response = await listTimesheetDayGroups({
+        personId: group.person.id,
+        period: { kind: 'custom', from: day, to: day },
+        pageSize: 1,
+      });
+      const fullDay = response.data[0];
+      if (fullDay) {
+        openDayGroup(fullDay);
+      } else {
+        showToast('Pontajul acestei zile nu mai există.', 'error');
+        void reloadLoadedPages();
+      }
+    } catch (caught) {
+      showToast(apiErrorToastMessage(caught), 'error');
+    } finally {
+      setOpeningDayId(null);
+    }
+  }
+
   // Editing an entry can move it to another day or change the day's totals, so
   // the pages shown are always refetched rather than patched in place.
   function handleSaved() {
@@ -435,13 +619,17 @@ export function TimesheetListTab() {
             type="button"
             aria-label="Editează ziua"
             title="Editează ziua"
+            disabled={openingDayId === row.id}
             onClick={(event) => {
               event.stopPropagation();
-              openDayGroup(row);
+              void editDayGroup(row);
             }}
-            className="rounded p-1.5 text-text-muted transition-all hover:bg-surface hover:text-text-primary"
+            className="rounded p-1.5 text-text-muted transition-all hover:bg-surface hover:text-text-primary disabled:opacity-60"
           >
-            <i className="ti ti-pencil text-base" aria-hidden="true" />
+            <i
+              className={`ti ${openingDayId === row.id ? 'ti-loader-2 animate-spin' : 'ti-pencil'} text-base`}
+              aria-hidden="true"
+            />
           </button>
         </div>
       ),
@@ -550,6 +738,16 @@ export function TimesheetListTab() {
 
   return (
     <div className="flex h-full flex-col">
+      {link.returnTo && (
+        <button
+          type="button"
+          onClick={goBackToReport}
+          className="mb-3 inline-flex items-center gap-1 self-start text-xs font-medium text-accent transition-opacity hover:opacity-80"
+        >
+          <i className="ti ti-arrow-left text-sm" aria-hidden="true" />
+          Înapoi la raport
+        </button>
+      )}
       <div className="flex items-center justify-end gap-4 sm:justify-between">
         <h1 className="hidden text-[22px] font-medium text-text-primary sm:block">Pontaj</h1>
         <div className="flex shrink-0 items-center gap-2">
@@ -610,18 +808,49 @@ export function TimesheetListTab() {
         {view === 'table' ? <PeriodFilter value={period} onChange={setPeriod} /> : null}
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-[14rem] max-w-md flex-1">
-            <input
-              type="search"
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Caută după persoană..."
-              aria-label="Caută după persoană"
-              className={searchInputClassName}
-              {...businessAutofill}
+          {isMobile && (
+            <FiltersToggle
+              open={mobileFiltersOpen}
+              onToggle={() => setMobileFiltersOpen((current) => !current)}
             />
-          </div>
-          <ViewToggle options={TABLE_CALENDAR_VIEWS} value={view} onChange={setView} />
+          )}
+          {/* Two equal columns keep search and project the same size. Phones
+              stack them under the toggle row, only while it is open. */}
+          {(!isMobile || mobileFiltersOpen) && (
+            <div className="order-last grid w-full gap-3 md:order-none md:w-auto md:min-w-0 md:max-w-3xl md:flex-1 md:grid-cols-2">
+              <input
+                type="search"
+                value={searchInput}
+                onChange={(event) => {
+                  setSearchInput(event.target.value);
+                  setLinkedPersonId(null);
+                }}
+                placeholder="Caută după persoană..."
+                aria-label="Caută după persoană"
+                className={searchInputClassName}
+                {...searchAutofill}
+              />
+              <SearchableSelect
+                id="timesheet-project-filter"
+                label="Proiect"
+                hideLabel
+                placeholder="Toate proiectele"
+                emptyMessage={projectOptions ? 'Niciun proiect găsit.' : 'Se încarcă proiectele…'}
+                value={projectId}
+                selectedLabel={projectId === link.projectId ? linkedProjectLabel : undefined}
+                options={projectOptions ?? []}
+                onChange={setProjectId}
+              />
+            </div>
+          )}
+          <ViewToggle
+            options={TABLE_CALENDAR_VIEWS}
+            value={view}
+            onChange={(next) => {
+              setLinkShowsTable(false);
+              setSavedView(next);
+            }}
+          />
         </div>
       </div>
 
@@ -629,6 +858,7 @@ export function TimesheetListTab() {
         <div className="mt-6">
           <TimesheetCalendarView
             search={debouncedSearch}
+            projectId={projectId}
             refreshToken={calendarToken}
             onOpenDay={openDayGroup}
             onOpenLeave={setLeaveReview}
@@ -724,7 +954,13 @@ export function TimesheetListTab() {
       )}
 
       {exportOpen && (
-        <TimesheetExportPanel open initialPeriod={period} onClose={() => setExportOpen(false)} />
+        <TimesheetExportPanel
+          open
+          initialPeriod={period}
+          initialProjectId={projectId}
+          projectOptions={projectOptions}
+          onClose={() => setExportOpen(false)}
+        />
       )}
     </div>
   );

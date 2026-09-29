@@ -15,7 +15,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { filterChipClassName } from '@/components/filterChipStyles';
-import { useBusinessAutofillProps } from '@/components/inputAutofill';
+import { useSearchAutofillProps } from '@/components/inputAutofill';
 import { PersonName } from '@/components/PersonAvatar';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
@@ -97,7 +97,7 @@ function matchesSearch(line: AccountingTimesheetLineDto, search: string): boolea
  */
 export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTimesheetTabProps) {
   const { showToast } = useToast();
-  const businessAutofill = useBusinessAutofillProps();
+  const searchAutofill = useSearchAutofillProps();
   const [month, setMonth] = useState(latestSettleableMonth);
   const [report, setReport] = useState<AccountingTimesheetResponse | null>(null);
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
@@ -369,7 +369,7 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
           placeholder="Caută persoană…"
           aria-label="Caută persoană"
           className={`${inputClassName} w-48`}
-          {...businessAutofill}
+          {...searchAutofill}
         />
         <label className="inline-flex items-center gap-2 text-xs text-text-muted">
           Rol

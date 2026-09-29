@@ -84,6 +84,11 @@ function TimesheetDayChip({
 
 interface TimesheetCalendarViewProps {
   search: string;
+  /**
+   * Only this project's pontaje count, and leave is hidden; opening a day still
+   * shows all of it, since the panel edits the whole day.
+   */
+  projectId: string | null;
   refreshToken: number;
   onOpenDay: (group: TimesheetDayGroupDto) => void;
   onOpenLeave: (request: LeaveRequestDto) => void;
@@ -96,6 +101,7 @@ interface TimesheetCalendarViewProps {
  */
 export function TimesheetCalendarView({
   search,
+  projectId,
   refreshToken,
   onOpenDay,
   onOpenLeave,
@@ -114,16 +120,21 @@ export function TimesheetCalendarView({
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const period = { kind: 'custom' as const, from, to };
+    const query = {
+      period: { kind: 'custom' as const, from, to },
+      ...(search ? { search } : {}),
+      ...(projectId ? { projectId } : {}),
+    };
 
     try {
-      const leavePromise = loadAllPages((page, pageSize) =>
-        listLeaveRequests({ page, pageSize, from, to }),
-      );
+      // Leave belongs to no project, so a project filter leaves it out.
+      const leavePromise = projectId
+        ? Promise.resolve<LeaveRequestDto[]>([])
+        : loadAllPages((page, pageSize) => listLeaveRequests({ page, pageSize, from, to }));
 
       if (mode === 'year') {
         const [totals, leaveRows] = await Promise.all([
-          getTimesheetDailyTotals({ period, ...(search ? { search } : {}) }),
+          getTimesheetDailyTotals(query),
           leavePromise,
         ]);
         setYearTotals(totals.days);
@@ -131,7 +142,7 @@ export function TimesheetCalendarView({
         setLeave(leaveRows.filter((request) => request.status !== 'RESPINS'));
       } else {
         const [calendarDays, leaveRows] = await Promise.all([
-          getTimesheetCalendarDays({ period, ...(search ? { search } : {}) }),
+          getTimesheetCalendarDays(query),
           leavePromise,
         ]);
         setPersonDays(calendarDays.days);
@@ -143,7 +154,7 @@ export function TimesheetCalendarView({
     } finally {
       setLoading(false);
     }
-  }, [mode, from, to, search]);
+  }, [mode, from, to, search, projectId]);
 
   useEffect(() => {
     void load();

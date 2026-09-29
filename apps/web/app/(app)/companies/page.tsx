@@ -13,7 +13,7 @@ import { editActionColumn } from '@/components/editActionColumn';
 import { FiltersToggle } from '@/components/FiltersToggle';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { Pagination } from '@/components/Pagination';
-import { useBusinessAutofillProps } from '@/components/inputAutofill';
+import { useSearchAutofillProps } from '@/components/inputAutofill';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { replaceById } from '@/utils/replaceById';
 
@@ -81,7 +81,7 @@ type PanelState =
   | { open: true; mode: 'edit'; company: CompanyDto };
 
 export default function CompaniesPage() {
-  const businessAutofill = useBusinessAutofillProps();
+  const searchAutofill = useSearchAutofillProps();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const isMobile = useIsMobile();
@@ -215,7 +215,7 @@ export default function CompaniesPage() {
             placeholder="Caută după denumire sau POC..."
             aria-label="Caută după denumire sau POC"
             className={searchInputClassName}
-            {...businessAutofill}
+            {...searchAutofill}
           />
         </div>
       )}

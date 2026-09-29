@@ -29,7 +29,7 @@ type PanelState =
   | { open: true; mode: 'edit'; user: UserDto };
 
 /** Account groups shown as separate tables — every user lands in exactly one. */
-type UserGroupId = 'angajati' | 'office' | 'externi';
+type UserGroupId = 'angajati' | 'office' | 'externi' | 'inactive';
 
 const USER_GROUPS: {
   id: UserGroupId;
@@ -55,9 +55,19 @@ const USER_GROUPS: {
     description: 'conturi admin și office',
     emptyMessage: 'Niciun utilizator office.',
   },
+  {
+    id: 'inactive',
+    title: 'Conturi inactive',
+    description: 'nu se mai pot conecta',
+    emptyMessage: 'Niciun cont inactiv.',
+  },
 ];
 
 function userGroupOf(user: UserDto): UserGroupId {
+  // Whatever the account was, once inactive it only shows here.
+  if (!user.isActive) {
+    return 'inactive';
+  }
   if (user.role === 'ADMIN' || user.isOfficeUser) {
     return 'office';
   }
@@ -216,8 +226,9 @@ export function UsersTab({ active }: UsersTabProps) {
   }
 
   function handleSaved(updated?: UserDto) {
-    // Changing the role, the office flag or "proiecte alocate specific" moves the
-    // row to another table — grouping is derived on render, so replacing is enough.
+    // Changing the role, the office or external flag, or deactivating the account
+    // moves the row to another table — grouping is derived on render, so replacing
+    // is enough.
     if (updated) {
       setUsers((current) => replaceById(current, updated));
       return;
@@ -252,22 +263,6 @@ export function UsersTab({ active }: UsersTabProps) {
         header: 'E-mail',
         width: '260px',
         className: 'text-text-muted',
-      },
-      {
-        key: 'isActive',
-        header: 'Status',
-        width: '120px',
-        render: (user) => (
-          <span
-            className={`inline-block rounded px-2 py-0.5 text-center text-xs font-medium ${
-              user.isActive
-                ? 'bg-status-livrat-bg text-status-livrat-text'
-                : 'bg-status-anulat-bg text-status-anulat-text'
-            }`}
-          >
-            {user.isActive ? 'Activ' : 'Inactiv'}
-          </span>
-        ),
       },
       {
         key: 'actions',
@@ -308,7 +303,12 @@ export function UsersTab({ active }: UsersTabProps) {
   }, []);
 
   const groupedUsers = useMemo(() => {
-    const groups: Record<UserGroupId, UserDto[]> = { angajati: [], office: [], externi: [] };
+    const groups: Record<UserGroupId, UserDto[]> = {
+      angajati: [],
+      office: [],
+      externi: [],
+      inactive: [],
+    };
     for (const user of users) {
       groups[userGroupOf(user)].push(user);
     }

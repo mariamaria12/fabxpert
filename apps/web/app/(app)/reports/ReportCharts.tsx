@@ -7,6 +7,7 @@ import type {
   ProductivityReportResponse,
   ProjectHoursComparisonRow,
 } from '@fabxpert/shared';
+import { matchesSearchText } from '@/utils/searchText';
 import { EmptyHint, SectionCard } from './ReportSection';
 import { formatHours } from './reportsFormat';
 import { paletteColor, TOKEN, tint } from './reportColors';
@@ -117,23 +118,30 @@ function LucratEstimatLegend() {
 
 function WorkedVsEstimatedSection({
   rows,
+  projectSearch,
   className,
   onSelectProject,
 }: {
   rows: ProjectHoursComparisonRow[];
+  projectSearch: string;
   className?: string;
   onSelectProject: (projectId: string) => void;
 }) {
-  const shown = rows.slice(0, MAX_PROJECT_CARDS);
+  const searching = projectSearch.trim().length > 0;
+  // A search shows every match, not only the ones in the top.
+  const shown = searching
+    ? rows.filter((row) => matchesSearchText(`${row.label} ${row.code}`, projectSearch))
+    : rows.slice(0, MAX_PROJECT_CARDS);
+  const hint = searching
+    ? `${shown.length} din ${rows.length}`
+    : rows.length > shown.length
+      ? `Top ${shown.length} din ${rows.length}`
+      : `Top ${shown.length}`;
 
   return (
-    <SectionCard
-      title="Ore lucrate vs. estimate"
-      hint={rows.length > shown.length ? `Top ${shown.length} din ${rows.length}` : `Top ${shown.length}`}
-      className={className}
-    >
+    <SectionCard title="Ore lucrate vs. estimate" hint={hint} className={className}>
       {shown.length === 0 ? (
-        <EmptyHint>Fără proiecte în interval.</EmptyHint>
+        <EmptyHint>{searching ? 'Niciun proiect găsit.' : 'Fără proiecte în interval.'}</EmptyHint>
       ) : (
         <>
           <LucratEstimatLegend />
@@ -311,15 +319,19 @@ function ByActivitySection({ rows, className }: { rows: ActivityHoursRow[]; clas
 
 export default function ReportCharts({
   report,
+  projectSearch,
   onSelectProject,
 }: {
   report: ProductivityReportResponse;
+  /** Narrows the project cards only; the totals keep the whole interval. */
+  projectSearch: string;
   onSelectProject: (projectId: string) => void;
 }) {
   return (
     <div className="grid gap-2 lg:grid-cols-12">
       <WorkedVsEstimatedSection
         rows={report.projectHours}
+        projectSearch={projectSearch}
         className="lg:col-span-8"
         onSelectProject={onSelectProject}
       />

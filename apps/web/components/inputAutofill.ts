@@ -59,8 +59,17 @@ export function isCredentialAutoComplete(
   );
 }
 
-/** Spread on business inputs (search bars, inline fields, textareas) outside TextField. */
+/** Spread on business inputs (inline fields, textareas) outside TextField. */
 export function useBusinessAutofillProps() {
   const seed = useId();
   return useMemo(() => getBusinessInputAutofillProps(seed), [seed]);
+}
+
+/**
+ * Spread on search bars. Their own name keeps Safari from offering what was
+ * typed into a form field that happened to get the same `useId`.
+ */
+export function useSearchAutofillProps() {
+  const seed = useId();
+  return useMemo(() => getSearchComboboxAutofillProps(seed), [seed]);
 }

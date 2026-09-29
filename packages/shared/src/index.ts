@@ -2,7 +2,12 @@
 // utility functions, and the API client layer.
 // See docs/architecture.md — packages/shared section — for what goes here.
 
-export { ApiError, configureApiClient, getApiClientBaseUrl } from './api/client';
+export {
+  ApiError,
+  configureApiClient,
+  getApiClientBaseUrl,
+  setUnauthorizedHandler,
+} from './api/client';
 export { resolveApiBaseUrl } from './api/resolve-api-base-url';
 export { getMe, login, logout } from './api/auth';
 export type { MeResponse } from './api/auth';

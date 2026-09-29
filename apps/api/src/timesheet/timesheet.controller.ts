@@ -15,6 +15,7 @@ import {
   Sse,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { takeUntil } from 'rxjs';
 import { z } from 'zod';
 import {
   createTimesheetSchema,
@@ -25,6 +26,7 @@ import {
 } from '@fabxpert/shared/dto/timesheet.dto';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { SessionRevocationService } from '../auth/session-revocation.service';
 import { parsePagination } from '../common/pagination/parse-pagination.util';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { TimesheetEventsService } from './timesheet-events.service';
@@ -125,12 +127,15 @@ export class TimesheetController {
   constructor(
     private readonly timesheetService: TimesheetService,
     private readonly timesheetEvents: TimesheetEventsService,
+    private readonly sessionRevocation: SessionRevocationService,
   ) {}
 
   @Sse('stream')
   @Roles('ADMIN')
-  stream() {
-    return this.timesheetEvents.subscribe();
+  stream(@Req() req: Request & { user: AuthenticatedUser }) {
+    return this.timesheetEvents
+      .subscribe()
+      .pipe(takeUntil(this.sessionRevocation.revoked(req.user.id)));
   }
 
   @Get('dashboard-metrics')

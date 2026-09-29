@@ -25,9 +25,11 @@ import {
   reorderPinnedProjectsSchema,
   type ReorderPinnedProjectsInput,
 } from '@fabxpert/shared/dto/project-reorder.dto';
+import { takeUntil } from 'rxjs';
 import { z } from 'zod';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { SessionRevocationService } from '../auth/session-revocation.service';
 import { parsePagination } from '../common/pagination/parse-pagination.util';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
@@ -89,12 +91,15 @@ export class ProjectController {
   constructor(
     private readonly projectService: ProjectService,
     private readonly availabilityEvents: ProjectAvailabilityEventsService,
+    private readonly sessionRevocation: SessionRevocationService,
   ) {}
 
   @Sse('available/stream')
   @Roles('ADMIN', 'EMPLOYEE')
-  availableStream() {
-    return this.availabilityEvents.subscribe();
+  availableStream(@CurrentUser() user: AuthenticatedUser) {
+    return this.availabilityEvents
+      .subscribe()
+      .pipe(takeUntil(this.sessionRevocation.revoked(user.id)));
   }
 
   @Get('available')

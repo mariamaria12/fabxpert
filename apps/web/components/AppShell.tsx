@@ -1,6 +1,6 @@
 'use client';
 
-import { ApiError, getMe, logout } from '@fabxpert/shared';
+import { ApiError, getMe, logout, setUnauthorizedHandler } from '@fabxpert/shared';
 import type { MeResponse } from '@fabxpert/shared';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type CSSProperties } from 'react';
@@ -76,6 +76,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       setCollapsed(true);
     }
   }, []);
+
+  // Any request refused with 401 ends the session here too — the account was
+  // deactivated or the cookie expired. Logging out clears the cookie, so a later
+  // reactivation does not bring this session back.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      clearCachedSessionUser();
+      void logout().catch(() => {
+        // The login page comes next either way.
+      });
+      router.replace('/login');
+    });
+    return () => setUnauthorizedHandler(null);
+  }, [router]);
 
   useEffect(() => {
     let cancelled = false;

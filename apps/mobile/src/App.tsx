@@ -1,4 +1,4 @@
-import { ApiError, getMe } from '@fabxpert/shared';
+import { ApiError, getMe, logout, setUnauthorizedHandler } from '@fabxpert/shared';
 import type { MeResponse } from '@fabxpert/shared';
 import { useEffect, useState } from 'react';
 import { TimesheetFlow } from './components/TimesheetFlow';
@@ -35,6 +35,19 @@ async function fetchSessionUser(): Promise<MeResponse> {
 export default function App() {
   const [user, setUser] = useState<MeResponse | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
+
+  // Any request refused with 401 ends the session here too — the account was
+  // deactivated or the cookie expired. Logging out clears the cookie, so a later
+  // reactivation does not bring this session back.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setUser(null);
+      void logout().catch(() => {
+        // The login screen comes next either way.
+      });
+    });
+    return () => setUnauthorizedHandler(null);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
