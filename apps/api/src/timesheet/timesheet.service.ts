@@ -52,6 +52,7 @@ import {
   indexProjectAssemblyProgress,
   shapePinnedProjectsSummary,
   shapeProjectSummary,
+  type BuildProjectSummaryQueryOptions,
   type ProjectAssemblyProgressIndex,
   type ProjectSummaryAssemblyDoneSqlRow,
   type ProjectSummaryAssemblyTotalSqlRow,
@@ -615,13 +616,35 @@ export class TimesheetService {
   async getPinnedProjectsSummary(
     resolved: ResolvedSummaryPeriod,
   ): Promise<PinnedProjectsSummaryResponse> {
+    return this.loadPinnedCardSummary({
+      pinnedOnly: true,
+      includeZeroEntryProjects: true,
+      from: resolved.from,
+      to: resolved.to,
+    });
+  }
+
+  /**
+   * Everything a pinned card shows, for any one project over its whole
+   * history — the panou's tables open the same card under a row.
+   */
+  async getProjectBreakdown(projectId: string): Promise<ProjectBreakdownResponse> {
+    const { projects } = await this.loadPinnedCardSummary({
+      projectIds: [projectId],
+      includeZeroEntryProjects: true,
+    });
+    if (projects.length === 0) {
+      throw new NotFoundException(`Project with id ${projectId} not found`);
+    }
+    return projects[0];
+  }
+
+  /** The projects the query selects, shaped as pinned cards. */
+  private async loadPinnedCardSummary(
+    query: BuildProjectSummaryQueryOptions,
+  ): Promise<PinnedProjectsSummaryResponse> {
     const rows = await this.prisma.$queryRaw<ProjectSummarySqlRow[]>(
-      buildProjectSummaryQuery({
-        pinnedOnly: true,
-        includeZeroEntryProjects: true,
-        from: resolved.from,
-        to: resolved.to,
-      }),
+      buildProjectSummaryQuery(query),
     );
     const projectIds = [...new Set(rows.map((row) => row.projectId))];
     if (projectIds.length === 0) {
@@ -672,29 +695,6 @@ export class TimesheetService {
           piecesPerTon: meta?.piecesPerTon ?? null,
         };
       }),
-    };
-  }
-
-  /** The pinned card's breakdown for any one project, over its whole history. */
-  async getProjectBreakdown(projectId: string): Promise<ProjectBreakdownResponse> {
-    const rows = await this.prisma.$queryRaw<ProjectSummarySqlRow[]>(
-      buildProjectSummaryQuery({ projectIds: [projectId], includeZeroEntryProjects: true }),
-    );
-    if (rows.length === 0) {
-      throw new NotFoundException(`Project with id ${projectId} not found`);
-    }
-
-    const [assemblyIndex, progress] = await Promise.all([
-      this.loadProjectAssemblyProgress(rows, 'all'),
-      loadProjectProgress(this.prisma, [projectId]),
-    ]);
-    const [project] = shapePinnedProjectsSummary(rows, assemblyIndex).projects;
-
-    return {
-      id: project.id,
-      progressPercent: progress.get(projectId) ?? null,
-      totalMinutes: project.totalMinutes,
-      activities: project.activities,
     };
   }
 

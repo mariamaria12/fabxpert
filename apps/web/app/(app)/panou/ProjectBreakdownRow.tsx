@@ -1,69 +1,66 @@
 'use client';
 
 import { getProjectBreakdown, type ProjectBreakdownResponse } from '@fabxpert/shared';
-import { useEffect, useState } from 'react';
-import { ActivityBreakdownRows } from './ActivityBreakdownRows';
+import { useCallback, useEffect, useState } from 'react';
+import { PinnedProjectCard } from './PinnedProjectCard';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
-import { allTimePeriod } from '@/utils/timesheetListNavigation';
 
 /**
- * What a pinned card shows expanded, under a row of the projects table: the
- * project's activities with their progress and logged hours, since ever.
- * Loaded when the row opens, so a closed table costs nothing extra.
+ * Under a row of the projects table: the project as a pinned card, opened —
+ * the same card the pinned section shows, whether or not the project is
+ * pinned. Loaded when the row opens, so a closed table costs nothing extra.
  */
 export function ProjectBreakdownRow({
   projectId,
   source,
   page,
+  onEdit,
+  onOpenReport,
 }: {
   projectId: string;
   /** The table the row sits in, and its page — where Back from the pontaje returns. */
   source: 'in_progress' | 'completed';
   page: number;
+  onEdit: () => void;
+  onOpenReport: () => void;
 }) {
-  const [breakdown, setBreakdown] = useState<ProjectBreakdownResponse | null>(null);
+  const [project, setProject] = useState<ProjectBreakdownResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    getProjectBreakdown(projectId)
-      .then((response) => {
-        if (!cancelled) {
-          setBreakdown(response);
-        }
-      })
-      .catch((caught: unknown) => {
-        if (!cancelled) {
-          setError(apiErrorToastMessage(caught));
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
+  const load = useCallback(async () => {
+    try {
+      setProject(await getProjectBreakdown(projectId));
+      setError(null);
+    } catch (caught) {
+      setError(apiErrorToastMessage(caught));
+    }
   }, [projectId]);
 
+  useEffect(() => {
+    void load();
+  }, [load]);
+
   return (
-    <div className="px-3 py-2">
+    <div className="px-3 py-3">
       {error ? (
         <p className="text-sm text-danger">{error}</p>
-      ) : !breakdown ? (
+      ) : !project ? (
         <p className="text-sm text-text-muted">Se încarcă…</p>
-      ) : breakdown.activities.length === 0 ? (
-        <p className="text-sm text-text-muted">Fără ore pontate pe acest proiect.</p>
       ) : (
-        <div className="max-w-3xl">
-          <ActivityBreakdownRows
-            activities={breakdown.activities}
-            progressPercent={breakdown.progressPercent}
-            timesheets={{
-              projectId,
-              period: allTimePeriod(),
-              returnPoint: { projectId, source, page },
-            }}
-          />
-        </div>
+        <PinnedProjectCard
+          project={project}
+          expanded={expanded}
+          onToggle={() => setExpanded((current) => !current)}
+          // The pin lives in the table row above; a second one here would have
+          // to keep both in step.
+          showPinButton={false}
+          onUnpinned={() => undefined}
+          onEdit={onEdit}
+          onOpenReport={onOpenReport}
+          onAssembliesChanged={() => void load()}
+          returnPoint={{ projectId, source, page }}
+        />
       )}
     </div>
   );

@@ -253,7 +253,7 @@ export function getPinnedProjectsSummary(period?: Period) {
   );
 }
 
-/** Admin only. Every pontaj ever logged on the project, by activity. */
+/** Admin only. One project as a pinned card shows it: details, progress, all-time hours by activity. */
 export function getProjectBreakdown(projectId: string) {
   return request<ProjectBreakdownResponse>(
     `/timesheets/project-breakdown/${encodeURIComponent(projectId)}`,

@@ -255,13 +255,10 @@ export type PinnedProjectSummaryRow = {
 };
 
 /**
- * One project's all-time breakdown by activity — what a pinned card shows
- * expanded, for a project that is not pinned.
+ * One project over its whole history, shaped exactly like a pinned card's row,
+ * so a project that is not pinned can be shown as the same card.
  */
-export type ProjectBreakdownResponse = Pick<
-  PinnedProjectSummaryRow,
-  'id' | 'progressPercent' | 'totalMinutes' | 'activities'
->;
+export type ProjectBreakdownResponse = PinnedProjectSummaryRow;
 
 export type PinnedProjectsSummaryResponse = {
   projects: PinnedProjectSummaryRow[];

@@ -553,8 +553,15 @@ const ProjectTableSection = forwardRef<
             sortOrder={sortOrder}
             onSortChange={handleSortChange}
             defaultExpandedKeys={returnProjectId ? [returnProjectId] : undefined}
+            expandedRowFitsViewport
             renderExpandedRow={(row) => (
-              <ProjectBreakdownRow projectId={row.id} source={statusGroup} page={page} />
+              <ProjectBreakdownRow
+                projectId={row.id}
+                source={statusGroup}
+                page={page}
+                onEdit={() => openEdit(row)}
+                onOpenReport={() => onOpenReport?.(row.id)}
+              />
             )}
           />
           {!loading && total > 0 && (

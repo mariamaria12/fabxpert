@@ -52,6 +52,12 @@ export interface DataTableProps<T> {
   renderExpandedRow?: (row: T) => ReactNode;
   /** Rows that start open, by `rowKey` — read once, when the table mounts. */
   defaultExpandedKeys?: ReadonlyArray<string | number>;
+  /**
+   * Keeps an opened row as wide as the visible part of the table instead of the
+   * whole (possibly scrolled) table — for content, like a card, that has to be
+   * read on a phone without scrolling sideways.
+   */
+  expandedRowFitsViewport?: boolean;
 }
 
 const DEFAULT_COLUMN_WIDTH_PX = 180;
@@ -124,6 +130,7 @@ const DataTableRows = memo(function DataTableRows<T>({
   rowAccentColor,
   onRowClick,
   renderExpandedRow,
+  expandedRowFitsViewport,
   expandedKeys,
   onToggleExpanded,
 }: {
@@ -133,6 +140,7 @@ const DataTableRows = memo(function DataTableRows<T>({
   rowAccentColor?: (row: T) => string | undefined;
   onRowClick?: (row: T) => void;
   renderExpandedRow?: (row: T) => ReactNode;
+  expandedRowFitsViewport: boolean;
   expandedKeys: ReadonlySet<string | number>;
   onToggleExpanded: (key: string | number) => void;
 }) {
@@ -186,7 +194,11 @@ const DataTableRows = memo(function DataTableRows<T>({
             {expanded && (
               <tr className="border-b border-border-subtle bg-surface/40 last:border-b-0">
                 <td colSpan={colSpan} className="p-0">
-                  {renderExpandedRow(row)}
+                  {expandedRowFitsViewport ? (
+                    <div className="sticky left-0 w-[100cqw]">{renderExpandedRow(row)}</div>
+                  ) : (
+                    renderExpandedRow(row)
+                  )}
                 </td>
               </tr>
             )}
@@ -202,6 +214,7 @@ const DataTableRows = memo(function DataTableRows<T>({
   rowAccentColor?: (row: T) => string | undefined;
   onRowClick?: (row: T) => void;
   renderExpandedRow?: (row: T) => ReactNode;
+  expandedRowFitsViewport: boolean;
   expandedKeys: ReadonlySet<string | number>;
   onToggleExpanded: (key: string | number) => void;
 }) => ReactNode;
@@ -223,6 +236,7 @@ export function DataTable<T>({
   title,
   renderExpandedRow,
   defaultExpandedKeys,
+  expandedRowFitsViewport = false,
 }: DataTableProps<T>) {
   const showAccent = rowAccentColor !== undefined;
   const [expandedKeys, setExpandedKeys] = useState<ReadonlySet<string | number>>(
@@ -438,7 +452,8 @@ export function DataTable<T>({
         </div>
       )}
 
-      <div className="overflow-x-auto border border-border-subtle">
+      {/* A size container, so an opened row can measure the visible width (cqw). */}
+      <div className="overflow-x-auto border border-border-subtle [container-type:inline-size]">
         <table
           className="table-fixed border-collapse text-sm"
           style={{ width: '100%', minWidth: `${totalTableWidth}px` }}
@@ -538,6 +553,7 @@ export function DataTable<T>({
                 rowAccentColor={rowAccentColor}
                 onRowClick={onRowClick}
                 renderExpandedRow={renderExpandedRow}
+                expandedRowFitsViewport={expandedRowFitsViewport}
                 expandedKeys={expandedKeys}
                 onToggleExpanded={toggleExpanded}
               />

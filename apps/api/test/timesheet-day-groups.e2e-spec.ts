@@ -112,13 +112,16 @@ describe('Timesheet day groups (e2e)', () => {
     expect(response.body.data[0].totalMinutes).toBe(120);
   });
 
-  it('breaks one project down by activity over its whole history', async () => {
+  it('returns one project as a pinned card row, over its whole history', async () => {
     const response = await request(app.getHttpServer())
       .get(`/timesheets/project-breakdown/${FIXTURES.projects.ready.id}`)
       .set(authHeader(adminCookie))
       .expect(200);
 
     expect(response.body.id).toBe(FIXTURES.projects.ready.id);
+    // Shaped like a pinned card's row, details included.
+    expect(response.body.company.name).toEqual(expect.any(String));
+    expect(response.body.visibleForRoles).toEqual(expect.any(Array));
     expect(response.body.totalMinutes).toBe(420);
     expect(
       response.body.activities.map((activity: { minutes: number }) => activity.minutes),

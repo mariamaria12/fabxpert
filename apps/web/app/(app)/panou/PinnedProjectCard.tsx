@@ -11,6 +11,7 @@ import { FinisajBadge } from '@/components/FinisajBadge';
 import { ProjectComplexityBadge } from '@/components/ProjectComplexityBadge';
 import { AssemblyListScreen } from '@/app/(app)/projects/AssemblyListScreen';
 import { ActivityBreakdownRows } from './ActivityBreakdownRows';
+import type { PanouReturnPoint } from './panouReturnPoint';
 import { allTimePeriod } from '@/utils/timesheetListNavigation';
 import { NEUTRAL_ACCENT, panouAccentTint } from './panouColors';
 import { PanouProjectCard } from './PanouProjectCard';
@@ -149,6 +150,7 @@ export function PinnedProjectCard({
   dragHandleProps,
   showPinButton = true,
   titleHandleProps,
+  returnPoint,
 }: {
   project: PinnedProjectSummaryRow;
   expanded: boolean;
@@ -163,6 +165,8 @@ export function PinnedProjectCard({
   showPinButton?: boolean;
   /** Phones drag by holding the project code instead of a grip icon. */
   titleHandleProps?: Record<string, unknown>;
+  /** Where Back from the pontaje returns; the pinned section's own card by default. */
+  returnPoint?: PanouReturnPoint;
 }) {
   const [assembliesOpen, setAssembliesOpen] = useState(false);
   const timelineDates = getProjectTimelineDates(project.startDate, project.dueDate);
@@ -255,7 +259,7 @@ export function PinnedProjectCard({
             timesheets={{
               projectId: project.id,
               period: allTimePeriod(),
-              returnPoint: { projectId: project.id, source: 'pinned' },
+              returnPoint: returnPoint ?? { projectId: project.id, source: 'pinned' },
             }}
           />
         ) : (
