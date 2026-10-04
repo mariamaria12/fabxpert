@@ -275,6 +275,8 @@ export class UserService {
       data: { deletedAt: new Date() },
     });
     this.authUserCache.invalidate(id);
+    // A deleted account is logged out now, not on its next request.
+    this.sessionRevocation.revoke(id);
   }
 
   private assertSelfProtectionOnUpdate(

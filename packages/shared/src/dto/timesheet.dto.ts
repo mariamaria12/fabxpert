@@ -13,9 +13,19 @@ const optionalNotes = z.string().optional();
 
 const durationMinutesSchema = z.number().int().positive();
 
+/** The pattern alone lets `2026-02-31` through. */
+function isCalendarDate(value: string): boolean {
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+  );
+}
+
 const workDateSchema = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'workDate must be YYYY-MM-DD');
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'workDate must be YYYY-MM-DD')
+  .refine(isCalendarDate, 'workDate must be a real calendar day');
 
 /**
  * Which assemblies this entry covered, and how many pieces of each. Only

@@ -114,7 +114,9 @@ export function TimesheetDayGroupPanel({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const projectLists = useTimesheetProjectLists(open);
-  const [activities, setActivities] = useState<ActivityDto[]>([]);
+  // Null until the lookup answers — "not tracked" must not be read off a list
+  // that has not arrived.
+  const [activities, setActivities] = useState<ActivityDto[] | null>(null);
 
   useEffect(() => {
     setEntries(group.entries);
@@ -138,9 +140,9 @@ export function TimesheetDayGroupPanel({
           setActivities(activitiesResponse);
         }
       })
-      .catch(() => {
+      .catch((caught: unknown) => {
         if (!cancelled) {
-          setActivities([]);
+          setFormError(apiErrorToastMessage(caught));
         }
       });
 
@@ -154,7 +156,7 @@ export function TimesheetDayGroupPanel({
   const isBusy = isSubmitting || deletingId !== null;
 
   const activityOptions = withEntryOptions(
-    activities.map((activity) => ({ id: activity.id, label: activity.name })),
+    (activities ?? []).map((activity) => ({ id: activity.id, label: activity.name })),
     entries.map((entry) => ({
       id: entry.activityId ?? '',
       label: entry.activity?.name ?? NO_ACTIVITY_LABEL,
@@ -162,7 +164,9 @@ export function TimesheetDayGroupPanel({
   );
 
   function tracksAssemblies(activityId: string): boolean {
-    return activities.some((activity) => activity.id === activityId && activity.tracksAssemblies);
+    return (activities ?? []).some(
+      (activity) => activity.id === activityId && activity.tracksAssemblies,
+    );
   }
 
   function updateAssemblies(entryId: string, assemblies: TimesheetAssemblyInput[]) {
@@ -184,7 +188,8 @@ export function TimesheetDayGroupPanel({
       // A mark belongs to one project's drawing and to the activity it was
       // reported on, so moving either one empties the list.
       const movedProject = field === 'projectId' && value !== draft.projectId;
-      const leftAssemblyActivity = field === 'activityId' && !tracksAssemblies(value);
+      const leftAssemblyActivity =
+        field === 'activityId' && activities !== null && !tracksAssemblies(value);
 
       return {
         ...current,
@@ -212,11 +217,10 @@ export function TimesheetDayGroupPanel({
       assemblyId: link.assemblyId,
       quantityDone: link.quantityDone,
     }));
-    // An activity that no longer tracks assemblies clears them; the server
-    // drops them on a project change on its own.
-    const nextAssemblies = tracksAssemblies(draft.activityId) ? draft.assemblies : [];
-    const assembliesChanged =
-      draft.projectId === entry.projectId && !sameAssemblies(nextAssemblies, savedAssemblies);
+    // The draft already empties its marks when the project or the activity
+    // moves, so it is compared as it stands. Sent on a project change too: the
+    // server drops the old links unless the new ones come with it.
+    const assembliesChanged = !sameAssemblies(draft.assemblies, savedAssemblies);
 
     return {
       ...(dateChanged ? { workDate } : {}),
@@ -226,7 +230,7 @@ export function TimesheetDayGroupPanel({
         ? { activityId: draft.activityId }
         : {}),
       ...(notes !== (entry.notes ?? '') ? { notes } : {}),
-      ...(assembliesChanged ? { assemblies: nextAssemblies } : {}),
+      ...(assembliesChanged ? { assemblies: draft.assemblies } : {}),
     };
   }
 
@@ -271,18 +275,34 @@ export function TimesheetDayGroupPanel({
     }
 
     setIsSubmitting(true);
-    try {
-      // Independent entries — sending them one after another would make the
-      // save take as long as the sum of the round trips.
-      await Promise.all(updates.map((update) => updateTimesheet(update.id, update.payload)));
-      showToast('Pontaje actualizate', 'success');
+    // Independent entries — sending them one after another would make the
+    // save take as long as the sum of the round trips.
+    const results = await Promise.allSettled(
+      updates.map((update) => updateTimesheet(update.id, update.payload)),
+    );
+    setIsSubmitting(false);
+
+    const failures = results.filter(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
+    // Whatever went through is saved, so the list behind the panel reloads
+    // even when another entry of the day was refused.
+    if (failures.length < results.length) {
       onSaved();
-      onClose();
-    } catch (caught) {
-      setFormError(apiErrorToastMessage(caught));
-    } finally {
-      setIsSubmitting(false);
     }
+
+    if (failures.length === 0) {
+      showToast('Pontaje actualizate', 'success');
+      onClose();
+      return;
+    }
+
+    const reason = apiErrorToastMessage(failures[0].reason);
+    setFormError(
+      results.length === 1
+        ? reason
+        : `${failures.length} din ${results.length} pontaje nu au fost salvate: ${reason}`,
+    );
   }
 
   async function handleDeleteEntry(entryId: string) {

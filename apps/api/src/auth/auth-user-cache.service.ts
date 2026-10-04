@@ -14,7 +14,7 @@ const TTL_MS = 30_000;
 const SWEEP_THRESHOLD = 500;
 
 type CacheEntry = {
-  /** null = the account exists but may not authenticate (inactive/missing). */
+  /** null = the account exists but may not authenticate (inactive/deleted/missing). */
   user: AuthenticatedUser | null;
   expiresAt: number;
 };

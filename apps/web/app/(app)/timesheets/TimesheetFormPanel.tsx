@@ -32,6 +32,7 @@ import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { FORM_FIELD_CLASS } from '@/components/formFieldStyles';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { loadAllPages } from '@/utils/loadAllPages';
 
 interface TimesheetFormValues {
   personId: string;
@@ -87,7 +88,7 @@ function timesheetToFormValues(timesheet: TimesheetDto): TimesheetFormValues {
   };
 }
 
-function buildPayload(values: TimesheetFormValues) {
+function buildPayload(values: TimesheetFormValues, mode: 'create' | 'edit') {
   const durationMinutes = parseDurationMinutesInput(values.duration);
 
   return {
@@ -96,7 +97,9 @@ function buildPayload(values: TimesheetFormValues) {
     activityId: values.activityId || undefined,
     workDate: values.workDate || undefined,
     durationMinutes: durationMinutes ?? 0,
-    notes: values.notes.trim() || undefined,
+    // An empty note is left out of a new entry, but sent on edit — otherwise
+    // clearing the field would leave the old note in place.
+    notes: mode === 'edit' ? values.notes.trim() : values.notes.trim() || undefined,
     // Always sent on edit so clearing the last mark actually clears it.
     assemblies: values.assemblies,
   };
@@ -134,8 +137,6 @@ export interface TimesheetFormPanelProps {
   onSaved: (updated?: TimesheetDto) => void;
 }
 
-const LOOKUP_PAGE_SIZE = 500;
-
 export function TimesheetFormPanel({
   open,
   mode,
@@ -168,10 +169,13 @@ export function TimesheetFormPanel({
 
     let cancelled = false;
 
-    Promise.all([listPersons({ page: 1, pageSize: LOOKUP_PAGE_SIZE }), listActivities()])
+    Promise.all([
+      loadAllPages((page, pageSize) => listPersons({ page, pageSize })),
+      listActivities(),
+    ])
       .then(([personsResponse, activitiesResponse]) => {
         if (!cancelled) {
-          setPersons(personsResponse.data);
+          setPersons(personsResponse);
           setActivities(activitiesResponse);
         }
       })
@@ -272,7 +276,7 @@ export function TimesheetFormPanel({
       return;
     }
 
-    const payload = buildPayload(values);
+    const payload = buildPayload(values, mode);
 
     if (mode === 'create') {
       const parsed = createTimesheetSchema.safeParse(payload);

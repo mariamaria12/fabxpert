@@ -839,8 +839,13 @@ export class TimesheetService {
     const nextActivityId =
       input.activityId !== undefined ? input.activityId : existing.activityId;
 
-    await this.assertProjectAvailable(actor, nextProjectId);
-    if (nextActivityId !== null) {
+    // Only what the edit moves is checked. An entry keeps the project and the
+    // activity it was logged on even after they were retired, and fixing its
+    // hours or its note must still go through.
+    if (nextProjectId !== existing.projectId) {
+      await this.assertProjectAvailable(actor, nextProjectId);
+    }
+    if (nextActivityId !== null && nextActivityId !== existing.activityId) {
       await this.assertActivityExists(nextActivityId);
     }
 

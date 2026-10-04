@@ -1,7 +1,10 @@
 import type { TimesheetDto } from '@fabxpert/shared';
 
-/** Max rows fetched for export preview (full export uses server-side XLSX). */
-export const EXPORT_PREVIEW_FETCH_SIZE = 500;
+/**
+ * Max rows fetched for export preview (full export uses server-side XLSX).
+ * The API serves at most 200 rows a page.
+ */
+export const EXPORT_PREVIEW_FETCH_SIZE = 200;
 
 /** Same order as GET /timesheets/export.xlsx (workDate asc, person, project). */
 export function sortTimesheetsForExport(rows: TimesheetDto[]): TimesheetDto[] {

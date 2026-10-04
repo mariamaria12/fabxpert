@@ -174,6 +174,68 @@ describe('Timesheet rules (e2e)', () => {
     expect(response.status).toBe(400);
   });
 
+  it('workDate that is not a real calendar day → 400, not a server error', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/timesheets')
+      .set(authHeader(adminCookie))
+      .send({
+        personId: FIXTURES.persons.employee2.id,
+        projectId: FIXTURES.projects.ready.id,
+        durationMinutes: 60,
+        workDate: '2026-02-31',
+      });
+
+    expect(response.status).toBe(400);
+  });
+
+  it('an entry stays editable after its activity is deactivated or its project stops being ready', async () => {
+    const prisma = getTestPrisma();
+    const create = await request(app.getHttpServer())
+      .post('/timesheets')
+      .set(authHeader(employee1Cookie))
+      .send({
+        projectId: FIXTURES.projects.ready.id,
+        activityId: FIXTURES.activities.second.id,
+        durationMinutes: 60,
+        workDate: workDateIso(),
+      });
+    expect(create.status).toBe(201);
+
+    await prisma.activity.update({
+      where: { id: FIXTURES.activities.second.id },
+      data: { isActive: false },
+    });
+    await prisma.project.update({
+      where: { id: FIXTURES.projects.ready.id },
+      data: { readyForExecution: false },
+    });
+
+    try {
+      const fixHours = await request(app.getHttpServer())
+        .patch(`/timesheets/${create.body.id}`)
+        .set(authHeader(employee1Cookie))
+        .send({ durationMinutes: 90, notes: 'corectat' });
+      expect(fixHours.status).toBe(200);
+      expect(fixHours.body.durationMinutes).toBe(90);
+
+      // Moving the entry onto a retired activity is still refused.
+      const moveToInactive = await request(app.getHttpServer())
+        .patch(`/timesheets/${create.body.id}`)
+        .set(authHeader(employee1Cookie))
+        .send({ activityId: FIXTURES.activities.inactive.id });
+      expect(moveToInactive.status).toBe(400);
+    } finally {
+      await prisma.activity.update({
+        where: { id: FIXTURES.activities.second.id },
+        data: { isActive: true },
+      });
+      await prisma.project.update({
+        where: { id: FIXTURES.projects.ready.id },
+        data: { readyForExecution: true },
+      });
+    }
+  });
+
   it('ownership: EMPLOYEE PATCH other → 403; own → 200; EMPLOYEE DELETE other → 403; own → 204; ADMIN DELETE → 204 + soft delete', async () => {
     const create = await request(app.getHttpServer())
       .post('/timesheets')

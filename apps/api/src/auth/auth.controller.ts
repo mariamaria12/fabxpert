@@ -11,7 +11,8 @@ import {
 import { Request, Response } from 'express';
 import { AUTH_COOKIE_NAME, AuthService, authCookieOptions } from './auth.service';
 import { Public } from './decorators/public.decorator';
-import { LoginDto } from './dto/login.dto';
+import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import { loginSchema, type LoginDto } from './dto/login.dto';
 import { AuthenticatedUser } from './jwt.strategy';
 
 @Controller('auth')
@@ -22,7 +23,7 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(
-    @Body() dto: LoginDto,
+    @Body(new ZodValidationPipe(loginSchema)) dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ success: boolean }> {
     const { token, cookieMaxAgeMs } = await this.authService.login(

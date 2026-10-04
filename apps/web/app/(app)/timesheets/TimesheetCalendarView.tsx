@@ -10,7 +10,7 @@ import {
   type TimesheetDailyTotalDto,
   type TimesheetDayGroupDto,
 } from '@fabxpert/shared';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarView, type CalendarItem } from '@/components/calendar/CalendarView';
 import { useCalendarState } from '@/components/calendar/useCalendarState';
 import { useToast } from '@/context/ToastContext';
@@ -120,7 +120,11 @@ export function TimesheetCalendarView({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Bumped on every load, so an answer for a range the user already left is dropped.
+  const loadGeneration = useRef(0);
+
   const load = useCallback(async () => {
+    const generation = (loadGeneration.current += 1);
     setLoading(true);
     setError(null);
     const query = {
@@ -141,6 +145,9 @@ export function TimesheetCalendarView({
           getTimesheetDailyTotals(query),
           leavePromise,
         ]);
+        if (generation !== loadGeneration.current) {
+          return;
+        }
         setYearTotals(totals.days);
         setPersonDays([]);
         setLeave(leaveRows.filter((request) => request.status !== 'RESPINS'));
@@ -149,14 +156,21 @@ export function TimesheetCalendarView({
           getTimesheetCalendarDays(query),
           leavePromise,
         ]);
+        if (generation !== loadGeneration.current) {
+          return;
+        }
         setPersonDays(calendarDays.days);
         setYearTotals([]);
         setLeave(leaveRows.filter((request) => request.status !== 'RESPINS'));
       }
     } catch (caught) {
-      setError(apiErrorToastMessage(caught));
+      if (generation === loadGeneration.current) {
+        setError(apiErrorToastMessage(caught));
+      }
     } finally {
-      setLoading(false);
+      if (generation === loadGeneration.current) {
+        setLoading(false);
+      }
     }
   }, [mode, from, to, search, projectId, activityId]);
 

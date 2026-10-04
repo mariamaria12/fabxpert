@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Role } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import type { CookieOptions } from 'express';
+import { notDeleted } from '../common/prisma/soft-delete.util';
 import { PrismaService } from '../prisma/prisma.service';
 
 export const AUTH_COOKIE_NAME = 'access_token';
@@ -26,6 +27,13 @@ export function authCookieOptions(maxAgeMs?: number): CookieOptions {
     ...(maxAgeMs !== undefined ? { maxAge: maxAgeMs } : {}),
   };
 }
+
+/**
+ * A real hash of a discarded random value. Unknown emails are compared against
+ * it so they cost the same bcrypt work as known ones — it has to be well-formed,
+ * or bcrypt rejects it without doing any.
+ */
+const DUMMY_HASH = '$2a$12$bOgpDVPMmB6cAd3Xgy.CbetejzvZsJaROgaa7zkjhcGqNxbIIx7sW';
 
 export interface LoginResult {
   token: string;
@@ -85,13 +93,15 @@ export class AuthService {
   ) {}
 
   async login(email: string, password: string, rememberMe: boolean): Promise<LoginResult> {
-    const user = await this.prisma.user.findUnique({
-      where: { email },
+    // Emails are stored lowercase; the address as typed still matches accounts
+    // saved before that, which may carry capitals.
+    const user = await this.prisma.user.findFirst({
+      where: { email: { in: [email.toLowerCase(), email] }, ...notDeleted() },
+      orderBy: { createdAt: 'asc' },
       select: { id: true, passwordHash: true, role: true, isActive: true },
     });
 
     // Always run bcrypt.compare to prevent timing-based user enumeration.
-    const DUMMY_HASH = '$2a$12$invalidhashplaceholderXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
     const passwordsMatch = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
 
     if (!user || !user.isActive || !passwordsMatch) {
@@ -110,8 +120,8 @@ export class AuthService {
   }
 
   async getMe(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, ...notDeleted() },
       relationLoadStrategy: 'join',
       select: {
         id: true,

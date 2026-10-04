@@ -164,6 +164,50 @@ describe('User security (e2e)', () => {
       .send({ isActive: true });
   });
 
+  it('deleted account: open session is rejected and it cannot sign in again', async () => {
+    const email = 'to-delete@e2e.test';
+    const person = await request(app.getHttpServer())
+      .post('/persons')
+      .set(authHeader(adminCookie))
+      .send({ firstName: 'To', lastName: 'Delete' })
+      .expect(201);
+
+    const created = await request(app.getHttpServer())
+      .post('/users')
+      .set(authHeader(adminCookie))
+      .send({
+        // Stored lowercase whatever the admin typed.
+        email: 'To-Delete@E2E.test',
+        password: E2E_PASSWORD,
+        role: 'EMPLOYEE',
+        personId: person.body.id,
+      });
+    expect(created.status).toBe(201);
+    expect(created.body.email).toBe(email);
+
+    const { cookieHeader } = await login(app, email, E2E_PASSWORD);
+    await request(app.getHttpServer())
+      .get('/auth/me')
+      .set(authHeader(cookieHeader))
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .delete(`/users/${created.body.id}`)
+      .set(authHeader(adminCookie))
+      .expect(204);
+
+    const me = await request(app.getHttpServer())
+      .get('/auth/me')
+      .set(authHeader(cookieHeader));
+    expect(me.status).toBe(401);
+
+    const signInAgain = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email, password: E2E_PASSWORD });
+    expect(signInAgain.status).toBe(401);
+    expect(signInAgain.body.message).toBe('Invalid credentials');
+  });
+
   it('deactivating an account ends its open live stream', async () => {
     const { cookieHeader } = await login(
       app,

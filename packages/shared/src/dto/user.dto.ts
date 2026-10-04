@@ -14,10 +14,13 @@ const personIdSchema = z
     'Invalid UUID format',
   );
 
+/** Stored lowercase, so sign-in does not depend on how the address was typed. */
+const emailSchema = z.string().trim().toLowerCase().email('Invalid email address');
+
 const passwordSchema = z.string().min(8, 'Password must be at least 8 characters');
 
 export const createUserSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: emailSchema,
   password: passwordSchema,
   role: userRoleSchema,
   personId: personIdSchema,
@@ -29,7 +32,7 @@ export const createUserSchema = z.object({
 
 export const updateUserSchema = z
   .object({
-    email: z.string().email('Invalid email address').optional(),
+    email: emailSchema.optional(),
     password: passwordSchema.optional(),
     role: userRoleSchema.optional(),
     personId: personIdSchema.optional(),

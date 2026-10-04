@@ -2,9 +2,14 @@ const DEFAULT_CONNECTION_LIMIT = 5;
 
 /** How many pooled connections the API is allowed against Supabase session mode. */
 export function getPrismaConnectionLimit(): number {
-  const configured = process.env.DATABASE_URL
-    ? new URL(process.env.DATABASE_URL).searchParams.get('connection_limit')
-    : null;
+  let configured: string | null = null;
+  try {
+    configured = process.env.DATABASE_URL
+      ? new URL(process.env.DATABASE_URL).searchParams.get('connection_limit')
+      : null;
+  } catch {
+    // Not a URL this can read — Prisma gets it as is, and the default applies here.
+  }
   const parsed = configured ? Number.parseInt(configured, 10) : Number.NaN;
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_CONNECTION_LIMIT;
 }

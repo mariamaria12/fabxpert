@@ -74,6 +74,31 @@ describe('Auth (e2e)', () => {
     expect(response.body.message).toBe('Invalid credentials');
   });
 
+  it('login ignores how the email is capitalised', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({
+        email: `  ${FIXTURES.users.admin.email.toUpperCase()} `,
+        password: E2E_PASSWORD,
+      });
+
+    expect(response.status).toBe(200);
+  });
+
+  it('login with a missing or non-text field → 400, not a server error', async () => {
+    const bodies = [
+      {},
+      { email: FIXTURES.users.admin.email },
+      { email: FIXTURES.users.admin.email, password: 12345678 },
+      { email: { contains: '' }, password: E2E_PASSWORD },
+    ];
+
+    for (const body of bodies) {
+      const response = await request(app.getHttpServer()).post('/auth/login').send(body);
+      expect(response.status).toBe(400);
+    }
+  });
+
   it('GET /auth/me without cookie → 401; with cookie → user shape without passwordHash', async () => {
     const unauthenticated = await request(app.getHttpServer()).get('/auth/me');
     expect(unauthenticated.status).toBe(401);

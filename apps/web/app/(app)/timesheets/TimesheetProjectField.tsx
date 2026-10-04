@@ -7,8 +7,7 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { SelectField } from '@/components/SelectField';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
-
-const LOOKUP_PAGE_SIZE = 500;
+import { loadAllPages } from '@/utils/loadAllPages';
 
 /** The list the project field offers: today's work, or everything ever. */
 type ProjectScope = 'ready' | 'all';
@@ -40,10 +39,12 @@ export function useTimesheetProjectLists(open: boolean): TimesheetProjectLists {
 
     let cancelled = false;
 
-    listProjects({ page: 1, pageSize: LOOKUP_PAGE_SIZE, compact: true, readyForExecution: true })
-      .then((response) => {
+    loadAllPages((page, pageSize) =>
+      listProjects({ page, pageSize, compact: true, readyForExecution: true }),
+    )
+      .then((projects) => {
         if (!cancelled) {
-          setReadyProjects(response.data);
+          setReadyProjects(projects);
         }
       })
       .catch(() => {
