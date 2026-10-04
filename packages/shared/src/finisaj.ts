@@ -300,8 +300,8 @@ export function finisajBadgeColors(hex: string): FinisajBadgeColors {
 /** A stretch of free text, or a RAL code found inside it. */
 export type RalTextPart =
   | { kind: 'text'; text: string }
-  /** `label` is always "RAL 7033", whatever was typed. */
-  | { kind: 'ral'; text: string; label: string };
+  /** `label` is always "RAL 7033", whatever was typed; `hex` is its colour. */
+  | { kind: 'ral'; text: string; label: string; hex: string };
 
 /**
  * A RAL code inside running text. The character before it must not be a letter
@@ -333,7 +333,7 @@ export function splitTextByRal(value: string | null | undefined): RalTextPart[] 
     if (start > cursor) {
       parts.push({ kind: 'text', text: value.slice(cursor, start) });
     }
-    parts.push({ kind: 'ral', text: match[2], label: `RAL ${color.code}` });
+    parts.push({ kind: 'ral', text: match[2], label: `RAL ${color.code}`, hex: color.hex });
     cursor = start + match[2].length;
   }
 
@@ -342,10 +342,4 @@ export function splitTextByRal(value: string | null | undefined): RalTextPart[] 
   }
 
   return parts;
-}
-
-/** The RAL codes written in a text, each once, in the order they appear. */
-export function ralCodesInText(value: string | null | undefined): string[] {
-  const labels = splitTextByRal(value).flatMap((part) => (part.kind === 'ral' ? [part.label] : []));
-  return [...new Set(labels)];
 }

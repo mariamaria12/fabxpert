@@ -4,7 +4,6 @@ import {
   formatFinisajLabel,
   joinFinisaj,
   parseFinisaj,
-  ralCodesInText,
   splitFinisaj,
   splitTextByRal,
   takeCompletedFinisaj,
@@ -134,13 +133,14 @@ test('takeCompletedFinisaj leaves text it cannot map', () => {
 });
 
 test('splitTextByRal picks the RAL codes out of running text', () => {
-  assert.deepEqual(splitTextByRal('Stâlpii ral7016, grinzile RAL 9005 mat.'), [
-    { kind: 'text', text: 'Stâlpii ' },
-    { kind: 'ral', text: 'ral7016', label: 'RAL 7016' },
-    { kind: 'text', text: ', grinzile ' },
-    { kind: 'ral', text: 'RAL 9005', label: 'RAL 9005' },
-    { kind: 'text', text: ' mat.' },
-  ]);
+  const parts = splitTextByRal('Stâlpii ral7016, grinzile RAL 9005 mat.');
+
+  // The colour itself comes from the RAL table; what matters here is the split.
+  assert.deepEqual(
+    parts.map((part) => (part.kind === 'ral' ? [part.text, part.label] : part.text)),
+    ['Stâlpii ', ['ral7016', 'RAL 7016'], ', grinzile ', ['RAL 9005', 'RAL 9005'], ' mat.'],
+  );
+  assert.ok(parts.every((part) => part.kind !== 'ral' || /^#[0-9A-F]{6}$/i.test(part.hex)));
 });
 
 test('splitTextByRal keeps line breaks and text without a code as they are', () => {
@@ -156,11 +156,4 @@ test('splitTextByRal leaves unknown codes and look-alikes as text', () => {
   for (const text of ['RAL 1234', 'CORAL 7016', 'RAL 70161']) {
     assert.deepEqual(splitTextByRal(text), [{ kind: 'text', text }]);
   }
-});
-
-test('ralCodesInText lists each code once, in order', () => {
-  assert.deepEqual(ralCodesInText('RAL 9005 sus, RAL7016 jos, apoi iar ral 9005'), [
-    'RAL 9005',
-    'RAL 7016',
-  ]);
 });

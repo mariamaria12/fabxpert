@@ -13,7 +13,6 @@ import {
   PROJECT_STATUS_META,
   PROJECT_STATUS_VALUES,
   pickRandomProjectColor,
-  ralCodesInText,
   updateProject,
   updateProjectSchema,
   type AssemblyImportRowDto,
@@ -44,8 +43,8 @@ import { useIsMobile } from '@/hooks/useIsMobile';
 import { SearchableMultiSelect } from '@/components/SearchableMultiSelect';
 import { SearchableSelect, type SearchableSelectOption } from '@/components/SearchableSelect';
 import { SelectField } from '@/components/SelectField';
-import { FinisajBadge } from '@/components/FinisajBadge';
 import { FinisajField } from '@/components/FinisajField';
+import { RalNotesField } from '@/components/RalNotesField';
 import { TextField } from '@/components/TextField';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { useToast } from '@/context/ToastContext';
@@ -321,8 +320,6 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
   const [creatingClient, setCreatingClient] = useState(false);
 
   const isBusy = isSubmitting || isDeleting;
-  // The colours the note names, as the pontaj app will show them.
-  const notesRalCodes = ralCodesInText(values.notes);
   const title = mode === 'create' ? 'Proiect nou' : 'Editează proiectul';
   // The panel refetches the project when it opens, so that count wins over the
   // row that opened it — a pinned card hands over a stub with none.
@@ -1098,24 +1095,14 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
           <label htmlFor="notes" className="mb-1.5 block text-xs font-medium text-text-secondary">
             Notițe
           </label>
-          <textarea
+          <RalNotesField
             id="notes"
-            rows={3}
             value={values.notes}
             disabled={isBusy}
             placeholder="Detalii despre proiect"
-            onChange={(event) => updateField('notes', event.target.value)}
-            className={`${inputClassName} resize-none`}
+            onChange={(value) => updateField('notes', value)}
             {...businessAutofill}
           />
-          {notesRalCodes.length > 0 && (
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              <span className="text-xs text-text-muted">Culori în notițe:</span>
-              {notesRalCodes.map((code) => (
-                <FinisajBadge key={code} value={code} />
-              ))}
-            </div>
-          )}
         </div>
 
         <TextField

@@ -191,7 +191,6 @@ export {
   joinFinisaj,
   takeCompletedFinisaj,
   splitTextByRal,
-  ralCodesInText,
   finisajBadgeColors,
   relativeLuminance,
 } from './finisaj';
