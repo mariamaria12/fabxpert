@@ -13,6 +13,9 @@ export const TIMESHEET_LIST_LINK_PARAMS = [
   'return',
 ] as const;
 
+/** The panou's address — the home page. */
+export const PANOU_PATH = '/';
+
 /** The periods a link can name outright; a custom one travels as `from` and `to`. */
 const NAMED_PERIOD_KINDS = ['today', 'yesterday', 'week', 'month'] as const;
 
@@ -29,6 +32,7 @@ export function buildActivityTimesheetListHref(filters: {
   projectId: string;
   activityId: string;
   period: Period;
+  returnTo?: string;
 }): string {
   const params = new URLSearchParams({
     projectId: filters.projectId,
@@ -39,6 +43,9 @@ export function buildActivityTimesheetListHref(filters: {
     params.set('to', filters.period.to);
   } else {
     params.set('period', filters.period.kind);
+  }
+  if (filters.returnTo) {
+    params.set('return', filters.returnTo);
   }
   return `/timesheets?${params.toString()}`;
 }

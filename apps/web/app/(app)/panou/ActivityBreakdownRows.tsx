@@ -5,7 +5,7 @@ import { formatProjectProgress } from '@fabxpert/shared';
 import Link from 'next/link';
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
 import { formatProjectWeight } from '@/utils/projectWeight';
-import { buildActivityTimesheetListHref } from '@/utils/timesheetListNavigation';
+import { buildActivityTimesheetListHref, PANOU_PATH } from '@/utils/timesheetListNavigation';
 import { PanouActivityProgressBar } from './PanouActivityProgressBar';
 
 /**
@@ -133,6 +133,7 @@ function ActivityName({
         projectId: timesheets.projectId,
         activityId: activity.activityId,
         period: timesheets.period,
+        returnTo: PANOU_PATH,
       })}
       title={`Vezi pontajele pe ${activity.activityName}`}
       className={`${NAME_CELL} group flex min-w-0 items-center gap-2`}

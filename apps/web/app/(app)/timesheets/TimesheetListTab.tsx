@@ -47,6 +47,7 @@ import { useSearchAutofillProps } from '@/components/inputAutofill';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import {
+  PANOU_PATH,
   readTimesheetListLink,
   TIMESHEET_LIST_LINK_PARAMS,
 } from '@/utils/timesheetListNavigation';
@@ -228,8 +229,9 @@ export function TimesheetListTab() {
     window.history.replaceState(null, '', query ? `/timesheets?${query}` : '/timesheets');
   }, [searchParams]);
 
-  // Through history when the report is the page before, so it comes back with
-  // its address — and its open fișa — as left; a fresh tab goes by the link.
+  // Through history when the report or the panou is the page before, so it
+  // comes back with its address — and its open fișa — as left; a fresh tab goes
+  // by the link.
   function goBackToReport() {
     if (window.history.length > 1) {
       router.back();
@@ -756,7 +758,7 @@ export function TimesheetListTab() {
           className="mb-3 inline-flex items-center gap-1 self-start text-xs font-medium text-accent transition-opacity hover:opacity-80"
         >
           <i className="ti ti-arrow-left text-sm" aria-hidden="true" />
-          Înapoi la raport
+          {link.returnTo === PANOU_PATH ? 'Înapoi la panou' : 'Înapoi la raport'}
         </button>
       )}
       <div className="flex items-center justify-end gap-4 sm:justify-between">
