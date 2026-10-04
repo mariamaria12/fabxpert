@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Put,
   Query,
   Req,
   Res,
@@ -16,8 +17,10 @@ import { z } from 'zod';
 import {
   createOvertimeCorrectionSchema,
   resolveAccountingDaysSchema,
+  setWeekendHoursSchema,
   type CreateOvertimeCorrectionInput,
   type ResolveAccountingDaysInput,
+  type SetWeekendHoursInput,
 } from '@fabxpert/shared/dto/overtime.dto';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -75,6 +78,17 @@ export class OvertimeController {
     @Req() req: Request & { user: AuthenticatedUser },
   ) {
     return this.overtimeService.createCorrection(input, req.user);
+  }
+
+  /** Sets a month's weekend hours for one person by hand. */
+  @Put('weekend-hours')
+  @Roles('ADMIN')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  setWeekendHours(
+    @Body(new ZodValidationPipe(setWeekendHoursSchema)) input: SetWeekendHoursInput,
+    @Req() req: Request & { user: AuthenticatedUser },
+  ) {
+    return this.overtimeService.setWeekendHours(input, req.user);
   }
 
   /** Undoes a correction. */

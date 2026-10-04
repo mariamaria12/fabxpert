@@ -33,6 +33,21 @@ describe('Overtime weekend hours (e2e)', () => {
   let app: INestApplication;
   let adminCookie: string;
 
+  const setWeekendHours = (body: Record<string, unknown>, cookie = adminCookie) =>
+    request(app.getHttpServer())
+      .put('/overtime/weekend-hours')
+      .set(authHeader(cookie))
+      .send({ personId, month: lastMonthKey(), ...body });
+
+  const balanceRow = async () => {
+    const response = await request(app.getHttpServer())
+      .get(`/overtime/balances?month=${lastMonthKey()}`)
+      .set(authHeader(adminCookie));
+    expect(response.status).toBe(200);
+    return response.body.rows.find((row: { person: { id: string } }) => row.person.id === personId)
+      .balance;
+  };
+
   const logDay = (workDate: Date, durationMinutes: number) =>
     getTestPrisma().timesheet.create({
       data: {
@@ -73,6 +88,7 @@ describe('Overtime weekend hours (e2e)', () => {
   beforeEach(async () => {
     const prisma = getTestPrisma();
     await prisma.overtimeCorrection.deleteMany();
+    await prisma.overtimeWeekendCorrection.deleteMany();
     await prisma.overtimeSettlement.deleteMany();
     await prisma.timesheet.deleteMany({ where: { personId } });
 
@@ -144,5 +160,53 @@ describe('Overtime weekend hours (e2e)', () => {
     const row = await settlementRow();
     expect(row.paidMinutes).toBe(390);
     expect(row.weekendApart).toBe(false);
+  });
+
+  it('weekend hours set by hand replace the month total, not the pontaje', async () => {
+    // The 9h Saturday is counted as 7h30; the Sunday is left as logged.
+    expect((await setWeekendHours({ saturdayMinutes: 450, sundayMinutes: null })).status).toBe(204);
+
+    const corrected = await balanceRow();
+    expect(corrected.saturdayMinutes).toBe(450);
+    expect(corrected.sundayMinutes).toBe(240);
+    expect(corrected.loggedSaturdayMinutes).toBe(540);
+    expect(corrected.weekendCorrection).not.toBeNull();
+    // The balance is no part of it.
+    expect(corrected.earnedMinutes).toBe(60);
+
+    const line = await previewLine();
+    expect(line.saturdayMinutes).toBe(450);
+
+    const accounting = await request(app.getHttpServer())
+      .get(`/overtime/accounting?month=${lastMonthKey()}`)
+      .set(authHeader(adminCookie));
+    const accountingLine = accounting.body.lines.find(
+      (candidate: { person: { id: string } }) => candidate.person.id === personId,
+    );
+    expect(accountingLine.saturdayMinutes).toBe(450);
+    // The day grid still shows what was logged that day.
+    expect(accountingLine.weekendDayMinutes[saturday.getDate() - 1]).toBe(540);
+
+    // Both back to null: the correction is gone and the logged hours return.
+    expect((await setWeekendHours({ saturdayMinutes: null, sundayMinutes: null })).status).toBe(204);
+    const restored = await balanceRow();
+    expect(restored.saturdayMinutes).toBe(540);
+    expect(restored.weekendCorrection).toBeNull();
+  });
+
+  it('refuses weekend hours on a month approved with the weekend in the balance, and from an employee', async () => {
+    const employeeCookie = (await login(app, FIXTURES.users.employee1.email, E2E_PASSWORD))
+      .cookieHeader;
+    const fromEmployee = await setWeekendHours(
+      { saturdayMinutes: 0, sundayMinutes: null },
+      employeeCookie,
+    );
+    expect(fromEmployee.status).toBe(403);
+
+    await getTestPrisma().overtimeSettlement.create({
+      data: { personId, month: lastMonthStart(), earnedMinutes: 390, weekendApart: false },
+    });
+    const onLegacyMonth = await setWeekendHours({ saturdayMinutes: 0, sundayMinutes: null });
+    expect(onLegacyMonth.status).toBe(400);
   });
 });

@@ -32,6 +32,14 @@ export type OvertimeBalanceDto = {
    */
   saturdayMinutes: number | null;
   sundayMinutes: number | null;
+  /**
+   * The same two as logged on timesheets, before any correction by hand. Null
+   * on a month approved while weekend hours still went into the balance.
+   */
+  loggedSaturdayMinutes: number | null;
+  loggedSundayMinutes: number | null;
+  /** Set when an admin corrected this month's weekend hours; null otherwise. */
+  weekendCorrection: OvertimeWeekendCorrectionDto | null;
   /** Approved for pay already: non-zero only once this month is approved before it ends. */
   paidMinutes: number;
   /** carriedInMinutes + earnedMinutes − usedMinutes − paidMinutes. */
@@ -43,6 +51,37 @@ export type OvertimeBalanceDto = {
   /** The balance an admin last set by hand; null when it was never corrected. */
   correction: OvertimeCorrectionDto | null;
 };
+
+/** Who corrected a month's weekend hours by hand, and why. */
+export type OvertimeWeekendCorrectionDto = {
+  note: string | null;
+  updatedAt: string;
+  updatedBy: { firstName: string; lastName: string } | null;
+};
+
+/** The most a month can hold: every one of its days, around the clock. */
+export const MAX_WEEKEND_HOURS_MINUTES = 31 * 24 * 60;
+
+const weekendMinutesSchema = z.number().int().min(0).max(MAX_WEEKEND_HOURS_MINUTES).nullable();
+
+/**
+ * Sets a month's "Ore sâmbătă" and "Ore duminică" for one person. Null leaves
+ * a column as logged; both null removes the correction.
+ */
+export const setWeekendHoursSchema = z.object({
+  personId: z
+    .string()
+    .regex(
+      /^([0-9a-f]{8}|p[0-9a-f]{7})-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      'Invalid UUID format',
+    ),
+  month: z.string().regex(/^\d{4}-\d{2}$/, 'month must be YYYY-MM'),
+  saturdayMinutes: weekendMinutesSchema,
+  sundayMinutes: weekendMinutesSchema,
+  note: z.string().trim().max(500).optional(),
+});
+
+export type SetWeekendHoursInput = z.infer<typeof setWeekendHoursSchema>;
 
 /**
  * A balance set by hand. It replaces everything before `effectiveDate`, a

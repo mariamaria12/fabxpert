@@ -454,12 +454,19 @@ export async function buildAccountingTimesheetXlsx(
       const cell = sheet.getCell(row, column);
       const formula = formulas[column];
       if (formula && WEEKEND_HOUR_COLUMNS.includes(column)) {
-        const minutes =
-          column === COL.saturdayHours
-            ? sumWeekendMinutes(line.weekendDayMinutes, saturdayColumns)
-            : sumWeekendMinutes(line.weekendDayMinutes, sundayColumns);
-        // The result is written too, for viewers that do not recalculate.
-        cell.value = { formula, result: minutes / 60 };
+        const isSaturday = column === COL.saturdayHours;
+        const gridMinutes = sumWeekendMinutes(
+          line.weekendDayMinutes,
+          isSaturday ? saturdayColumns : sundayColumns,
+        );
+        const setMinutes = isSaturday ? line.saturdayMinutes : line.sundayMinutes;
+        // A total corrected by hand no longer adds up from the grid, so it is
+        // written as it was set. Otherwise the formula goes in, with its result
+        // for viewers that do not recalculate.
+        cell.value =
+          setMinutes !== null && setMinutes !== gridMinutes
+            ? setMinutes / 60
+            : { formula, result: gridMinutes / 60 };
       } else if (formula) {
         cell.value = { formula };
       } else if (column === COL.workingDays) {

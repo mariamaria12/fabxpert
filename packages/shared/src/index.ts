@@ -418,12 +418,15 @@ export {
   reopenAccountingMonth,
   resolveAccountingDays,
   createOvertimeCorrection,
+  setOvertimeWeekendHours,
   deleteOvertimeCorrection,
 } from './api/overtime';
 export {
   ACCOUNTING_DAY_RESOLUTIONS,
   MAX_OVERTIME_CORRECTION_MINUTES,
   createOvertimeCorrectionSchema,
+  MAX_WEEKEND_HOURS_MINUTES,
+  setWeekendHoursSchema,
   resolveAccountingDaysSchema,
 } from './dto/overtime.dto';
 export type {
@@ -442,6 +445,8 @@ export type {
   OvertimeBalanceRowDto,
   OvertimeBalancesResponse,
   OvertimeCorrectionDto,
+  OvertimeWeekendCorrectionDto,
+  SetWeekendHoursInput,
   CreateOvertimeCorrectionInput,
   OvertimeSettlementLineDto,
   OvertimeSettlementPreviewResponse,

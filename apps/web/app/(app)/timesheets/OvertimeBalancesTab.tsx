@@ -12,7 +12,7 @@ import { PersonName } from '@/components/PersonAvatar';
 import { editActionColumn } from '@/components/editActionColumn';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { MonthPicker } from './MonthPicker';
-import { OvertimeCorrectionPanel } from './OvertimeCorrectionPanel';
+import { hasWeekendHours, OvertimeCorrectionPanel } from './OvertimeCorrectionPanel';
 import { OvertimeRulesInfo } from './OvertimeInfo';
 import { StatTile, StatTileRow } from './StatTile';
 import { formatWeekendHours } from './timesheetFormat';
@@ -199,8 +199,16 @@ export function OvertimeBalancesTab({ active }: OvertimeBalancesTabProps) {
       render: (row) => row.balance.remainingDays,
     },
     // A correction sets today's balance, so it is offered on the current month only.
-    ...(isCurrentMonth
-      ? [editActionColumn<OvertimeBalanceRowDto>((row) => setEditing(row), 'Corectează soldul')]
+    // The balance is corrected on the current month only; weekend hours on any
+    // month that has them.
+    ...(isCurrentMonth || rows.some(hasWeekendHours)
+      ? [
+          editActionColumn<OvertimeBalanceRowDto>(
+            (row) => setEditing(row),
+            isCurrentMonth ? 'Corectează orele' : 'Corectează orele de weekend',
+            (row) => isCurrentMonth || hasWeekendHours(row),
+          ),
+        ]
       : []),
   ];
 
@@ -312,13 +320,17 @@ export function OvertimeBalancesTab({ active }: OvertimeBalancesTabProps) {
           Soldul acoperă doar luna afișată plus reportul din luna dinainte — orele mai vechi au
           fost deja plătite sau recuperate. Orele de sâmbătă, de sărbători legale și de duminică nu
           intră în sold: se numără separat, exact cum au fost pontate.{' '}
-          {isCurrentMonth ? 'Creionul setează soldul manual. ' : ''}
+          {isCurrentMonth
+            ? 'Creionul setează manual soldul și orele de weekend. '
+            : 'Creionul corectează orele de weekend ale lunii. '}
           {settledThroughLabel(rows)}
         </p>
       ) : null}
 
       <OvertimeCorrectionPanel
         row={editing}
+        month={month}
+        canCorrectBalance={isCurrentMonth}
         onClose={() => setEditing(null)}
         onSaved={() => {
           setEditing(null);

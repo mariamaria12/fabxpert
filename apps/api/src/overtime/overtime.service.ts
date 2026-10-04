@@ -9,6 +9,7 @@ import type {
   ReopenAccountingMonthResponse,
   ResolveAccountingDaysInput,
   ResolveAccountingDaysResponse,
+  SetWeekendHoursInput,
   OvertimeBalanceDto,
   OvertimeBalancePersonDto,
   OvertimeBalancesResponse,
@@ -192,6 +193,17 @@ type OvertimeSourceData = {
    * here has every month read with the weekend apart.
    */
   weekendInBalanceThroughByPerson: Map<string, string>;
+  /** Weekend hours set by hand, per person per `YYYY-MM`. */
+  weekendCorrectionsByPerson: Map<string, Map<string, WeekendCorrectionRow>>;
+};
+
+/** A month's weekend hours set by hand; a null column stays as logged. */
+type WeekendCorrectionRow = {
+  saturdayMinutes: number | null;
+  sundayMinutes: number | null;
+  note: string | null;
+  updatedAt: Date;
+  updatedBy: { person: { firstName: string; lastName: string } } | null;
 };
 
 /** A balance set by hand: it stands in for everything before `effectiveDate`. */
@@ -224,6 +236,10 @@ type MonthActivity = {
   /** Null on a month read with the weekend in the balance. */
   saturdayMinutes: number | null;
   sundayMinutes: number | null;
+  /** The two above as logged, before a correction by hand. */
+  loggedSaturdayMinutes: number | null;
+  loggedSundayMinutes: number | null;
+  weekendCorrection: WeekendCorrectionRow | null;
 };
 
 const NO_ACTIVITY: MonthActivity = {
@@ -232,6 +248,9 @@ const NO_ACTIVITY: MonthActivity = {
   saturdaysWorked: 0,
   saturdayMinutes: 0,
   sundayMinutes: 0,
+  loggedSaturdayMinutes: 0,
+  loggedSundayMinutes: 0,
+  weekendCorrection: null,
 };
 
 /** An approved month, read back to carry from it. */
@@ -509,6 +528,58 @@ export class OvertimeService {
     if (count === 0) {
       throw new NotFoundException(`Overtime correction with id ${id} not found`);
     }
+  }
+
+  /**
+   * Sets a month's "Ore sâmbătă" and "Ore duminică" for one person by hand.
+   * The timesheets stay as they are: only the month's totals are replaced.
+   * A null column goes back to what was logged, and both null removes the row.
+   */
+  async setWeekendHours(input: SetWeekendHoursInput, actor: AuthenticatedUser): Promise<void> {
+    const monthStart = parseMonthString(input.month);
+    if (monthStart.getTime() > startOfMonth(new Date()).getTime()) {
+      throw new BadRequestException('month cannot be in the future');
+    }
+
+    const person = await this.prisma.person.findFirst({
+      where: { id: input.personId, ...notDeleted() },
+      select: { id: true },
+    });
+    if (!person) {
+      throw new NotFoundException(`Person with id ${input.personId} not found`);
+    }
+
+    // Up to the last month approved with the weekend in the balance there are
+    // no weekend columns: those hours were paid as overtime.
+    const weekendInBalance = await this.prisma.overtimeSettlement.findFirst({
+      where: { personId: input.personId, weekendApart: false, month: { gte: monthStart } },
+      select: { id: true },
+    });
+    if (weekendInBalance) {
+      throw new BadRequestException(
+        'Weekend hours of this month were approved as part of the overtime balance',
+      );
+    }
+
+    const key = { personId_month: { personId: input.personId, month: monthStart } };
+    if (input.saturdayMinutes === null && input.sundayMinutes === null) {
+      await this.prisma.overtimeWeekendCorrection.deleteMany({
+        where: { personId: input.personId, month: monthStart },
+      });
+      return;
+    }
+
+    const data = {
+      saturdayMinutes: input.saturdayMinutes,
+      sundayMinutes: input.sundayMinutes,
+      note: input.note || null,
+      updatedByUserId: actor.id,
+    };
+    await this.prisma.overtimeWeekendCorrection.upsert({
+      where: key,
+      create: { personId: input.personId, month: monthStart, ...data },
+      update: data,
+    });
   }
 
   /**
@@ -972,6 +1043,15 @@ export class OvertimeService {
       saturdaysWorked: month.saturdaysWorked,
       saturdayMinutes: month.saturdayMinutes,
       sundayMinutes: month.sundayMinutes,
+      loggedSaturdayMinutes: month.loggedSaturdayMinutes,
+      loggedSundayMinutes: month.loggedSundayMinutes,
+      weekendCorrection: month.weekendCorrection
+        ? {
+            note: month.weekendCorrection.note,
+            updatedAt: month.weekendCorrection.updatedAt.toISOString(),
+            updatedBy: month.weekendCorrection.updatedBy?.person ?? null,
+          }
+        : null,
       paidMinutes,
       remainingMinutes,
       remainingDays: overtimeDaysAvailable(Math.max(0, remainingMinutes), dailyWorkMinutes),
@@ -1072,11 +1152,29 @@ export class OvertimeService {
         month.saturdaysWorked = countSaturdaysWorked(days);
         month.saturdayMinutes = null;
         month.sundayMinutes = null;
+        month.loggedSaturdayMinutes = null;
+        month.loggedSundayMinutes = null;
       } else {
         month.earnedMinutes = overtimeBalanceMinutes(days.filter(counted), dailyWorkMinutes);
         month.saturdaysWorked = countSaturdaysAndHolidaysWorked(days);
-        Object.assign(month, weekendMinutes(days));
+        const logged = weekendMinutes(days);
+        month.saturdayMinutes = logged.saturdayMinutes;
+        month.sundayMinutes = logged.sundayMinutes;
+        month.loggedSaturdayMinutes = logged.saturdayMinutes;
+        month.loggedSundayMinutes = logged.sundayMinutes;
       }
+    }
+
+    // Weekend hours set by hand stand in for the month's logged total. A
+    // month read with the weekend in the balance has no such columns to set.
+    for (const [key, weekendCorrection] of source.weekendCorrectionsByPerson.get(personId) ?? []) {
+      if (readsWeekendInBalance(source, personId, key)) {
+        continue;
+      }
+      const month = entry(key);
+      month.weekendCorrection = weekendCorrection;
+      month.saturdayMinutes = weekendCorrection.saturdayMinutes ?? month.saturdayMinutes;
+      month.sundayMinutes = weekendCorrection.sundayMinutes ?? month.sundayMinutes;
     }
 
     const correctionDayKey = correction ? workDateToDayKey(correction.effectiveDate) : null;
@@ -1158,7 +1256,8 @@ export class OvertimeService {
           }
         : {};
 
-    const [dailyTotals, approvedLeave, norms, corrections, weekendInBalance] = await Promise.all([
+    const [dailyTotals, approvedLeave, norms, corrections, weekendInBalance, weekendCorrections] =
+      await Promise.all([
       this.prisma.timesheet.groupBy({
         by: ['personId', 'workDate'],
         where: { ...notDeleted(), ...personFilter, ...workDateFilter },
@@ -1191,7 +1290,26 @@ export class OvertimeService {
         where: { weekendApart: false, ...personFilter },
         _max: { month: true },
       }),
+      this.prisma.overtimeWeekendCorrection.findMany({
+        where: personFilter,
+        select: {
+          personId: true,
+          month: true,
+          saturdayMinutes: true,
+          sundayMinutes: true,
+          note: true,
+          updatedAt: true,
+          updatedBy: { select: { person: { select: { firstName: true, lastName: true } } } },
+        },
+      }),
     ]);
+
+    const weekendCorrectionsByPerson = new Map<string, Map<string, WeekendCorrectionRow>>();
+    for (const { personId, month, ...row } of weekendCorrections) {
+      const byMonth = weekendCorrectionsByPerson.get(personId) ?? new Map();
+      byMonth.set(formatMonth(month), row);
+      weekendCorrectionsByPerson.set(personId, byMonth);
+    }
 
     const weekendInBalanceThroughByPerson = new Map<string, string>();
     for (const row of weekendInBalance) {
@@ -1266,6 +1384,7 @@ export class OvertimeService {
       dailyWorkMinutesByPerson,
       correctionByPerson,
       weekendInBalanceThroughByPerson,
+      weekendCorrectionsByPerson,
     };
   }
 

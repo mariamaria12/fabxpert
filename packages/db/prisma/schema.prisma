@@ -120,23 +120,23 @@ model Activity {
 // ---------------------------------------------------------------------------
 
 model Person {
-  id              String    @id @default(uuid())
-  firstName       String
-  lastName        String
-  email           String?
-  phone           String?
+  id               String    @id @default(uuid())
+  firstName        String
+  lastName         String
+  email            String?
+  phone            String?
   /// Yearly ODIHNA entitlement (admin-editable). Balance is computed, not stored.
-  annualLeaveDays Int       @default(21)
+  annualLeaveDays  Int       @default(21)
   /// Never logs time (management, accounting): the pontaj for accounting marks
   /// every working day without approved leave as present, and overtime does
   /// not apply.
-  autoPresence    Boolean   @default(false)
+  autoPresence     Boolean   @default(false)
   /// Contractual working day in minutes — what a day's pontaj is measured
   /// against for overtime. Null means the default 9h (DAILY_WORK_MINUTES).
   dailyWorkMinutes Int?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  deletedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
 
   // Optional link to a job role — can be assigned after creation.
   employeeRoleId String?
@@ -150,9 +150,10 @@ model Person {
 
   leaveRequests LeaveRequest[]
 
-  overtimeSettlements OvertimeSettlement[]
-  overtimeCorrections OvertimeCorrection[]
-  accountingPresences AccountingPresence[]
+  overtimeSettlements        OvertimeSettlement[]
+  overtimeCorrections        OvertimeCorrection[]
+  overtimeWeekendCorrections OvertimeWeekendCorrection[]
+  accountingPresences        AccountingPresence[]
 
   @@map("persons")
 }
@@ -194,11 +195,12 @@ model User {
   createdPolls Poll[]     @relation("PollAuthor")
   pollVotes    PollVote[]
 
-  settledOvertimeMonths  OvertimeSettlement[]     @relation("OvertimeSettledBy")
-  overtimeCorrections    OvertimeCorrection[]     @relation("OvertimeCorrectedBy")
-  accountingExports      AccountingExport[]       @relation("AccountingExportedBy")
-  accountingPresences    AccountingPresence[]     @relation("AccountingPresenceMarkedBy")
-  manualAssemblyProgress AssemblyManualProgress[]
+  settledOvertimeMonths      OvertimeSettlement[]        @relation("OvertimeSettledBy")
+  overtimeCorrections        OvertimeCorrection[]        @relation("OvertimeCorrectedBy")
+  overtimeWeekendCorrections OvertimeWeekendCorrection[] @relation("OvertimeWeekendCorrectedBy")
+  accountingExports          AccountingExport[]          @relation("AccountingExportedBy")
+  accountingPresences        AccountingPresence[]        @relation("AccountingPresenceMarkedBy")
+  manualAssemblyProgress     AssemblyManualProgress[]
 
   @@map("users")
 }
@@ -429,7 +431,7 @@ model OvertimeCorrection {
 
   /// First day counted on top of the correction, at midnight — same
   /// convention as Timesheet.workDate. Everything before it is replaced.
-  effectiveDate DateTime
+  effectiveDate          DateTime
   /// The balance the person starts `effectiveDate` with. Negative is a debt.
   balanceMinutes         Int
   /// What the balance read when it was corrected, kept for the record.
@@ -445,6 +447,37 @@ model OvertimeCorrection {
 
   @@index([personId, effectiveDate])
   @@map("overtime_corrections")
+}
+
+// ---------------------------------------------------------------------------
+// OvertimeWeekendCorrection
+// Weekend hours of one month set by hand for one person. They are counted as
+// logged otherwise; a row here stands in for the month's total in the
+// "Ore sâmbătă" and "Ore duminică" columns. The timesheets are not touched, so
+// project hours and the day-by-day grid stay as they were logged.
+// ---------------------------------------------------------------------------
+
+model OvertimeWeekendCorrection {
+  id String @id @default(uuid())
+
+  /// First day of the corrected month, at midnight.
+  month DateTime
+
+  /// The month's total for each column. Null leaves that column as logged.
+  saturdayMinutes Int?
+  sundayMinutes   Int?
+  note            String?
+
+  personId String
+  person   Person @relation(fields: [personId], references: [id])
+
+  updatedByUserId String?
+  updatedBy       User?    @relation("OvertimeWeekendCorrectedBy", fields: [updatedByUserId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([personId, month])
+  @@map("overtime_weekend_corrections")
 }
 
 // ---------------------------------------------------------------------------

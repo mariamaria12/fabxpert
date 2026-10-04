@@ -11,6 +11,7 @@ import type {
   OvertimeBalancesResponse,
   OvertimeSettlementPreviewResponse,
   SettleOvertimeMonthResponse,
+  SetWeekendHoursInput,
 } from '../dto/overtime.dto';
 
 export function getMyOvertimeBalance() {
@@ -110,4 +111,15 @@ export function createOvertimeCorrection(input: CreateOvertimeCorrectionInput) {
 /** Admin only. Undoes a correction; the balance falls back to the one before it. */
 export function deleteOvertimeCorrection(id: string) {
   return request<void>(`/overtime/corrections/${id}`, { method: 'DELETE' });
+}
+
+/**
+ * Admin only. Sets a month's weekend hours for one person by hand; null leaves
+ * a column as logged, and both null removes the correction.
+ */
+export function setOvertimeWeekendHours(input: SetWeekendHoursInput) {
+  return request<void>('/overtime/weekend-hours', {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
 }
