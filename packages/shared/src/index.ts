@@ -187,6 +187,8 @@ export {
   formatFinisajLabel,
   parseFinisaj,
   splitFinisaj,
+  joinFinisaj,
+  takeCompletedFinisaj,
   finisajBadgeColors,
   relativeLuminance,
 } from './finisaj';

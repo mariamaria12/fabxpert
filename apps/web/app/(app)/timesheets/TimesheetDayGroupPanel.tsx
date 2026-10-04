@@ -3,10 +3,8 @@
 import {
   deleteTimesheet,
   listActivities,
-  listProjects,
   updateTimesheet,
   type ActivityDto,
-  type ProjectDto,
   type TimesheetAssemblyInput,
   type TimesheetDayGroupDto,
   type TimesheetDto,
@@ -19,6 +17,7 @@ import {
   parseDurationMinutesInput,
 } from './timesheetFormat';
 import { TimesheetAssemblyFields } from './TimesheetAssemblyFields';
+import { TimesheetProjectField, useTimesheetProjectLists } from './TimesheetProjectField';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { DateField } from '@/components/DateField';
 import { SelectField, type SelectFieldOption } from '@/components/SelectField';
@@ -32,7 +31,6 @@ import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 const DURATION_PLACEHOLDER = 'ex. 9h, 1h30 sau 45m';
 const DURATION_ERROR_MESSAGE = 'Durata trebuie să fie de forma 9h, 1h30 sau 45m.';
 const NO_ACTIVITY_LABEL = 'Fără activitate';
-const LOOKUP_PAGE_SIZE = 500;
 
 /** The editable fields of one entry. */
 interface EntryDraft {
@@ -71,20 +69,9 @@ function draftsFromEntries(entries: TimesheetDto[]): Record<string, EntryDraft> 
   return Object.fromEntries(entries.map((entry) => [entry.id, entryToDraft(entry)]));
 }
 
-function projectOptionLabel(project: {
-  code: string;
-  name: string;
-  denumireLucrare: string | null;
-  company: { name: string };
-}): string {
-  const head = project.code || project.name;
-  return [head, project.denumireLucrare, project.company.name].filter(Boolean).join(' · ');
-}
-
 /**
- * The entry's own project and activity may be missing from the lookups (older
- * projects fall outside the first page), so they are added back — otherwise the
- * select would look empty on a pontaj nobody touched.
+ * The entry's own activity may be missing from the lookup, so it is added back —
+ * otherwise the select would look empty on a pontaj nobody touched.
  */
 function withEntryOptions(
   options: SelectFieldOption[],
@@ -126,7 +113,7 @@ export function TimesheetDayGroupPanel({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [projects, setProjects] = useState<ProjectDto[]>([]);
+  const projectLists = useTimesheetProjectLists(open);
   const [activities, setActivities] = useState<ActivityDto[]>([]);
 
   useEffect(() => {
@@ -145,19 +132,14 @@ export function TimesheetDayGroupPanel({
 
     let cancelled = false;
 
-    Promise.all([
-      listProjects({ page: 1, pageSize: LOOKUP_PAGE_SIZE, compact: true }),
-      listActivities(),
-    ])
-      .then(([projectsResponse, activitiesResponse]) => {
+    listActivities()
+      .then((activitiesResponse) => {
         if (!cancelled) {
-          setProjects(projectsResponse.data);
           setActivities(activitiesResponse);
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setProjects([]);
           setActivities([]);
         }
       });
@@ -170,14 +152,6 @@ export function TimesheetDayGroupPanel({
   const personName = `${group.person.firstName} ${group.person.lastName}`;
   const dateChanged = workDate !== isoToDateInput(group.workDate);
   const isBusy = isSubmitting || deletingId !== null;
-
-  const projectOptions = withEntryOptions(
-    projects.map((project) => ({ id: project.id, label: projectOptionLabel(project) })),
-    entries.map((entry) => ({
-      id: entry.projectId,
-      label: projectOptionLabel(entry.project),
-    })),
-  );
 
   const activityOptions = withEntryOptions(
     activities.map((activity) => ({ id: activity.id, label: activity.name })),
@@ -464,13 +438,12 @@ export function TimesheetDayGroupPanel({
                   </div>
                 ) : (
                   <>
-                    <SelectField
+                    <TimesheetProjectField
                       id={`project-${entry.id}`}
-                      label="Proiect"
                       value={draft.projectId}
+                      lists={projectLists}
+                      savedProject={entry.project}
                       disabled={isBusy}
-                      required
-                      options={projectOptions}
                       onChange={(value) => updateDraft(entry.id, 'projectId', value)}
                     />
 

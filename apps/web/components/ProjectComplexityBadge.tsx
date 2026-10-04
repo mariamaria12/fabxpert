@@ -8,8 +8,8 @@ import {
 import { formatPiecesPerTon } from '@/utils/projectComplexity';
 
 /**
- * Complexity drawn as a battery with one bar per class, filled up to the
- * project's, and the class beside it (C1–C4). Renders nothing while parts per
+ * Complexity drawn as one bar per class, filled up to the project's, and the
+ * class beside it (C1–C4). Renders nothing while parts per
  * ton is not filled in.
  */
 export function ProjectComplexityBadge({
@@ -38,25 +38,14 @@ export function ProjectComplexityBadge({
       title={description}
       className={`inline-flex h-5 shrink-0 items-center gap-1.5 whitespace-nowrap text-text-secondary ${className ?? ''}`}
     >
-      <svg viewBox="0 0 23 12" className="h-3 w-[23px] shrink-0" aria-hidden="true">
-        <rect
-          x="0.5"
-          y="0.5"
-          width="20"
-          height="11"
-          rx="2.5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1"
-        />
-        <rect x="21" y="4" width="2" height="4" rx="1" fill="currentColor" />
+      <svg viewBox="0 0 15 12" className="h-3 w-[15px] shrink-0" aria-hidden="true">
         {PROJECT_COMPLEXITY_LEVELS.map((entry, index) => (
           <rect
             key={entry.level}
-            x={3 + index * 4}
-            y="3"
+            x={index * 4}
+            y="1"
             width="3"
-            height="6"
+            height="10"
             rx="0.5"
             fill="currentColor"
             opacity={entry.level <= level ? 1 : 0.22}

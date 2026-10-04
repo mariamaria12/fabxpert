@@ -42,6 +42,7 @@ import { useIsMobile } from '@/hooks/useIsMobile';
 import { SearchableMultiSelect } from '@/components/SearchableMultiSelect';
 import { SearchableSelect, type SearchableSelectOption } from '@/components/SearchableSelect';
 import { SelectField } from '@/components/SelectField';
+import { FinisajField } from '@/components/FinisajField';
 import { TextField } from '@/components/TextField';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { useToast } from '@/context/ToastContext';
@@ -1002,10 +1003,10 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
           onChange={(value) => updateField('denumireLucrare', value)}
         />
 
-        <TextField
+        <FinisajField
           id="finisaj"
           label="Finisaj"
-          placeholder="ZINCARE"
+          placeholder="ZINCARE sau RAL 7016"
           maxLength={100}
           value={values.finisaj}
           disabled={isBusy}

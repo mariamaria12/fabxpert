@@ -147,12 +147,50 @@ function isKnownFinish(segment: string): boolean {
   return FINISH_FILL_COLORS[normalizeSeparators(segment).toUpperCase()] !== undefined;
 }
 
+/** What people put between two colours: "RAL 1015, RAL 1003", "RAL 1015 / RAL 1003", "… si …". */
+const LEADING_SEPARATORS = /^[\s,;/&+-]+/;
+const TRAILING_SEPARATORS = /(?:[\s,;/&+-]|\s(?:si|și))+$/i;
+
+function trimSeparators(value: string): string {
+  return value.replace(LEADING_SEPARATORS, '').replace(TRAILING_SEPARATORS, '');
+}
+
+function ralMatches(value: string): RegExpMatchArray[] {
+  return [...value.matchAll(new RegExp(RAL_PATTERN.source, 'gi'))];
+}
+
+/**
+ * "RAL 1015 RAL 1003" → ["RAL 1015", "RAL 1003"]: a project painted in several
+ * colours gets one badge per code. Text around a code stays with it, so
+ * "Vopsit RAL 1015, RAL 1003 mat" keeps "Vopsit" on the first and "mat" on the second.
+ */
+function splitRalCodes(segment: string): string[] {
+  const matches = ralMatches(segment);
+  if (matches.length < 2) {
+    return [segment];
+  }
+
+  const pieces = matches
+    .map((match, position) =>
+      trimSeparators(
+        segment.slice(
+          position === 0 ? 0 : match.index,
+          matches[position + 1]?.index ?? segment.length,
+        ),
+      ),
+    )
+    .filter(Boolean);
+
+  return pieces.length > 0 ? pieces : [segment];
+}
+
 /**
  * Splits a finish written as a sum of finishes — "Grund AL + zincare" becomes
  * ["Grund AL", "zincare"], one badge each. A "+" only counts when it is spelled
  * out with spaces around it or joins two finishes we recognise, so paint
  * formulas ("EP+PU", "(EP+PU) RAL 7033") stay a single value. Anything else,
- * including a stray trailing "+", comes back as one segment.
+ * including a stray trailing "+", comes back as one segment. Several RAL codes
+ * in a row need no "+" at all — each one is its own segment.
  */
 export function splitFinisaj(value: string | null | undefined): string[] {
   const trimmed = value?.trim();
@@ -160,6 +198,10 @@ export function splitFinisaj(value: string | null | undefined): string[] {
     return [];
   }
 
+  return splitSum(trimmed).flatMap(splitRalCodes);
+}
+
+function splitSum(trimmed: string): string[] {
   const plusIndexes = topLevelPlusIndexes(trimmed);
   if (plusIndexes.length === 0) {
     return [trimmed];
@@ -183,6 +225,37 @@ export function splitFinisaj(value: string | null | undefined): string[] {
 
   // "Zincare +" and friends: nothing useful on one side, so keep the raw value.
   return segments.length > 1 && segments.every(Boolean) ? segments : [trimmed];
+}
+
+/** How the finishes of one project are written back into a single value. */
+const FINISAJ_JOINER = ' + ';
+
+/** The reverse of splitFinisaj: one stored value out of separate finishes. */
+export function joinFinisaj(segments: string[]): string {
+  return segments
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .join(FINISAJ_JOINER);
+}
+
+/**
+ * For a field that turns text into badges while it is typed: everything up to
+ * the last complete, known RAL code is finished, the remainder is still being
+ * written. "RAL 1015 RAL 10" → finished ["RAL 1015"], rest "RAL 10".
+ */
+export function takeCompletedFinisaj(draft: string): { completed: string[]; rest: string } {
+  const known = ralMatches(draft).filter((match) => RAL_CLASSIC_COLORS[match[1]]);
+  const last = known[known.length - 1];
+  if (!last) {
+    return { completed: [], rest: draft };
+  }
+
+  const end = (last.index ?? 0) + last[0].length;
+
+  return {
+    completed: splitFinisaj(draft.slice(0, end)),
+    rest: draft.slice(end).replace(LEADING_SEPARATORS, ''),
+  };
 }
 
 /** WCAG relative luminance, 0 (black) → 1 (white). */

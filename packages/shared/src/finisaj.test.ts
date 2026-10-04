@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatFinisajLabel, parseFinisaj, splitFinisaj } from './finisaj';
+import {
+  formatFinisajLabel,
+  joinFinisaj,
+  parseFinisaj,
+  splitFinisaj,
+  takeCompletedFinisaj,
+} from './finisaj';
 
 test('splitFinisaj gives one segment per finish in a sum', () => {
   assert.deepEqual(splitFinisaj('Grund AL + zincare'), ['Grund AL', 'zincare']);
@@ -71,4 +77,56 @@ test('a RAL code still carries its action text', () => {
     hex: '#818979',
     action: '(EP+PU)',
   });
+});
+
+test('splitFinisaj gives one segment per RAL code', () => {
+  assert.deepEqual(splitFinisaj('RAL 1015  RAL 1003'), ['RAL 1015', 'RAL 1003']);
+  assert.deepEqual(splitFinisaj('RAL1015, RAL1003'), ['RAL1015', 'RAL1003']);
+  assert.deepEqual(splitFinisaj('RAL 1015 / RAL 1003 / RAL 9005'), [
+    'RAL 1015',
+    'RAL 1003',
+    'RAL 9005',
+  ]);
+  assert.deepEqual(splitFinisaj('RAL 1015 si RAL 1003'), ['RAL 1015', 'RAL 1003']);
+  assert.deepEqual(splitFinisaj('RAL 1015 + RAL 1003'), ['RAL 1015', 'RAL 1003']);
+});
+
+test('text around a RAL code stays with that code', () => {
+  assert.deepEqual(splitFinisaj('Vopsit RAL 1015, RAL 1003 mat'), [
+    'Vopsit RAL 1015',
+    'RAL 1003 mat',
+  ]);
+  assert.deepEqual(splitFinisaj('zincare + RAL 1015 RAL 1003'), [
+    'zincare',
+    'RAL 1015',
+    'RAL 1003',
+  ]);
+  // An unknown code still gets its own (outline) badge.
+  assert.deepEqual(splitFinisaj('RAL 1015 RAL 1234'), ['RAL 1015', 'RAL 1234']);
+});
+
+test('joinFinisaj writes a value splitFinisaj reads back', () => {
+  const segments = ['RAL 1015', 'RAL 1003', 'EP+PU', 'zincare'];
+
+  assert.equal(joinFinisaj(segments), 'RAL 1015 + RAL 1003 + EP+PU + zincare');
+  assert.deepEqual(splitFinisaj(joinFinisaj(segments)), segments);
+  assert.equal(joinFinisaj(['RAL 1015', '  ']), 'RAL 1015');
+});
+
+test('takeCompletedFinisaj takes a RAL code as soon as it is complete', () => {
+  assert.deepEqual(takeCompletedFinisaj('RAL 101'), { completed: [], rest: 'RAL 101' });
+  assert.deepEqual(takeCompletedFinisaj('RAL 1015'), { completed: ['RAL 1015'], rest: '' });
+  assert.deepEqual(takeCompletedFinisaj('ral1015 RAL 10'), {
+    completed: ['ral1015'],
+    rest: 'RAL 10',
+  });
+  assert.deepEqual(takeCompletedFinisaj('RAL 1015, RAL 1003 mat'), {
+    completed: ['RAL 1015', 'RAL 1003'],
+    rest: 'mat',
+  });
+});
+
+test('takeCompletedFinisaj leaves text it cannot map', () => {
+  assert.deepEqual(takeCompletedFinisaj('zincare'), { completed: [], rest: 'zincare' });
+  assert.deepEqual(takeCompletedFinisaj('RAL 1234'), { completed: [], rest: 'RAL 1234' });
 });
