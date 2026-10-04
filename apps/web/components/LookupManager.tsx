@@ -1,7 +1,7 @@
 'use client';
 
 import { ApiError } from '@fabxpert/shared';
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { ColorField } from '@/components/ColorField';
 import { useBusinessAutofillProps } from '@/components/inputAutofill';
 import { compareStableLookupOrder } from '@/components/roleColors';
@@ -49,8 +49,8 @@ export interface LookupManagerFlag<TItem> {
   hint?: string;
   /** Badge text on rows that have it on. */
   badgeLabel: string;
-  /** Tabler icon name for the badge, e.g. "ti-stack-2". */
-  badgeIcon: string;
+  /** Icon shown in the badge, sized by the caller. */
+  badgeIcon: ReactNode;
   read: (item: TItem) => boolean;
 }
 
@@ -480,7 +480,7 @@ export function LookupManager<TItem extends LookupItem, TCreate, TUpdate>({
 
         {flag?.read(item) && (
           <span className="inline-flex shrink-0 items-center gap-1 rounded bg-accent/10 px-1.5 py-0.5 text-[11px] font-medium text-accent">
-            <i className={`ti ${flag.badgeIcon} text-[12px]`} aria-hidden="true" />
+            {flag.badgeIcon}
             {flag.badgeLabel}
           </span>
         )}

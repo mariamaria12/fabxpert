@@ -6,11 +6,15 @@ import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 import { ProjectHoursCard } from './ProjectHoursCard';
 import { usePanouDashboard } from './PanouDashboardContext';
+import { panouProjectElementId, useScrollToReturnProject } from './panouReturnPoint';
 
 export function PanouHoursView() {
-  const { period, periodReady } = usePanouDashboard();
+  const { period, periodReady, returnPoint } = usePanouDashboard();
+  const returnProjectId = returnPoint?.source === 'hours' ? returnPoint.projectId : null;
   const [projects, setProjects] = useState<ProjectSummaryProjectRow[]>([]);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(
+    () => new Set(returnProjectId ? [returnProjectId] : []),
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,6 +52,11 @@ export function PanouHoursView() {
   }, [loadSummary, periodReady]);
 
   useRegisterPanouRefetch('panou-hours', refetchSummary);
+
+  useScrollToReturnProject(
+    () => (returnProjectId ? document.getElementById(panouProjectElementId(returnProjectId)) : null),
+    projects.length > 0,
+  );
 
   function toggleExpanded(projectId: string) {
     setExpandedIds((current) => {
@@ -94,12 +103,13 @@ export function PanouHoursView() {
       {projects.length > 0 && (
         <div className="space-y-2">
           {projects.map((project) => (
-            <ProjectHoursCard
-              key={project.id}
-              project={project}
-              expanded={expandedIds.has(project.id)}
-              onToggle={() => toggleExpanded(project.id)}
-            />
+            <div key={project.id} id={panouProjectElementId(project.id)}>
+              <ProjectHoursCard
+                project={project}
+                expanded={expandedIds.has(project.id)}
+                onToggle={() => toggleExpanded(project.id)}
+              />
+            </div>
           ))}
         </div>
       )}

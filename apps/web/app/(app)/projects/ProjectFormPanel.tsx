@@ -35,6 +35,7 @@ import {
 import { AssemblyImportScreen } from './AssemblyImportScreen';
 import { AssemblyListScreen } from './AssemblyListScreen';
 import { parseExcelProjectPaste } from './parseExcelProjectPaste';
+import { AssemblyIcon } from '@/components/AssemblyIcon';
 import { ColorField } from '@/components/ColorField';
 import { DateField } from '@/components/DateField';
 import { useBusinessAutofillProps } from '@/components/inputAutofill';
@@ -854,7 +855,7 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
         }
         className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border px-4 py-2.5 text-sm text-text-secondary transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <i className="ti ti-stack-2 text-base" aria-hidden="true" />
+        <AssemblyIcon className="text-base" />
         {assemblyRows.length > 0
           ? `${assemblyRows.length} ${assemblyRows.length === 1 ? 'ansamblu pregătit' : 'ansamble pregătite'}`
           : savedAssemblyCount > 0

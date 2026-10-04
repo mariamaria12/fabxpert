@@ -60,7 +60,11 @@ export function ProjectHoursCard({
         <ActivityBreakdownRows
           activities={project.activities}
           progressPercent={project.progressPercent}
-          timesheets={{ projectId: project.id, period }}
+          timesheets={{
+            projectId: project.id,
+            period,
+            returnPoint: { projectId: project.id, source: 'hours', period },
+          }}
         />
       }
     />

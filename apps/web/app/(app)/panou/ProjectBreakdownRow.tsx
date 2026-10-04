@@ -11,7 +11,16 @@ import { allTimePeriod } from '@/utils/timesheetListNavigation';
  * project's activities with their progress and logged hours, since ever.
  * Loaded when the row opens, so a closed table costs nothing extra.
  */
-export function ProjectBreakdownRow({ projectId }: { projectId: string }) {
+export function ProjectBreakdownRow({
+  projectId,
+  source,
+  page,
+}: {
+  projectId: string;
+  /** The table the row sits in, and its page — where Back from the pontaje returns. */
+  source: 'in_progress' | 'completed';
+  page: number;
+}) {
   const [breakdown, setBreakdown] = useState<ProjectBreakdownResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,7 +57,11 @@ export function ProjectBreakdownRow({ projectId }: { projectId: string }) {
           <ActivityBreakdownRows
             activities={breakdown.activities}
             progressPercent={breakdown.progressPercent}
-            timesheets={{ projectId, period: allTimePeriod() }}
+            timesheets={{
+              projectId,
+              period: allTimePeriod(),
+              returnPoint: { projectId, source, page },
+            }}
           />
         </div>
       )}

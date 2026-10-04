@@ -3,6 +3,7 @@
 import type { ProjectDto } from '@fabxpert/shared';
 import { useState } from 'react';
 import { AssemblyListScreen } from './AssemblyListScreen';
+import { AssemblyIcon } from '@/components/AssemblyIcon';
 
 /**
  * Assembly count for a project row, with a button that opens the list. Owns the
@@ -29,7 +30,7 @@ export function ProjectAssemblyCountCell({ project }: { project: ProjectDto }) {
         className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-text-secondary transition-colors hover:bg-surface-raised hover:text-accent"
       >
         <span className="tabular-nums">{project.assemblyCount}</span>
-        <i className="ti ti-stack-2 text-sm" aria-hidden="true" />
+        <AssemblyIcon className="text-sm" />
       </button>
 
       {listOpen && (

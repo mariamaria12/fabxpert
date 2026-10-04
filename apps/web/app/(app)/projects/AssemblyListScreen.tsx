@@ -16,6 +16,7 @@ import {
   type UpdateProjectAssemblyInput,
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AssemblyIcon } from '@/components/AssemblyIcon';
 import { ProjectComplexityBadge } from '@/components/ProjectComplexityBadge';
 import { WeldingLoader } from '@/components/WeldingLoader';
 import { useToast } from '@/context/ToastContext';
@@ -1030,7 +1031,7 @@ export function AssemblyListScreen({
                     onClick={() => setImportOpen(true)}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border px-4 py-2.5 text-sm text-text-secondary transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <i className="ti ti-stack-2 text-base" aria-hidden="true" />
+                    <AssemblyIcon className="text-base" />
                     Alege lista nouă
                   </button>
                 )}

@@ -30,6 +30,7 @@ import {
 } from './adminTabs';
 import { CommunicationTab } from './CommunicationTab';
 import { UsersTab } from './UsersTab';
+import { AssemblyIcon } from '@/components/AssemblyIcon';
 import { LookupManager } from '@/components/LookupManager';
 import { getRolePaletteColor } from '@/components/roleColors';
 
@@ -69,7 +70,7 @@ const ACTIVITY_ASSEMBLY_FLAG = {
   label: 'Ansamble',
   hint: 'La pontajul pe această activitate se poate alege ce ansamble s-au făcut.',
   badgeLabel: 'Ansamble',
-  badgeIcon: 'ti-stack-2',
+  badgeIcon: <AssemblyIcon className="text-[12px]" />,
   read: (item: ActivityDto) => item.tracksAssemblies,
 } as const;
 

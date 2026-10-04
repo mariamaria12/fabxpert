@@ -4,6 +4,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { PinnedProjectSummaryRow, ProjectDto } from '@fabxpert/shared';
 import { PinnedProjectCard } from './PinnedProjectCard';
+import { panouProjectElementId } from './panouReturnPoint';
 
 export function SortablePinnedProjectCard({
   project,
@@ -37,7 +38,7 @@ export function SortablePinnedProjectCard({
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
+    <div ref={setNodeRef} id={panouProjectElementId(project.id)} style={style}>
       <PinnedProjectCard
         project={project}
         expanded={expanded}

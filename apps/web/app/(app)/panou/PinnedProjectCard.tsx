@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
+import { AssemblyIcon } from '@/components/AssemblyIcon';
 import { FinisajBadge } from '@/components/FinisajBadge';
 import { ProjectComplexityBadge } from '@/components/ProjectComplexityBadge';
 import { AssemblyListScreen } from '@/app/(app)/projects/AssemblyListScreen';
@@ -98,7 +99,7 @@ function PinnedProjectAssembliesButton({
       title={label}
       className="flex size-7 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-raised hover:text-accent"
     >
-      <i className="ti ti-stack-2 text-lg leading-none" aria-hidden="true" />
+      <AssemblyIcon className="text-lg" />
     </button>
   );
 }
@@ -251,7 +252,11 @@ export function PinnedProjectCard({
             activities={project.activities}
             progressPercent={project.progressPercent}
             // Pinned cards total every pontaj ever logged, whatever the toolbar period.
-            timesheets={{ projectId: project.id, period: allTimePeriod() }}
+            timesheets={{
+              projectId: project.id,
+              period: allTimePeriod(),
+              returnPoint: { projectId: project.id, source: 'pinned' },
+            }}
           />
         ) : (
           <p className="text-sm text-text-muted">

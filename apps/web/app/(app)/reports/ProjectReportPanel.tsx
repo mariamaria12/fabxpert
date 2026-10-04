@@ -14,6 +14,7 @@ import Link, { useLinkStatus } from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { InitialsAvatar } from '@/components/PersonAvatar';
+import { AssemblyIcon } from '@/components/AssemblyIcon';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import {
@@ -58,26 +59,23 @@ function Row({ label, value, tone }: { label: string; value: string; tone?: stri
   );
 }
 
-/** How strong the list's total reads next to what is done of it. */
-const TOTAL_TINT = '38%';
+/** Label column of an activity's bars; the two rows share it so the bars line up. */
+const BAR_LABEL_CLASS = 'whitespace-nowrap text-[10px] text-text-muted';
 
-/** Legend dot tying a figure to its part of the bar above. */
-function FigureDot({ color }: { color: string }) {
-  return (
-    <span
-      className="mr-1 inline-block size-1.5 rounded-full align-middle"
-      style={{ backgroundColor: color }}
-      aria-hidden="true"
-    />
-  );
+/**
+ * The progress bar's colour: the activity's own, pulled towards the text
+ * colour — close enough to read as the same activity, different enough not to
+ * pass for the hours bar above it.
+ */
+function progressColor(activityColor: string): string {
+  return `color-mix(in srgb, ${activityColor} 62%, var(--color-text-primary))`;
 }
 
 /**
- * "● 4,2 t din ● 9,0 t · 128/300 buc", with the hand-ticked slice named. One
- * colour in two strengths: the full one is what is done, the pale one the
- * whole list, on the bar and on the dots in front of the two figures.
+ * Second row of an activity: how far its assembly list has got, with the
+ * figures on the same line as the bar — tonnes, pieces, percent.
  */
-function StepProgressLine({
+function StepProgressCells({
   progress,
   color,
 }: {
@@ -92,31 +90,27 @@ function StepProgressLine({
         ? Math.round((progress.piecesDone / progress.piecesTotal) * 100)
         : null;
   const overDone = pct !== null && pct > 100;
-  // More reported than the list holds still reads as a problem, whatever the activity.
-  const doneColor = overDone ? TOKEN.danger : color;
-  const totalColor = tint(doneColor, TOTAL_TINT);
 
   return (
-    <div className="mt-1">
-      <Bar pct={pct ?? 0} color={doneColor} trackColor={totalColor} />
-      <p className="mt-1 text-[10px] text-text-muted">
-        {progress.weightTotalKg > 0 ? (
-          <>
-            <FigureDot color={doneColor} />
-            {formatTons(progress.weightDoneKg)} din <FigureDot color={totalColor} />
-            {formatTons(progress.weightTotalKg)} · {progress.piecesDone}/{progress.piecesTotal} buc
-          </>
-        ) : (
-          <>
-            <FigureDot color={doneColor} />
-            {progress.piecesDone} din <FigureDot color={totalColor} />
-            {progress.piecesTotal} buc
-          </>
-        )}{' '}
-        · {formatPct(pct)}
-        {progress.piecesManual > 0 && <> · {progress.piecesManual} buc bifate manual</>}
-      </p>
-    </div>
+    <>
+      <span className={BAR_LABEL_CLASS}>Progres pe ansamble</span>
+      {/* More reported than the list holds still reads as a problem, whatever the activity. */}
+      <Bar pct={pct ?? 0} color={overDone ? TOKEN.danger : progressColor(color)} />
+      <span className="col-span-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] tabular-nums text-text-muted sm:col-span-1 sm:justify-end">
+        {progress.weightTotalKg > 0 && (
+          <span className="inline-flex items-center gap-1">
+            <i className="ti ti-weight text-xs" aria-hidden="true" />
+            {formatTons(progress.weightDoneKg)} din {formatTons(progress.weightTotalKg)}
+          </span>
+        )}
+        <span className="inline-flex items-center gap-1">
+          <AssemblyIcon className="text-xs" />
+          {progress.piecesDone} / {progress.piecesTotal} buc
+        </span>
+        <span className="font-medium text-text-primary">{formatPct(pct)}</span>
+        {progress.piecesManual > 0 && <span>{progress.piecesManual} buc bifate manual</span>}
+      </span>
+    </>
   );
 }
 
@@ -155,15 +149,22 @@ function ActivityRow({
         <span className="flex shrink-0 items-center gap-1.5">
           {timesheetsHref && <OpeningSpinner />}
           <span
-            className="text-xs font-medium tabular-nums text-text-primary"
+            className="inline-flex items-center gap-1 text-xs font-medium tabular-nums text-text-primary"
             title={formatExactDuration(row.workedMinutes)}
           >
+            <i className="ti ti-clock text-xs text-text-muted" aria-hidden="true" />
             {formatHours(row.workedMinutes)}
           </span>
         </span>
       </div>
-      <Bar pct={widthPct} color={color} className="mt-1.5" />
-      {row.progress && <StepProgressLine progress={row.progress} color={color} />}
+      {/* Label | bar | figures. One grid for both rows, so the bars start and
+          end together; on a phone the figures drop under their bar. */}
+      <div className="mt-1.5 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2.5 gap-y-1.5 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
+        <span className={BAR_LABEL_CLASS}>Ore logate</span>
+        <Bar pct={widthPct} color={color} />
+        <span className="hidden sm:block" aria-hidden="true" />
+        {row.progress && <StepProgressCells progress={row.progress} color={color} />}
+      </div>
     </>
   );
 

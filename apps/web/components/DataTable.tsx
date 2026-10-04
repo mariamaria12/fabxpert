@@ -50,6 +50,8 @@ export interface DataTableProps<T> {
    * per-row actions in a trailing column instead.
    */
   renderExpandedRow?: (row: T) => ReactNode;
+  /** Rows that start open, by `rowKey` — read once, when the table mounts. */
+  defaultExpandedKeys?: ReadonlyArray<string | number>;
 }
 
 const DEFAULT_COLUMN_WIDTH_PX = 180;
@@ -152,6 +154,7 @@ const DataTableRows = memo(function DataTableRows<T>({
                 expandable ? () => onToggleExpanded(key) : onRowClick && (() => onRowClick(row))
               }
               aria-expanded={expandable ? expanded : undefined}
+              data-row-key={key}
               className={`border-b border-border-subtle transition-colors last:border-b-0 hover:bg-surface-raised${
                 interactive ? ' cursor-pointer' : ''
               }`}
@@ -219,9 +222,12 @@ export function DataTable<T>({
   showColumnMenu = true,
   title,
   renderExpandedRow,
+  defaultExpandedKeys,
 }: DataTableProps<T>) {
   const showAccent = rowAccentColor !== undefined;
-  const [expandedKeys, setExpandedKeys] = useState<ReadonlySet<string | number>>(new Set());
+  const [expandedKeys, setExpandedKeys] = useState<ReadonlySet<string | number>>(
+    () => new Set(defaultExpandedKeys),
+  );
 
   const toggleExpanded = useCallback((key: string | number) => {
     setExpandedKeys((current) => {

@@ -11,10 +11,17 @@ import {
 } from 'react';
 import type { DashboardMetricsResponse, Period } from '@fabxpert/shared';
 import { isPeriodQueryReady } from '@fabxpert/shared';
+import {
+  clearPanouReturnPoint,
+  readPanouReturnPoint,
+  type PanouReturnPoint,
+} from './panouReturnPoint';
 
 export type PanouView = 'projects' | 'hours' | 'people' | 'onLeave' | 'notLogged';
 
 export type PanouDashboardContextValue = {
+  /** The project Back from the pontaje should reopen; null on an ordinary visit. */
+  returnPoint: PanouReturnPoint | null;
   activeView: PanouView;
   setActiveView: (view: PanouView) => void;
   period: Period;
@@ -49,12 +56,23 @@ function readStoredIncludeExternal(): boolean {
 const PanouDashboardContext = createContext<PanouDashboardContextValue | null>(null);
 
 export function PanouDashboardProvider({ children }: { children: ReactNode }) {
-  const [activeView, setActiveView] = useState<PanouView>('projects');
-  const [period, setPeriod] = useState<Period>({ kind: 'today' });
+  // Read while mounting, so the views underneath start on the right tab, page
+  // and open project instead of correcting themselves after a first paint.
+  const [returnPoint] = useState(readPanouReturnPoint);
+  const [activeView, setActiveView] = useState<PanouView>(
+    returnPoint?.source === 'hours' ? 'hours' : 'projects',
+  );
+  const [period, setPeriod] = useState<Period>(returnPoint?.period ?? { kind: 'today' });
   const [metrics, setMetrics] = useState<DashboardMetricsResponse | null>(null);
   const [readyForExecution, setReadyForExecution] = useState<boolean | null>(null);
   const [includeExternalCollaborators, setIncludeExternalCollaboratorsState] =
     useState(false);
+
+  useEffect(() => {
+    if (returnPoint) {
+      clearPanouReturnPoint();
+    }
+  }, [returnPoint]);
 
   // Read after mount so server and first client render agree.
   useEffect(() => {
@@ -71,6 +89,7 @@ export function PanouDashboardProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     (): PanouDashboardContextValue => ({
+      returnPoint,
       activeView,
       setActiveView,
       period,
@@ -84,6 +103,7 @@ export function PanouDashboardProvider({ children }: { children: ReactNode }) {
       setIncludeExternalCollaborators,
     }),
     [
+      returnPoint,
       activeView,
       period,
       periodReady,

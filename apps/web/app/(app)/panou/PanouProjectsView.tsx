@@ -53,6 +53,7 @@ import {
 import { usePanouDashboard } from './PanouDashboardContext';
 import { ProjectPinButton } from './ProjectPinButton';
 import { ProjectBreakdownRow } from './ProjectBreakdownRow';
+import { useScrollToReturnProject } from './panouReturnPoint';
 import { ProjectRoleColorsProvider, ProjectVisibleForCell } from './panouProjectVisibility';
 
 const PAGE_SIZE = 20;
@@ -307,7 +308,10 @@ const ProjectTableSection = forwardRef<
   },
   ref,
 ) {
-  const [page, setPage] = useState(1);
+  const { returnPoint } = usePanouDashboard();
+  // Back from the pontaje: the row that was open, on the page it was on.
+  const returnProjectId = returnPoint?.source === statusGroup ? returnPoint.projectId : null;
+  const [page, setPage] = useState(returnProjectId ? (returnPoint?.page ?? 1) : 1);
   const [sortBy, setSortBy] = useState<ProjectListSortBy>(DEFAULT_SORT_BY);
   const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
   const [projects, setProjects] = useState<ProjectDto[]>([]);
@@ -334,8 +338,14 @@ const ProjectTableSection = forwardRef<
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
-  // A narrower filter can leave the current page empty.
+  // A narrower filter can leave the current page empty. Not on mount: the
+  // page may have been restored from where Back returned to.
+  const filtersTouched = useRef(false);
   useEffect(() => {
+    if (!filtersTouched.current) {
+      filtersTouched.current = true;
+      return;
+    }
     setPage(1);
   }, [readyFilter, debouncedSearch, statusFilters, visibilityFilters]);
 
@@ -399,6 +409,14 @@ const ProjectTableSection = forwardRef<
   }, [loadProjects]);
 
   useRegisterPanouRefetch(`panou-projects-${statusGroup}`, loadProjects);
+
+  useScrollToReturnProject(
+    () =>
+      returnProjectId
+        ? document.querySelector(`tr[data-row-key="${CSS.escape(returnProjectId)}"]`)
+        : null,
+    !loading && projects.length > 0,
+  );
 
   useImperativeHandle(
     ref,
@@ -534,7 +552,10 @@ const ProjectTableSection = forwardRef<
             sortBy={sortBy}
             sortOrder={sortOrder}
             onSortChange={handleSortChange}
-            renderExpandedRow={(row) => <ProjectBreakdownRow projectId={row.id} />}
+            defaultExpandedKeys={returnProjectId ? [returnProjectId] : undefined}
+            renderExpandedRow={(row) => (
+              <ProjectBreakdownRow projectId={row.id} source={statusGroup} page={page} />
+            )}
           />
           {!loading && total > 0 && (
             <Pagination
@@ -561,7 +582,7 @@ const ProjectTableSection = forwardRef<
 });
 
 export function PanouProjectsView() {
-  const { readyForExecution } = usePanouDashboard();
+  const { readyForExecution, returnPoint } = usePanouDashboard();
   const pinnedSectionRef = useRef<PanouPinnedProjectsSectionHandle>(null);
   const inProgressTableRef = useRef<ProjectTableSectionHandle>(null);
   const completedTableRef = useRef<ProjectTableSectionHandle>(null);
@@ -570,7 +591,7 @@ export function PanouProjectsView() {
   // it's closed it isn't mounted, so it costs no fetch. Coming back to an open
   // report reopens it only when that project is a finished one — its status is
   // known once the fișa itself has loaded.
-  const [completedOpen, setCompletedOpen] = useState(false);
+  const [completedOpen, setCompletedOpen] = useState(returnPoint?.source === 'completed');
   const returnedToReportId = useRef(reportProjectId);
 
   const handleReportLoaded = useCallback((report: ProjectReportResponse) => {

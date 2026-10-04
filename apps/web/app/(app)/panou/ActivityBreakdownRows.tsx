@@ -7,6 +7,7 @@ import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
 import { formatProjectWeight } from '@/utils/projectWeight';
 import { buildActivityTimesheetListHref, PANOU_PATH } from '@/utils/timesheetListNavigation';
 import { PanouActivityProgressBar } from './PanouActivityProgressBar';
+import { writePanouReturnPoint, type PanouReturnPoint } from './panouReturnPoint';
 
 /**
  * Name | percent | bar | pieces | hours. Every row feeds cells into this one
@@ -104,6 +105,8 @@ export type ActivityTimesheetsLink = {
   projectId: string;
   /** The period the hours beside the name were counted over. */
   period: Period;
+  /** Where Back should land: this project, on the card or row it was opened from. */
+  returnPoint?: PanouReturnPoint;
 };
 
 /**
@@ -136,6 +139,11 @@ function ActivityName({
         returnTo: PANOU_PATH,
       })}
       title={`Vezi pontajele pe ${activity.activityName}`}
+      onClick={() => {
+        if (timesheets.returnPoint) {
+          writePanouReturnPoint(timesheets.returnPoint);
+        }
+      }}
       className={`${NAME_CELL} group flex min-w-0 items-center gap-2`}
     >
       <ActivityDot color={activity.activityColor} />

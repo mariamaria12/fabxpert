@@ -27,6 +27,7 @@ import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 import { usePanouDashboard } from './PanouDashboardContext';
+import { panouProjectElementId, useScrollToReturnProject } from './panouReturnPoint';
 import {
   flattenPinnedProjectsForOneColumn,
   getPinnedProjectColumn,
@@ -144,7 +145,14 @@ export const PanouPinnedProjectsSection = forwardRef<
 >(function PanouPinnedProjectsSection({ onProjectUnpinned, onProjectUpdated, onOpenReport }, ref) {
   const { showToast } = useToast();
   const [projects, setProjects] = useState<PinnedProjectSummaryRow[]>([]);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
+  // Driven by the panou toolbar's "Gata de execuție" chips. The toolbar period
+  // deliberately doesn't apply here — pinned cards show all-time project totals.
+  const { readyForExecution, returnPoint } = usePanouDashboard();
+  // Back from the pontaje: the card that was open opens again.
+  const returnProjectId = returnPoint?.source === 'pinned' ? returnPoint.projectId : null;
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(
+    () => new Set(returnProjectId ? [returnProjectId] : []),
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editPanel, setEditPanel] = useState<EditPanelState>({ open: false });
@@ -152,10 +160,12 @@ export const PanouPinnedProjectsSection = forwardRef<
   // Phones: always a single column, and cards without grip/pin icons.
   const isMobile = useIsMobile();
   const effectiveViewMode: PanouPinnedViewMode = isMobile ? 'one-column' : viewMode;
-  // Driven by the panou toolbar's "Gata de execuție" chips. The toolbar period
-  // deliberately doesn't apply here — pinned cards show all-time project totals.
-  const { readyForExecution } = usePanouDashboard();
   const fetchSeqRef = useRef(0);
+
+  useScrollToReturnProject(
+    () => (returnProjectId ? document.getElementById(panouProjectElementId(returnProjectId)) : null),
+    !loading && projects.length > 0,
+  );
   // Phones: press-and-hold the project code to pick a card up, so a normal tap
   // still expands it and a swipe still scrolls the list.
   const sensors = useSensors(
