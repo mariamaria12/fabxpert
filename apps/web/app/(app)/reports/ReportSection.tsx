@@ -41,16 +41,20 @@ export function EmptyHint({ children }: { children: ReactNode }) {
 export function Bar({
   pct,
   color,
+  trackColor,
   className,
 }: {
   pct: number;
   color: string;
+  /** Colours the unfilled part too, when the whole track stands for a quantity. */
+  trackColor?: string;
   className?: string;
 }) {
   const width = Math.min(Math.max(pct, pct > 0 ? 2 : 0), 100);
   return (
     <span
-      className={`relative block h-1.5 overflow-hidden rounded-full bg-surface-raised ${className ?? ''}`}
+      className={`relative block h-1.5 overflow-hidden rounded-full ${trackColor ? '' : 'bg-surface-raised'} ${className ?? ''}`}
+      style={trackColor ? { backgroundColor: trackColor } : undefined}
     >
       <span
         className="absolute inset-y-0 left-0 rounded-full"

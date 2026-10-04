@@ -11,6 +11,7 @@ export function SortablePinnedProjectCard({
   onToggle,
   onUnpinned,
   onEdit,
+  onOpenReport,
   onAssembliesChanged,
   dragByTitle = false,
 }: {
@@ -19,6 +20,7 @@ export function SortablePinnedProjectCard({
   onToggle: () => void;
   onUnpinned: (updated: ProjectDto) => void;
   onEdit: () => void;
+  onOpenReport: () => void;
   onAssembliesChanged?: () => void;
   /** Phones: no grip/pin icons — hold the project code to reorder. */
   dragByTitle?: boolean;
@@ -42,6 +44,7 @@ export function SortablePinnedProjectCard({
         onToggle={onToggle}
         onUnpinned={onUnpinned}
         onEdit={onEdit}
+        onOpenReport={onOpenReport}
         onAssembliesChanged={onAssembliesChanged}
         showPinButton={!dragByTitle}
         {...(dragByTitle

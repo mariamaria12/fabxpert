@@ -7,16 +7,13 @@ const ACTION_BUTTON_CLASS =
   'rounded p-1.5 text-text-muted transition-all hover:bg-surface hover:text-text-primary';
 
 /**
- * Trailing pencil column; finished projects also get the project report that
- * Rapoarte opens (every project with `reportForAllStatuses`). The pencil stays
- * last so it lines up on every row.
+ * Trailing column: the project report that Rapoarte opens, then the pencil,
+ * which stays last so it lines up on every row.
  */
 export function projectActionsColumn(
   onEdit: (project: ProjectDto) => void,
   onOpenReport: (projectId: string) => void,
-  options?: { reportForAllStatuses?: boolean },
 ): DataTableColumn<ProjectDto> {
-  const reportForAllStatuses = options?.reportForAllStatuses ?? false;
   return {
     key: 'actions',
     header: '',
@@ -24,20 +21,18 @@ export function projectActionsColumn(
     className: 'overflow-visible',
     render: (row) => (
       <div className="flex justify-end gap-1">
-        {(reportForAllStatuses || row.status === 'FINALIZAT') && (
-          <button
-            type="button"
-            aria-label="Deschide fișa proiectului"
-            title="Deschide fișa proiectului"
-            onClick={(event) => {
-              event.stopPropagation();
-              onOpenReport(row.id);
-            }}
-            className={ACTION_BUTTON_CLASS}
-          >
-            <i className="ti ti-report-analytics text-base" aria-hidden="true" />
-          </button>
-        )}
+        <button
+          type="button"
+          aria-label="Deschide fișa proiectului"
+          title="Deschide fișa proiectului"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpenReport(row.id);
+          }}
+          className={ACTION_BUTTON_CLASS}
+        >
+          <i className="ti ti-report-analytics text-base" aria-hidden="true" />
+        </button>
         <button
           type="button"
           aria-label="Editează proiectul"

@@ -45,6 +45,29 @@ describe('Person list sort (e2e)', () => {
     expect(descNames[0]).not.toBe(defaultNames[0]);
   });
 
+  it('splits the list by whether the person has an account that can sign in', async () => {
+    const list = async (account: string) => {
+      const response = await request(app.getHttpServer())
+        .get('/persons')
+        .query({ account, pageSize: '50' })
+        .set(authHeader(adminCookie))
+        .expect(200);
+      return response.body.data.map((row: { id: string }) => row.id) as string[];
+    };
+
+    const active = await list('active');
+    const none = await list('none');
+
+    expect(active).toContain(FIXTURES.persons.employee1.id);
+    expect(active).not.toContain(FIXTURES.persons.inactive.id);
+    expect(active).not.toContain(FIXTURES.persons.unassigned.id);
+    // A deactivated account and no account at all land in the same table.
+    expect(none).toEqual(
+      expect.arrayContaining([FIXTURES.persons.inactive.id, FIXTURES.persons.unassigned.id]),
+    );
+    expect(none).not.toContain(FIXTURES.persons.employee1.id);
+  });
+
   it('rejects invalid sortBy', async () => {
     const response = await request(app.getHttpServer())
       .get('/persons')

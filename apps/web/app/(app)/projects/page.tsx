@@ -40,7 +40,10 @@ import { replaceById } from '@/utils/replaceById';
 import { formatProjectEstimatedHours } from '@/utils/projectEstimatedHours';
 import { formatProjectWeight } from '@/utils/projectWeight';
 import { formatProjectWeldLength } from '@/utils/projectWeldLength';
-import { ProjectVisibleForCell } from '../panou/panouProjectVisibility';
+import {
+  ProjectRoleColorsProvider,
+  ProjectVisibleForCell,
+} from '../panou/panouProjectVisibility';
 import { ProjectReportPanel } from '../reports/ProjectReportPanel';
 
 const PAGE_SIZE = 20;
@@ -407,6 +410,7 @@ export default function ProjectsPage() {
   const showDataTable = loading || total > 0;
 
   return (
+    <ProjectRoleColorsProvider>
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between gap-4">
         <h1 className="hidden text-[22px] font-medium text-text-primary sm:block">Proiecte</h1>
@@ -521,5 +525,6 @@ export default function ProjectsPage() {
         onClose={() => setReportProjectId(null)}
       />
     </div>
+    </ProjectRoleColorsProvider>
   );
 }

@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma } from '@prisma/client';
 import type {
   CreatePersonInput,
+  PersonAccountFilter,
   PersonDto,
   PersonListSortBy,
   UpdatePersonInput,
@@ -20,6 +21,9 @@ const personInclude = {
     },
   },
 } satisfies Prisma.PersonInclude;
+
+/** An account its owner can still sign in with. */
+const ACTIVE_ACCOUNT = { deletedAt: null, isActive: true } satisfies Prisma.UserWhereInput;
 
 type PersonWithRole = Prisma.PersonGetPayload<{ include: typeof personInclude }>;
 
@@ -62,9 +66,15 @@ export class PersonService {
     pagination: PaginationParams,
     sortBy?: PersonListSortBy,
     sortOrder: SortOrder = 'asc',
+    account?: PersonAccountFilter,
   ): Promise<PaginatedResponse<PersonDto>> {
     const { page, pageSize } = pagination;
-    const where = { ...notDeleted() };
+    const where: Prisma.PersonWhereInput = {
+      ...notDeleted(),
+      ...(account === 'active' ? { user: { is: ACTIVE_ACCOUNT } } : {}),
+      // No account at all, or one that was deleted or deactivated.
+      ...(account === 'none' ? { NOT: { user: { is: ACTIVE_ACCOUNT } } } : {}),
+    };
 
     const [total, rows] = await Promise.all([
       this.prisma.person.count({ where }),

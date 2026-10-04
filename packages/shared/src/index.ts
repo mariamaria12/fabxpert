@@ -125,6 +125,7 @@ export type {
   PersonDto,
   PersonEmployeeRoleDto,
   PersonListSortBy,
+  PersonAccountFilter,
   CreatePersonInput,
   UpdatePersonInput,
 } from './dto/person.dto';
@@ -244,6 +245,7 @@ export {
   deleteTimesheet,
   getProjectSummary,
   getPinnedProjectsSummary,
+  getProjectBreakdown,
   getPersonSummary,
   getNotLogged,
   getDashboardMetrics,
@@ -284,6 +286,7 @@ export type {
   ProjectSummaryResponse,
   PinnedProjectSummaryRow,
   PinnedProjectsSummaryResponse,
+  ProjectBreakdownResponse,
   PersonSummaryActivityRow,
   PersonSummaryPersonRow,
   PersonSummaryResponse,

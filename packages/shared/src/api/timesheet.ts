@@ -17,6 +17,7 @@ import type {
   TimesheetGroupSortBy,
   TimesheetListSortBy,
   PinnedProjectsSummaryResponse,
+  ProjectBreakdownResponse,
   UpdateTimesheetInput,
 } from '../dto/timesheet.dto';
 import type { SortOrder } from '../dto/project.dto';
@@ -249,6 +250,13 @@ export function getPinnedProjectsSummary(period?: Period) {
   appendPeriodQuery(searchParams, period);
   return request<PinnedProjectsSummaryResponse>(
     `/timesheets/pinned-summary?${searchParams.toString()}`,
+  );
+}
+
+/** Admin only. Every pontaj ever logged on the project, by activity. */
+export function getProjectBreakdown(projectId: string) {
+  return request<ProjectBreakdownResponse>(
+    `/timesheets/project-breakdown/${encodeURIComponent(projectId)}`,
   );
 }
 

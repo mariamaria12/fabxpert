@@ -103,6 +103,24 @@ function PinnedProjectAssembliesButton({
   );
 }
 
+/** Opens the project's fișa (the report Rapoarte shows), under the edit pencil. */
+function PinnedProjectReportButton({ onOpen }: { onOpen: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onOpen();
+      }}
+      aria-label="Deschide fișa proiectului"
+      title="Deschide fișa proiectului"
+      className="flex size-7 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-raised hover:text-accent"
+    >
+      <i className="ti ti-report-analytics text-lg leading-none" aria-hidden="true" />
+    </button>
+  );
+}
+
 function PinnedProjectEditButton({ onEdit }: { onEdit: () => void }) {
   return (
     <button
@@ -125,6 +143,7 @@ export function PinnedProjectCard({
   onToggle,
   onUnpinned,
   onEdit,
+  onOpenReport,
   onAssembliesChanged,
   dragHandleProps,
   showPinButton = true,
@@ -135,6 +154,7 @@ export function PinnedProjectCard({
   onToggle: () => void;
   onUnpinned: (updated: ProjectDto) => void;
   onEdit: () => void;
+  onOpenReport: () => void;
   /** The list was edited from the card; the summary's counts have to catch up. */
   onAssembliesChanged?: () => void;
   dragHandleProps?: DragHandleProps;
@@ -173,12 +193,15 @@ export function PinnedProjectCard({
         </span>
       }
       sideActions={
-        project.assemblyCount > 0 ? (
-          <PinnedProjectAssembliesButton
-            count={project.assemblyCount}
-            onOpen={() => setAssembliesOpen(true)}
-          />
-        ) : undefined
+        <>
+          <PinnedProjectReportButton onOpen={onOpenReport} />
+          {project.assemblyCount > 0 && (
+            <PinnedProjectAssembliesButton
+              count={project.assemblyCount}
+              onOpen={() => setAssembliesOpen(true)}
+            />
+          )}
+        </>
       }
       hideLeadingIcon={!dragHandleProps && !showPinButton}
       titleHandleProps={titleHandleProps}

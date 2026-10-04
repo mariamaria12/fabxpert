@@ -8,6 +8,7 @@ import {
   listProjects,
   type ProjectDto,
   type ProjectListSortBy,
+  type ProjectReportResponse,
   type ProjectStatus,
   type SortOrder,
 } from '@fabxpert/shared';
@@ -51,7 +52,8 @@ import {
 } from './PanouPinnedProjectsSection';
 import { usePanouDashboard } from './PanouDashboardContext';
 import { ProjectPinButton } from './ProjectPinButton';
-import { ProjectVisibleForCell } from './panouProjectVisibility';
+import { ProjectBreakdownRow } from './ProjectBreakdownRow';
+import { ProjectRoleColorsProvider, ProjectVisibleForCell } from './panouProjectVisibility';
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -267,9 +269,7 @@ function useProjectTableColumns(options?: {
 
     if (rowActions) {
       columns.push(
-        projectActionsColumn(rowActions.onEdit, rowActions.onOpenReport, {
-          reportForAllStatuses: true,
-        }),
+        projectActionsColumn(rowActions.onEdit, rowActions.onOpenReport),
       );
     }
 
@@ -534,7 +534,7 @@ const ProjectTableSection = forwardRef<
             sortBy={sortBy}
             sortOrder={sortOrder}
             onSortChange={handleSortChange}
-            onRowClick={loading ? undefined : openEdit}
+            renderExpandedRow={(row) => <ProjectBreakdownRow projectId={row.id} />}
           />
           {!loading && total > 0 && (
             <Pagination
@@ -568,8 +568,17 @@ export function PanouProjectsView() {
   const [reportProjectId, setReportProjectId] = useOpenReportParam();
   // Collapsed by default: the completed table is the rarely-read one, and while
   // it's closed it isn't mounted, so it costs no fetch. Coming back to an open
-  // report reopens it, since that report was opened from there.
-  const [completedOpen, setCompletedOpen] = useState(() => reportProjectId !== null);
+  // report reopens it only when that project is a finished one — its status is
+  // known once the fișa itself has loaded.
+  const [completedOpen, setCompletedOpen] = useState(false);
+  const returnedToReportId = useRef(reportProjectId);
+
+  const handleReportLoaded = useCallback((report: ProjectReportResponse) => {
+    if (report.project.id === returnedToReportId.current && report.project.status === 'FINALIZAT') {
+      setCompletedOpen(true);
+    }
+    returnedToReportId.current = null;
+  }, []);
 
   const handlePinToggled = useCallback((updated: ProjectDto) => {
     if (updated.isPinned) {
@@ -612,11 +621,13 @@ export function PanouProjectsView() {
   );
 
   return (
+    <ProjectRoleColorsProvider>
     <section className="mt-6 space-y-8">
       <PanouPinnedProjectsSection
         ref={pinnedSectionRef}
         onProjectUnpinned={handleProjectUnpinned}
         onProjectUpdated={handlePinnedProjectUpdated}
+        onOpenReport={setReportProjectId}
       />
       <ProjectTableSection
         ref={inProgressTableRef}
@@ -658,7 +669,9 @@ export function PanouProjectsView() {
       <ProjectReportPanel
         projectId={reportProjectId}
         onClose={() => setReportProjectId(null)}
+        onLoaded={handleReportLoaded}
       />
     </section>
+    </ProjectRoleColorsProvider>
   );
 }

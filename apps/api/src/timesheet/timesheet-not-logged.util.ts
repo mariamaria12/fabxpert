@@ -43,7 +43,8 @@ export function notLoggedCheckDays(from: Date, to: Date, now = new Date()): Date
 
 /**
  * Who is left out entirely: admin and office accounts (not expected to log),
- * and external collaborators unless `includeExternal`.
+ * deactivated accounts (they cannot log any more), and external collaborators
+ * unless `includeExternal`.
  */
 function expectedToLog(includeExternal: boolean) {
   // External collaborators are off by default — they are not expected to log
@@ -55,6 +56,7 @@ function expectedToLog(includeExternal: boolean) {
   return Prisma.sql`
     pe."deletedAt" IS NULL
     AND (u.id IS NULL OR (u.role <> 'ADMIN' AND NOT u."isOfficeUser"))
+    AND (u.id IS NULL OR u."isActive")
     ${externalFilter}
   `;
 }

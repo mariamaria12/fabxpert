@@ -5,17 +5,22 @@ import {
   getProjectStatusBadgeClassName,
   getProjectStatusLabel,
   type AssemblyStepProgress,
+  type Period,
   type ProjectReportActivityRow,
   type ProjectReportPersonRow,
   type ProjectReportResponse,
 } from '@fabxpert/shared';
 import Link, { useLinkStatus } from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { InitialsAvatar } from '@/components/PersonAvatar';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
-import { buildTimesheetListHref } from '@/utils/timesheetListNavigation';
+import {
+  allTimePeriod,
+  buildActivityTimesheetListHref,
+  buildTimesheetListHref,
+} from '@/utils/timesheetListNavigation';
 import { Bar, EmptyHint } from './ReportSection';
 import { paletteColor, TOKEN, tint } from './reportColors';
 import {
@@ -53,8 +58,33 @@ function Row({ label, value, tone }: { label: string; value: string; tone?: stri
   );
 }
 
-/** "4,2 t din 9,0 t · 128/300 buc", with the hand-ticked slice named. */
-function StepProgressLine({ progress }: { progress: AssemblyStepProgress }) {
+/** How strong the list's total reads next to what is done of it. */
+const TOTAL_TINT = '38%';
+
+/** Legend dot tying a figure to its part of the bar above. */
+function FigureDot({ color }: { color: string }) {
+  return (
+    <span
+      className="mr-1 inline-block size-1.5 rounded-full align-middle"
+      style={{ backgroundColor: color }}
+      aria-hidden="true"
+    />
+  );
+}
+
+/**
+ * "● 4,2 t din ● 9,0 t · 128/300 buc", with the hand-ticked slice named. One
+ * colour in two strengths: the full one is what is done, the pale one the
+ * whole list, on the bar and on the dots in front of the two figures.
+ */
+function StepProgressLine({
+  progress,
+  color,
+}: {
+  progress: AssemblyStepProgress;
+  /** The activity's colour. */
+  color: string;
+}) {
   const pct =
     progress.weightTotalKg > 0
       ? Math.round((progress.weightDoneKg / progress.weightTotalKg) * 100)
@@ -62,37 +92,55 @@ function StepProgressLine({ progress }: { progress: AssemblyStepProgress }) {
         ? Math.round((progress.piecesDone / progress.piecesTotal) * 100)
         : null;
   const overDone = pct !== null && pct > 100;
+  // More reported than the list holds still reads as a problem, whatever the activity.
+  const doneColor = overDone ? TOKEN.danger : color;
+  const totalColor = tint(doneColor, TOTAL_TINT);
 
   return (
     <div className="mt-1">
-      <Bar pct={pct ?? 0} color={overDone ? TOKEN.danger : TOKEN.success} />
+      <Bar pct={pct ?? 0} color={doneColor} trackColor={totalColor} />
       <p className="mt-1 text-[10px] text-text-muted">
-        {progress.weightTotalKg > 0 && (
+        {progress.weightTotalKg > 0 ? (
           <>
-            {formatTons(progress.weightDoneKg)} din {formatTons(progress.weightTotalKg)} ·{' '}
+            <FigureDot color={doneColor} />
+            {formatTons(progress.weightDoneKg)} din <FigureDot color={totalColor} />
+            {formatTons(progress.weightTotalKg)} · {progress.piecesDone}/{progress.piecesTotal} buc
           </>
-        )}
-        {progress.piecesDone}/{progress.piecesTotal} buc · {formatPct(pct)}
+        ) : (
+          <>
+            <FigureDot color={doneColor} />
+            {progress.piecesDone} din <FigureDot color={totalColor} />
+            {progress.piecesTotal} buc
+          </>
+        )}{' '}
+        · {formatPct(pct)}
         {progress.piecesManual > 0 && <> · {progress.piecesManual} buc bifate manual</>}
       </p>
     </div>
   );
 }
 
+const ROW_CARD_CLASS = 'rounded-md border border-border-subtle bg-surface-raised/30 px-2.5 py-2';
+const ROW_LINK_CLASS =
+  'transition-colors hover:border-accent/40 hover:bg-surface-raised focus:outline-none focus:ring-1 focus:ring-accent';
+
 function ActivityRow({
   row,
   scale,
   index,
+  timesheetsHref,
 }: {
   row: ProjectReportActivityRow;
   scale: number;
   index: number;
+  /** The pontaje behind this row: this activity on this project; null for hours without an activity. */
+  timesheetsHref: string | null;
 }) {
   const color = row.color ?? paletteColor(index);
   const widthPct = scale > 0 ? (row.workedMinutes / scale) * 100 : 0;
 
-  return (
-    <li className="rounded-md border border-border-subtle bg-surface-raised/30 px-2.5 py-2">
+  const content = (
+    <>
       <div className="flex items-baseline justify-between gap-2">
         <span className="flex min-w-0 items-center gap-1.5">
           <span
@@ -104,15 +152,34 @@ function ActivityRow({
             {row.activityName}
           </span>
         </span>
-        <span
-          className="shrink-0 text-xs font-medium tabular-nums text-text-primary"
-          title={formatExactDuration(row.workedMinutes)}
-        >
-          {formatHours(row.workedMinutes)}
+        <span className="flex shrink-0 items-center gap-1.5">
+          {timesheetsHref && <OpeningSpinner />}
+          <span
+            className="text-xs font-medium tabular-nums text-text-primary"
+            title={formatExactDuration(row.workedMinutes)}
+          >
+            {formatHours(row.workedMinutes)}
+          </span>
         </span>
       </div>
       <Bar pct={widthPct} color={color} className="mt-1.5" />
-      {row.progress && <StepProgressLine progress={row.progress} />}
+      {row.progress && <StepProgressLine progress={row.progress} color={color} />}
+    </>
+  );
+
+  if (!timesheetsHref) {
+    return <li className={ROW_CARD_CLASS}>{content}</li>;
+  }
+
+  return (
+    <li>
+      <Link
+        href={timesheetsHref}
+        aria-label={`Deschide pontajele pe ${row.activityName} pentru acest proiect`}
+        className={`block ${ROW_CARD_CLASS} ${ROW_LINK_CLASS}`}
+      >
+        {content}
+      </Link>
     </li>
   );
 }
@@ -152,7 +219,7 @@ function PersonRow({
       <Link
         href={timesheetsHref}
         aria-label={`Deschide pontajele pentru ${row.personName} pe acest proiect`}
-        className="block rounded-md border border-border-subtle bg-surface-raised/30 px-2.5 py-2 transition-colors hover:border-accent/40 hover:bg-surface-raised focus:outline-none focus:ring-1 focus:ring-accent"
+        className={`block ${ROW_CARD_CLASS} ${ROW_LINK_CLASS}`}
       >
         <div className="flex items-center gap-2">
           <InitialsAvatar initials={initialsOf(row.personName)} />
@@ -215,6 +282,11 @@ function ReportBody({ report }: { report: ProjectReportResponse }) {
     (max, row) => Math.max(max, row.workedMinutes),
     0,
   );
+  // The report covers the project's whole life, so the list opens on it too.
+  const reportPeriod: Period =
+    totals.firstWorkDay && totals.lastWorkDay
+      ? { kind: 'custom', from: totals.firstWorkDay, to: totals.lastWorkDay }
+      : allTimePeriod();
   const activityNames = new Map(
     report.byActivity.map((row) => [row.activityId ?? '', row.activityName]),
   );
@@ -267,6 +339,16 @@ function ReportBody({ report }: { report: ProjectReportResponse }) {
                 row={row}
                 scale={activityScale}
                 index={index}
+                timesheetsHref={
+                  row.activityId
+                    ? buildActivityTimesheetListHref({
+                        projectId: project.id,
+                        activityId: row.activityId,
+                        period: reportPeriod,
+                        returnTo,
+                      })
+                    : null
+                }
               />
             ))}
           </ul>
@@ -306,13 +388,19 @@ function ReportBody({ report }: { report: ProjectReportResponse }) {
 export type ProjectReportPanelProps = {
   projectId: string | null;
   onClose: () => void;
+  /** Called each time a project's fișa arrives. */
+  onLoaded?: (report: ProjectReportResponse) => void;
 };
 
 /** Fișa proiectului — one project read across its activities and its people. */
-export function ProjectReportPanel({ projectId, onClose }: ProjectReportPanelProps) {
+export function ProjectReportPanel({ projectId, onClose, onLoaded }: ProjectReportPanelProps) {
   const [report, setReport] = useState<ProjectReportResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Read through a ref so a new callback from the parent doesn't reload the fișa.
+  const onLoadedRef = useRef(onLoaded);
+  onLoadedRef.current = onLoaded;
 
   const loadReport = useCallback(async (id: string) => {
     setLoading(true);
@@ -321,7 +409,9 @@ export function ProjectReportPanel({ projectId, onClose }: ProjectReportPanelPro
     // numbers on screen while loading, and they would belong to another job.
     setReport(null);
     try {
-      setReport(await getProjectReport(id));
+      const loaded = await getProjectReport(id);
+      setReport(loaded);
+      onLoadedRef.current?.(loaded);
     } catch (caught) {
       setError(apiErrorToastMessage(caught));
     } finally {

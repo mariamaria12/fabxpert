@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import {
   createPersonSchema,
+  PERSON_ACCOUNT_FILTER_VALUES,
   updatePersonSchema,
   type CreatePersonInput,
   type UpdatePersonInput,
@@ -26,6 +27,7 @@ import { PersonService } from './person.service';
 const idParamSchema = z.string().trim().min(1);
 const sortBySchema = z.enum(['name']);
 const sortOrderSchema = z.enum(['asc', 'desc']);
+const accountSchema = z.enum(PERSON_ACCOUNT_FILTER_VALUES);
 
 @Controller('persons')
 @Roles('ADMIN')
@@ -52,7 +54,16 @@ export class PersonController {
       sortOrder = parsed.data;
     }
 
-    return this.personService.findAll(parsePagination(query), sortBy, sortOrder);
+    let account: z.infer<typeof accountSchema> | undefined;
+    if (query.account !== undefined && query.account !== '') {
+      const parsed = accountSchema.safeParse(query.account);
+      if (!parsed.success) {
+        throw new BadRequestException('Invalid account');
+      }
+      account = parsed.data;
+    }
+
+    return this.personService.findAll(parsePagination(query), sortBy, sortOrder, account);
   }
 
   @Get(':id')

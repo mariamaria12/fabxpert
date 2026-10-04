@@ -15,6 +15,8 @@ export type BuildProjectSummaryQueryOptions = {
   from?: Date | null;
   to?: Date | null;
   pinnedOnly?: boolean;
+  /** Only these projects, pinned or not. */
+  projectIds?: string[];
   /** When true, starts from projects and LEFT JOINs timesheets so projects with zero entries appear. */
   includeZeroEntryProjects?: boolean;
 };
@@ -73,10 +75,14 @@ export function buildProjectSummaryQuery(
     from = null,
     to: toDate = null,
     pinnedOnly = false,
+    projectIds,
     includeZeroEntryProjects = false,
   } = options;
 
-  const pinnedFilter = pinnedOnly ? Prisma.sql`AND p."isPinned" = true` : Prisma.empty;
+  const pinnedFilter = Prisma.sql`
+    ${pinnedOnly ? Prisma.sql`AND p."isPinned" = true` : Prisma.empty}
+    ${projectIds?.length ? Prisma.sql`AND p.id IN (${Prisma.join(projectIds)})` : Prisma.empty}
+  `;
 
   if (includeZeroEntryProjects) {
     const periodOnJoin = buildPeriodFilter(from, toDate);

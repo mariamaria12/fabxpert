@@ -1,6 +1,7 @@
 import { request } from './client';
 import type {
   CreatePersonInput,
+  PersonAccountFilter,
   PersonDto,
   PersonListSortBy,
   UpdatePersonInput,
@@ -13,6 +14,8 @@ export interface ListPersonsParams {
   pageSize?: number;
   sortBy?: PersonListSortBy;
   sortOrder?: SortOrder;
+  /** Left out, everyone is listed whatever their account. */
+  account?: PersonAccountFilter;
 }
 
 export function listPersons(params: ListPersonsParams = {}) {
@@ -28,6 +31,9 @@ export function listPersons(params: ListPersonsParams = {}) {
   }
   if (params.sortOrder) {
     searchParams.set('sortOrder', params.sortOrder);
+  }
+  if (params.account) {
+    searchParams.set('account', params.account);
   }
   const query = searchParams.toString();
   return request<PaginatedResponse<PersonDto>>(`/persons${query ? `?${query}` : ''}`);

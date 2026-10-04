@@ -104,6 +104,7 @@ type PinnedCardOptions = {
   toggleExpanded: (projectId: string) => void;
   handleUnpinned: (updated: ProjectDto) => void;
   openEdit: (project: PinnedProjectSummaryRow) => void;
+  openReport: (projectId: string) => void;
   handleAssembliesChanged: () => void;
 };
 
@@ -120,6 +121,7 @@ function renderPinnedProjectCards(
       onToggle={() => options.toggleExpanded(project.id)}
       onUnpinned={options.handleUnpinned}
       onEdit={() => options.openEdit(project)}
+      onOpenReport={() => options.openReport(project.id)}
       onAssembliesChanged={options.handleAssembliesChanged}
       dragByTitle={dragByTitle}
     />
@@ -136,8 +138,10 @@ export const PanouPinnedProjectsSection = forwardRef<
   {
     onProjectUnpinned: (updated: ProjectDto) => void;
     onProjectUpdated?: (updated: ProjectDto) => void;
+    /** Opens the project's fișa, the same panel the tables below open. */
+    onOpenReport: (projectId: string) => void;
   }
->(function PanouPinnedProjectsSection({ onProjectUnpinned, onProjectUpdated }, ref) {
+>(function PanouPinnedProjectsSection({ onProjectUnpinned, onProjectUpdated, onOpenReport }, ref) {
   const { showToast } = useToast();
   const [projects, setProjects] = useState<PinnedProjectSummaryRow[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
@@ -367,6 +371,7 @@ export const PanouPinnedProjectsSection = forwardRef<
     toggleExpanded,
     handleUnpinned,
     openEdit,
+    openReport: onOpenReport,
     handleAssembliesChanged: () => void refetchSummary(),
   };
 

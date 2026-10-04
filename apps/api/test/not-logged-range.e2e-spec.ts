@@ -89,6 +89,11 @@ describe('Not logged over a range (e2e)', () => {
     expect(persons.find((person) => person.id === employee1)).toBeUndefined();
   });
 
+  it('leaves out a deactivated account, which cannot log any more', async () => {
+    const persons = await notLogged(days[0], days[4]);
+    expect(persons.find((person) => person.id === FIXTURES.persons.inactive.id)).toBeUndefined();
+  });
+
   it('agrees with the count on the metric card', async () => {
     const persons = await notLogged(days[0], days[4]);
     const metrics = await request(app.getHttpServer())

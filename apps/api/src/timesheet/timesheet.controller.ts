@@ -157,6 +157,12 @@ export class TimesheetController {
     return this.timesheetService.getPinnedProjectsSummary(resolved);
   }
 
+  @Get('project-breakdown/:projectId')
+  @Roles('ADMIN')
+  projectBreakdown(@Param('projectId', new ZodValidationPipe(uuidQuerySchema)) projectId: string) {
+    return this.timesheetService.getProjectBreakdown(projectId);
+  }
+
   @Get('project-summary')
   @Roles('ADMIN')
   projectSummary(@Query() query: Record<string, string>) {

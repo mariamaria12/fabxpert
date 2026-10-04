@@ -8,6 +8,7 @@ import { Prisma } from '@prisma/client';
 import type {
   CreateTimesheetInput,
   PinnedProjectsSummaryResponse,
+  ProjectBreakdownResponse,
   ProjectSummaryResponse,
   PersonSummaryResponse,
   NotLoggedResponse,
@@ -671,6 +672,29 @@ export class TimesheetService {
           piecesPerTon: meta?.piecesPerTon ?? null,
         };
       }),
+    };
+  }
+
+  /** The pinned card's breakdown for any one project, over its whole history. */
+  async getProjectBreakdown(projectId: string): Promise<ProjectBreakdownResponse> {
+    const rows = await this.prisma.$queryRaw<ProjectSummarySqlRow[]>(
+      buildProjectSummaryQuery({ projectIds: [projectId], includeZeroEntryProjects: true }),
+    );
+    if (rows.length === 0) {
+      throw new NotFoundException(`Project with id ${projectId} not found`);
+    }
+
+    const [assemblyIndex, progress] = await Promise.all([
+      this.loadProjectAssemblyProgress(rows, 'all'),
+      loadProjectProgress(this.prisma, [projectId]),
+    ]);
+    const [project] = shapePinnedProjectsSummary(rows, assemblyIndex).projects;
+
+    return {
+      id: project.id,
+      progressPercent: progress.get(projectId) ?? null,
+      totalMinutes: project.totalMinutes,
+      activities: project.activities,
     };
   }
 

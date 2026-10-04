@@ -1,7 +1,7 @@
 'use client';
 
 import type { EmployeeRoleDto, ProjectVisibleRoleDto } from '@fabxpert/shared';
-import { useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { buildStableIndexMap, getRolePaletteColor } from '@/components/roleColors';
 import { getProjectFormEmployeeRoles } from '@/utils/projectFormLookups';
 
@@ -36,16 +36,21 @@ function ReadOnlyRoleChip({ name, color }: { name: string; color: string }) {
   );
 }
 
-function useRoleColorById(): Map<string, string> {
+/** Loads the roles and gives each its colour; `enabled` false skips the request. */
+function useLoadedRoleColors(enabled: boolean): Map<string, string> {
   const [employeeRoles, setEmployeeRoles] = useState<EmployeeRoleDto[]>([]);
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     void getProjectFormEmployeeRoles()
       .then(setEmployeeRoles)
       .catch(() => {
         setEmployeeRoles([]);
       });
-  }, []);
+  }, [enabled]);
 
   return useMemo(() => {
     const stableIndexById = buildStableIndexMap(employeeRoles);
@@ -57,6 +62,24 @@ function useRoleColorById(): Map<string, string> {
 
     return colors;
   }, [employeeRoles]);
+}
+
+const RoleColorsContext = createContext<Map<string, string> | null>(null);
+
+/**
+ * One roles request for every chip underneath. Cards and table rows mount at
+ * different moments, so without it each batch asks for the same list again.
+ */
+export function ProjectRoleColorsProvider({ children }: { children: ReactNode }) {
+  const colors = useLoadedRoleColors(true);
+  return <RoleColorsContext.Provider value={colors}>{children}</RoleColorsContext.Provider>;
+}
+
+/** The provider's colours when there is one; otherwise the chip loads its own. */
+function useRoleColorById(): Map<string, string> {
+  const shared = useContext(RoleColorsContext);
+  const own = useLoadedRoleColors(shared === null);
+  return shared ?? own;
 }
 
 function roleChipColor(role: ProjectVisibleRoleDto, roleColorById: Map<string, string>): string {

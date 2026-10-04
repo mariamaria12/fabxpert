@@ -71,3 +71,11 @@ export type PersonDto = {
 export const PERSON_LIST_SORT_BY_VALUES = ['name'] as const;
 
 export type PersonListSortBy = (typeof PERSON_LIST_SORT_BY_VALUES)[number];
+
+/**
+ * Splits the person list by login account: `active` has an account that can
+ * sign in, `none` has no account at all or only a deactivated one.
+ */
+export const PERSON_ACCOUNT_FILTER_VALUES = ['active', 'none'] as const;
+
+export type PersonAccountFilter = (typeof PERSON_ACCOUNT_FILTER_VALUES)[number];

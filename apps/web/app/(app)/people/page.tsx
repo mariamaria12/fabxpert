@@ -2,11 +2,12 @@
 
 import {
   listPersons,
+  type PersonAccountFilter,
   type PersonDto,
   type PersonListSortBy,
   type SortOrder,
 } from '@fabxpert/shared';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { PersonFormPanel } from './PersonFormPanel';
 import { CLIENT_SEARCH_FETCH_SIZE, paginateSlice, personMatchesSearch } from './personSearch';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
@@ -17,7 +18,6 @@ import { Pagination } from '@/components/Pagination';
 import { PersonAvatar } from '@/components/PersonAvatar';
 import { useSearchAutofillProps } from '@/components/inputAutofill';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
-import { replaceById } from '@/utils/replaceById';
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -73,21 +73,146 @@ type PanelState =
   | { open: true; mode: 'create'; person: null }
   | { open: true; mode: 'edit'; person: PersonDto };
 
+/**
+ * One table of the page: the people with an account that can sign in, or the
+ * ones without. Each pages and sorts on its own; the search is shared.
+ */
+function PersonTableSection({
+  account,
+  title,
+  storageKey,
+  search,
+  refreshToken,
+  onEdit,
+  onLoaded,
+}: {
+  account: PersonAccountFilter;
+  /** Left out for the main table, which the page heading already names. */
+  title?: ReactNode;
+  storageKey: string;
+  search: string;
+  /** Bumped by the page after a save, so both tables read the change. */
+  refreshToken: number;
+  onEdit: (person: PersonDto) => void;
+  /** Reports how many people match, or null while that is not known. */
+  onLoaded: (account: PersonAccountFilter, total: number | null) => void;
+}) {
+  const [page, setPage] = useState(1);
+  const [persons, setPersons] = useState<PersonDto[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<PersonListSortBy>(DEFAULT_SORT_BY);
+  const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  const loadPersons = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const listParams = {
+        page: search ? 1 : page,
+        pageSize: search ? CLIENT_SEARCH_FETCH_SIZE : PAGE_SIZE,
+        sortBy,
+        sortOrder,
+        account,
+      };
+
+      if (search) {
+        // TODO: switch to server-side ?search= when Person list API supports it.
+        const response = await listPersons(listParams);
+        const filtered = response.data.filter((person) => personMatchesSearch(person, search));
+        setPersons(paginateSlice(filtered, page, PAGE_SIZE));
+        setTotal(filtered.length);
+        onLoaded(account, filtered.length);
+      } else {
+        const response = await listPersons(listParams);
+        setPersons(response.data);
+        setTotal(response.meta.total);
+        onLoaded(account, response.meta.total);
+      }
+    } catch (caught) {
+      setError(apiErrorToastMessage(caught));
+      onLoaded(account, null);
+    } finally {
+      setLoading(false);
+    }
+  }, [account, page, search, sortBy, sortOrder, onLoaded]);
+
+  useEffect(() => {
+    void loadPersons();
+  }, [loadPersons, refreshToken]);
+
+  function handleSortChange(nextSortBy: string, nextSortOrder: SortOrder) {
+    setSortBy(nextSortBy as PersonListSortBy);
+    setSortOrder(nextSortOrder);
+    setPage(1);
+  }
+
+  const columns = useMemo(
+    () => [...personColumns, editActionColumn<PersonDto>(onEdit, 'Editează persoana')],
+    [onEdit],
+  );
+
+  if (error) {
+    return (
+      <div className="mt-4 flex items-center justify-between gap-4 rounded-md border border-border-subtle bg-[var(--color-toast-error-bg)] px-4 py-3">
+        <p className="text-sm text-danger">{error}</p>
+        <button
+          type="button"
+          onClick={() => void loadPersons()}
+          className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary"
+        >
+          Reîncearcă
+        </button>
+      </div>
+    );
+  }
+
+  // An empty table says nothing the page doesn't already: it shows its own
+  // message when nobody matches at all.
+  if (!loading && total === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-3 sm:mt-6">
+      <DataTable
+        title={title}
+        storageKey={storageKey}
+        columns={columns}
+        data={persons}
+        rowKey={(row) => row.id}
+        loading={loading}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortChange={handleSortChange}
+      />
+      {!loading && total > 0 && (
+        <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
+      )}
+    </div>
+  );
+}
+
 export default function PeoplePage() {
   const searchAutofill = useSearchAutofillProps();
-  const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const isMobile = useIsMobile();
   // Phones keep the search bar behind the toggle, like the projects list.
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [persons, setPersons] = useState<PersonDto[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  /** How many people each table found; null until it has answered. */
+  const [totals, setTotals] = useState<Record<PersonAccountFilter, number | null>>({
+    active: null,
+    none: null,
+  });
+  const [refreshToken, setRefreshToken] = useState(0);
   const [panel, setPanel] = useState<PanelState>({ open: false });
-  const [sortBy, setSortBy] = useState<PersonListSortBy>(DEFAULT_SORT_BY);
-  const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -96,82 +221,32 @@ export default function PeoplePage() {
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch]);
-
-  const loadPersons = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const listParams = {
-        page: debouncedSearch ? 1 : page,
-        pageSize: debouncedSearch ? CLIENT_SEARCH_FETCH_SIZE : PAGE_SIZE,
-        sortBy,
-        sortOrder,
-      };
-
-      if (debouncedSearch) {
-        // TODO: switch to server-side ?search= when Person list API supports it.
-        const response = await listPersons(listParams);
-        const filtered = response.data.filter((person) =>
-          personMatchesSearch(person, debouncedSearch),
-        );
-        setPersons(paginateSlice(filtered, page, PAGE_SIZE));
-        setTotal(filtered.length);
-      } else {
-        const response = await listPersons(listParams);
-        setPersons(response.data);
-        setTotal(response.meta.total);
-      }
-    } catch (caught) {
-      setError(apiErrorToastMessage(caught));
-    } finally {
-      setLoading(false);
-    }
-  }, [page, debouncedSearch, sortBy, sortOrder]);
-
-  useEffect(() => {
-    void loadPersons();
-  }, [loadPersons]);
-
-  function handleSortChange(nextSortBy: string, nextSortOrder: SortOrder) {
-    setSortBy(nextSortBy as PersonListSortBy);
-    setSortOrder(nextSortOrder);
-    setPage(1);
-  }
+  const handleLoaded = useCallback((account: PersonAccountFilter, total: number | null) => {
+    setTotals((current) =>
+      current[account] === total ? current : { ...current, [account]: total },
+    );
+  }, []);
 
   function openCreate() {
     setPanel({ open: true, mode: 'create', person: null });
   }
 
-  function openEdit(person: PersonDto) {
+  const openEdit = useCallback((person: PersonDto) => {
     setPanel({ open: true, mode: 'edit', person });
-  }
+  }, []);
 
   function closePanel() {
     setPanel({ open: false });
   }
 
-  const columns = useMemo(
-    () => [...personColumns, editActionColumn<PersonDto>((row) => openEdit(row), 'Editează persoana')],
-    [],
-  );
-
-  function handleSaved(updated?: PersonDto) {
-    if (updated) {
-      setPersons((current) => replaceById(current, updated));
-      return;
-    }
-
-    void loadPersons();
+  function handleSaved() {
+    setRefreshToken((token) => token + 1);
   }
 
   const hasActiveSearch = debouncedSearch.length > 0;
-  const showEmptyState = !loading && !error && total === 0 && !hasActiveSearch;
-  const showNoSearchResults = !loading && !error && total === 0 && hasActiveSearch;
-  const showDataTable = loading || total > 0;
+  const nobodyFound = totals.active === 0 && totals.none === 0;
+  const showEmptyState = nobodyFound && !hasActiveSearch;
+  const showNoSearchResults = nobodyFound && hasActiveSearch;
 
   return (
     <div className="flex h-full flex-col">
@@ -193,19 +268,6 @@ export default function PeoplePage() {
           </button>
         )}
       </div>
-
-      {error && (
-        <div className="mt-4 flex items-center justify-between gap-4 rounded-md border border-border-subtle bg-[var(--color-toast-error-bg)] px-4 py-3">
-          <p className="text-sm text-danger">{error}</p>
-          <button
-            type="button"
-            onClick={() => void loadPersons()}
-            className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary"
-          >
-            Reîncearcă
-          </button>
-        </div>
-      )}
 
       {!showEmptyState && (!isMobile || mobileFiltersOpen) && (
         <div className="mt-3 sm:mt-4">
@@ -240,23 +302,23 @@ export default function PeoplePage() {
         </div>
       )}
 
-      {showDataTable && (
-        <div className="mt-3 sm:mt-6">
-          <DataTable
-            storageKey="people-list"
-            columns={columns}
-            data={persons}
-            rowKey={(row) => row.id}
-            loading={loading}
-            sortBy={sortBy}
-            sortOrder={sortOrder}
-            onSortChange={handleSortChange}
-          />
-          {!loading && total > 0 && (
-            <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
-          )}
-        </div>
-      )}
+      <PersonTableSection
+        account="active"
+        storageKey="people-list"
+        search={debouncedSearch}
+        refreshToken={refreshToken}
+        onEdit={openEdit}
+        onLoaded={handleLoaded}
+      />
+      <PersonTableSection
+        account="none"
+        title={<h2 className="text-sm font-medium text-text-secondary">Persoane fără cont</h2>}
+        storageKey="people-list-no-account"
+        search={debouncedSearch}
+        refreshToken={refreshToken}
+        onEdit={openEdit}
+        onLoaded={handleLoaded}
+      />
 
       {panel.open && (
         <PersonFormPanel

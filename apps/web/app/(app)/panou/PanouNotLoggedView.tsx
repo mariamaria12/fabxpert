@@ -309,12 +309,6 @@ export function PanouNotLoggedView() {
 
       {!error && !waitingForCustomRange && (
         <>
-          <p className="text-xs text-text-muted">
-            Apare oricine are cel puțin o zi lucrătoare din perioadă fără pontaj, până azi
-            inclusiv. Zilele de concediu aprobat nu contează ca lipsă. Conturile de administrator și
-            cele office nu sunt incluse.
-          </p>
-
           {PANOU_PERSON_GROUPS.filter(
             ({ group }) => group !== 'external' || includeExternalCollaborators,
           ).map(({ group, title }) => {
