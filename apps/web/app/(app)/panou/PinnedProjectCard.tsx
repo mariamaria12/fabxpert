@@ -14,6 +14,7 @@ import { ActivityBreakdownRows } from './ActivityBreakdownRows';
 import type { PanouReturnPoint } from './panouReturnPoint';
 import { allTimePeriod } from '@/utils/timesheetListNavigation';
 import { NEUTRAL_ACCENT, panouAccentTint } from './panouColors';
+import { ProjectTasksLink } from '@/components/ProjectTasksLink';
 import { PanouProjectCard } from './PanouProjectCard';
 import { pinToggleToastMessage } from './ProjectPinButton';
 import type { DraggableAttributes } from '@dnd-kit/core';
@@ -200,6 +201,7 @@ export function PinnedProjectCard({
       sideActions={
         <>
           <PinnedProjectReportButton onOpen={onOpenReport} />
+          <ProjectTasksLink projectId={project.id} variant="icon" />
           {project.assemblyCount > 0 && (
             <PinnedProjectAssembliesButton
               count={project.assemblyCount}

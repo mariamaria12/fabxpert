@@ -18,6 +18,7 @@ import { LeaveModule } from './leave/leave.module';
 import { OvertimeModule } from './overtime/overtime.module';
 import { NotificationModule } from './notification/notification.module';
 import { PollModule } from './poll/poll.module';
+import { TaskModule } from './task/task.module';
 import { UserModule } from './user/user.module';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -39,6 +40,7 @@ import { PrismaModule } from './prisma/prisma.module';
     OvertimeModule,
     NotificationModule,
     PollModule,
+    TaskModule,
   ],
   controllers: [AppController],
   providers: [

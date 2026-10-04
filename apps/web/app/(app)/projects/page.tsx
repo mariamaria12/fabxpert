@@ -40,6 +40,7 @@ import { replaceById } from '@/utils/replaceById';
 import { formatProjectEstimatedHours } from '@/utils/projectEstimatedHours';
 import { formatProjectWeight } from '@/utils/projectWeight';
 import { formatProjectWeldLength } from '@/utils/projectWeldLength';
+import { ProjectTasksLink } from '@/components/ProjectTasksLink';
 import {
   ProjectRoleColorsProvider,
   ProjectVisibleForCell,
@@ -310,6 +311,13 @@ export default function ProjectsPage() {
         width: '110px',
         className: 'text-center',
         render: (row) => <ProjectAssemblyCountCell project={row} />,
+      },
+      {
+        key: 'tasks',
+        header: 'Task-uri',
+        width: '100px',
+        className: 'text-center',
+        render: (row) => <ProjectTasksLink projectId={row.id} variant="cell" />,
       },
       {
         key: 'visibleForRoles',

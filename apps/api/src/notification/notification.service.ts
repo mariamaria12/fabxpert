@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import type { NotificationKind, NotificationSource, Prisma } from '@prisma/client';
 import type {
   NotificationDto,
+  NotificationInboxResponse,
   PushSubscriptionInput,
 } from '@fabxpert/shared/dto/notification.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -21,7 +22,23 @@ export type CreateNotificationParams = {
   createdByUserId?: string;
   /** Set on POLL notifications so answering can clear this exact nudge. */
   pollId?: string;
+  /** Set on TASK_* notifications — the task the inbox opens. */
+  taskId?: string;
 };
+
+/** What the web inbox lists: the task notifications, which only admins get. */
+const INBOX_KINDS: NotificationKind[] = ['TASK_ASSIGNED', 'TASK_COMPLETED'];
+const INBOX_LIMIT = 30;
+
+/** A notification about a removed task has nothing left to open. */
+function inboxWhere(userId: string) {
+  return {
+    userId,
+    kind: { in: INBOX_KINDS },
+    dismissedAt: null,
+    task: { deletedAt: null },
+  } satisfies Prisma.NotificationWhereInput;
+}
 
 function toDto(notification: NotificationWithAuthor): NotificationDto {
   const person = notification.createdBy?.person;
@@ -34,6 +51,8 @@ function toDto(notification: NotificationWithAuthor): NotificationDto {
     createdAt: notification.createdAt.toISOString(),
     createdByName: person ? formatPersonName(person) : null,
     pollId: notification.pollId,
+    taskId: notification.taskId,
+    readAt: notification.readAt?.toISOString() ?? null,
   };
 }
 
@@ -56,16 +75,64 @@ export class NotificationService {
 
   /** Stores the notification and pushes it to the user's devices. */
   async create(params: CreateNotificationParams): Promise<NotificationDto> {
-    const { userId, kind, title, body, source = 'SYSTEM', createdByUserId, pollId } = params;
+    const {
+      userId,
+      kind,
+      title,
+      body,
+      source = 'SYSTEM',
+      createdByUserId,
+      pollId,
+      taskId,
+    } = params;
 
     const created = await this.prisma.notification.create({
-      data: { userId, kind, title, body, source, createdByUserId, pollId },
+      data: { userId, kind, title, body, source, createdByUserId, pollId, taskId },
       include: { createdBy: { include: { person: true } } },
     });
 
     await this.push.sendToUser(userId, { title, body, tag: created.id });
 
     return toDto(created);
+  }
+
+  /** The latest task notifications for the bell, read ones included. */
+  async inboxForUser(userId: string): Promise<NotificationInboxResponse> {
+    const where = inboxWhere(userId);
+    const [notifications, unreadCount] = await Promise.all([
+      this.prisma.notification.findMany({
+        where,
+        include: { createdBy: { include: { person: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: INBOX_LIMIT,
+      }),
+      this.prisma.notification.count({ where: { ...where, readAt: null } }),
+    ]);
+
+    return { notifications: notifications.map(toDto), unreadCount };
+  }
+
+  /** Marks one notification as seen. Idempotent — the first read time is kept. */
+  async markRead(userId: string, notificationId: string): Promise<void> {
+    const notification = await this.prisma.notification.findFirst({
+      where: { id: notificationId, userId },
+      select: { id: true },
+    });
+    if (!notification) {
+      throw new NotFoundException('Notification not found');
+    }
+
+    await this.prisma.notification.updateMany({
+      where: { id: notificationId, readAt: null },
+      data: { readAt: new Date() },
+    });
+  }
+
+  async markInboxRead(userId: string): Promise<void> {
+    await this.prisma.notification.updateMany({
+      where: { ...inboxWhere(userId), readAt: null },
+      data: { readAt: new Date() },
+    });
   }
 
   /**

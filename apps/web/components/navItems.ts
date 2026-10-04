@@ -1,7 +1,7 @@
 // Routes are English; visible labels stay Romanian. /concedii uses Romanian path by product choice.
 
 /** Sidebar counters, each fed by its own context. */
-export type NavBadgeKey = 'leavePending' | 'overtimePending';
+export type NavBadgeKey = 'leavePending' | 'overtimePending' | 'taskAttention';
 
 export type NavItem = {
   href: string;
@@ -16,13 +16,14 @@ export type NavGroup = {
   items: NavItem[];
 };
 
-/** The four everyday screens first; the rest grouped by what they manage. */
+/** The everyday screens first; the rest grouped by what they manage. */
 export const NAV_GROUPS: readonly NavGroup[] = [
   {
     label: 'Operare',
     items: [
       { href: '/', icon: 'ti-layout-dashboard', label: 'Panou' },
       { href: '/projects', icon: 'ti-clipboard-list', label: 'Proiecte' },
+      { href: '/tasks', icon: 'ti-list-check', label: 'Task-uri', badgeKey: 'taskAttention' },
       { href: '/timesheets', icon: 'ti-clock', label: 'Pontaj', badgeKey: 'overtimePending' },
       { href: '/concedii', icon: 'ti-calendar-off', label: 'Concedii', badgeKey: 'leavePending' },
     ],

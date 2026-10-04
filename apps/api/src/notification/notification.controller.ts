@@ -14,6 +14,7 @@ import {
   sendTimesheetReminderSchema,
   unsubscribePushSchema,
   type NotificationDto,
+  type NotificationInboxResponse,
   type PushPublicKeyResponse,
   type PushSubscriptionInput,
   type SendTimesheetReminderInput,
@@ -41,6 +42,29 @@ export class NotificationController {
   @Get()
   listMine(@CurrentUser() user: AuthenticatedUser): Promise<NotificationDto[]> {
     return this.notificationService.listForUser(user.id);
+  }
+
+  /** The web inbox behind the bell. */
+  @Get('inbox')
+  @Roles('ADMIN')
+  inbox(@CurrentUser() user: AuthenticatedUser): Promise<NotificationInboxResponse> {
+    return this.notificationService.inboxForUser(user.id);
+  }
+
+  @Post('inbox/read-all')
+  @Roles('ADMIN')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  markInboxRead(@CurrentUser() user: AuthenticatedUser): Promise<void> {
+    return this.notificationService.markInboxRead(user.id);
+  }
+
+  @Post(':id/read')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  markRead(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ZodValidationPipe(idParamSchema)) id: string,
+  ): Promise<void> {
+    return this.notificationService.markRead(user.id, id);
   }
 
   @Post(':id/dismiss')

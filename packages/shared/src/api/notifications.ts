@@ -1,6 +1,7 @@
 import { request } from './client';
 import type {
   NotificationDto,
+  NotificationInboxResponse,
   PushPublicKeyResponse,
   PushSubscriptionInput,
   SendTimesheetReminderResponse,
@@ -13,6 +14,19 @@ export function listMyNotifications(): Promise<NotificationDto[]> {
 
 export function dismissNotification(id: string): Promise<void> {
   return request<void>(`/notifications/${id}/dismiss`, { method: 'POST' });
+}
+
+/** Admin only — the latest task notifications, read ones included. */
+export function getNotificationInbox(): Promise<NotificationInboxResponse> {
+  return request<NotificationInboxResponse>('/notifications/inbox');
+}
+
+export function markNotificationRead(id: string): Promise<void> {
+  return request<void>(`/notifications/${id}/read`, { method: 'POST' });
+}
+
+export function markAllNotificationsRead(): Promise<void> {
+  return request<void>('/notifications/inbox/read-all', { method: 'POST' });
 }
 
 export function getPushPublicKey(): Promise<PushPublicKeyResponse> {

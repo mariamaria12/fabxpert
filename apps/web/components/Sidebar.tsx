@@ -8,6 +8,8 @@ import { InitialsAvatar, PersonAvatar } from '@/components/PersonAvatar';
 import { clearCachedSessionUser } from '@/utils/sessionUserCache';
 import { useLeavePendingCount } from '@/context/LeavePendingCountContext';
 import { useOvertimePendingCount } from '@/context/OvertimePendingCountContext';
+import { useTasks } from '@/context/TasksContext';
+import { NotificationBell } from '@/components/NotificationBell';
 import { isNavItemActive, NAV_GROUPS, type NavBadgeKey } from '@/components/navItems';
 import { useTheme } from '@/hooks/useTheme';
 import { nextTheme, THEMES } from '@/utils/theme';
@@ -37,11 +39,13 @@ export function Sidebar({
   const router = useRouter();
   const { pendingCount: leavePendingCount } = useLeavePendingCount();
   const { pendingCount: overtimePendingCount } = useOvertimePendingCount();
+  const { attentionCount: taskAttentionCount } = useTasks();
   const { theme, setTheme } = useTheme();
 
   const badgeCounts: Record<NavBadgeKey, number> = {
     leavePending: leavePendingCount,
     overtimePending: overtimePendingCount,
+    taskAttention: taskAttentionCount,
   };
   const themeMeta = THEMES.find((item) => item.id === theme) ?? THEMES[0];
 
@@ -151,8 +155,11 @@ export function Sidebar({
         ))}
       </nav>
 
-      {/* Theme switch — cycles through THEMES */}
-      <div className={`mt-auto px-2 pb-2 ${collapsed ? 'flex justify-center' : ''}`}>
+      {/* Notifications, then the theme switch — cycles through THEMES */}
+      <div className="mt-auto px-2">
+        <NotificationBell collapsed={collapsed} onNavigate={onNavigate} />
+      </div>
+      <div className={`px-2 pb-2 ${collapsed ? 'flex justify-center' : ''}`}>
         <button
           type="button"
           onClick={() => setTheme(nextTheme(theme))}
