@@ -51,6 +51,8 @@ enum NotificationKind {
   TIMESHEET_REMINDER // "You haven't logged time yet" nudge, sent by an admin
   ANNOUNCEMENT // Free-text message (admin-sent)
   POLL // A poll was published and is waiting for an answer
+  TASK_ASSIGNED // An admin gave the user a task
+  TASK_COMPLETED // A task the user created was finished by someone else
 }
 
 enum NotificationSource {
@@ -62,6 +64,26 @@ enum PollStatus {
   DRAFT // Being written by an admin; employees don't see it
   OPEN // Published — collecting answers
   CLOSED // No longer accepting answers; results stay readable
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum TaskPriority {
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum TaskEventType {
+  CREATED
+  STATUS_CHANGED
+  ASSIGNEE_CHANGED
+  DUE_DATE_CHANGED
+  PRIORITY_CHANGED
 }
 
 // ---------------------------------------------------------------------------
@@ -202,6 +224,11 @@ model User {
   accountingPresences        AccountingPresence[]        @relation("AccountingPresenceMarkedBy")
   manualAssemblyProgress     AssemblyManualProgress[]
 
+  assignedTasks Task[]        @relation("TaskAssignee")
+  createdTasks  Task[]        @relation("TaskAuthor")
+  taskComments  TaskComment[]
+  taskEvents    TaskEvent[]
+
   @@map("users")
 }
 
@@ -284,6 +311,8 @@ model Project {
   timesheets Timesheet[]
 
   assemblies ProjectAssembly[]
+
+  tasks Task[]
 
   visibleForRoles EmployeeRole[]
 
@@ -567,6 +596,9 @@ model Notification {
   body        String
   createdAt   DateTime           @default(now())
   dismissedAt DateTime?
+  /// Set once the user saw it in the web inbox. Unlike `dismissedAt`, a read
+  /// notification stays in the list.
+  readAt      DateTime?
 
   userId String
   user   User   @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
@@ -578,6 +610,10 @@ model Notification {
   /// Set on POLL notifications; cleared automatically once the user answers.
   pollId String?
   poll   Poll?   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+  /// Set on TASK_* notifications — clicking one opens this task.
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   /// Drives the mobile "what's still on screen" fetch.
   @@index([userId, dismissedAt, createdAt])
@@ -813,4 +849,112 @@ model AssemblyManualProgress {
   /// Doubles as the index the grouped progress query reads.
   @@unique([assemblyId, activityId])
   @@map("assembly_manual_progress")
+}
+
+// ---------------------------------------------------------------------------
+// Task
+// A piece of office work one admin hands to another, always on a project:
+// who does what, for which project, by when. "Overdue" is never stored — it
+// is `dueDate` in the past on a task that is not DONE.
+// ---------------------------------------------------------------------------
+
+model Task {
+  id          String       @id @default(uuid())
+  title       String
+  description String?
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(NORMAL)
+  /// Calendar day at midnight — same convention as Timesheet.workDate.
+  dueDate     DateTime?
+  /// Set when the task enters DONE, and cleared if it leaves it.
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  assigneeUserId String
+  assignee       User   @relation("TaskAssignee", fields: [assigneeUserId], references: [id])
+
+  createdByUserId String
+  createdBy       User   @relation("TaskAuthor", fields: [createdByUserId], references: [id])
+
+  checklistItems TaskChecklistItem[]
+  comments       TaskComment[]
+  events         TaskEvent[]
+  notifications  Notification[]
+
+  /// "Ale mele" and the sidebar badge: one person's open tasks.
+  @@index([assigneeUserId, status, deletedAt])
+  /// A project's tasks, and the per-project counters.
+  @@index([projectId, deletedAt])
+  @@map("tasks")
+}
+
+// ---------------------------------------------------------------------------
+// TaskChecklistItem
+// A step ticked off inside a task. Flat on purpose — no nesting.
+// ---------------------------------------------------------------------------
+
+model TaskChecklistItem {
+  id        String   @id @default(uuid())
+  text      String
+  isDone    Boolean  @default(false)
+  position  Int
+  createdAt DateTime @default(now())
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, position])
+  @@map("task_checklist_items")
+}
+
+// ---------------------------------------------------------------------------
+// TaskComment
+// What admins write to each other on a task. Kept apart from TaskEvent, which
+// the app writes on its own.
+// ---------------------------------------------------------------------------
+
+model TaskComment {
+  id        String   @id @default(uuid())
+  body      String
+  createdAt DateTime @default(now())
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  authorUserId String
+  author       User   @relation(fields: [authorUserId], references: [id])
+
+  @@index([taskId, createdAt])
+  @@map("task_comments")
+}
+
+// ---------------------------------------------------------------------------
+// TaskEvent
+// The task's history, written by the app as things change. Not named Activity:
+// that is the work activity logged on timesheets.
+// ---------------------------------------------------------------------------
+
+model TaskEvent {
+  id        String        @id @default(uuid())
+  type      TaskEventType
+  /// The value before and after, as stored: a status, a priority, a
+  /// `YYYY-MM-DD` day, or the assignee's name at that moment.
+  fromValue String?
+  toValue   String?
+  createdAt DateTime      @default(now())
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  /// Null for events the app raises on its own.
+  actorUserId String?
+  actor       User?   @relation(fields: [actorUserId], references: [id])
+
+  @@index([taskId, createdAt])
+  @@map("task_events")
 }

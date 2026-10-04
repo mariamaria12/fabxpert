@@ -455,6 +455,9 @@ export type {
 export {
   listMyNotifications,
   dismissNotification,
+  getNotificationInbox,
+  markNotificationRead,
+  markAllNotificationsRead,
   getPushPublicKey,
   subscribeToPush,
   unsubscribeFromPush,
@@ -469,6 +472,7 @@ export {
 } from './dto/notification.dto';
 export type {
   NotificationDto,
+  NotificationInboxResponse,
   NotificationKind,
   NotificationSource,
   PushPublicKeyResponse,
@@ -515,6 +519,72 @@ export {
   formatPollAnswerCount,
   formatPollDeadline,
 } from './pollLabels';
+
+export {
+  listTasks,
+  getTask,
+  createTask,
+  updateTask,
+  deleteTask,
+  listTaskAssignees,
+  getTaskAttentionCount,
+  listProjectTaskCounts,
+  addTaskChecklistItem,
+  updateTaskChecklistItem,
+  deleteTaskChecklistItem,
+  addTaskComment,
+  subscribeToTasks,
+} from './api/tasks';
+export {
+  TASK_STATUS_VALUES,
+  TASK_PRIORITY_VALUES,
+  TASK_EVENT_TYPE_VALUES,
+  TASK_LIST_SCOPE_VALUES,
+  TASK_TITLE_MAX_LENGTH,
+  TASK_DESCRIPTION_MAX_LENGTH,
+  TASK_CHECKLIST_TEXT_MAX_LENGTH,
+  TASK_CHECKLIST_MAX_ITEMS,
+  TASK_COMMENT_MAX_LENGTH,
+  TASK_DONE_LIST_LIMIT,
+  createTaskSchema,
+  updateTaskSchema,
+  createTaskChecklistItemSchema,
+  updateTaskChecklistItemSchema,
+  createTaskCommentSchema,
+} from './dto/task.dto';
+export type {
+  TaskStatus,
+  TaskPriority,
+  TaskEventType,
+  TaskListScope,
+  CreateTaskInput,
+  UpdateTaskInput,
+  CreateTaskChecklistItemInput,
+  UpdateTaskChecklistItemInput,
+  CreateTaskCommentInput,
+  TaskUserDto,
+  TaskProjectDto,
+  TaskDto,
+  TaskChecklistItemDto,
+  TaskCommentDto,
+  TaskEventDto,
+  TaskDetailDto,
+  ListTasksParams,
+  TaskAttentionCountResponse,
+  ProjectTaskCountsDto,
+  TaskStreamEvent,
+} from './dto/task.dto';
+export {
+  getTaskStatusLabel,
+  getTaskPriorityLabel,
+  taskDueState,
+  isTaskOverdue,
+  taskNeedsAttention,
+  formatTaskDueDate,
+  compareTasksByUrgency,
+  formatTaskCount,
+} from './tasks';
+export type { TaskDueState } from './tasks';
 
 export {
   listProjectAssemblies,

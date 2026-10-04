@@ -15,6 +15,8 @@ import { navLabelForPathname } from '@/components/navItems';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { Sidebar } from './Sidebar';
 import { TimesheetNotificationSlot } from './TimesheetNotificationSlot';
+import { TaskNotificationSlot } from './TaskNotificationSlot';
+import { TasksProvider } from '@/context/TasksContext';
 import { TimesheetEventsProvider } from '@/context/TimesheetEventsContext';
 
 const SIDEBAR_COLLAPSED_KEY = 'fabxpert.sidebar-collapsed';
@@ -164,6 +166,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <AuthUserProvider user={user}>
       <MobileHeaderSlotProvider value={headerSlot}>
       <TimesheetEventsProvider enabled={authReady}>
+      <TasksProvider enabled={authReady}>
         {/* Exposes the sidebar width so overlays (e.g. SlideOverPanel) can stop at it. */}
         <div
           className="flex min-h-dvh bg-bg"
@@ -220,9 +223,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <main className="relative min-w-0 flex-1 overflow-x-hidden px-4 pb-6 pt-3 sm:p-6">
               {children}
               <TimesheetNotificationSlot />
+              <TaskNotificationSlot />
             </main>
           </div>
         </div>
+      </TasksProvider>
       </TimesheetEventsProvider>
       </MobileHeaderSlotProvider>
     </AuthUserProvider>

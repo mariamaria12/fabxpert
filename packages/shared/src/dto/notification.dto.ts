@@ -4,6 +4,8 @@ export const NOTIFICATION_KIND_VALUES = [
   'TIMESHEET_REMINDER',
   'ANNOUNCEMENT',
   'POLL',
+  'TASK_ASSIGNED',
+  'TASK_COMPLETED',
 ] as const;
 export const NOTIFICATION_SOURCE_VALUES = ['SYSTEM', 'ADMIN'] as const;
 
@@ -21,6 +23,16 @@ export interface NotificationDto {
   createdByName: string | null;
   /** Set on POLL notifications — lets the app clear this exact one on answer. */
   pollId: string | null;
+  /** Set on TASK_* notifications — the task to open. */
+  taskId: string | null;
+  /** When the user saw it in the web inbox; null while unread. */
+  readAt: string | null;
+}
+
+/** The web inbox behind the bell: the latest notifications, read ones included. */
+export interface NotificationInboxResponse {
+  notifications: NotificationDto[];
+  unreadCount: number;
 }
 
 /** Browser `PushSubscription` fields the API needs to send a push later. */

@@ -69,6 +69,14 @@
       "types": "./dist/dto/poll.dto.d.ts",
       "default": "./dist/dto/poll.dto.js"
     },
+    "./dto/task.dto": {
+      "types": "./dist/dto/task.dto.d.ts",
+      "default": "./dist/dto/task.dto.js"
+    },
+    "./tasks": {
+      "types": "./dist/tasks.d.ts",
+      "default": "./dist/tasks.js"
+    },
     "./companyImport": {
       "types": "./dist/companyImport.d.ts",
       "default": "./dist/companyImport.js"
