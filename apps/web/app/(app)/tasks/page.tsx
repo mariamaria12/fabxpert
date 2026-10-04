@@ -20,9 +20,9 @@ import { useReloadOnTasksChanged } from '@/context/TasksContext';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { TaskAttentionSummary } from './TaskAttentionSummary';
+import { TaskBoard } from './TaskBoard';
 import { TaskDetailPanel } from './TaskDetailPanel';
 import { TaskFormPanel } from './TaskFormPanel';
-import { TaskList } from './TaskList';
 import { filterTasks, type TaskDueFilter, type TaskStatusFilter } from './taskFilters';
 import { useTaskLookups } from './useTaskLookups';
 
@@ -146,11 +146,24 @@ export default function TasksPage() {
 
   async function handleStatusChange(task: TaskDto, nextStatus: TaskStatus) {
     setPendingTaskId(task.id);
+    // The card lands in its new column at once; the reload confirms it, or puts it back.
+    setTasks((current) =>
+      current.map((item) =>
+        item.id === task.id
+          ? {
+              ...item,
+              status: nextStatus,
+              completedAt: nextStatus === 'DONE' ? new Date().toISOString() : null,
+            }
+          : item,
+      ),
+    );
     try {
       await updateTask(task.id, { status: nextStatus });
       await load();
     } catch (caught) {
       showToast(apiErrorToastMessage(caught), 'error');
+      await load();
     } finally {
       setPendingTaskId(null);
     }
@@ -325,12 +338,12 @@ export default function TasksPage() {
               Creează unul pentru tine sau pentru un coleg.
             </p>
           </div>
-        ) : nothingToShow ? (
+        ) : nothingToShow && hasFilters ? (
           <p className="rounded-md border border-border-subtle bg-surface px-4 py-10 text-center text-sm text-text-muted">
             Niciun task nu se potrivește cu filtrele alese.
           </p>
         ) : (
-          <TaskList
+          <TaskBoard
             tasks={visibleTasks}
             showDone={includeDone}
             pendingTaskId={pendingTaskId}

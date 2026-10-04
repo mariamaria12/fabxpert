@@ -33,23 +33,6 @@ export function formatTaskTimestamp(iso: string): string {
   return `${day}, ${time}`;
 }
 
-const PRIORITY_BADGE_CLASS: Record<TaskPriority, string> = {
-  URGENT: 'border-danger-border bg-danger-bg text-danger-text',
-  HIGH: 'border-warning-border bg-warning-bg text-warning-text',
-  // Normal stays quiet on purpose: most tasks are, and the list should not shout.
-  NORMAL: 'border-border-subtle bg-surface-sunken text-text-secondary',
-};
-
-export function TaskPriorityBadge({ priority }: { priority: TaskPriority }) {
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center rounded border px-2 py-0.5 text-xs font-medium ${PRIORITY_BADGE_CLASS[priority]}`}
-    >
-      {getTaskPriorityLabel(priority)}
-    </span>
-  );
-}
-
 /**
  * The color a priority wears wherever it is shown at full strength: the picker,
  * the message bubble and the dots on the panou. `surface` tints a block, `solid`
