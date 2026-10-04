@@ -12,7 +12,11 @@ export function dailyWorkMinutesOf(norm: number | null | undefined): number {
   return norm ?? DAILY_WORK_MINUTES;
 }
 
-/** A worked Saturday is paid as a 7.5h day; only what is logged past it is overtime. */
+/**
+ * What the pontaj app suggests for a Saturday entry. Not a norm: weekend hours
+ * are counted as logged, apart from the balance. It is still the threshold of
+ * the months approved before that split — see `weekendInBalance`.
+ */
 export const SATURDAY_WORK_MINUTES = 450;
 
 /** One day a person logged time on, with everything that day is credited for. */
@@ -21,15 +25,23 @@ export type OvertimeDay = {
   loggedMinutes: number;
   /** Approved leave covering that day — a whole day off is the person's daily norm. */
   leaveMinutes?: number;
-  /** Weekend work is never a debt. Defaults to true. */
+  /** False on a weekend or a public holiday — never a debt. Defaults to true. */
   isWorkingDay?: boolean;
-  /**
-   * A worked Saturday counts as a day at the Saturday norm, so only the hours
-   * past SATURDAY_WORK_MINUTES are overtime. A Sunday stays hour for hour.
-   */
   isSaturday?: boolean;
+  /** A Sunday is counted in its own column, public holiday or not. */
+  isSunday?: boolean;
   /** Today, still being worked. It can earn overtime but cannot owe any yet. */
   isInProgress?: boolean;
+};
+
+export type OvertimeBalanceOptions = {
+  /**
+   * How months approved before weekend hours were counted apart read: a
+   * Saturday is a 7.5h day and only what is logged past it is overtime, a
+   * Sunday or a public holiday is overtime hour for hour. Those months stay as
+   * they were approved; everything after them leaves the weekend out.
+   */
+  weekendInBalance?: boolean;
 };
 
 /**
@@ -37,10 +49,9 @@ export type OvertimeDay = {
  *
  * A working day counts for what it is short of, or over, the person's daily
  * norm: on the default 9h, ten hours is +1h and eight is −1h; on a 6h contract,
- * seven hours is +1h. A Saturday is paid as a worked day of 7.5h,
- * so only what is logged past that is overtime — nine hours on a Saturday is
- * +1h 30m, four hours is nothing. A Sunday has no norm at all: everything
- * logged on it is overtime.
+ * seven hours is +1h. Saturdays, Sundays and public holidays have no norm and
+ * add nothing here: their hours are counted as logged, in columns of their own
+ * (see `weekendMinutes`).
  *
  * Only days the person logged time on are passed in — a day with no timesheet
  * at all is not a debt, it is simply not counted.
@@ -57,9 +68,13 @@ export type OvertimeDay = {
 export function overtimeBalanceMinutes(
   days: OvertimeDay[],
   dailyWorkMinutes = DAILY_WORK_MINUTES,
+  options: OvertimeBalanceOptions = {},
 ): number {
   return days.reduce((sum, day) => {
     if (day.isWorkingDay === false) {
+      if (!options.weekendInBalance) {
+        return sum;
+      }
       return (
         sum +
         (day.isSaturday
@@ -78,6 +93,46 @@ export function countSaturdaysWorked(days: OvertimeDay[]): number {
   return days.filter(
     (day) => day.isWorkingDay === false && day.isSaturday === true && day.loggedMinutes > 0,
   ).length;
+}
+
+/** A day off that is not a Sunday: a Saturday, or a public holiday in the week. */
+function isSaturdayOrHoliday(day: OvertimeDay): boolean {
+  return day.isWorkingDay === false && day.isSunday !== true;
+}
+
+/** Saturdays and public holidays with any time logged — the days behind `saturdayMinutes`. */
+export function countSaturdaysAndHolidaysWorked(days: OvertimeDay[]): number {
+  return days.filter((day) => isSaturdayOrHoliday(day) && day.loggedMinutes > 0).length;
+}
+
+export type WeekendMinutes = {
+  /** Logged on Saturdays and on public holidays that fall in the week. */
+  saturdayMinutes: number;
+  /** Logged on Sundays, a public holiday or not. */
+  sundayMinutes: number;
+};
+
+/**
+ * Hours logged on days off, exactly as logged. They are no part of the
+ * overtime balance: nothing is kept in reserve from them and no time off is
+ * taken out of them — they go to accounting as they are, to be priced there.
+ */
+export function weekendMinutes(days: OvertimeDay[]): WeekendMinutes {
+  let saturdayMinutes = 0;
+  let sundayMinutes = 0;
+
+  for (const day of days) {
+    if (day.isWorkingDay !== false) {
+      continue;
+    }
+    if (day.isSunday === true) {
+      sundayMinutes += day.loggedMinutes;
+    } else {
+      saturdayMinutes += day.loggedMinutes;
+    }
+  }
+
+  return { saturdayMinutes, sundayMinutes };
 }
 
 /** How a month's balance splits when it is settled. */
@@ -183,6 +238,11 @@ export function formatOvertimeBalance(minutes: number): string {
 export type AccountingHoursInput = {
   /** Every minute logged on timesheets that month. */
   loggedMinutes: number;
+  /**
+   * Of those, the minutes logged on days off that are counted in the Saturday
+   * and Sunday columns. Zero on a month approved with the weekend in the balance.
+   */
+  weekendMinutes?: number;
   /** Overtime the month produced, by the balance rule. Negative for a short month. */
   earnedMinutes: number;
   /** Paid at settlement. Null while the month is not approved yet. */
@@ -198,14 +258,15 @@ export type AccountingHoursSplit = {
 /**
  * How a month's hours split on the pontaj sent to accounting.
  *
- * Normal hours are what was logged minus the overtime the month produced — a
- * short month is simply the hours logged. Overtime is only what the settlement
+ * Normal hours are what was logged on working days minus the overtime the month
+ * produced — a short month is simply the hours logged. Weekend hours are not
+ * normal hours; they have their own columns. Overtime is only what the settlement
  * approved for payment; before approval it is zero, so an unapproved balance
  * never reaches accounting.
  */
 export function accountingHours(input: AccountingHoursInput): AccountingHoursSplit {
   const normalMinutes = Math.max(
-    input.loggedMinutes - Math.max(input.earnedMinutes, 0),
+    input.loggedMinutes - (input.weekendMinutes ?? 0) - Math.max(input.earnedMinutes, 0),
     0,
   );
   const overtimeMinutes = Math.max(input.paidMinutes ?? 0, 0);

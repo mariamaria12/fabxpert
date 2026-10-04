@@ -1,6 +1,7 @@
 'use client';
 
 import type { MeResponse, UserDto } from '@fabxpert/shared';
+import { formatPersonName } from '@fabxpert/shared';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { MobileLookupCacheProvider } from './context/MobileLookupCacheContext';
@@ -84,7 +85,7 @@ export function ImpersonationModal({ user, onClose }: ImpersonationModalProps) {
     });
   }
 
-  const fullName = `${user.person.firstName} ${user.person.lastName}`.trim();
+  const fullName = formatPersonName(user.person);
 
   const content = (
     <div

@@ -85,6 +85,10 @@
       "types": "./dist/pollLabels.d.ts",
       "default": "./dist/pollLabels.js"
     },
+    "./personName": {
+      "types": "./dist/personName.d.ts",
+      "default": "./dist/personName.js"
+    },
     "./workDate": {
       "types": "./dist/workDate.d.ts",
       "default": "./dist/workDate.js"

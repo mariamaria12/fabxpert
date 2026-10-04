@@ -6,6 +6,14 @@ import {
   type AccountingTimesheetResponse,
 } from '@fabxpert/shared';
 import { useEffect } from 'react';
+import { formatWeekendHours } from './timesheetFormat';
+
+/** Hours worked on a day off, as the grid cell shows them: "7,5". Empty for none. */
+function formatDayHours(minutes: number): string {
+  return minutes > 0
+    ? (minutes / 60).toLocaleString('ro-RO', { maximumFractionDigits: 2 })
+    : '';
+}
 import { formatMonthLabel } from './timesheetMonths';
 
 interface AccountingPreviewModalProps {
@@ -152,7 +160,16 @@ export function AccountingPreviewModal({
                   <span className="tabular-nums text-text-secondary">{day.number}</span>
                 </th>
               ))}
-              {['Zile lucrate', 'CO / CM', 'CFP', 'Zile', 'Sâmbete', 'Ore extra'].map((header) => (
+              {[
+                'Zile lucrate',
+                'CO / CM',
+                'CFP',
+                'Zile',
+                'Sâmbete',
+                'Ore sâmbătă',
+                'Ore duminică',
+                'Ore extra',
+              ].map((header) => (
                 <th
                   key={header}
                   className={`${headCell} min-w-[64px] whitespace-nowrap px-2 text-[10px] font-medium uppercase tracking-wide text-text-muted`}
@@ -188,6 +205,7 @@ export function AccountingPreviewModal({
                   </td>
                   {days.map((day, dayIndex) => {
                     const code = line.dayCodes[dayIndex] ?? '';
+                    const weekendMinutes = line.weekendDayMinutes[dayIndex] ?? 0;
                     const isGap = missing.has(day.key);
                     return (
                       <td
@@ -201,7 +219,7 @@ export function AccountingPreviewModal({
                               : (CODE_CLASS[code] ?? 'text-text-secondary')
                         }`}
                       >
-                        {isGap ? '?' : code}
+                        {isGap ? '?' : code || formatDayHours(weekendMinutes)}
                       </td>
                     );
                   })}
@@ -219,6 +237,12 @@ export function AccountingPreviewModal({
                   </td>
                   <td className={`${dayCell} px-2 tabular-nums text-text-secondary`}>
                     {line.saturdaysWorked || '–'}
+                  </td>
+                  <td className={`${dayCell} px-2 tabular-nums text-text-secondary`}>
+                    {formatWeekendHours(line.saturdayMinutes)}
+                  </td>
+                  <td className={`${dayCell} px-2 tabular-nums text-text-secondary`}>
+                    {formatWeekendHours(line.sundayMinutes)}
                   </td>
                   <td
                     className={`${dayCell} px-2 tabular-nums ${line.overtimeMinutes > 0 ? 'text-warning-text' : 'text-text-muted'}`}
@@ -244,7 +268,8 @@ export function AccountingPreviewModal({
             completează la export
           </span>
           <span>
-            sâmbetele nu primesc X: se numără separat, iar doar ce trece de 7,5 h e suplimentar
+            sâmbetele, sărbătorile legale și duminicile nu primesc X: celula arată orele pontate,
+            numărate separat
           </span>
         </div>
       </div>

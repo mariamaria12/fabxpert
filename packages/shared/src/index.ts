@@ -190,11 +190,13 @@ export {
   splitFinisaj,
   joinFinisaj,
   takeCompletedFinisaj,
+  splitTextByRal,
+  ralCodesInText,
   finisajBadgeColors,
   relativeLuminance,
 } from './finisaj';
 export { formatTimesheetNotesCell } from './timesheetNotes';
-export type { FinisajParts, FinisajBadgeColors } from './finisaj';
+export type { FinisajParts, FinisajBadgeColors, RalTextPart } from './finisaj';
 export { RAL_CLASSIC_COLORS } from './ralClassic';
 export type { RalClassicColor } from './ralClassic';
 export {
@@ -385,6 +387,8 @@ export {
   SATURDAY_WORK_MINUTES,
   SETTLEMENT_WINDOW_DAYS,
   countSaturdaysWorked,
+  countSaturdaysAndHolidaysWorked,
+  weekendMinutes,
   isMonthSettleable,
   latestSettleableMonth,
   settlementOpensOn,
@@ -397,6 +401,8 @@ export {
 } from './accountingDocument';
 export type {
   OvertimeDay,
+  OvertimeBalanceOptions,
+  WeekendMinutes,
   OvertimeSettlementSplit,
   AccountingHoursInput,
   AccountingHoursSplit,
@@ -586,3 +592,5 @@ export { parseTsvRows } from './tsv';
 export type { TimesheetAssemblyDto, TimesheetAssemblyInput } from './dto/timesheet.dto';
 export { timesheetAssemblyInputSchema } from './dto/timesheet.dto';
 export { THEME_COLORS } from './themeColors';
+export { formatPersonName } from './personName';
+export type { PersonNameParts } from './personName';

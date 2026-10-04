@@ -5,6 +5,7 @@ import type {
   AccountingTimesheetLineDto,
   ResolveAccountingDaysInput,
 } from '@fabxpert/shared';
+import { formatPersonName } from '@fabxpert/shared';
 import { useEffect, useMemo, useState } from 'react';
 import { PersonName } from '@/components/PersonAvatar';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
@@ -176,7 +177,7 @@ export function AccountingGapsPanel({
                     <select
                       value={value}
                       disabled={busy}
-                      aria-label={`Marcaj pentru ${row.person.firstName} ${row.person.lastName}, ${formatRomanianDate(row.date)}`}
+                      aria-label={`Marcaj pentru ${formatPersonName(row.person)}, ${formatRomanianDate(row.date)}`}
                       onChange={(event) =>
                         setChoices((current) => ({
                           ...current,

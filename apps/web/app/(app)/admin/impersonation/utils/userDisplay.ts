@@ -1,4 +1,5 @@
 import type { MeResponse } from '@fabxpert/shared';
+import { formatPersonName } from '@fabxpert/shared';
 
 export function getUserInitials(user: MeResponse): string {
   if (user.person) {
@@ -19,7 +20,7 @@ export function getUserInitials(user: MeResponse): string {
 
 export function getUserDisplayName(user: MeResponse): string {
   if (user.person) {
-    return `${user.person.firstName} ${user.person.lastName}`.trim();
+    return formatPersonName(user.person);
   }
 
   return user.email;

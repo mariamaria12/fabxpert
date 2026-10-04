@@ -6,6 +6,7 @@ import type {
 } from '@fabxpert/shared/dto/notification.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from './push.service';
+import { formatPersonName } from '@fabxpert/shared/personName';
 
 type NotificationWithAuthor = Prisma.NotificationGetPayload<{
   include: { createdBy: { include: { person: true } } };
@@ -31,7 +32,7 @@ function toDto(notification: NotificationWithAuthor): NotificationDto {
     title: notification.title,
     body: notification.body,
     createdAt: notification.createdAt.toISOString(),
-    createdByName: person ? `${person.firstName} ${person.lastName}` : null,
+    createdByName: person ? formatPersonName(person) : null,
     pollId: notification.pollId,
   };
 }

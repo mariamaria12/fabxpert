@@ -109,7 +109,12 @@ export function LeaveReviewPanel({
       showToast(toastMessage, 'success');
 
       if (response.overBalanceWarning) {
-        showToast('Atenție: cererea depășește soldul de odihnă.', 'error');
+        showToast(
+          request.type === 'RECUPERARE'
+            ? 'Atenție: cererea depășește soldul de ore suplimentare.'
+            : 'Atenție: cererea depășește soldul de odihnă.',
+          'error',
+        );
       }
 
       onReviewed(response.leaveRequest);

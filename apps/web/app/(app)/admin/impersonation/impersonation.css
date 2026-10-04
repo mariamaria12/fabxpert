@@ -1149,6 +1149,13 @@
   overflow-wrap: anywhere;
 }
 
+/* A RAL code inside the notes, shown as its colour badge in the line of text. */
+.option-row-notes-text .notes-ral {
+  display: inline-flex;
+  vertical-align: middle;
+  margin: 0 1px;
+}
+
 /* Code on the left, finish badge pinned to the right of the same line. */
 .option-row-title-line {
   display: flex;

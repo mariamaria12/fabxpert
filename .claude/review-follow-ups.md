@@ -8,6 +8,9 @@ Sections: 1 Foundation and security · 2 Timesheets · 3 Overtime and leave ·
 4 Projects, assemblies, panou · 5 Reports and accounting document ·
 6 Mobile + impersonation · 7 Everything else.
 
+Reviewed so far: 1, 2 and 3. Sections 4–7 have not been read yet — see
+"Sections still to review" at the end.
+
 ## Section 1 — Foundation and security (reviewed 4 Oct 2026)
 
 Already fixed in that pass: deleted accounts could still sign in, the login
@@ -163,18 +166,180 @@ of personId / projectId / activityId / createdAt fails to parse, so a malformed
 - The calendar filters a linked person by name text, not by id, so namesakes
   match (`TimesheetListTab.tsx`, where it passes the search to the calendar).
 
-## Section 3 — Overtime and leave (not reviewed yet)
+## Section 3 — Overtime and leave (reviewed 4 Oct 2026)
 
-Found while reading the timesheets folder, which also holds the overtime and
-accounting tabs. To be confirmed and ranked when section 3 is reviewed.
+Already fixed in that pass: typed reserves lost on reload and then approved as
+0, an approval settling a different month than the table showed, gap filling
+exporting on a stale approval, the over-balance warning counting the request
+twice (and for the wrong year), impossible dates answering 500 on leave and on
+resolve-days, the month closing before its document was built, the RECUPERARE
+warning naming the wrong balance, and the "De plată la aprobare" tile losing
+its sign.
 
-- **Typed reserves are lost on reload, then approved as 0** —
-  `OvertimeApprovalsTab.tsx`, `loadPreview` rebuilds `reserves` from settled
-  lines only. After approving one person the other "Păstrate" fields empty, and
-  "Aprobă toate" sends 0 for each, paying out the whole balance.
-- The approvals tab and the accounting tab have no guard against a slower,
-  older response landing last, so the table can show one month while the action
-  posts for another.
-- The accounting preview counts CO/CM days only; the xlsx also counts CP and DS.
-- "N gata pentru export" counts external collaborators; the total beside it
-  does not.
+### 🟡 The leave balance shown ignores the request's year
+
+`LeaveReviewPanel.tsx` and `LeaveFormPanel.tsx` always fetch the current year's
+balance (`GET /leave-requests/balance/:personId` has no `year`), then add or
+subtract the request's `dayCount` whatever year it falls in. A request for
+January seen in October reads "depășește soldul" against this year's days. The
+API's warning now uses the request's year; the panels do not yet.
+
+- Fix: a `year` parameter on the balance endpoint, fetched for
+  `leaveRequestYear(startDate)`.
+- Decide: a request spanning two years is counted whole in the year it starts
+  (`leaveRequestYear`, a documented simplification). Keep or split.
+
+### 🟡 A rejected request can be approved on top of another approved one
+
+`LeaveService.review` does not run `assertNoOverlappingLeave`, and rejected
+requests do not count as overlapping. Reject A, file and approve B for the same
+days, then approve A: two approved leaves on the same days. ODIHNA days are
+charged twice, and in overtime the day is credited twice (`leaveMinutesByDay`
+adds). Not checked whether the UI offers approving a rejected request; the API
+allows it.
+
+- Decide: refuse, or approve and flag (the house rule is flag, not block).
+
+### 🟡 Re-settling an older month does not reach months approved after it
+
+`carriedInFor` reads the latest approval live and takes older ones as approved.
+Re-settle August with a different reserve after September was approved, and
+September's stored `carriedInMinutes` no longer matches August's
+`carriedOutMinutes`: the difference is lost or counted twice. Same when August
+is reapproved after September already took its change on. "Older approved
+months stay frozen" is a decision; the reserve change is the part the UI still
+allows.
+
+- Decide: lock the reserve of a month that has a later approval, or walk the
+  chain forward.
+
+### 🟢 Smaller ones
+
+- "Rămase acum" on an already approved ODIHNA adds the request's own days back
+  (`LeaveReviewPanel.tsx`), and the panel shows no overtime balance before a
+  RECUPERARE approval.
+- Pending badges go stale: overtime after a manual correction or a reviewed
+  RECUPERARE; leave when a request is filed from mobile.
+- Timesheets on a deleted project still count for overtime and the accounting
+  document (`loadOvertimeSource` uses `notDeleted()` only), but are hidden from
+  the Pontaje list and its export.
+- `resolveAccountingDays` writes day by day outside a transaction, and an
+  unknown `personId` answers 500. Its `uuidSchema` also lacks the `p…` seed-id
+  form every other schema accepts, so in dev a month with seed people cannot be
+  exported.
+- `countPendingApprovals` (the sidebar badge) groups the whole timesheet history
+  on every read; `computeAllBalances` already bounds its scan with `scanFrom`.
+- The accounting preview's "Zile" is `worked + leave + unpaid` and counts CO/CM
+  only; the xlsx column is the month norm and also counts CP, DS and INV. "N
+  gata pentru export" counts external collaborators; the total does not.
+- `LeaveAllocationPanel` uses `parseInt`: "12.7" becomes 12.
+- Dates a day early for actions between 00:00 and 03:00: "Revizuit" in the leave
+  list and the request date on the docx (both slice a UTC timestamp).
+- A past month viewed in the balances tab applies only the latest correction,
+  so a month with an earlier one reads wrong once a later one exists.
+- The leave list and leave calendar have no guard against an older response
+  landing last; leave list filters fall back to none when one is invalid.
+
+## Tests that fail for reasons of their own (seen 4 Oct 2026)
+
+Found on a full `test:e2e` run; none of them is in code touched by the review.
+
+- `panou-dashboard.e2e-spec.ts` › onLeaveCount: files a leave request for
+  "today" and gets 400 on a weekend, because a request needs a working day.
+  Passes or fails by the day of the week.
+- `project-list-filter.e2e-spec.ts` › statusGroup: expects 2 projects in
+  progress and gets 3. Looks like a fixture or the status reduction of 24 Sep
+  that the test was not updated for.
+- `authorization.e2e-spec.ts` › `/projects/available` fields: expects
+  `code, color, company, id, name` only; the endpoint now also returns
+  `denumireLucrare`, `finisaj` and `notes`, which the pontaj app uses.
+
+## Sections still to review
+
+Paused on 4 Oct 2026 after section 3. Same method as before: the API side read
+in full, the web side by a second reader with its findings re-checked in code,
+then fixes for what is local and an entry here for what needs a decision. Line
+counts are from that day.
+
+### Section 4 — Projects, assemblies, panou (about 11,800 lines)
+
+- API: `apps/api/src/project`, `apps/api/src/assembly` (about 2,500).
+- Web: `apps/web/app/(app)/projects`, `apps/web/app/(app)/panou` (about 9,300).
+- Shared: `assemblyImport.ts`, `assemblyProgress.ts`, `progressCalibration.ts`,
+  `projectComplexity.ts`, `projectStatus.ts`, `steelProfile.ts`, `finisaj.ts`.
+
+Worth looking at first:
+
+- Project visibility for employees (`project-visibility.util.ts`) and how
+  "ready for execution" follows pin and status.
+- The assembly import (text and workbook) and re-import over an existing list:
+  rows matched by `(projectId, name)`, what happens to marks that disappear and
+  to timesheets already linked to them.
+- The progress formula and its calibration from delivered projects.
+- Pinned order and panou columns under concurrent edits.
+- Already seen from section 2: assembly progress does not exclude timesheets of
+  a deleted person, while the hours beside it do.
+- Two e2e specs here are already failing — see "Tests that fail for reasons of
+  their own".
+
+### Section 5 — Reports (about 3,650 lines)
+
+- API: `apps/api/src/reports` (about 1,500).
+- Web: `apps/web/app/(app)/reports` (about 2,200).
+- Shared: `reportPeriod.ts`, `period.ts`, `periodDisplay.ts`.
+
+Worth looking at first:
+
+- Period boundaries, and that every report agrees with the Pontaje list for the
+  same period (deleted persons and deleted projects are filtered differently in
+  different queries).
+- Estimated hours against logged hours — estimated hours are for the final
+  comparison only, not a base for calculation.
+- Whether reports should show weekend hours apart, now that overtime does.
+
+The accounting document was reviewed with section 3.
+
+### Section 6 — Mobile app and impersonation (about 15,500 lines)
+
+- Mobile: `apps/mobile/src` (about 8,300).
+- Impersonation: `apps/web/app/(app)/admin/impersonation` (about 7,200).
+
+Worth looking at first:
+
+- Diff every mobile file against its impersonation twin (the map is in
+  `.claude/skills/impersonation-mirror/SKILL.md`) and list where they drifted.
+- Double submit on the time entry and leave forms: the API has no idempotency,
+  so a second tap creates a second entry.
+- The lookup cache (`MobileLookupCacheContext`): stale projects and activities,
+  and what a worker sees after an admin changes them.
+- Offline and flaky network: what is lost when a save fails.
+- The assembly picking flow against its UX rules.
+- Push notifications and the service worker.
+- `impersonationApi`: that every call really acts as the impersonated person
+  and that writes are confirmed.
+
+### Section 7 — Everything else (about 11,400 lines)
+
+- API: `company`, `person`, `employee-role`, `poll`, `notification`, `activity`
+  (about 1,900).
+- Web: `admin` without impersonation, `companies`, `people`, and the shared
+  `apps/web/components` (about 9,500).
+- Shared: whatever sections 4–6 did not cover, and `packages/db` seeds and
+  scripts.
+
+Worth looking at first:
+
+- The company import and the lookup "revive on create" helper.
+- Polls: who may vote, voting after close, results visible to employees.
+- Push subscriptions: pruning dead endpoints, a subscription moving between
+  users on a shared phone.
+- Deleting a person or an activity that timesheets still point at.
+- Shared components everything leans on: `DataTable`, `SlideOverPanel`,
+  `SearchableSelect`, `DateField`, `PeriodFilter`, the calendar.
+- The seed scripts' guards against running on the wrong database.
+
+### Cross-cutting, after the sections
+
+- The timezone change described under section 2 (work dates as UTC midnight,
+  "today" in `Europe/Bucharest`). It touches timesheets, leave and overtime, so
+  it waits until section 4 and 5 have shown what else depends on it.

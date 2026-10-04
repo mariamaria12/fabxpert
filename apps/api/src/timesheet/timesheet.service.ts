@@ -203,8 +203,8 @@ function buildTimesheetOrderBy(
   switch (sortBy) {
     case 'person':
       return [
-        { person: { firstName: sortOrder } },
         { person: { lastName: sortOrder } },
+        { person: { firstName: sortOrder } },
         tiebreaker,
       ];
     case 'project':
@@ -238,8 +238,9 @@ function sortDayGroups(
       case 'person': {
         const leftPerson = personNames.get(left.personId);
         const rightPerson = personNames.get(right.personId);
-        const byName = `${leftPerson?.firstName ?? ''} ${leftPerson?.lastName ?? ''}`.localeCompare(
-          `${rightPerson?.firstName ?? ''} ${rightPerson?.lastName ?? ''}`,
+        // Family name first, the way the name is written in the list.
+        const byName = `${leftPerson?.lastName ?? ''} ${leftPerson?.firstName ?? ''}`.localeCompare(
+          `${rightPerson?.lastName ?? ''} ${rightPerson?.firstName ?? ''}`,
           'ro',
         );
         return byName !== 0 ? byName : right.workDate.getTime() - left.workDate.getTime();

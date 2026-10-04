@@ -397,6 +397,12 @@ model OvertimeSettlement {
   /// What rolls into the next month, by the same sign convention as carriedIn.
   carriedOutMinutes Int @default(0)
 
+  /// How the month's weekend hours were read when it was approved. False on
+  /// the months approved while a Saturday past 7.5h and every Sunday hour went
+  /// into the balance — they stay computed that way. True from the first
+  /// approval after that: weekend hours are counted apart, never in the balance.
+  weekendApart Boolean @default(false)
+
   /// carriedIn + earned − used = paid + carriedOut holds on every row.
   settledAt       DateTime @default(now())
   settledByUserId String?

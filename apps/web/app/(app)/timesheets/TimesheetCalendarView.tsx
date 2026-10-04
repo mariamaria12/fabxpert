@@ -9,6 +9,7 @@ import {
   type TimesheetCalendarDayDto,
   type TimesheetDailyTotalDto,
   type TimesheetDayGroupDto,
+  formatPersonName,
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarView, type CalendarItem } from '@/components/calendar/CalendarView';
@@ -59,7 +60,7 @@ function TimesheetDayChip({
       type="button"
       disabled={opening}
       onClick={() => onOpen(day)}
-      title={`${day.person.firstName} ${day.person.lastName} — ${formatDurationMinutes(day.totalMinutes)}, ${
+      title={`${formatPersonName(day.person)} — ${formatDurationMinutes(day.totalMinutes)}, ${
         day.entryCount === 1 ? '1 pontaj' : `${day.entryCount} pontaje`
       }`}
       className="flex w-full min-w-0 items-center gap-1 rounded border border-border-subtle bg-surface-raised px-1.5 py-0.5 text-left text-[11px] leading-4 text-text-primary transition-colors hover:border-border disabled:opacity-60"

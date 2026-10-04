@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isCalendarDateString } from '../workDate';
 
 /**
  * Overtime balance for one Person, in minutes (the UI divides by 60).
@@ -22,8 +23,15 @@ export type OvertimeBalanceDto = {
   earnedMinutes: number;
   /** RECUPERARE taken this month. */
   usedMinutes: number;
-  /** Saturdays with time logged this month — paid as days, not as overtime. */
+  /** Saturdays and public holidays with time logged this month. */
   saturdaysWorked: number;
+  /**
+   * Hours logged on Saturdays and on public holidays in the week, and on
+   * Sundays — as logged, apart from the balance. Null on a month approved
+   * while weekend hours still went into the balance.
+   */
+  saturdayMinutes: number | null;
+  sundayMinutes: number | null;
   /** Approved for pay already: non-zero only once this month is approved before it ends. */
   paidMinutes: number;
   /** carriedInMinutes + earnedMinutes − usedMinutes − paidMinutes. */
@@ -100,8 +108,15 @@ export type OvertimeSettlementLineDto = {
   carriedInMinutes: number;
   earnedMinutes: number;
   usedMinutes: number;
-  /** Saturdays with time logged that month. */
+  /** Saturdays and public holidays with time logged that month. */
   saturdaysWorked: number;
+  /**
+   * Hours logged on Saturdays and on public holidays in the week, and on
+   * Sundays — as logged, apart from the balance. Null on a month approved
+   * while weekend hours still went into the balance.
+   */
+  saturdayMinutes: number | null;
+  sundayMinutes: number | null;
   /** carriedIn + earned − used: what the settlement splits. */
   balanceMinutes: number;
   /** Kept instead of paid. Zero unless an admin sets a reserve. */
@@ -156,20 +171,35 @@ export type AccountingTimesheetLineDto = {
   isExternal: boolean;
   /** Never logs time: read as present on every working day without leave. */
   isAutoPresent: boolean;
-  /** Every minute logged that month. */
+  /** Every minute logged that month, weekends included. */
   loggedMinutes: number;
+  /** Logged on working days, minus the overtime the month produced. */
   normalMinutes: number;
   /** Overtime approved for payment. Zero until the month is approved. */
   overtimeMinutes: number;
+  /** normalMinutes + overtimeMinutes — weekend hours are not in it. */
   totalMinutes: number;
-  /** Saturdays with time logged — paid as days, not as overtime. */
+  /** Saturdays and public holidays with time logged. */
   saturdaysWorked: number;
   /**
+   * Hours logged on Saturdays and on public holidays in the week, and on
+   * Sundays — as logged, apart from the balance. Null on a month approved
+   * while weekend hours still went into the balance.
+   */
+  saturdayMinutes: number | null;
+  sundayMinutes: number | null;
+  /**
    * One code per calendar day of the month (index 0 is the 1st): X, a leave
-   * code, or '' for nothing. Weekends and public holidays stay '' — a Saturday
-   * is counted in `saturdaysWorked`, anything else worked goes to overtime.
+   * code, or '' for nothing. Weekends and public holidays stay '' — their
+   * hours are in `saturdayMinutes` and `sundayMinutes`.
    */
   dayCodes: string[];
+  /**
+   * Per calendar day, the minutes logged when it is a day off — what the grid
+   * writes in a Saturday, Sunday or public holiday cell. Zero on working days
+   * and on days off nobody worked.
+   */
+  weekendDayMinutes: number[];
   /** Working days already past with neither a pontaj nor approved leave, as `YYYY-MM-DD`. */
   missingWorkingDays: string[];
   /** Balance still waiting for approval; null once approved, or when nothing needs it. */
@@ -184,6 +214,8 @@ export type AccountingTimesheetTotals = {
   normalMinutes: number;
   overtimeMinutes: number;
   totalMinutes: number;
+  saturdayMinutes: number;
+  sundayMinutes: number;
   /** Lines still waiting for approval, and the hours they hold back. */
   pendingCount: number;
   pendingBalanceMinutes: number;
@@ -248,7 +280,10 @@ export const resolveAccountingDaysSchema = z.object({
     .array(
       z.object({
         personId: uuidSchema,
-        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD'),
+        date: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD')
+          .refine(isCalendarDateString, 'date must be a real calendar day'),
         resolution: z.enum(ACCOUNTING_DAY_RESOLUTIONS),
       }),
     )

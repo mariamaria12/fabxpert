@@ -8,6 +8,22 @@
 
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
+/** A `YYYY-MM-DD` that names a real day — the pattern alone lets `2026-02-31` through. */
+export function isCalendarDateString(value: string): boolean {
+  const match = ISO_DATE_PATTERN.exec(value.trim());
+  if (!match) {
+    return false;
+  }
+
+  const year = Number.parseInt(match[1], 10);
+  const month = Number.parseInt(match[2], 10);
+  const day = Number.parseInt(match[3], 10);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+  );
+}
+
 export function parseWorkDateString(value: string): Date {
   const match = ISO_DATE_PATTERN.exec(value.trim());
   if (!match) {

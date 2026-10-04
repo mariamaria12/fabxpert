@@ -109,9 +109,10 @@ describe('Overtime correction (e2e)', () => {
     expect(after.carriedInMinutes).toBe(-90);
     expect(after.correction.balanceMinutes).toBe(-90);
 
-    // Work logged today still counts: 10h today is +1h on top of the correction.
+    // Work logged today still counts: 10h today is +1h on top of the correction —
+    // unless today is a day off, whose hours are no part of the balance.
     await logDay(todayWorkDate(), 600);
-    expect((await balance()).remainingMinutes).toBe(-30);
+    expect((await balance()).remainingMinutes).toBe(isWorkingDate(todayWorkDate()) ? -30 : -90);
 
     // Last month's unapproved hours were replaced, so there is nothing to pay.
     const preview = await request(app.getHttpServer())

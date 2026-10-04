@@ -17,6 +17,7 @@ import { parseWorkDateString, workDateToDayKey } from '@fabxpert/shared/workDate
 import { notDeleted } from '../common/prisma/soft-delete.util';
 import { NotificationService } from '../notification/notification.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { formatPersonName } from '@fabxpert/shared/personName';
 
 const pollInclude = {
   createdBy: { include: { person: true } },
@@ -61,7 +62,7 @@ function toVoterDto(vote: {
 }): PollVoterDto {
   return {
     userId: vote.userId,
-    name: `${vote.user.person.firstName} ${vote.user.person.lastName}`,
+    name: formatPersonName(vote.user.person),
   };
 }
 
@@ -358,7 +359,7 @@ export class PollService {
       publishedAt: poll.publishedAt ? poll.publishedAt.toISOString() : null,
       createdAt: poll.createdAt.toISOString(),
       createdByName: createdByPerson
-        ? `${createdByPerson.firstName} ${createdByPerson.lastName}`
+        ? formatPersonName(createdByPerson)
         : null,
       options,
       answerCount: answeredUserIds.size,

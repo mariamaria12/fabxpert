@@ -6,6 +6,7 @@ import {
   formatOvertimeBalance,
   MAX_OVERTIME_CORRECTION_MINUTES,
   type OvertimeBalanceRowDto,
+  formatPersonName,
 } from '@fabxpert/shared';
 import { useEffect, useState, type FormEvent } from 'react';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
@@ -73,7 +74,7 @@ export function OvertimeCorrectionPanel({ row, onClose, onSaved }: OvertimeCorre
   }
 
   const { person, balance } = row;
-  const fullName = `${person.firstName} ${person.lastName}`;
+  const fullName = formatPersonName(person);
   const parsed = parseSignedMinutes(value);
 
   async function handleSubmit(event: FormEvent) {
@@ -228,7 +229,7 @@ export function OvertimeCorrectionPanel({ row, onClose, onSaved }: OvertimeCorre
             <p className="text-xs text-text-muted">
               Corectat manual pe {formatCorrectionDate(balance.correction.createdAt)}
               {balance.correction.createdBy
-                ? ` de ${balance.correction.createdBy.firstName} ${balance.correction.createdBy.lastName}`
+                ? ` de ${formatPersonName(balance.correction.createdBy)}`
                 : ''}
               : din {formatOvertimeBalance(balance.correction.previousBalanceMinutes)} în{' '}
               {formatOvertimeBalance(balance.correction.balanceMinutes)}.

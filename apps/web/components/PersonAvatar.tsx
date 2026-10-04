@@ -1,3 +1,5 @@
+import { formatPersonName } from '@fabxpert/shared';
+
 export type PersonLike = {
   firstName: string;
   lastName: string;
@@ -7,14 +9,13 @@ export type PersonLike = {
 const avatarClassName =
   'flex size-6 shrink-0 items-center justify-center rounded-full border border-border-subtle bg-surface-raised text-[10px] font-medium text-accent md:size-8 md:text-xs';
 
-export function formatPersonName(person: PersonLike): string {
-  return `${person.firstName} ${person.lastName}`;
-}
+export { formatPersonName };
 
+/** Family name first, like the name beside it: "Popescu Ion" is "PI". */
 export function getPersonInitials(person: PersonLike): string {
   const first = person.firstName.trim()[0] ?? '';
   const last = person.lastName.trim()[0] ?? '';
-  const initials = (first + last).toUpperCase();
+  const initials = (last + first).toUpperCase();
 
   return initials || '?';
 }

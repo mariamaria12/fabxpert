@@ -9,6 +9,7 @@ import {
   type TimesheetDayGroupDto,
   type TimesheetDto,
   type UpdateTimesheetInput,
+  formatPersonName,
 } from '@fabxpert/shared';
 import { useEffect, useState, type FormEvent } from 'react';
 import {
@@ -151,7 +152,7 @@ export function TimesheetDayGroupPanel({
     };
   }, [open]);
 
-  const personName = `${group.person.firstName} ${group.person.lastName}`;
+  const personName = formatPersonName(group.person);
   const dateChanged = workDate !== isoToDateInput(group.workDate);
   const isBusy = isSubmitting || deletingId !== null;
 

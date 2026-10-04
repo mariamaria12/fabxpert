@@ -11,12 +11,14 @@ import {
   type AccountingTimesheetLineDto,
   type AccountingTimesheetResponse,
   type AccountingTimesheetStatus,
+  formatPersonName,
 } from '@fabxpert/shared';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { filterChipClassName } from '@/components/filterChipStyles';
 import { useSearchAutofillProps } from '@/components/inputAutofill';
 import { PersonName } from '@/components/PersonAvatar';
+import { useOvertimePendingCount } from '@/context/OvertimePendingCountContext';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { downloadBlobFile } from '@/utils/downloadBlobFile';
@@ -24,7 +26,7 @@ import { AccountingGapsPanel } from './AccountingGapsPanel';
 import { AccountingPreviewModal } from './AccountingPreviewModal';
 import { MonthPicker } from './MonthPicker';
 import { StatTile, StatTileRow } from './StatTile';
-import { formatHoursDecimal, formatRomanianDate } from './timesheetFormat';
+import { formatHoursDecimal, formatRomanianDate, formatWeekendHours } from './timesheetFormat';
 import {
   currentMonth,
   formatMonthLabel,
@@ -97,6 +99,7 @@ function matchesSearch(line: AccountingTimesheetLineDto, search: string): boolea
  */
 export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTimesheetTabProps) {
   const { showToast } = useToast();
+  const { refreshPendingCount } = useOvertimePendingCount();
   const searchAutofill = useSearchAutofillProps();
   const [month, setMonth] = useState(latestSettleableMonth);
   const [report, setReport] = useState<AccountingTimesheetResponse | null>(null);
@@ -115,18 +118,33 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
   const [role, setRole] = useState(ALL_ROLES);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
-  const load = useCallback(async (target: string) => {
+  // Bumped on every load, so an answer for a month the user already left is dropped.
+  const loadGeneration = useRef(0);
+
+  /** Resolves to the fresh report, or null when it failed or was superseded. */
+  const load = useCallback(async (target: string): Promise<AccountingTimesheetResponse | null> => {
+    const generation = (loadGeneration.current += 1);
     setLoading(true);
     setError(null);
 
     try {
-      setReport(await getAccountingTimesheet(target));
+      const response = await getAccountingTimesheet(target);
+      if (generation !== loadGeneration.current) {
+        return null;
+      }
+      setReport(response);
       setGeneratedAt(new Date());
+      return response;
     } catch (caught) {
-      setReport(null);
-      setError(apiErrorToastMessage(caught));
+      if (generation === loadGeneration.current) {
+        setReport(null);
+        setError(apiErrorToastMessage(caught));
+      }
+      return null;
     } finally {
-      setLoading(false);
+      if (generation === loadGeneration.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -184,6 +202,22 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
         'success',
       );
       setGapsOpen(false);
+
+      // Filling a day with time off moves that person's overtime balance, so
+      // their approval may be out of date now. The document must not go out
+      // on the old one.
+      const pendingBefore = report?.totals.pendingCount ?? 0;
+      const [fresh] = await Promise.all([load(month), refreshPendingCount()]);
+      if (!fresh) {
+        return;
+      }
+      if (fresh.totals.pendingCount > pendingBefore) {
+        showToast(
+          'Zilele completate au schimbat soldul de ore suplimentare. Reaprobă orele, apoi exportă din nou.',
+          'error',
+        );
+        return;
+      }
       await handleExport();
     } catch (caught) {
       showToast(apiErrorToastMessage(caught), 'error');
@@ -293,6 +327,20 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
       render: (line) => (line.saturdaysWorked === 0 ? '—' : line.saturdaysWorked),
     },
     {
+      key: 'saturdayHours',
+      header: 'Ore sâmbătă',
+      width: '110px',
+      className: 'text-right tabular-nums text-text-secondary',
+      render: (line) => formatWeekendHours(line.saturdayMinutes),
+    },
+    {
+      key: 'sundayHours',
+      header: 'Ore duminică',
+      width: '110px',
+      className: 'text-right tabular-nums text-text-secondary',
+      render: (line) => formatWeekendHours(line.sundayMinutes),
+    },
+    {
       key: 'status',
       header: 'Status',
       render: (line) => (
@@ -361,7 +409,12 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
-        <MonthPicker value={month} onChange={setMonth} max={currentMonth()} disabled={loading} />
+        <MonthPicker
+          value={month}
+          onChange={setMonth}
+          max={currentMonth()}
+          disabled={loading || exporting || reopening || resolvingGaps}
+        />
         <input
           type="search"
           value={search}
@@ -412,7 +465,7 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
             <span className="font-semibold">{formatMonthLabel(month)} este exportată</span> —
             document generat la {formatExportedAt(report.export.exportedAt)}
             {report.export.exportedBy
-              ? ` de ${report.export.exportedBy.firstName} ${report.export.exportedBy.lastName}`
+              ? ` de ${formatPersonName(report.export.exportedBy)}`
               : ''}
             . Pontajele modificate după acest moment nu sunt în documentul trimis.
           </div>

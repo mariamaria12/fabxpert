@@ -7,6 +7,7 @@ import {
   workDateToDayKey,
   type LeaveRequestDto,
   type LeaveType,
+  formatPersonName,
 } from '@fabxpert/shared';
 import type { CalendarItem } from '@/components/calendar/CalendarView';
 import { getLeaveStatusLabel, getLeaveTypeLabel } from '@/utils/leaveFormat';
@@ -39,9 +40,9 @@ export function personSortKey(person: { firstName: string; lastName: string }): 
   return `${person.lastName} ${person.firstName}`;
 }
 
-/** "Ion P." — enough to tell people apart in a day cell. */
+/** "Popescu I." — enough to tell people apart in a day cell. */
 export function shortPersonName(person: { firstName: string; lastName: string }): string {
-  return `${person.firstName} ${person.lastName.charAt(0)}.`;
+  return `${person.lastName} ${person.firstName.charAt(0)}.`;
 }
 
 export function LeaveChip({
@@ -54,7 +55,7 @@ export function LeaveChip({
   const pending = request.status === 'IN_ASTEPTARE';
   const rejected = request.status === 'RESPINS';
   const hours = request.durationMinutes !== null ? ` · ${formatLeaveDuration(request)}` : '';
-  const fullName = `${request.person.firstName} ${request.person.lastName}`;
+  const fullName = formatPersonName(request.person);
 
   return (
     <button

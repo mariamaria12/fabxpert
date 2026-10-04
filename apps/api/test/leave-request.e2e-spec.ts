@@ -338,6 +338,58 @@ describe('Leave requests (e2e)', () => {
     expect(balanceAfterMedical.body.remainingDays).toBe(balanceAfterOdihna.body.remainingDays);
   });
 
+  it('approving ODIHNA within the balance carries no overBalanceWarning', async () => {
+    // More than half of the 21-day allocation: counted twice it would not fit.
+    const create = await request(app.getHttpServer())
+      .post('/leave-requests')
+      .set(authHeader(adminCookie))
+      .send({
+        personId: FIXTURES.persons.unassigned.id,
+        type: 'ODIHNA',
+        startDate: leaveDateIso(3, 2),
+        endDate: leaveDateIso(3, 17),
+      });
+    expect(create.status).toBe(201);
+    expect(create.body.leaveRequest.dayCount).toBeGreaterThan(10);
+    expect(create.body.leaveRequest.dayCount).toBeLessThanOrEqual(21);
+
+    const approve = await request(app.getHttpServer())
+      .post(`/leave-requests/${create.body.leaveRequest.id}/review`)
+      .set(authHeader(adminCookie))
+      .send({ status: 'APROBAT' });
+
+    expect(approve.status).toBe(200);
+    expect(approve.body.overBalanceWarning).toBeUndefined();
+  });
+
+  it('a date that is not a real calendar day → 400, not a server error', async () => {
+    const create = await request(app.getHttpServer())
+      .post('/leave-requests')
+      .set(authHeader(adminCookie))
+      .send({
+        personId: FIXTURES.persons.unassigned.id,
+        type: 'MEDICAL',
+        startDate: leaveDateIso(2, 31),
+        endDate: leaveDateIso(2, 31),
+      });
+    expect(create.status).toBe(400);
+
+    const resolveDays = await request(app.getHttpServer())
+      .post('/overtime/accounting/resolve-days')
+      .set(authHeader(adminCookie))
+      .send({
+        month: leaveDateIso(2, 1).slice(0, 7),
+        resolutions: [
+          {
+            personId: '11111111-1111-4111-8111-111111111111',
+            date: leaveDateIso(2, 31),
+            resolution: 'PRESENT',
+          },
+        ],
+      });
+    expect(resolveDays.status).toBe(400);
+  });
+
   it('approving ODIHNA beyond balance succeeds with overBalanceWarning', async () => {
     const patchPerson = await request(app.getHttpServer())
       .patch(`/persons/${FIXTURES.persons.employee2.id}`)

@@ -1,6 +1,6 @@
 'use client';
 
-import { sendTimesheetReminder, type NotLoggedPersonRow } from '@fabxpert/shared';
+import { formatPersonName, sendTimesheetReminder, type NotLoggedPersonRow } from '@fabxpert/shared';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useToast } from '@/context/ToastContext';
@@ -19,7 +19,7 @@ export function SendReminderConfirm({
 }) {
   const { showToast } = useToast();
   const [sending, setSending] = useState(false);
-  const personName = `${person.firstName} ${person.lastName}`;
+  const personName = formatPersonName(person);
 
   useEffect(() => {
     function handleKey(event: KeyboardEvent) {

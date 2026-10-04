@@ -7,6 +7,7 @@ import type {
 } from '@fabxpert/shared/dto/report.dto';
 import type { ProjectStatus } from '@fabxpert/shared/dto/project.dto';
 import type { ProjectAssemblyProgressIndex } from '../timesheet/timesheet-project-summary.util';
+import { formatPersonName } from '@fabxpert/shared/personName';
 
 const NO_ACTIVITY_LABEL = 'Fără activitate';
 
@@ -175,7 +176,7 @@ export function shapeProjectReport(
     if (!person) {
       person = {
         personId: row.personId,
-        personName: `${row.firstName} ${row.lastName}`.trim(),
+        personName: formatPersonName(row),
         roleName: row.roleName,
         workedMinutes: 0,
         byActivity: [],

@@ -1,6 +1,6 @@
 'use client';
 
-import { listUsers, type SortOrder, type UserDto } from '@fabxpert/shared';
+import { formatPersonName, listUsers, type SortOrder, type UserDto } from '@fabxpert/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { UserFormPanel } from './UserFormPanel';
 import { ImpersonationModal } from './impersonation/ImpersonationModal';
@@ -75,7 +75,7 @@ function userGroupOf(user: UserDto): UserGroupId {
 }
 
 function personName(user: UserDto): string {
-  return `${user.person.firstName} ${user.person.lastName}`;
+  return formatPersonName(user.person);
 }
 
 function compareByName(a: UserDto, b: UserDto): number {

@@ -15,6 +15,7 @@ import {
   type PersonDto,
   type TimesheetAssemblyInput,
   type TimesheetDto,
+  formatPersonName,
 } from '@fabxpert/shared';
 import { useEffect, useState, type FormEvent } from 'react';
 import {
@@ -351,7 +352,7 @@ export function TimesheetFormPanel({
 
   const personOptions = persons.map((person) => ({
     id: person.id,
-    label: `${person.firstName} ${person.lastName}`,
+    label: formatPersonName(person),
   }));
 
   const activityOptions = activities.map((activity) => ({

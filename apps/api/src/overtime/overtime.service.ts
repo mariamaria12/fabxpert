@@ -19,6 +19,7 @@ import type {
 import {
   accountingHours,
   approvedMonthCarry,
+  countSaturdaysAndHolidaysWorked,
   countSaturdaysWorked,
   dailyWorkMinutesOf,
   isMonthSettleable,
@@ -27,6 +28,7 @@ import {
   overtimeBalanceMinutes,
   overtimeDaysAvailable,
   settleOvertimeBalance,
+  weekendMinutes,
   type OvertimeDay,
 } from '@fabxpert/shared/overtime';
 import {
@@ -184,6 +186,12 @@ type OvertimeSourceData = {
   dailyWorkMinutesByPerson: Map<string, number>;
   /** The latest balance an admin set by hand, per person. */
   correctionByPerson: Map<string, OvertimeCorrectionRow>;
+  /**
+   * Per person, the last month (`YYYY-MM`) approved while weekend hours still
+   * went into the balance. Months up to it keep that reading; anyone missing
+   * here has every month read with the weekend apart.
+   */
+  weekendInBalanceThroughByPerson: Map<string, string>;
 };
 
 /** A balance set by hand: it stands in for everything before `effectiveDate`. */
@@ -213,9 +221,18 @@ type MonthActivity = {
   earnedMinutes: number;
   usedMinutes: number;
   saturdaysWorked: number;
+  /** Null on a month read with the weekend in the balance. */
+  saturdayMinutes: number | null;
+  sundayMinutes: number | null;
 };
 
-const NO_ACTIVITY: MonthActivity = { earnedMinutes: 0, usedMinutes: 0, saturdaysWorked: 0 };
+const NO_ACTIVITY: MonthActivity = {
+  earnedMinutes: 0,
+  usedMinutes: 0,
+  saturdaysWorked: 0,
+  saturdayMinutes: 0,
+  sundayMinutes: 0,
+};
 
 /** An approved month, read back to carry from it. */
 type SettlementRow = {
@@ -252,6 +269,8 @@ type CarryIn = {
  */
 type SettlementLine = {
   dto: OvertimeSettlementLineDto;
+  /** Written on a first approval; a month approved before keeps what it has. */
+  weekendApart: boolean;
   previousApproval: {
     month: Date;
     earnedMinutes: number;
@@ -405,7 +424,7 @@ export class OvertimeService {
     const lines = settlementLines.map((line) => line.dto);
 
     await this.prisma.$transaction([
-      ...lines.map((line) =>
+      ...settlementLines.map(({ dto: line, weekendApart }) =>
         this.prisma.overtimeSettlement.upsert({
           where: { personId_month: { personId: line.person.id, month: monthStart } },
           create: {
@@ -416,6 +435,7 @@ export class OvertimeService {
             usedMinutes: line.usedMinutes,
             paidMinutes: line.paidMinutes,
             carriedOutMinutes: line.carriedOutMinutes,
+            weekendApart,
             settledByUserId: actor.id,
           },
           update: {
@@ -569,9 +589,10 @@ export class OvertimeService {
       const isAutoPresent = person.autoPresence;
       const markedPresent = presenceByPerson.get(person.id) ?? new Set<string>();
 
-      // One code per calendar day. Weekends stay blank on purpose: a Saturday
-      // is counted separately, a Sunday's hours go to overtime.
+      // One code per calendar day. A day off gets no code: the grid shows the
+      // hours logged on it instead.
       const dayCodes: string[] = [];
+      const weekendDayMinutes: number[] = [];
       const missingWorkingDays: string[] = [];
       for (
         const cursor = new Date(monthStart);
@@ -594,6 +615,7 @@ export class OvertimeService {
           code = PRESENT_DAY_CODE;
         }
         dayCodes.push(code);
+        weekendDayMinutes.push(isWorking ? 0 : (loggedByDay.get(dayKey) ?? 0));
 
         if (!isExternal && !isAutoPresent && isWorking && code === '' && isPast) {
           missingWorkingDays.push(dayKey);
@@ -603,6 +625,7 @@ export class OvertimeService {
       const loggedMinutes = sumBy(days, (day) => day.loggedMinutes);
       const split = accountingHours({
         loggedMinutes,
+        weekendMinutes: (activity.saturdayMinutes ?? 0) + (activity.sundayMinutes ?? 0),
         earnedMinutes: activity.earnedMinutes,
         paidMinutes: settled?.paidMinutes ?? null,
       });
@@ -620,7 +643,10 @@ export class OvertimeService {
         loggedMinutes,
         ...split,
         saturdaysWorked: activity.saturdaysWorked,
+        saturdayMinutes: activity.saturdayMinutes,
+        sundayMinutes: activity.sundayMinutes,
         dayCodes,
+        weekendDayMinutes,
         missingWorkingDays,
         pendingBalanceMinutes: pending
           ? pending.settledAt === null
@@ -649,6 +675,8 @@ export class OvertimeService {
         normalMinutes: sumBy(documentLines, (line) => line.normalMinutes),
         overtimeMinutes: sumBy(documentLines, (line) => line.overtimeMinutes),
         totalMinutes: sumBy(documentLines, (line) => line.totalMinutes),
+        saturdayMinutes: sumBy(documentLines, (line) => line.saturdayMinutes ?? 0),
+        sundayMinutes: sumBy(documentLines, (line) => line.sundayMinutes ?? 0),
         pendingCount: pending.length,
         pendingBalanceMinutes: sumBy(pending, (line) => line.pendingBalanceMinutes ?? 0),
         missingDaysPersons: withGaps.length,
@@ -668,14 +696,15 @@ export class OvertimeService {
   ): Promise<{ buffer: Buffer; filename: string; report: AccountingTimesheetResponse }> {
     const monthStart = startOfMonth(month);
 
+    // The month closes only once there is a document to show for it.
+    const report = await this.accountingTimesheet(monthStart);
+    const buffer = await buildAccountingTimesheetXlsx(report);
+
     await this.prisma.accountingExport.upsert({
       where: { month: monthStart },
       create: { month: monthStart, exportedByUserId: actor.id },
       update: { exportedAt: new Date(), exportedByUserId: actor.id },
     });
-
-    const report = await this.accountingTimesheet(monthStart);
-    const buffer = await buildAccountingTimesheetXlsx(report);
 
     return { buffer, filename: buildAccountingTimesheetFilename(report.month), report };
   }
@@ -882,6 +911,8 @@ export class OvertimeService {
           earnedMinutes: month.earnedMinutes,
           usedMinutes: month.usedMinutes,
           saturdaysWorked: month.saturdaysWorked,
+          saturdayMinutes: month.saturdayMinutes,
+          sundayMinutes: month.sundayMinutes,
           balanceMinutes,
           reserveMinutes: carriedOutMinutes > 0 ? carriedOutMinutes : 0,
           paidMinutes,
@@ -890,6 +921,7 @@ export class OvertimeService {
           approvedPaidMinutes: settled?.paidMinutes ?? null,
           changeSinceApprovalMinutes,
         },
+        weekendApart: !readsWeekendInBalance(source, person.id, monthKey),
         previousApproval:
           lastApproval && previousApprovalMoved
             ? {
@@ -938,6 +970,8 @@ export class OvertimeService {
       earnedMinutes: month.earnedMinutes,
       usedMinutes: month.usedMinutes,
       saturdaysWorked: month.saturdaysWorked,
+      saturdayMinutes: month.saturdayMinutes,
+      sundayMinutes: month.sundayMinutes,
       paidMinutes,
       remainingMinutes,
       remainingDays: overtimeDaysAvailable(Math.max(0, remainingMinutes), dailyWorkMinutes),
@@ -1003,7 +1037,8 @@ export class OvertimeService {
   /**
    * One person's timesheets and RECUPERARE, folded into a figure per month.
    * With a correction, days before it earn nothing — the correction stands in
-   * for them. Saturdays worked are counted either way.
+   * for them. Weekend days and hours are counted either way: a correction sets
+   * the balance, and they are no part of it.
    */
   private monthlyActivity(
     personId: string,
@@ -1030,8 +1065,18 @@ export class OvertimeService {
       !correction || day.workDate.getTime() >= correction.effectiveDate.getTime();
     for (const [key, days] of daysByMonth) {
       const month = entry(key);
-      month.earnedMinutes = overtimeBalanceMinutes(days.filter(counted), dailyWorkMinutes);
-      month.saturdaysWorked = countSaturdaysWorked(days);
+      if (readsWeekendInBalance(source, personId, key)) {
+        month.earnedMinutes = overtimeBalanceMinutes(days.filter(counted), dailyWorkMinutes, {
+          weekendInBalance: true,
+        });
+        month.saturdaysWorked = countSaturdaysWorked(days);
+        month.saturdayMinutes = null;
+        month.sundayMinutes = null;
+      } else {
+        month.earnedMinutes = overtimeBalanceMinutes(days.filter(counted), dailyWorkMinutes);
+        month.saturdaysWorked = countSaturdaysAndHolidaysWorked(days);
+        Object.assign(month, weekendMinutes(days));
+      }
     }
 
     const correctionDayKey = correction ? workDateToDayKey(correction.effectiveDate) : null;
@@ -1113,7 +1158,7 @@ export class OvertimeService {
           }
         : {};
 
-    const [dailyTotals, approvedLeave, norms, corrections] = await Promise.all([
+    const [dailyTotals, approvedLeave, norms, corrections, weekendInBalance] = await Promise.all([
       this.prisma.timesheet.groupBy({
         by: ['personId', 'workDate'],
         where: { ...notDeleted(), ...personFilter, ...workDateFilter },
@@ -1141,7 +1186,19 @@ export class OvertimeService {
         select: CORRECTION_SELECT,
         orderBy: [{ effectiveDate: 'desc' }, { createdAt: 'desc' }],
       }),
+      this.prisma.overtimeSettlement.groupBy({
+        by: ['personId'],
+        where: { weekendApart: false, ...personFilter },
+        _max: { month: true },
+      }),
     ]);
+
+    const weekendInBalanceThroughByPerson = new Map<string, string>();
+    for (const row of weekendInBalance) {
+      if (row._max.month) {
+        weekendInBalanceThroughByPerson.set(row.personId, formatMonth(row._max.month));
+      }
+    }
 
     const correctionByPerson = new Map<string, OvertimeCorrectionRow>();
     for (const { personId, ...correction } of corrections) {
@@ -1196,6 +1253,7 @@ export class OvertimeService {
         leaveMinutes: leaveByDay?.get(workDateToDayKey(row.workDate)) ?? 0,
         isWorkingDay: isWorkingDate(row.workDate),
         isSaturday: row.workDate.getDay() === 6,
+        isSunday: row.workDate.getDay() === 0,
         isInProgress: isSameWorkDate(row.workDate),
       });
       daysByPerson.set(row.personId, days);
@@ -1207,6 +1265,7 @@ export class OvertimeService {
       leaveTypesByPersonDay,
       dailyWorkMinutesByPerson,
       correctionByPerson,
+      weekendInBalanceThroughByPerson,
     };
   }
 
@@ -1268,6 +1327,20 @@ function dailyWorkMinutesFor(
   personId: string,
 ): number {
   return dailyWorkMinutesOf(source.dailyWorkMinutesByPerson.get(personId));
+}
+
+/**
+ * Whether `monthKey` is read the way it was before weekend hours were counted
+ * apart: true up to the person's last month approved that way, so an approved
+ * month never changes under the people it was paid to.
+ */
+function readsWeekendInBalance(
+  source: Pick<OvertimeSourceData, 'weekendInBalanceThroughByPerson'>,
+  personId: string,
+  monthKey: string,
+): boolean {
+  const through = source.weekendInBalanceThroughByPerson.get(personId);
+  return through !== undefined && monthKey <= through;
 }
 
 function addTo(map: Map<string, number>, key: string, minutes: number): void {

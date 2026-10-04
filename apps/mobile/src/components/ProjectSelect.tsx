@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FinisajBadge } from './FinisajBadge';
+import { NotesText } from './NotesText';
 import type { MeResponse, ProjectOptionDto } from '@fabxpert/shared';
 import { useMobileLookupCache } from '../context/MobileLookupCacheContext';
 import {
@@ -267,7 +268,7 @@ export function ProjectSelect({ user, onChoose, onOpenMyTimesheets }: ProjectSel
                   }
                 >
                   <span className="option-row-notes-label">Notițe</span>
-                  <p className="option-row-notes-text">{notes}</p>
+                  <NotesText value={notes} className="option-row-notes-text" />
                 </div>
               )}
             </li>

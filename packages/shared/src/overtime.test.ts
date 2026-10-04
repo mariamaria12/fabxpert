@@ -5,12 +5,17 @@ import {
   SATURDAY_WORK_MINUTES,
   accountingHours,
   approvedMonthCarry,
+  countSaturdaysAndHolidaysWorked,
   countSaturdaysWorked,
   dailyWorkMinutesOf,
   overtimeBalanceMinutes,
   overtimeDaysAvailable,
   settleOvertimeBalance,
+  weekendMinutes,
 } from './overtime';
+
+/** How the months approved before weekend hours were counted apart are read. */
+const LEGACY = { weekendInBalance: true };
 
 const workingDay = (loggedMinutes: number, leaveMinutes = 0) => ({
   loggedMinutes,
@@ -37,9 +42,35 @@ test('without a norm of their own a person is on the default 9h day', () => {
   assert.equal(dailyWorkMinutesOf(360), 360);
 });
 
-test('a saturday stays a 7.5h day whatever the norm', () => {
+test('weekend and public holiday hours add nothing to the balance', () => {
   const saturday = { loggedMinutes: 540, isWorkingDay: false, isSaturday: true };
-  assert.equal(overtimeBalanceMinutes([saturday], 360), 90);
+  const sunday = { loggedMinutes: 240, isWorkingDay: false, isSunday: true };
+  const holiday = { loggedMinutes: 360, isWorkingDay: false };
+
+  assert.equal(overtimeBalanceMinutes([saturday, sunday, holiday]), 0);
+  // They do not pay a short week back either.
+  assert.equal(overtimeBalanceMinutes([saturday, workingDay(480)]), -60);
+});
+
+test('weekend hours are counted as logged: saturdays with holidays, sundays apart', () => {
+  const days = [
+    { loggedMinutes: 540, isWorkingDay: false, isSaturday: true },
+    { loggedMinutes: 120, isWorkingDay: false, isSaturday: true },
+    // A public holiday in the week goes with the Saturdays.
+    { loggedMinutes: 360, isWorkingDay: false },
+    { loggedMinutes: 240, isWorkingDay: false, isSunday: true },
+    // Easter Sunday is a public holiday and still a Sunday.
+    { loggedMinutes: 60, isWorkingDay: false, isSunday: true },
+    workingDay(600),
+  ];
+
+  assert.deepEqual(weekendMinutes(days), { saturdayMinutes: 1020, sundayMinutes: 300 });
+  assert.equal(countSaturdaysAndHolidaysWorked(days), 3);
+});
+
+test('legacy: a saturday stays a 7.5h day whatever the norm', () => {
+  const saturday = { loggedMinutes: 540, isWorkingDay: false, isSaturday: true };
+  assert.equal(overtimeBalanceMinutes([saturday], 360, LEGACY), 90);
 });
 
 test("a day off from the balance costs a day of the person's norm", () => {
@@ -47,25 +78,32 @@ test("a day off from the balance costs a day of the person's norm", () => {
   assert.equal(overtimeDaysAvailable(720), 1);
 });
 
-test('sunday work is overtime hour for hour', () => {
+test('legacy: sunday work is overtime hour for hour', () => {
   assert.equal(
-    overtimeBalanceMinutes([{ loggedMinutes: 240, isWorkingDay: false }]),
+    overtimeBalanceMinutes(
+      [{ loggedMinutes: 240, isWorkingDay: false, isSunday: true }],
+      DAILY_WORK_MINUTES,
+      LEGACY,
+    ),
     240,
   );
 });
 
-test('a saturday is a 7.5h day: only what is logged past it is overtime', () => {
+test('legacy: a saturday is a 7.5h day, only what is logged past it is overtime', () => {
   const saturday = (loggedMinutes: number) => ({
     loggedMinutes,
     isWorkingDay: false,
     isSaturday: true,
   });
 
-  assert.equal(overtimeBalanceMinutes([saturday(240)]), 0);
-  assert.equal(overtimeBalanceMinutes([saturday(SATURDAY_WORK_MINUTES)]), 0);
-  assert.equal(overtimeBalanceMinutes([saturday(540)]), 90);
+  const legacy = (days: Parameters<typeof overtimeBalanceMinutes>[0]) =>
+    overtimeBalanceMinutes(days, DAILY_WORK_MINUTES, LEGACY);
+
+  assert.equal(legacy([saturday(240)]), 0);
+  assert.equal(legacy([saturday(SATURDAY_WORK_MINUTES)]), 0);
+  assert.equal(legacy([saturday(540)]), 90);
   // A short Saturday is never a debt.
-  assert.equal(overtimeBalanceMinutes([saturday(60), workingDay(DAILY_WORK_MINUTES)]), 0);
+  assert.equal(legacy([saturday(60), workingDay(DAILY_WORK_MINUTES)]), 0);
 });
 
 test('every saturday with time logged is a worked saturday, however short', () => {
@@ -189,6 +227,19 @@ test('accounting splits a month into normal hours and the overtime approved for 
   assert.deepEqual(
     accountingHours({ loggedMinutes: 10800, earnedMinutes: 720, paidMinutes: 720 }),
     { normalMinutes: 10080, overtimeMinutes: 720, totalMinutes: 10800 },
+  );
+});
+
+test('weekend hours are not normal hours on the pontaj', () => {
+  // 180h logged: 12h of them on a Saturday and a Sunday, 4h over the norm in the week.
+  assert.deepEqual(
+    accountingHours({
+      loggedMinutes: 10800,
+      weekendMinutes: 720,
+      earnedMinutes: 240,
+      paidMinutes: 240,
+    }),
+    { normalMinutes: 9840, overtimeMinutes: 240, totalMinutes: 10080 },
   );
 });
 

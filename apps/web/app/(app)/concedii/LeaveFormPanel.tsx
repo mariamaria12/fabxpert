@@ -19,6 +19,7 @@ import {
   type LeaveBalanceDto,
   type LeaveRequestDto,
   type LeaveType,
+  formatPersonName,
 } from '@fabxpert/shared';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { SlideOverPanel } from '@/components/SlideOverPanel';
@@ -188,7 +189,7 @@ export function LeaveFormPanel({
           setPersonOptions(
             persons.map((person) => ({
               id: person.id,
-              label: `${person.firstName} ${person.lastName}`,
+              label: formatPersonName(person),
             })),
           );
         }
@@ -423,7 +424,7 @@ export function LeaveFormPanel({
           <div>
             <p className="text-xs text-text-secondary">Angajat</p>
             <p className="mt-1.5 text-sm text-text-primary">
-              {request.person.firstName} {request.person.lastName}
+              {formatPersonName(request.person)}
             </p>
           </div>
         ) : (

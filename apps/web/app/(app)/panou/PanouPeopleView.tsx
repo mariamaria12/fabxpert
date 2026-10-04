@@ -1,6 +1,6 @@
 'use client';
 
-import { getPersonSummary, type PersonSummaryPersonRow } from '@fabxpert/shared';
+import { formatPersonName, getPersonSummary, type PersonSummaryPersonRow } from '@fabxpert/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { TimesheetExportPanel } from '@/app/(app)/timesheets/TimesheetExportPanel';
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
@@ -53,7 +53,7 @@ function PersonHoursCard({
         <button
           type="button"
           onClick={onEdit}
-          aria-label={`Editează pontajele lui ${person.firstName} ${person.lastName}`}
+          aria-label={`Editează pontajele lui ${formatPersonName(person)}`}
           title="Editează pontajele"
           className="mr-2 shrink-0 rounded p-1.5 text-text-muted transition-colors hover:bg-surface-raised hover:text-text-primary"
         >
@@ -209,7 +209,7 @@ export function PanouPeopleView() {
       {editPerson && (
         <PersonTimesheetDaysPanel
           personId={editPerson.id}
-          personName={`${editPerson.firstName} ${editPerson.lastName}`}
+          personName={formatPersonName(editPerson)}
           period={period}
           onClose={() => setEditPerson(null)}
           onSaved={() => void refetchSummary()}

@@ -1,5 +1,11 @@
 import type { TimesheetDto } from '@fabxpert/shared';
-import { formatDateDisplay, isPublicHoliday, workDateToDayKey } from '@fabxpert/shared';
+import {
+  formatDateDisplay,
+  formatOvertimeHours,
+  isPublicHoliday,
+  workDateToDayKey,
+  formatPersonName,
+} from '@fabxpert/shared';
 
 /** Payroll export format: NUME PRENUME (uppercase). */
 export function formatExportWorkerName(person: { firstName: string; lastName: string }): string {
@@ -7,7 +13,7 @@ export function formatExportWorkerName(person: { firstName: string; lastName: st
 }
 
 export function personFullName(timesheet: TimesheetDto): string {
-  return `${timesheet.person.firstName} ${timesheet.person.lastName}`;
+  return formatPersonName(timesheet.person);
 }
 
 export function formatProjectLabel(timesheet: TimesheetDto): string | null {
@@ -188,4 +194,13 @@ export function formatHoursDecimal(totalMinutes: number): string {
     maximumFractionDigits: 1,
   });
   return `${totalMinutes < 0 ? '−' : ''}${formatted} h`;
+}
+
+/**
+ * Hours logged on days off, for the "Ore sâmbătă" and "Ore duminică" columns.
+ * A dash for none — and for a month approved while they still went into the
+ * balance, where they are not counted apart.
+ */
+export function formatWeekendHours(minutes: number | null): string {
+  return minutes !== null && minutes > 0 ? formatOvertimeHours(minutes) : '—';
 }

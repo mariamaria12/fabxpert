@@ -8,6 +8,7 @@ import {
   type LeaveRequestDto,
   type LeaveStatus,
   type LeaveType,
+  formatPersonName,
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LeaveCalendarView } from './LeaveCalendarView';
@@ -109,7 +110,7 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
         setPersonOptions(
           persons.map((person) => ({
             id: person.id,
-            label: `${person.firstName} ${person.lastName}`,
+            label: formatPersonName(person),
           })),
         );
       })
@@ -234,7 +235,12 @@ export function LeaveRequestsTab({ onBalancesRefresh, refreshToken = 0 }: LeaveR
       showToast(status === 'APROBAT' ? 'Cerere aprobată' : 'Cerere respinsă', 'success');
 
       if (response.overBalanceWarning) {
-        showToast('Atenție: cererea depășește soldul de odihnă.', 'error');
+        showToast(
+          request.type === 'RECUPERARE'
+            ? 'Atenție: cererea depășește soldul de ore suplimentare.'
+            : 'Atenție: cererea depășește soldul de odihnă.',
+          'error',
+        );
       }
 
       handleReviewed(response.leaveRequest);

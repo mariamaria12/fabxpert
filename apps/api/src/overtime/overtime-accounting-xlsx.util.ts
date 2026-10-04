@@ -6,8 +6,13 @@ import type { AccountingTimesheetResponse } from '@fabxpert/shared/dto/overtime.
  * The pontaj document accounting receives, in the layout of their own
  * workbook: one sheet per month, a 31-day grid of codes per person, the
  * COUNTIF counters, then the pay columns they fill in by hand, and the legend.
- * The rates in the formulas (400 lei per Saturday, 30 per meal ticket, 9 hours
- * a day) are theirs — kept verbatim so the sheet computes like the ones before it.
+ * The rates in the formulas (30 per meal ticket, 9 hours a day) are theirs —
+ * kept verbatim so the sheet computes like the ones before it.
+ *
+ * Weekend work is the one place it departs from their workbook: next to the
+ * count of Saturdays worked it carries the hours logged on Saturdays and public
+ * holidays, and the hours logged on Sundays. Those are priced per hour by the
+ * accountant afterwards, so no rate for them is written into "Total de plată".
  * Only the payroll is on it: external collaborators stay off the document.
  */
 
@@ -48,7 +53,7 @@ const LAST_DAY_COLUMN = FIRST_DAY_COLUMN + DAY_COLUMNS - 1; // AG
 const FIRST_PERSON_ROW = 4;
 
 /** Empty in their sheet, between the pay columns and the grand total. */
-const UNUSED_COLUMN = 51; // AY
+const UNUSED_COLUMN = 53; // BA
 
 // The EDENRED cross-check block, written beside the legend as in their sheet.
 const CHECK_TITLE_COLUMN = 8; // H
@@ -64,6 +69,8 @@ const SUMMARY_HEADERS: { header: string; width: number }[] = [
   { header: 'Zile lucrătoare', width: 7.7 },
   { header: 'NET CARD', width: 7.7 },
   { header: 'Sâmbete lucrate/ Sărbători legale', width: 11.7 },
+  { header: 'Ore sâmbătă/ sărbători legale', width: 11.7 },
+  { header: 'Ore duminică', width: 8.6 },
   { header: 'Ore extra', width: 7.4 },
   { header: 'Tarif ore extra 150%', width: 7.7 },
   { header: 'NET', width: 7.6 },
@@ -85,18 +92,28 @@ const COL = {
   workingDays: 38, // AL
   netCard: 39, // AM
   saturdays: 40, // AN
-  extraHours: 41, // AO
-  extraRate: 42, // AP
-  net: 43, // AQ
-  totalPay: 44, // AR
-  advances: 45, // AS
-  payroll: 46, // AT
-  edenred: 47, // AU
-  extra: 48, // AV
-  dashboardHours: 49, // AW
-  mealTickets: 50, // AX
-  grandTotal: 52, // AZ — untitled in the template, kept for its total
+  saturdayHours: 41, // AO
+  sundayHours: 42, // AP
+  extraHours: 43, // AQ
+  extraRate: 44, // AR
+  net: 45, // AS
+  totalPay: 46, // AT
+  advances: 47, // AU
+  payroll: 48, // AV
+  edenred: 49, // AW
+  extra: 50, // AX
+  dashboardHours: 51, // AY
+  mealTickets: 52, // AZ
+  grandTotal: 54, // BB — untitled in the template, kept for its total
 } as const;
+
+/** Columns that hold hours, written with decimals. */
+const HOUR_COLUMNS: number[] = [COL.saturdayHours, COL.sundayHours, COL.extraHours];
+
+/** Minutes as hours, or an empty cell when there is nothing to show. */
+function hoursOrBlank(minutes: number | null): number | null {
+  return minutes !== null && minutes > 0 ? minutes / 60 : null;
+}
 
 const FONT_NAME = 'Arial Narrow';
 
@@ -361,7 +378,12 @@ export async function buildAccountingTimesheetXlsx(
     dayColumnsMeta.forEach((meta, offset) => {
       const cell = sheet.getCell(row, meta.column);
       const code = meta.inMonth ? (line.dayCodes[offset] ?? '') : '';
-      cell.value = code === '' ? null : code;
+      // A day off carries no code; when it was worked, the cell shows the hours.
+      const weekendHours = meta.inMonth ? hoursOrBlank(line.weekendDayMinutes[offset] ?? 0) : null;
+      cell.value = code !== '' ? code : weekendHours;
+      if (code === '' && weekendHours !== null) {
+        cell.numFmt = '0.##';
+      }
       cell.font = { name: FONT_NAME, size: 10, bold: true };
       cell.alignment = CENTER;
       cell.border = THIN;
@@ -378,7 +400,7 @@ export async function buildAccountingTimesheetXlsx(
       [COL.leave]: countIf(range, 'CO', 'CM', 'CP', 'DS'),
       [COL.absent]: countIf(range, 'AN'),
       [COL.unpaid]: countIf(range, 'CFP', 'CS'),
-      [COL.totalPay]: `${columnLetter(COL.net)}${row}+${columnLetter(COL.extraHours)}${row}*${columnLetter(COL.extraRate)}${row}+${columnLetter(COL.saturdays)}${row}*400`,
+      [COL.totalPay]: `${columnLetter(COL.net)}${row}+${columnLetter(COL.extraHours)}${row}*${columnLetter(COL.extraRate)}${row}`,
       [COL.edenred]: `${columnLetter(COL.worked)}${row}*30`,
       [COL.dashboardHours]: `${columnLetter(COL.worked)}${row}*9`,
       [COL.mealTickets]: `30*${columnLetter(COL.worked)}${row}`,
@@ -405,8 +427,12 @@ export async function buildAccountingTimesheetXlsx(
         cell.value = report.workingDays;
       } else if (column === COL.saturdays) {
         cell.value = line.saturdaysWorked;
+      } else if (column === COL.saturdayHours) {
+        cell.value = hoursOrBlank(line.saturdayMinutes);
+      } else if (column === COL.sundayHours) {
+        cell.value = hoursOrBlank(line.sundayMinutes);
       } else if (column === COL.extraHours) {
-        cell.value = line.overtimeMinutes > 0 ? line.overtimeMinutes / 60 : null;
+        cell.value = hoursOrBlank(line.overtimeMinutes);
       }
       cell.font = { name: FONT_NAME, size: column === COL.worked ? 14 : 10, bold: true };
       cell.alignment = CENTER;
@@ -414,7 +440,7 @@ export async function buildAccountingTimesheetXlsx(
         cell.border = THIN;
       }
       cell.numFmt =
-        column === COL.worked ? '0' : column === COL.extraHours ? '0.0##' : COUNT_FORMAT;
+        column === COL.worked ? '0' : HOUR_COLUMNS.includes(column) ? '0.0##' : COUNT_FORMAT;
     }
   });
 
@@ -425,6 +451,8 @@ export async function buildAccountingTimesheetXlsx(
     COL.worked,
     COL.netCard,
     COL.saturdays,
+    COL.saturdayHours,
+    COL.sundayHours,
     COL.extraHours,
     COL.net,
     COL.totalPay,

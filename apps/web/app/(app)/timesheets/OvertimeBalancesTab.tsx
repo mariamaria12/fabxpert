@@ -15,6 +15,7 @@ import { MonthPicker } from './MonthPicker';
 import { OvertimeCorrectionPanel } from './OvertimeCorrectionPanel';
 import { OvertimeRulesInfo } from './OvertimeInfo';
 import { StatTile, StatTileRow } from './StatTile';
+import { formatWeekendHours } from './timesheetFormat';
 import { currentMonth, formatMonthLabel } from './timesheetMonths';
 
 interface OvertimeBalancesTabProps {
@@ -145,6 +146,20 @@ export function OvertimeBalancesTab({ active }: OvertimeBalancesTabProps) {
       width: '120px',
       className: 'text-right tabular-nums text-text-secondary',
       render: (row) => (row.balance.saturdaysWorked === 0 ? '—' : row.balance.saturdaysWorked),
+    },
+    {
+      key: 'saturdayHours',
+      header: 'Ore sâmbătă',
+      width: '110px',
+      className: 'text-right tabular-nums text-text-secondary',
+      render: (row) => formatWeekendHours(row.balance.saturdayMinutes),
+    },
+    {
+      key: 'sundayHours',
+      header: 'Ore duminică',
+      width: '110px',
+      className: 'text-right tabular-nums text-text-secondary',
+      render: (row) => formatWeekendHours(row.balance.sundayMinutes),
     },
     {
       key: 'paid',
@@ -295,8 +310,8 @@ export function OvertimeBalancesTab({ active }: OvertimeBalancesTabProps) {
       {!loading && !error && rows.length > 0 ? (
         <p className="mt-3 text-xs text-text-muted">
           Soldul acoperă doar luna afișată plus reportul din luna dinainte — orele mai vechi au
-          fost deja plătite sau recuperate. O sâmbătă lucrată e o zi de 7,5 h: doar ce trece de ea
-          intră în sold; duminica intră oră cu oră.{' '}
+          fost deja plătite sau recuperate. Orele de sâmbătă, de sărbători legale și de duminică nu
+          intră în sold: se numără separat, exact cum au fost pontate.{' '}
           {isCurrentMonth ? 'Creionul setează soldul manual. ' : ''}
           {settledThroughLabel(rows)}
         </p>

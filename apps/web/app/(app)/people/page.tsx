@@ -6,6 +6,7 @@ import {
   type PersonDto,
   type PersonListSortBy,
   type SortOrder,
+  formatPersonName,
 } from '@fabxpert/shared';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { PersonFormPanel } from './PersonFormPanel';
@@ -43,7 +44,7 @@ const personColumns: DataTableColumn<PersonDto>[] = [
       <div className="flex min-w-0 items-center gap-3">
         <PersonAvatar person={row} />
         <span className="truncate font-medium">
-          {row.firstName} {row.lastName}
+          {formatPersonName(row)}
         </span>
       </div>
     ),

@@ -16,6 +16,7 @@ import {
   type UpdateUserInput,
   type UserDto,
   type UserRole,
+  formatPersonName,
 } from '@fabxpert/shared';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { SearchableSelect, type SearchableSelectOption } from '@/components/SearchableSelect';
@@ -282,7 +283,7 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
 
       return {
         id: person.id,
-        label: `${person.firstName} ${person.lastName}`,
+        label: formatPersonName(person),
         description: person.employeeRole?.name,
         disabled,
         disabledSuffix: disabled ? 'are deja cont' : undefined,
@@ -296,7 +297,7 @@ export function UserFormPanel({ open, mode, user, onClose, onSaved }: UserFormPa
     }
 
     if (mode === 'edit' && user?.personId === values.personId) {
-      return `${user.person.firstName} ${user.person.lastName}`;
+      return formatPersonName(user.person);
     }
 
     return personOptions.find((option) => option.id === values.personId)?.label;

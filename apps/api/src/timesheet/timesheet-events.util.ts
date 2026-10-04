@@ -1,4 +1,5 @@
 import type { TimesheetEventPayload } from './timesheet-events.service';
+import { formatPersonName } from '@fabxpert/shared/personName';
 
 type PersonNameParts = {
   firstName: string;
@@ -6,7 +7,7 @@ type PersonNameParts = {
 };
 
 export function personDisplayName(person: PersonNameParts): string {
-  return `${person.firstName} ${person.lastName}`;
+  return formatPersonName(person);
 }
 
 export function createdTimesheetEvent(

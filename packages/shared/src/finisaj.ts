@@ -296,3 +296,56 @@ export function finisajBadgeColors(hex: string): FinisajBadgeColors {
           : null,
   };
 }
+
+/** A stretch of free text, or a RAL code found inside it. */
+export type RalTextPart =
+  | { kind: 'text'; text: string }
+  /** `label` is always "RAL 7033", whatever was typed. */
+  | { kind: 'ral'; text: string; label: string };
+
+/**
+ * A RAL code inside running text. The character before it must not be a letter
+ * or a digit, so "CORAL 7033" is left alone; written without a lookbehind,
+ * which older Safari on the workshop phones cannot parse.
+ */
+const RAL_IN_TEXT = /(^|[^\p{L}\d])(RAL\s?(\d{4}))(?!\d)/giu;
+
+/**
+ * Splits free text — project notes — around the RAL codes written in it, so
+ * each code can be shown as its colour badge where it stands. Only codes that
+ * exist in RAL Classic are picked out; anything else stays text, untouched.
+ */
+export function splitTextByRal(value: string | null | undefined): RalTextPart[] {
+  if (!value) {
+    return [];
+  }
+
+  const parts: RalTextPart[] = [];
+  let cursor = 0;
+
+  for (const match of value.matchAll(RAL_IN_TEXT)) {
+    const color = RAL_CLASSIC_COLORS[match[3]];
+    if (!color) {
+      continue;
+    }
+
+    const start = match.index + match[1].length;
+    if (start > cursor) {
+      parts.push({ kind: 'text', text: value.slice(cursor, start) });
+    }
+    parts.push({ kind: 'ral', text: match[2], label: `RAL ${color.code}` });
+    cursor = start + match[2].length;
+  }
+
+  if (cursor < value.length) {
+    parts.push({ kind: 'text', text: value.slice(cursor) });
+  }
+
+  return parts;
+}
+
+/** The RAL codes written in a text, each once, in the order they appear. */
+export function ralCodesInText(value: string | null | undefined): string[] {
+  const labels = splitTextByRal(value).flatMap((part) => (part.kind === 'ral' ? [part.label] : []));
+  return [...new Set(labels)];
+}

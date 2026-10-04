@@ -23,17 +23,12 @@ export function OvertimeRulesInfo() {
         ]}
       />
       <InfoSection
-        title="Sâmbăta"
+        title="Sâmbăta, duminica și sărbătorile legale"
         items={[
-          'O sâmbătă lucrată se plătește separat, ca zi de 7,5 ore, oricare ar fi norma.',
-          'La ore suplimentare intră doar ce trece de 7,5 ore: 9 ore sâmbătă înseamnă +1h 30m. O sâmbătă mai scurtă nu se scade din sold.',
-        ]}
-      />
-      <InfoSection
-        title="Duminica și sărbătorile legale"
-        items={[
-          'Toate orele pontate duminica sunt ore suplimentare.',
-          'La fel într-o sărbătoare legală care cade în timpul săptămânii: e zi liberă, deci toate orele pontate sunt suplimentare. O sărbătoare care cade sâmbăta urmează regula de sâmbătă.',
+          'Orele pontate în aceste zile nu intră în sold: nu se adaugă, nu se scad și nu se pot lua ca recuperare.',
+          'Se numără separat, exact cum au fost pontate: „Ore sâmbătă” adună sâmbetele și sărbătorile legale din timpul săptămânii, iar „Ore duminică” adună duminicile, inclusiv când sunt sărbătoare legală.',
+          '„Sâmbete lucrate” arată câte sâmbete și sărbători legale au avut pontaj.',
+          'Lunile aprobate înainte de această regulă rămân cum au fost aprobate: acolo sâmbăta peste 7,5 ore și duminica au intrat în sold, iar coloanele de ore rămân goale.',
           'Sărbătorile legale: 1–2 ianuarie, 6–7 ianuarie, 24 ianuarie, Vinerea Mare, Paștele și Rusaliile (duminica și lunea), 1 mai, 1 iunie, 15 august, 30 noiembrie, 1 decembrie, 25–26 decembrie.',
         ]}
       />

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { MAX_DAILY_WORK_MINUTES } from '../overtime';
+import { isCalendarDateString } from '../workDate';
 import type { TimesheetSummaryPeriod } from './timesheet.dto';
 
 export const LEAVE_TYPE_VALUES = [
@@ -20,7 +21,8 @@ export type LeaveStatus = (typeof LEAVE_STATUS_VALUES)[number];
 
 const leaveDateSchema = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD');
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD')
+  .refine(isCalendarDateString, 'Date must be a real calendar day');
 
 /** UUID-like id (accepts seed person ids with `p` prefix). */
 const uuidSchema = z

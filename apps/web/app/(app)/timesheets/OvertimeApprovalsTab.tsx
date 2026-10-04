@@ -8,8 +8,9 @@ import {
   settleOvertimeMonth,
   type OvertimeSettlementLineDto,
   type OvertimeSettlementPreviewResponse,
+  formatPersonName,
 } from '@fabxpert/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import { filterChipClassName } from '@/components/filterChipStyles';
 import { PersonName } from '@/components/PersonAvatar';
@@ -19,7 +20,7 @@ import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { MonthPicker } from './MonthPicker';
 import { OvertimeApprovalsInfo } from './OvertimeInfo';
 import { StatTile, StatTileRow } from './StatTile';
-import { formatRomanianDate } from './timesheetFormat';
+import { formatRomanianDate, formatWeekendHours } from './timesheetFormat';
 import { currentMonth, formatMonthLabel, latestSettleableMonth } from './timesheetMonths';
 import { approvalBadge, STATUS_BADGE_CLASS } from './timesheetStatus';
 
@@ -76,26 +77,56 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
   /** Person being approved, or 'all' for the whole month. */
   const [busy, setBusy] = useState<string | null>(null);
 
+  // Bumped on every load, so an answer for a month the user already left is dropped.
+  const loadGeneration = useRef(0);
+  /** The month the reserve fields were typed for. */
+  const reservesMonth = useRef<string | null>(null);
+
   const loadPreview = useCallback(async (target: string) => {
+    const generation = (loadGeneration.current += 1);
     setLoading(true);
     setError(null);
 
     try {
       const response = await previewOvertimeSettlement(target);
+      if (generation !== loadGeneration.current) {
+        return;
+      }
       setPreview(response);
-      // An approved line shows the reserve it was approved with.
-      setReserves(
-        Object.fromEntries(
-          response.lines
-            .filter((line) => line.settledAt !== null && line.reserveMinutes > 0)
-            .map((line) => [line.person.id, reserveToInput(line.reserveMinutes)]),
-        ),
-      );
+
+      const sameMonth = reservesMonth.current === response.month;
+      reservesMonth.current = response.month;
+      // An approved line shows the reserve it was approved with. A line still
+      // waiting keeps what was typed for it: a reload of the same month must
+      // not empty the fields, or the next approval would pay those hours out.
+      setReserves((current) => {
+        const next: Record<string, string> = {};
+        for (const line of response.lines) {
+          const typed =
+            sameMonth && isOvertimeLineAwaitingApproval(line)
+              ? current[line.person.id]
+              : undefined;
+          const stored =
+            line.settledAt !== null && line.reserveMinutes > 0
+              ? reserveToInput(line.reserveMinutes)
+              : undefined;
+          const value = typed ?? stored;
+          if (value !== undefined) {
+            next[line.person.id] = value;
+          }
+        }
+        return next;
+      });
     } catch (caught) {
+      if (generation !== loadGeneration.current) {
+        return;
+      }
       setPreview(null);
       setError(apiErrorToastMessage(caught));
     } finally {
-      setLoading(false);
+      if (generation === loadGeneration.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -116,9 +147,12 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
     key: string,
     reserveOverride?: number,
   ) {
-    if (lines.length === 0) {
+    if (lines.length === 0 || !preview) {
       return;
     }
+    // The month the lines on screen belong to — not the picker, which may
+    // already point elsewhere while its own preview is still loading.
+    const settledMonth = preview.month;
     setBusy(key);
 
     try {
@@ -130,14 +164,14 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
       }
 
       const result = await settleOvertimeMonth(
-        month,
+        settledMonth,
         reserveMinutesByPerson,
         lines.map((line) => line.person.id),
       );
       showToast(
         lines.length === 1
-          ? `${formatMonthLabel(month)} aprobată pentru ${lines[0].person.firstName} ${lines[0].person.lastName}: ${formatOvertimeHours(result.totalPaidMinutes)} de plată.`
-          : `${formatMonthLabel(month)} aprobată: ${formatOvertimeHours(result.totalPaidMinutes)} de plată pentru ${result.personsSettled} persoane.`,
+          ? `${formatMonthLabel(settledMonth)} aprobată pentru ${formatPersonName(lines[0].person)}: ${formatOvertimeHours(result.totalPaidMinutes)} de plată.`
+          : `${formatMonthLabel(settledMonth)} aprobată: ${formatOvertimeHours(result.totalPaidMinutes)} de plată pentru ${result.personsSettled} persoane.`,
         'success',
       );
       await Promise.all([loadPreview(month), refreshPendingCount()]);
@@ -225,6 +259,20 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
       render: (line) => (line.saturdaysWorked === 0 ? '—' : line.saturdaysWorked),
     },
     {
+      key: 'saturdayHours',
+      header: 'Ore sâmbătă',
+      width: '110px',
+      className: 'text-right tabular-nums text-text-secondary',
+      render: (line) => formatWeekendHours(line.saturdayMinutes),
+    },
+    {
+      key: 'sundayHours',
+      header: 'Ore duminică',
+      width: '110px',
+      className: 'text-right tabular-nums text-text-secondary',
+      render: (line) => formatWeekendHours(line.sundayMinutes),
+    },
+    {
       key: 'balance',
       header: 'Sold',
       width: '100px',
@@ -253,7 +301,7 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
             value={reserves[line.person.id] ?? ''}
             placeholder="0"
             disabled={busy !== null}
-            aria-label={`Ore păstrate pentru ${line.person.firstName} ${line.person.lastName}`}
+            aria-label={`Ore păstrate pentru ${formatPersonName(line.person)}`}
             onChange={(event) =>
               setReserves((current) => ({ ...current, [line.person.id]: event.target.value }))
             }
@@ -426,7 +474,14 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
             label="De plată la aprobare"
             icon="ti-cash"
             accent
-            value={loading ? '—' : formatOvertimeHours(pendingPaid)}
+            // Negative when a reapproval takes hours back; the sign has to show.
+            value={
+              loading
+                ? '—'
+                : pendingPaid < 0
+                  ? formatOvertimeBalance(pendingPaid)
+                  : formatOvertimeHours(pendingPaid)
+            }
             hint="cu orele păstrate scăzute"
           />
           <StatTile

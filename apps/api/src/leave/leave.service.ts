@@ -19,9 +19,7 @@ import type {
 } from '@fabxpert/shared/dto/leave.dto';
 import type { TimesheetSummaryPeriod } from '@fabxpert/shared/dto/timesheet.dto';
 import type { PaginatedResponse } from '@fabxpert/shared/dto/pagination.dto';
-import {
-  countInclusiveLeaveDays,
-} from '@fabxpert/shared/leaveDays';
+import { countInclusiveLeaveDays, leaveRequestYear } from '@fabxpert/shared/leaveDays';
 import { dailyWorkMinutesOf } from '@fabxpert/shared/overtime';
 import { parseWorkDateString } from '@fabxpert/shared/workDate';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
@@ -434,17 +432,14 @@ export class LeaveService {
     };
 
     if (input.status === 'APROBAT' && existing.type === 'ODIHNA') {
-      const balance = await this.computeBalance(existing.personId);
-      const requestDays = countInclusiveLeaveDays(
-        existing.startDate,
-        existing.endDate,
+      // The update above already landed, so this is the balance with the
+      // request in it — for the year the request is counted in.
+      const balance = await this.computeBalance(
+        existing.personId,
+        leaveRequestYear(existing.startDate),
       );
-      const usedWithoutThis =
-        existing.status === 'APROBAT' ? balance.usedDays - requestDays : balance.usedDays;
-      const remainingAfterApproval =
-        balance.annualLeaveDays - usedWithoutThis - requestDays;
 
-      if (remainingAfterApproval < 0) {
+      if (balance.remainingDays < 0) {
         response.overBalanceWarning = true;
       }
     }
