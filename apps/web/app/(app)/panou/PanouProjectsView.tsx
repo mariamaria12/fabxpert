@@ -266,7 +266,11 @@ function useProjectTableColumns(options?: {
     );
 
     if (rowActions) {
-      columns.push(projectActionsColumn(rowActions.onEdit, rowActions.onOpenReport));
+      columns.push(
+        projectActionsColumn(rowActions.onEdit, rowActions.onOpenReport, {
+          reportForAllStatuses: true,
+        }),
+      );
     }
 
     return columns;
@@ -619,6 +623,7 @@ export function PanouProjectsView() {
         title="Proiecte în curs"
         statusGroup="in_progress"
         showPinColumn
+        onOpenReport={setReportProjectId}
         readyForExecution={readyForExecution}
         onPinToggled={handlePinToggled}
         onProjectUpdated={handleTableProjectUpdated}

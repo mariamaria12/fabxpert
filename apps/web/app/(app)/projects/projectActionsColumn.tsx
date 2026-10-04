@@ -8,12 +8,15 @@ const ACTION_BUTTON_CLASS =
 
 /**
  * Trailing pencil column; finished projects also get the project report that
- * Rapoarte opens. The pencil stays last so it lines up on every row.
+ * Rapoarte opens (every project with `reportForAllStatuses`). The pencil stays
+ * last so it lines up on every row.
  */
 export function projectActionsColumn(
   onEdit: (project: ProjectDto) => void,
   onOpenReport: (projectId: string) => void,
+  options?: { reportForAllStatuses?: boolean },
 ): DataTableColumn<ProjectDto> {
+  const reportForAllStatuses = options?.reportForAllStatuses ?? false;
   return {
     key: 'actions',
     header: '',
@@ -21,7 +24,7 @@ export function projectActionsColumn(
     className: 'overflow-visible',
     render: (row) => (
       <div className="flex justify-end gap-1">
-        {row.status === 'FINALIZAT' && (
+        {(reportForAllStatuses || row.status === 'FINALIZAT') && (
           <button
             type="button"
             aria-label="Deschide fișa proiectului"
