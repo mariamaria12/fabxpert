@@ -16,7 +16,6 @@ import {
   TASK_CHECKLIST_TEXT_MAX_LENGTH,
   TASK_COMMENT_MAX_LENGTH,
   TASK_DESCRIPTION_MAX_LENGTH,
-  TASK_PRIORITY_VALUES,
   TASK_STATUS_VALUES,
   TASK_TITLE_MAX_LENGTH,
   updateTask,
@@ -37,7 +36,12 @@ import { SlideOverPanel } from '@/components/SlideOverPanel';
 import { useToast } from '@/context/ToastContext';
 import { useReloadOnTasksChanged } from '@/context/TasksContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
-import { TaskAssignee, taskProjectLabel } from './taskDisplay';
+import {
+  formatTaskTimestamp,
+  TaskAssignee,
+  TaskPriorityPicker,
+  taskProjectLabel,
+} from './taskDisplay';
 import type { TaskLookups } from './useTaskLookups';
 
 interface TaskDetailPanelProps {
@@ -53,25 +57,7 @@ const STATUS_OPTIONS = TASK_STATUS_VALUES.map((status) => ({
   label: getTaskStatusLabel(status),
 }));
 
-const PRIORITY_OPTIONS = TASK_PRIORITY_VALUES.map((priority) => ({
-  id: priority,
-  label: getTaskPriorityLabel(priority),
-}));
-
 const SECTION_TITLE_CLASS = 'text-sm font-medium text-text-primary';
-
-/** "3 oct., 10:32" — the year only when it is not this one. */
-function formatTimestamp(iso: string): string {
-  const date = new Date(iso);
-  const sameYear = date.getFullYear() === new Date().getFullYear();
-  const day = date.toLocaleDateString('ro-RO', {
-    day: 'numeric',
-    month: 'short',
-    ...(sameYear ? {} : { year: 'numeric' }),
-  });
-  const time = date.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
-  return `${day}, ${time}`;
-}
 
 /** What happened, after the actor's name: "a schimbat statusul → În lucru". */
 function describeEvent(event: TaskEventDto): string {
@@ -376,18 +362,6 @@ export function TaskDetailPanel({ taskId, lookups, onClose, onChanged }: TaskDet
               }
             }}
           />
-          <SelectField
-            id="taskDetailPriority"
-            label="Prioritate"
-            value={task.priority}
-            options={PRIORITY_OPTIONS}
-            disabled={busy}
-            onChange={(next) => {
-              if (next !== task.priority) {
-                void patch({ priority: next as TaskPriority });
-              }
-            }}
-          />
           <SearchableSelect
             id="taskDetailAssignee"
             label="Responsabil"
@@ -419,6 +393,18 @@ export function TaskDetailPanel({ taskId, lookups, onClose, onChanged }: TaskDet
               value={dueDateDraft}
               disabled={busy}
               onChange={handleDueDateChange}
+            />
+          </div>
+          <div className="col-span-2">
+            <span className={FORM_LABEL_CLASS}>Prioritate</span>
+            <TaskPriorityPicker
+              value={task.priority}
+              disabled={busy}
+              onChange={(next) => {
+                if (next !== task.priority) {
+                  void patch({ priority: next });
+                }
+              }}
             />
           </div>
         </div>
@@ -572,7 +558,7 @@ export function TaskDetailPanel({ taskId, lookups, onClose, onChanged }: TaskDet
                       {formatPersonName(comment.author)}
                     </span>
                     <span className="text-xs text-text-muted">
-                      {formatTimestamp(comment.createdAt)}
+                      {formatTaskTimestamp(comment.createdAt)}
                     </span>
                   </p>
                   <p className="mt-0.5 whitespace-pre-wrap break-words text-text-secondary">
@@ -597,7 +583,9 @@ export function TaskDetailPanel({ taskId, lookups, onClose, onChanged }: TaskDet
                   </span>{' '}
                   {describeEvent(event)}
                 </span>
-                <span className="shrink-0 text-text-muted">{formatTimestamp(event.createdAt)}</span>
+                <span className="shrink-0 text-text-muted">
+                  {formatTaskTimestamp(event.createdAt)}
+                </span>
               </li>
             ))}
           </ul>

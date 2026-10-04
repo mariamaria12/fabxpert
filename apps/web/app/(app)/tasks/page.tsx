@@ -61,7 +61,7 @@ export default function TasksPage() {
 
   // Coming in on a project, everyone's tasks on it are what was asked for.
   const [scope, setScope] = useState<TaskListScope>(projectId ? 'all' : 'mine');
-  const [includeDone, setIncludeDone] = useState(false);
+  const [includeDone, setIncludeDone] = useState(true);
   const [assigneeUserId, setAssigneeUserId] = useState<string | null>(null);
   const [status, setStatus] = useState<TaskStatusFilter>('');
   const [due, setDue] = useState<TaskDueFilter>('');
