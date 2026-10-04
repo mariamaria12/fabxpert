@@ -1,6 +1,7 @@
 import ExcelJS from 'exceljs';
 import { ACCOUNTING_DAY_CODES, accountingDocumentLines } from '@fabxpert/shared/accountingDocument';
 import type { AccountingTimesheetResponse } from '@fabxpert/shared/dto/overtime.dto';
+import { isPublicHoliday } from '@fabxpert/shared/workDate';
 
 /**
  * The pontaj document accounting receives, in the layout of their own
@@ -9,10 +10,11 @@ import type { AccountingTimesheetResponse } from '@fabxpert/shared/dto/overtime.
  * The rates in the formulas (30 per meal ticket, 9 hours a day) are theirs —
  * kept verbatim so the sheet computes like the ones before it.
  *
- * Weekend work is the one place it departs from their workbook: next to the
- * count of Saturdays worked it carries the hours logged on Saturdays and public
- * holidays, and the hours logged on Sundays. Those are priced per hour by the
- * accountant afterwards, so no rate for them is written into "Total de plată".
+ * Weekend work is the one place it departs from their workbook: a day off that
+ * was worked shows its hours in the grid, and next to the count of Saturdays
+ * worked two columns total those cells — Saturdays with public holidays, and
+ * Sundays. They are priced per hour by the accountant afterwards, so no rate
+ * for them is written into "Total de plată".
  * Only the payroll is on it: external collaborators stay off the document.
  */
 
@@ -107,8 +109,13 @@ const COL = {
   grandTotal: 54, // BB — untitled in the template, kept for its total
 } as const;
 
-/** Columns that hold hours, written with decimals. */
-const HOUR_COLUMNS: number[] = [COL.saturdayHours, COL.sundayHours, COL.extraHours];
+/** The two weekend totals: each adds up the hours written in the day grid. */
+const WEEKEND_HOUR_COLUMNS: number[] = [COL.saturdayHours, COL.sundayHours];
+
+/** Whole hours without a decimal separator, the rest as they are: 8, 7.5. */
+const HOURS_FORMAT = 'General';
+/** The same, with nothing shown for a total of zero. */
+const HOURS_TOTAL_FORMAT = '[=0]"";General';
 
 /** Minutes as hours, or an empty cell when there is nothing to show. */
 function hoursOrBlank(minutes: number | null): number | null {
@@ -286,12 +293,22 @@ export async function buildAccountingTimesheetXlsx(
   });
 
   // --- header rows 1–2 ---
-  const dayColumnsMeta: { column: number; weekday: number; inMonth: boolean }[] = [];
+  const dayColumnsMeta: {
+    column: number;
+    weekday: number;
+    inMonth: boolean;
+    isHoliday: boolean;
+  }[] = [];
   for (let offset = 0; offset < DAY_COLUMNS; offset += 1) {
     const column = FIRST_DAY_COLUMN + offset;
     const date = new Date(year, monthIndex, offset + 1);
     const inMonth = offset < daysInMonth;
-    dayColumnsMeta.push({ column, weekday: date.getDay(), inMonth });
+    dayColumnsMeta.push({
+      column,
+      weekday: date.getDay(),
+      inMonth,
+      isHoliday: isPublicHoliday(date),
+    });
 
     const nameCell = sheet.getCell(1, column);
     nameCell.value = WEEKDAY_NAMES[date.getDay()];
@@ -353,6 +370,18 @@ export async function buildAccountingTimesheetXlsx(
   normValue.border = THIN;
   sheet.getRow(3).height = 22.5;
 
+  // Days off, by the column their hours are totalled in: Sundays on their own,
+  // Saturdays together with the public holidays that fall in the week.
+  const daysOff = dayColumnsMeta.filter(
+    (meta) => meta.inMonth && (meta.weekday === 0 || meta.weekday === 6 || meta.isHoliday),
+  );
+  const sundayColumns = daysOff.filter((meta) => meta.weekday === 0).map((meta) => meta.column);
+  const saturdayColumns = daysOff.filter((meta) => meta.weekday !== 0).map((meta) => meta.column);
+  const sumCells = (row: number, columns: number[]) =>
+    `SUM(${columns.map((column) => `${columnLetter(column)}${row}`).join(',')})`;
+  const sumWeekendMinutes = (dayMinutes: number[], columns: number[]) =>
+    columns.reduce((sum, column) => sum + (dayMinutes[column - FIRST_DAY_COLUMN] ?? 0), 0);
+
   // --- one row per person ---
   const lastPersonRow = FIRST_PERSON_ROW + lines.length - 1;
   const dayRange = (row: number) =>
@@ -382,7 +411,7 @@ export async function buildAccountingTimesheetXlsx(
       const weekendHours = meta.inMonth ? hoursOrBlank(line.weekendDayMinutes[offset] ?? 0) : null;
       cell.value = code !== '' ? code : weekendHours;
       if (code === '' && weekendHours !== null) {
-        cell.numFmt = '0.##';
+        cell.numFmt = HOURS_FORMAT;
       }
       cell.font = { name: FONT_NAME, size: 10, bold: true };
       cell.alignment = CENTER;
@@ -407,6 +436,11 @@ export async function buildAccountingTimesheetXlsx(
       [COL.grandTotal]: `${columnLetter(COL.netCard)}${row}+${columnLetter(COL.totalPay)}${row}+${columnLetter(COL.edenred)}${row}+${columnLetter(COL.net)}${row}`,
     };
 
+    // The weekend totals add up the grid, so a cell corrected by hand carries
+    // through. A Sunday goes to its own column even when it is a public holiday.
+    formulas[COL.saturdayHours] = sumCells(row, saturdayColumns);
+    formulas[COL.sundayHours] = sumCells(row, sundayColumns);
+
     // Their sheet counts the "da" written on the day; the app knows the number,
     // so it writes that and leaves the formula where it has nothing to add.
     if (line.saturdaysWorked === 0) {
@@ -419,7 +453,14 @@ export async function buildAccountingTimesheetXlsx(
       }
       const cell = sheet.getCell(row, column);
       const formula = formulas[column];
-      if (formula) {
+      if (formula && WEEKEND_HOUR_COLUMNS.includes(column)) {
+        const minutes =
+          column === COL.saturdayHours
+            ? sumWeekendMinutes(line.weekendDayMinutes, saturdayColumns)
+            : sumWeekendMinutes(line.weekendDayMinutes, sundayColumns);
+        // The result is written too, for viewers that do not recalculate.
+        cell.value = { formula, result: minutes / 60 };
+      } else if (formula) {
         cell.value = { formula };
       } else if (column === COL.workingDays) {
         // Their column is the month's norm, not what the row adds up to: the
@@ -427,10 +468,6 @@ export async function buildAccountingTimesheetXlsx(
         cell.value = report.workingDays;
       } else if (column === COL.saturdays) {
         cell.value = line.saturdaysWorked;
-      } else if (column === COL.saturdayHours) {
-        cell.value = hoursOrBlank(line.saturdayMinutes);
-      } else if (column === COL.sundayHours) {
-        cell.value = hoursOrBlank(line.sundayMinutes);
       } else if (column === COL.extraHours) {
         cell.value = hoursOrBlank(line.overtimeMinutes);
       }
@@ -440,7 +477,13 @@ export async function buildAccountingTimesheetXlsx(
         cell.border = THIN;
       }
       cell.numFmt =
-        column === COL.worked ? '0' : HOUR_COLUMNS.includes(column) ? '0.0##' : COUNT_FORMAT;
+        column === COL.worked
+          ? '0'
+          : WEEKEND_HOUR_COLUMNS.includes(column)
+            ? HOURS_TOTAL_FORMAT
+            : column === COL.extraHours
+              ? '0.0##'
+              : COUNT_FORMAT;
     }
   });
 
@@ -483,7 +526,12 @@ export async function buildAccountingTimesheetXlsx(
       };
       cell.alignment = CENTER;
       cell.border = THIN;
-      cell.numFmt = column === COL.worked ? '0' : COUNT_FORMAT;
+      cell.numFmt =
+        column === COL.worked
+          ? '0'
+          : WEEKEND_HOUR_COLUMNS.includes(column)
+            ? HOURS_TOTAL_FORMAT
+            : COUNT_FORMAT;
       if (banded) {
         cell.fill = TOTAL_FILL;
       }
