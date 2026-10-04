@@ -10,7 +10,11 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { computeDropdownPlacement } from './dropdownPlacement';
+import {
+  computeDropdownPlacement,
+  watchDropdownPlacement,
+  type DropdownPlacement,
+} from './dropdownPlacement';
 import {
   FORM_COMBO_INPUT_CLASS,
   FORM_DROPDOWN_CLASS,
@@ -81,12 +85,7 @@ export function SearchableSelect({
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
-  const [dropdownStyle, setDropdownStyle] = useState<{
-    top: number;
-    left: number;
-    width: number;
-    maxHeight: number;
-  } | null>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<DropdownPlacement | null>(null);
 
   const selectedOption = useMemo(
     () => options.find((option) => option.id === value) ?? null,
@@ -125,17 +124,7 @@ export function SearchableSelect({
 
     updateDropdownPosition();
 
-    function handleReposition() {
-      updateDropdownPosition();
-    }
-
-    window.addEventListener('resize', handleReposition);
-    window.addEventListener('scroll', handleReposition, true);
-
-    return () => {
-      window.removeEventListener('resize', handleReposition);
-      window.removeEventListener('scroll', handleReposition, true);
-    };
+    return watchDropdownPlacement(updateDropdownPosition);
   }, [isOpen, updateDropdownPosition, filteredOptions.length]);
 
   useEffect(() => {
@@ -272,12 +261,7 @@ export function SearchableSelect({
             role="listbox"
             aria-labelledby={`${id}-label`}
             className={FORM_DROPDOWN_CLASS}
-            style={{
-              top: dropdownStyle.top,
-              left: dropdownStyle.left,
-              width: dropdownStyle.width,
-              maxHeight: dropdownStyle.maxHeight,
-            }}
+            style={dropdownStyle}
           >
             {filteredOptions.length === 0 ? (
               showCreateFromQuery ? (

@@ -10,7 +10,11 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { computeDropdownPlacement } from './dropdownPlacement';
+import {
+  computeDropdownPlacement,
+  watchDropdownPlacement,
+  type DropdownPlacement,
+} from './dropdownPlacement';
 import {
   FORM_DROPDOWN_CLASS,
   FORM_DROPDOWN_EMPTY_CLASS,
@@ -58,7 +62,7 @@ export function SearchableMultiSelect({
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
-  const [dropdownStyle, setDropdownStyle] = useState<ReturnType<typeof computeDropdownPlacement> | null>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<DropdownPlacement | null>(null);
 
   const selectedOptions = useMemo(
     () => options.filter((option) => values.includes(option.id)),
@@ -99,17 +103,7 @@ export function SearchableMultiSelect({
 
     updateDropdownPosition();
 
-    function handleReposition() {
-      updateDropdownPosition();
-    }
-
-    window.addEventListener('resize', handleReposition);
-    window.addEventListener('scroll', handleReposition, true);
-
-    return () => {
-      window.removeEventListener('resize', handleReposition);
-      window.removeEventListener('scroll', handleReposition, true);
-    };
+    return watchDropdownPlacement(updateDropdownPosition);
   }, [isOpen, updateDropdownPosition, filteredOptions.length]);
 
   function closeDropdown() {
@@ -247,12 +241,7 @@ export function SearchableMultiSelect({
             role="listbox"
             aria-labelledby={`${id}-label`}
             className={FORM_DROPDOWN_CLASS}
-            style={{
-              top: dropdownStyle.top,
-              left: dropdownStyle.left,
-              width: dropdownStyle.width,
-              maxHeight: dropdownStyle.maxHeight,
-            }}
+            style={dropdownStyle}
           >
             {selectAllLabel && selectableOptions.length > 0 && (
               <li>

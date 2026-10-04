@@ -9,7 +9,7 @@ export const FORM_COMBO_INPUT_CLASS =
 export const FORM_SELECT_CLASS = `${FORM_FIELD_CLASS} appearance-none pr-9`;
 
 export const FORM_DROPDOWN_CLASS =
-  'fixed z-[60] overflow-y-auto rounded-lg border border-strong bg-surface-popover py-1.5 shadow-popover';
+  'absolute z-[60] overflow-y-auto rounded-lg border border-strong bg-surface-popover py-1.5 shadow-popover';
 
 export const FORM_DROPDOWN_EMPTY_CLASS = 'px-3 py-2.5 text-sm text-text-secondary';
 

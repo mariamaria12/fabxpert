@@ -48,6 +48,7 @@ const uuidQuerySchema = z
 const listFiltersSchema = z.object({
   personId: uuidQuerySchema.optional(),
   projectId: uuidQuerySchema.optional(),
+  activityId: uuidQuerySchema.optional(),
   createdAtFrom: z.coerce.date().optional(),
   createdAtTo: z.coerce.date().optional(),
 });
@@ -56,6 +57,7 @@ function parseListFilters(query: Record<string, string>) {
   const result = listFiltersSchema.safeParse({
     personId: query.personId,
     projectId: query.projectId,
+    activityId: query.activityId,
     createdAtFrom: query.createdAtFrom,
     createdAtTo: query.createdAtTo,
   });

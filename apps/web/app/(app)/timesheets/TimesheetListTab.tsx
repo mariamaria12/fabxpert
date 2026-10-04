@@ -110,13 +110,16 @@ export function TimesheetListTab() {
   const isMobile = useIsMobile();
   // Folded on phones, unless a link just set filters worth seeing.
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(
-    link.personId !== null || link.projectId !== null,
+    link.personId !== null || link.projectId !== null || link.activityId !== null,
   );
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   /** The exact person a link asked for; typing in the search box drops it. */
   const [linkedPersonId, setLinkedPersonId] = useState<string | null>(link.personId);
   const [projectId, setProjectId] = useState<string | null>(link.projectId);
+  const [activityId, setActivityId] = useState<string | null>(link.activityId);
+  /** Every activity, for the filter; null until loaded. */
+  const [activityOptions, setActivityOptions] = useState<SearchableSelectOption[] | null>(null);
   /** Every project, for the filter; null until loaded. */
   const [projectOptions, setProjectOptions] = useState<SearchableSelectOption[] | null>(null);
   const [period, setPeriod] = useState<Period>(link.period ?? { kind: 'month' });
@@ -164,6 +167,9 @@ export function TimesheetListTab() {
     listActivities()
       .then((activities) => {
         if (!cancelled) {
+          setActivityOptions(
+            activities.map((activity) => ({ id: activity.id, label: activity.name })),
+          );
           setAssemblyActivityIds(
             new Set(
               activities
@@ -174,7 +180,10 @@ export function TimesheetListTab() {
         }
       })
       .catch(() => {
-        // The label is a nicety; the pontaje list works without it.
+        // The label and the filter are niceties; the pontaje list works without them.
+        if (!cancelled) {
+          setActivityOptions([]);
+        }
       });
 
     return () => {
@@ -292,6 +301,7 @@ export function TimesheetListTab() {
     debouncedSearch.length > 0 ||
     linkedPersonId !== null ||
     projectId !== null ||
+    activityId !== null ||
     period.kind !== 'month';
   const hasMore = loadedPages * PAGE_SIZE < total;
 
@@ -305,8 +315,9 @@ export function TimesheetListTab() {
       ...(textSearch ? { search: textSearch } : {}),
       ...(linkedPersonId ? { personId: linkedPersonId } : {}),
       ...(projectId ? { projectId } : {}),
+      ...(activityId ? { activityId } : {}),
     }),
-    [period, sortBy, sortOrder, textSearch, linkedPersonId, projectId],
+    [period, sortBy, sortOrder, textSearch, linkedPersonId, projectId, activityId],
   );
 
   /** Starts the list over from its first page — a new search, filter, period or sort. */
@@ -475,11 +486,11 @@ export function TimesheetListTab() {
 
   /**
    * The day panel edits the whole day — a new date moves every entry — but under
-   * a project filter the row holds only that project's entries, so the day is
-   * fetched again in full first.
+   * a project or activity filter the row holds only the matching entries, so the
+   * day is fetched again in full first.
    */
   async function editDayGroup(group: TimesheetDayGroupDto) {
-    if (!projectId) {
+    if (!projectId && !activityId) {
       openDayGroup(group);
       return;
     }
@@ -814,10 +825,10 @@ export function TimesheetListTab() {
               onToggle={() => setMobileFiltersOpen((current) => !current)}
             />
           )}
-          {/* Two equal columns keep search and project the same size. Phones
-              stack them under the toggle row, only while it is open. */}
+          {/* Equal columns keep search, project and activity the same size.
+              Phones stack them under the toggle row, only while it is open. */}
           {(!isMobile || mobileFiltersOpen) && (
-            <div className="order-last grid w-full gap-3 md:order-none md:w-auto md:min-w-0 md:max-w-3xl md:flex-1 md:grid-cols-2">
+            <div className="order-last grid w-full gap-3 md:order-none md:w-auto md:min-w-0 md:max-w-5xl md:flex-1 md:grid-cols-3">
               <input
                 type="search"
                 value={searchInput}
@@ -841,6 +852,18 @@ export function TimesheetListTab() {
                 options={projectOptions ?? []}
                 onChange={setProjectId}
               />
+              <SearchableSelect
+                id="timesheet-activity-filter"
+                label="Activitate"
+                hideLabel
+                placeholder="Toate activitățile"
+                emptyMessage={
+                  activityOptions ? 'Nicio activitate găsită.' : 'Se încarcă activitățile…'
+                }
+                value={activityId}
+                options={activityOptions ?? []}
+                onChange={setActivityId}
+              />
             </div>
           )}
           <ViewToggle
@@ -859,6 +882,7 @@ export function TimesheetListTab() {
           <TimesheetCalendarView
             search={debouncedSearch}
             projectId={projectId}
+            activityId={activityId}
             refreshToken={calendarToken}
             onOpenDay={openDayGroup}
             onOpenLeave={setLeaveReview}

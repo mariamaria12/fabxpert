@@ -89,6 +89,8 @@ interface TimesheetCalendarViewProps {
    * shows all of it, since the panel edits the whole day.
    */
   projectId: string | null;
+  /** Narrows the pontaje the same way a project does. */
+  activityId: string | null;
   refreshToken: number;
   onOpenDay: (group: TimesheetDayGroupDto) => void;
   onOpenLeave: (request: LeaveRequestDto) => void;
@@ -102,6 +104,7 @@ interface TimesheetCalendarViewProps {
 export function TimesheetCalendarView({
   search,
   projectId,
+  activityId,
   refreshToken,
   onOpenDay,
   onOpenLeave,
@@ -124,11 +127,12 @@ export function TimesheetCalendarView({
       period: { kind: 'custom' as const, from, to },
       ...(search ? { search } : {}),
       ...(projectId ? { projectId } : {}),
+      ...(activityId ? { activityId } : {}),
     };
 
     try {
-      // Leave belongs to no project, so a project filter leaves it out.
-      const leavePromise = projectId
+      // Leave belongs to no project or activity, so either filter leaves it out.
+      const leavePromise = projectId || activityId
         ? Promise.resolve<LeaveRequestDto[]>([])
         : loadAllPages((page, pageSize) => listLeaveRequests({ page, pageSize, from, to }));
 
@@ -154,7 +158,7 @@ export function TimesheetCalendarView({
     } finally {
       setLoading(false);
     }
-  }, [mode, from, to, search, projectId]);
+  }, [mode, from, to, search, projectId, activityId]);
 
   useEffect(() => {
     void load();

@@ -122,6 +122,7 @@ type TimesheetWithRelations = Prisma.TimesheetGetPayload<{
 export interface TimesheetListFilters {
   personId?: string;
   projectId?: string;
+  activityId?: string;
   search?: string;
   workDateFrom?: Date;
   workDateTo?: Date;
@@ -914,6 +915,7 @@ export class TimesheetService {
       ...visibleTimesheetWhere(),
       ...(filters.personId ? { personId: filters.personId } : {}),
       ...(filters.projectId ? { projectId: filters.projectId } : {}),
+      ...(filters.activityId ? { activityId: filters.activityId } : {}),
       ...(filters.search
         ? {
             person: {

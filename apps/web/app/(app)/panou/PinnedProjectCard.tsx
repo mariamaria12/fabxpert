@@ -10,6 +10,7 @@ import { FinisajBadge } from '@/components/FinisajBadge';
 import { ProjectComplexityBadge } from '@/components/ProjectComplexityBadge';
 import { AssemblyListScreen } from '@/app/(app)/projects/AssemblyListScreen';
 import { ActivityBreakdownRows } from './ActivityBreakdownRows';
+import { allTimePeriod } from '@/utils/timesheetListNavigation';
 import { NEUTRAL_ACCENT, panouAccentTint } from './panouColors';
 import { PanouProjectCard } from './PanouProjectCard';
 import { pinToggleToastMessage } from './ProjectPinButton';
@@ -226,6 +227,8 @@ export function PinnedProjectCard({
           <ActivityBreakdownRows
             activities={project.activities}
             progressPercent={project.progressPercent}
+            // Pinned cards total every pontaj ever logged, whatever the toolbar period.
+            timesheets={{ projectId: project.id, period: allTimePeriod() }}
           />
         ) : (
           <p className="text-sm text-text-muted">

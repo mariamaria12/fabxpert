@@ -4,6 +4,7 @@ import type { ProjectSummaryActivityRow, ProjectStatus } from '@fabxpert/shared'
 import { PROJECT_TERMINAL_STATUSES } from '@fabxpert/shared';
 import { ActivityBreakdownRows } from './ActivityBreakdownRows';
 import { NEUTRAL_ACCENT, panouAccentTint } from './panouColors';
+import { usePanouDashboard } from './PanouDashboardContext';
 import { PanouProjectCard } from './PanouProjectCard';
 
 export type ProjectHoursCardProject = {
@@ -29,6 +30,7 @@ export function ProjectHoursCard({
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const { period } = usePanouDashboard();
   const showStatusBadge = PROJECT_TERMINAL_STATUSES.includes(project.status);
   const color = project.color ?? NEUTRAL_ACCENT;
 
@@ -58,6 +60,7 @@ export function ProjectHoursCard({
         <ActivityBreakdownRows
           activities={project.activities}
           progressPercent={project.progressPercent}
+          timesheets={{ projectId: project.id, period }}
         />
       }
     />

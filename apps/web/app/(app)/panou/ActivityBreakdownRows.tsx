@@ -1,9 +1,11 @@
 'use client';
 
-import type { ProjectSummaryActivityRow } from '@fabxpert/shared';
+import type { Period, ProjectSummaryActivityRow } from '@fabxpert/shared';
 import { formatProjectProgress } from '@fabxpert/shared';
+import Link from 'next/link';
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
 import { formatProjectWeight } from '@/utils/projectWeight';
+import { buildActivityTimesheetListHref } from '@/utils/timesheetListNavigation';
 import { PanouActivityProgressBar } from './PanouActivityProgressBar';
 
 /**
@@ -97,8 +99,64 @@ function ActivityDot({ color }: { color: string | null }) {
   );
 }
 
+/** Where an activity's name leads: the pontaje behind its hours. */
+export type ActivityTimesheetsLink = {
+  projectId: string;
+  /** The period the hours beside the name were counted over. */
+  period: Period;
+};
+
+/**
+ * The activity's dot and name. With a link it opens that activity's pontaje on
+ * the project, and a chevron shows on hover to say so; hours logged without an
+ * activity have nothing to filter on and stay plain text.
+ */
+function ActivityName({
+  activity,
+  timesheets,
+}: {
+  activity: ProjectSummaryActivityRow;
+  timesheets?: ActivityTimesheetsLink;
+}) {
+  if (!timesheets || !activity.activityId) {
+    return (
+      <div className={`${NAME_CELL} flex min-w-0 items-center gap-2`}>
+        <ActivityDot color={activity.activityColor} />
+        <span className="truncate text-xs text-text-secondary">{activity.activityName}</span>
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      href={buildActivityTimesheetListHref({
+        projectId: timesheets.projectId,
+        activityId: activity.activityId,
+        period: timesheets.period,
+      })}
+      title={`Vezi pontajele pe ${activity.activityName}`}
+      className={`${NAME_CELL} group flex min-w-0 items-center gap-2`}
+    >
+      <ActivityDot color={activity.activityColor} />
+      <span className="truncate text-xs text-text-secondary transition-colors group-hover:text-text-primary">
+        {activity.activityName}
+      </span>
+      <i
+        className="ti ti-chevron-right shrink-0 text-xs text-text-muted opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+        aria-hidden="true"
+      />
+    </Link>
+  );
+}
+
 /** Pieces closed on the project's list, with the period's hours beside them. Same colors as the hours rows so the two halves read as one list. */
-function AssemblyActivityCells({ activity }: { activity: ProjectSummaryActivityRow }) {
+function AssemblyActivityCells({
+  activity,
+  timesheets,
+}: {
+  activity: ProjectSummaryActivityRow;
+  timesheets?: ActivityTimesheetsLink;
+}) {
   const progress = activity.assemblyProgress;
   if (!progress) {
     return null;
@@ -108,10 +166,7 @@ function AssemblyActivityCells({ activity }: { activity: ProjectSummaryActivityR
 
   return (
     <>
-      <div className={`${NAME_CELL} flex min-w-0 items-center gap-2`}>
-        <ActivityDot color={activity.activityColor} />
-        <span className="truncate text-xs text-text-secondary">{activity.activityName}</span>
-      </div>
+      <ActivityName activity={activity} timesheets={timesheets} />
       <span className="text-right text-[11px] tabular-nums text-text-muted">
         {hasList ? `${percent}%` : ''}
       </span>
@@ -135,16 +190,15 @@ function AssemblyActivityCells({ activity }: { activity: ProjectSummaryActivityR
 function ActivityHoursCells({
   activity,
   percent,
+  timesheets,
 }: {
   activity: ProjectSummaryActivityRow;
   percent: number;
+  timesheets?: ActivityTimesheetsLink;
 }) {
   return (
     <>
-      <div className={`${NAME_CELL} flex min-w-0 items-center gap-2`}>
-        <ActivityDot color={activity.activityColor} />
-        <span className="truncate text-xs text-text-secondary">{activity.activityName}</span>
-      </div>
+      <ActivityName activity={activity} timesheets={timesheets} />
       <span className="panou-breakdown-hours-blank" aria-hidden="true" />
       <PanouActivityProgressBar
         className="panou-breakdown-hours-bar w-full"
@@ -233,10 +287,13 @@ function WithoutWeightNote({ activities }: { activities: ProjectSummaryActivityR
 export function ActivityBreakdownRows({
   activities,
   progressPercent,
+  timesheets,
 }: {
   activities: ProjectSummaryActivityRow[];
   /** The project's progress (see projectProgressPercent); null hides the total line. */
   progressPercent: number | null;
+  /** Makes each activity a link to its pontaje; left out, the names are plain text. */
+  timesheets?: ActivityTimesheetsLink;
 }) {
   const assemblyActivities = activities.filter(hasAssemblyInfo);
   const hoursActivities = activities.filter((activity) => !hasAssemblyInfo(activity));
@@ -260,7 +317,11 @@ export function ActivityBreakdownRows({
           </span>
 
           {assemblyActivities.map((activity) => (
-            <AssemblyActivityCells key={activity.activityId ?? 'none'} activity={activity} />
+            <AssemblyActivityCells
+              key={activity.activityId ?? 'none'}
+              activity={activity}
+              timesheets={timesheets}
+            />
           ))}
 
           {assemblyActivities.length > 1 && progressPercent !== null && (
@@ -286,6 +347,7 @@ export function ActivityBreakdownRows({
           key={activity.activityId ?? 'none'}
           activity={activity}
           percent={Math.round((activity.minutes / maxActivityMinutes) * 100)}
+          timesheets={timesheets}
         />
       ))}
     </div>

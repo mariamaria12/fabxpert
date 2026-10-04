@@ -121,6 +121,7 @@ export interface ListTimesheetDayGroupsParams {
   pageSize?: number;
   personId?: string;
   projectId?: string;
+  activityId?: string;
   search?: string;
   period?: Period;
   sortBy?: TimesheetGroupSortBy;
@@ -141,6 +142,9 @@ export function listTimesheetDayGroups(params: ListTimesheetDayGroupsParams = {}
   }
   if (params.projectId !== undefined) {
     searchParams.set('projectId', params.projectId);
+  }
+  if (params.activityId !== undefined) {
+    searchParams.set('activityId', params.activityId);
   }
   if (params.search?.trim()) {
     searchParams.set('search', params.search.trim());
@@ -164,6 +168,7 @@ export interface TimesheetCalendarParams {
   period: Period;
   search?: string;
   projectId?: string;
+  activityId?: string;
 }
 
 function appendCalendarQuery(searchParams: URLSearchParams, params: TimesheetCalendarParams): void {
@@ -173,6 +178,9 @@ function appendCalendarQuery(searchParams: URLSearchParams, params: TimesheetCal
   }
   if (params.projectId !== undefined) {
     searchParams.set('projectId', params.projectId);
+  }
+  if (params.activityId !== undefined) {
+    searchParams.set('activityId', params.activityId);
   }
 }
 

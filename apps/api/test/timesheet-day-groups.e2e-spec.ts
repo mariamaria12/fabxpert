@@ -102,6 +102,16 @@ describe('Timesheet day groups (e2e)', () => {
     ).toEqual([300, 60]);
   });
 
+  it('keeps only the entries of the filtered activity', async () => {
+    const response = await listGroups({ activityId: FIXTURES.activities.second.id });
+
+    // Only employee1 logged the second activity, once, today.
+    expect(response.body.meta.total).toBe(1);
+    expect(response.body.data[0].person.id).toBe(FIXTURES.persons.employee1.id);
+    expect(response.body.data[0].entries).toHaveLength(1);
+    expect(response.body.data[0].totalMinutes).toBe(120);
+  });
+
   it('paginates over days rather than entries', async () => {
     const firstPage = await listGroups({ pageSize: '1', page: '1' });
 
