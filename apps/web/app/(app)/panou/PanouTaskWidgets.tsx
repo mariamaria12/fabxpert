@@ -40,7 +40,7 @@ function WidgetHeader({ title, count }: { title: string; count?: number }) {
 
 /**
  * The signed-in admin's next tasks, and the projects held up by overdue ones.
- * The second card only appears while some project has overdue tasks.
+ * Each card only appears while it has something to show.
  */
 export function PanouTaskWidgets() {
   const { projectTaskCounts } = useTasks();
@@ -71,21 +71,18 @@ export function PanouTaskWidgets() {
     [projectTaskCounts],
   );
 
+  const hasTasks = nextTasks.length > 0;
+  const hasAttentionProjects = attentionProjects.length > 0;
+
+  if (!hasTasks && !hasAttentionProjects) return null;
+
   return (
     <div
-      className={`mt-3 grid gap-3 ${attentionProjects.length > 0 ? 'lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]' : ''}`}
+      className={`mt-3 grid gap-3 ${hasTasks && hasAttentionProjects ? 'lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]' : ''}`}
     >
-      <section aria-label="Task-urile mele" className={CARD_CLASS}>
-        <WidgetHeader title="Task-urile mele" count={tasks?.length} />
-        {tasks === null ? (
-          <p className="border-t border-border-subtle px-3 py-3 text-sm text-text-muted">
-            Se încarcă…
-          </p>
-        ) : nextTasks.length === 0 ? (
-          <p className="border-t border-border-subtle px-3 py-3 text-sm text-text-muted">
-            Nu ai niciun task deschis.
-          </p>
-        ) : (
+      {hasTasks ? (
+        <section aria-label="Task-urile mele" className={CARD_CLASS}>
+          <WidgetHeader title="Task-urile mele" count={tasks?.length} />
           <ul>
             {nextTasks.map((task) => (
               <li key={task.id} className="border-t border-border-subtle">
@@ -116,24 +113,24 @@ export function PanouTaskWidgets() {
               </li>
             ))}
           </ul>
-        )}
-        <div className="flex items-center justify-between gap-3 border-t border-border-subtle px-3 py-2">
-          <Link
-            href={taskHref({ create: true })}
-            className="inline-flex items-center gap-1.5 text-sm text-text-secondary transition-colors hover:text-text-primary"
-          >
-            <i className="ti ti-plus text-base" aria-hidden="true" />
-            Task nou
-          </Link>
-          {tasks && tasks.length > nextTasks.length ? (
-            <span className="text-xs text-text-muted">
-              încă {formatTaskCount(tasks.length - nextTasks.length)}
-            </span>
-          ) : null}
-        </div>
-      </section>
+          <div className="flex items-center justify-between gap-3 border-t border-border-subtle px-3 py-2">
+            <Link
+              href={taskHref({ create: true })}
+              className="inline-flex items-center gap-1.5 text-sm text-text-secondary transition-colors hover:text-text-primary"
+            >
+              <i className="ti ti-plus text-base" aria-hidden="true" />
+              Task nou
+            </Link>
+            {tasks && tasks.length > nextTasks.length ? (
+              <span className="text-xs text-text-muted">
+                încă {formatTaskCount(tasks.length - nextTasks.length)}
+              </span>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
-      {attentionProjects.length > 0 ? (
+      {hasAttentionProjects ? (
         <section aria-label="Proiecte cu task-uri în atenție" className={CARD_CLASS}>
           <WidgetHeader title="Proiecte cu task-uri în atenție" />
           <ul>
