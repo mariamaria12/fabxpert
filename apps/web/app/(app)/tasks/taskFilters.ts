@@ -1,16 +1,12 @@
-import { formatPersonName, taskDueState, type TaskDto, type TaskStatus } from '@fabxpert/shared';
+import { formatPersonName, taskDueState, type TaskDto } from '@fabxpert/shared';
 import { normalizeSearchText } from '@/utils/searchText';
 import { taskProjectLabel } from './taskDisplay';
 
 /** `week` is everything due from tomorrow to Sunday; `none` has no deadline. */
 export type TaskDueFilter = '' | 'overdue' | 'today' | 'week' | 'none';
 
-/** Open statuses only — finished tasks have their own switch. */
-export type TaskStatusFilter = '' | Exclude<TaskStatus, 'DONE'>;
-
 export type TaskFilters = {
   assigneeUserId: string | null;
-  status: TaskStatusFilter;
   due: TaskDueFilter;
   search: string;
 };
@@ -44,10 +40,6 @@ export function filterTasks(tasks: TaskDto[], filters: TaskFilters, today: strin
 
   return tasks.filter((task) => {
     if (filters.assigneeUserId && task.assignee.id !== filters.assigneeUserId) {
-      return false;
-    }
-    // The status filter picks among open tasks; finished ones stay in their group.
-    if (filters.status && task.status !== 'DONE' && task.status !== filters.status) {
       return false;
     }
     if (!matchesDue(task, filters.due, today)) {

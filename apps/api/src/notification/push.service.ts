@@ -9,6 +9,9 @@ export type PushPayload = {
   tag?: string;
 };
 
+/** A push service that has not answered by now is given up on, not waited for. */
+const PUSH_TIMEOUT_MS = 10_000;
+
 /**
  * Web Push delivery. Disabled (and silently skipped) when the VAPID env vars
  * are missing, so local dev and the test suite don't need keys — check
@@ -74,9 +77,13 @@ export class PushService implements OnModuleInit {
               keys: { p256dh: subscription.p256dh, auth: subscription.auth },
             },
             body,
+            { timeout: PUSH_TIMEOUT_MS },
           );
         } catch (error) {
-          if (error instanceof WebPushError && (error.statusCode === 404 || error.statusCode === 410)) {
+          if (
+            error instanceof WebPushError &&
+            (error.statusCode === 404 || error.statusCode === 410)
+          ) {
             staleIds.push(subscription.id);
             return;
           }

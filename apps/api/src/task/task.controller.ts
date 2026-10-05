@@ -20,11 +20,13 @@ import {
   createTaskChecklistItemSchema,
   createTaskCommentSchema,
   createTaskSchema,
+  createTasksSchema,
   updateTaskChecklistItemSchema,
   updateTaskSchema,
   type CreateTaskChecklistItemInput,
   type CreateTaskCommentInput,
   type CreateTaskInput,
+  type CreateTasksInput,
   type UpdateTaskChecklistItemInput,
   type UpdateTaskInput,
 } from '@fabxpert/shared/dto/task.dto';
@@ -103,6 +105,15 @@ export class TaskController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.taskService.create(input, req.user.id);
+  }
+
+  @Post('batch')
+  @HttpCode(HttpStatus.CREATED)
+  createMany(
+    @Body(new ZodValidationPipe(createTasksSchema)) input: CreateTasksInput,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.taskService.createMany(input, req.user.id);
   }
 
   @Patch(':id')

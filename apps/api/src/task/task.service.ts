@@ -7,6 +7,7 @@ import {
   type CreateTaskChecklistItemInput,
   type CreateTaskCommentInput,
   type CreateTaskInput,
+  type CreateTasksInput,
   type ListTasksParams,
   type ProjectTaskCountsDto,
   type TaskAttentionCountResponse,
@@ -61,6 +62,22 @@ type UserRow = Prisma.UserGetPayload<{ select: typeof userSelect }>;
 type ProjectRow = Prisma.ProjectGetPayload<{ select: typeof projectSelect }>;
 
 type NewTaskEvent = { type: TaskEventType; fromValue?: string | null; toValue?: string | null };
+type TaskNotificationKind = Extract<
+  NotificationKind,
+  'TASK_ASSIGNED' | 'TASK_COMPLETED' | 'TASK_COMMENTED'
+>;
+
+/** What the recipient reads first: who did what. */
+function notificationTitle(kind: TaskNotificationKind, actorName: string): string {
+  switch (kind) {
+    case 'TASK_ASSIGNED':
+      return `${actorName} ți-a atribuit un task`;
+    case 'TASK_COMPLETED':
+      return `${actorName} a finalizat un task`;
+    case 'TASK_COMMENTED':
+      return `${actorName} a comentat la un task`;
+  }
+}
 
 /** Tasks still on the lists: not removed, on a project that is still there. */
 function visibleTaskWhere() {
@@ -182,32 +199,52 @@ export class TaskService {
 
   /** Creates the task and tells the assignee, unless they made it themselves. */
   async create(input: CreateTaskInput, actorUserId: string): Promise<TaskDetailDto> {
+    const { assigneeUserId, ...task } = input;
+    const [created] = await this.createMany(
+      { ...task, assigneeUserIds: [assigneeUserId] },
+      actorUserId,
+    );
+    return created;
+  }
+
+  /**
+   * The same task for several people: each gets one of their own, created
+   * together so a failure leaves none behind. Everyone but the author is told.
+   */
+  async createMany(input: CreateTasksInput, actorUserId: string): Promise<TaskDetailDto[]> {
+    const assigneeUserIds = [...new Set(input.assigneeUserIds)];
     await Promise.all([
       this.assertProjectExists(input.projectId),
-      this.assertAssignable(input.assigneeUserId),
+      ...assigneeUserIds.map((assigneeUserId) => this.assertAssignable(assigneeUserId)),
     ]);
 
-    const created = await this.prisma.task.create({
-      data: {
-        title: input.title,
-        description: normalizeDescription(input.description),
-        priority: input.priority ?? 'NORMAL',
-        dueDate: input.dueDate ? parseWorkDateString(input.dueDate) : null,
-        projectId: input.projectId,
-        assigneeUserId: input.assigneeUserId,
-        createdByUserId: actorUserId,
-        events: { create: { type: 'CREATED', actorUserId } },
-      },
-      select: { id: true },
-    });
+    const created = await this.prisma.$transaction(
+      assigneeUserIds.map((assigneeUserId) =>
+        this.prisma.task.create({
+          data: {
+            title: input.title,
+            description: normalizeDescription(input.description),
+            priority: input.priority ?? 'NORMAL',
+            dueDate: input.dueDate ? parseWorkDateString(input.dueDate) : null,
+            projectId: input.projectId,
+            assigneeUserId,
+            createdByUserId: actorUserId,
+            events: { create: { type: 'CREATED', actorUserId } },
+          },
+          select: { id: true },
+        }),
+      ),
+    );
 
-    const task = await this.loadTask(created.id);
-    if (task.assigneeUserId !== actorUserId) {
-      await this.notify('TASK_ASSIGNED', task.assigneeUserId, actorUserId, task);
-    }
+    const tasks = await Promise.all(created.map(({ id }) => this.loadTask(id)));
+    await Promise.all(
+      tasks
+        .filter((task) => task.assigneeUserId !== actorUserId)
+        .map((task) => this.notify('TASK_ASSIGNED', task.assigneeUserId, actorUserId, task)),
+    );
     this.events.emitChanged();
 
-    return toDetailDto(task);
+    return tasks.map(toDetailDto);
   }
 
   /**
@@ -216,62 +253,78 @@ export class TaskService {
    * no other edit notifies anyone.
    */
   async update(id: string, input: UpdateTaskInput, actorUserId: string): Promise<TaskDetailDto> {
-    const current = await this.loadTask(id);
+    const { assigneeChanged, statusChanged } = await this.prisma.$transaction(async (tx) => {
+      // Edits to one task wait for each other, so the history and the
+      // notifications are worked out from the task as the last edit left it.
+      await tx.$queryRaw`SELECT 1 FROM "tasks" WHERE "id" = ${id} FOR UPDATE`;
+      const current = await this.loadTask(id, tx);
 
-    const projectChanged = input.projectId !== undefined && input.projectId !== current.projectId;
-    const assigneeChanged =
-      input.assigneeUserId !== undefined && input.assigneeUserId !== current.assigneeUserId;
-    const statusChanged = input.status !== undefined && input.status !== current.status;
-    const priorityChanged = input.priority !== undefined && input.priority !== current.priority;
-    const currentDueDate = toDayKey(current.dueDate);
-    const nextDueDate = input.dueDate === undefined ? currentDueDate : (input.dueDate ?? null);
-    const dueDateChanged = nextDueDate !== currentDueDate;
+      const projectChanged = input.projectId !== undefined && input.projectId !== current.projectId;
+      const assigneeChanged =
+        input.assigneeUserId !== undefined && input.assigneeUserId !== current.assigneeUserId;
+      const statusChanged = input.status !== undefined && input.status !== current.status;
+      const priorityChanged = input.priority !== undefined && input.priority !== current.priority;
+      const currentDueDate = toDayKey(current.dueDate);
+      const nextDueDate = input.dueDate === undefined ? currentDueDate : (input.dueDate ?? null);
+      const dueDateChanged = nextDueDate !== currentDueDate;
 
-    const [, assignee] = await Promise.all([
-      projectChanged ? this.assertProjectExists(input.projectId!) : null,
-      assigneeChanged ? this.assertAssignable(input.assigneeUserId!) : null,
-    ]);
+      const [, assignee] = await Promise.all([
+        // On the transaction's own connection: a second one may not be free to wait for.
+        projectChanged ? this.assertProjectExists(input.projectId!, tx) : null,
+        assigneeChanged ? this.assertAssignable(input.assigneeUserId!, tx) : null,
+      ]);
 
-    const newEvents: NewTaskEvent[] = [];
-    if (statusChanged) {
-      newEvents.push({ type: 'STATUS_CHANGED', fromValue: current.status, toValue: input.status });
-    }
-    if (assigneeChanged && assignee) {
-      newEvents.push({
-        type: 'ASSIGNEE_CHANGED',
-        fromValue: formatPersonName(current.assignee.person),
-        toValue: formatPersonName(assignee.person),
+      const newEvents: NewTaskEvent[] = [];
+      if (statusChanged) {
+        newEvents.push({
+          type: 'STATUS_CHANGED',
+          fromValue: current.status,
+          toValue: input.status,
+        });
+      }
+      if (assigneeChanged && assignee) {
+        newEvents.push({
+          type: 'ASSIGNEE_CHANGED',
+          fromValue: formatPersonName(current.assignee.person),
+          toValue: formatPersonName(assignee.person),
+        });
+      }
+      if (dueDateChanged) {
+        newEvents.push({
+          type: 'DUE_DATE_CHANGED',
+          fromValue: currentDueDate,
+          toValue: nextDueDate,
+        });
+      }
+      if (priorityChanged) {
+        newEvents.push({
+          type: 'PRIORITY_CHANGED',
+          fromValue: current.priority,
+          toValue: input.priority,
+        });
+      }
+
+      await tx.task.update({
+        where: { id },
+        data: {
+          ...(input.title !== undefined ? { title: input.title } : {}),
+          ...(input.description !== undefined
+            ? { description: normalizeDescription(input.description) }
+            : {}),
+          ...(projectChanged ? { projectId: input.projectId } : {}),
+          ...(assigneeChanged ? { assigneeUserId: input.assigneeUserId } : {}),
+          ...(priorityChanged ? { priority: input.priority } : {}),
+          ...(dueDateChanged
+            ? { dueDate: nextDueDate ? parseWorkDateString(nextDueDate) : null }
+            : {}),
+          ...(statusChanged
+            ? { status: input.status, completedAt: input.status === 'DONE' ? new Date() : null }
+            : {}),
+          events: { create: newEvents.map((event) => ({ ...event, actorUserId })) },
+        },
       });
-    }
-    if (dueDateChanged) {
-      newEvents.push({ type: 'DUE_DATE_CHANGED', fromValue: currentDueDate, toValue: nextDueDate });
-    }
-    if (priorityChanged) {
-      newEvents.push({
-        type: 'PRIORITY_CHANGED',
-        fromValue: current.priority,
-        toValue: input.priority,
-      });
-    }
 
-    await this.prisma.task.update({
-      where: { id },
-      data: {
-        ...(input.title !== undefined ? { title: input.title } : {}),
-        ...(input.description !== undefined
-          ? { description: normalizeDescription(input.description) }
-          : {}),
-        ...(projectChanged ? { projectId: input.projectId } : {}),
-        ...(assigneeChanged ? { assigneeUserId: input.assigneeUserId } : {}),
-        ...(priorityChanged ? { priority: input.priority } : {}),
-        ...(dueDateChanged
-          ? { dueDate: nextDueDate ? parseWorkDateString(nextDueDate) : null }
-          : {}),
-        ...(statusChanged
-          ? { status: input.status, completedAt: input.status === 'DONE' ? new Date() : null }
-          : {}),
-        events: { create: newEvents.map((event) => ({ ...event, actorUserId })) },
-      },
+      return { assigneeChanged, statusChanged };
     });
 
     const task = await this.loadTask(id);
@@ -415,10 +468,17 @@ export class TaskService {
     input: CreateTaskCommentInput,
     actorUserId: string,
   ): Promise<TaskDetailDto> {
-    await this.loadTask(taskId);
+    const task = await this.loadTask(taskId);
     await this.prisma.taskComment.create({
       data: { taskId, body: input.body, authorUserId: actorUserId },
     });
+
+    // The people on the task hear about it — except the one who wrote it.
+    const recipients = new Set([task.assigneeUserId, task.createdByUserId]);
+    recipients.delete(actorUserId);
+    await Promise.all(
+      [...recipients].map((userId) => this.notify('TASK_COMMENTED', userId, actorUserId, task)),
+    );
 
     return this.reloadAfterChange(taskId);
   }
@@ -430,8 +490,11 @@ export class TaskService {
     return toDetailDto(task);
   }
 
-  private async loadTask(id: string): Promise<TaskDetailRow> {
-    const task = await this.prisma.task.findFirst({
+  private async loadTask(
+    id: string,
+    db: Prisma.TransactionClient = this.prisma,
+  ): Promise<TaskDetailRow> {
+    const task = await db.task.findFirst({
       where: { id, ...visibleTaskWhere() },
       include: taskDetailInclude,
     });
@@ -441,8 +504,11 @@ export class TaskService {
     return task;
   }
 
-  private async assertProjectExists(projectId: string): Promise<void> {
-    const project = await this.prisma.project.findFirst({
+  private async assertProjectExists(
+    projectId: string,
+    db: Prisma.TransactionClient = this.prisma,
+  ): Promise<void> {
+    const project = await db.project.findFirst({
       where: { id: projectId, ...notDeleted() },
       select: { id: true },
     });
@@ -452,8 +518,11 @@ export class TaskService {
   }
 
   /** Tasks go to admins only — they are the ones who can open them. */
-  private async assertAssignable(userId: string): Promise<UserRow> {
-    const user = await this.prisma.user.findFirst({
+  private async assertAssignable(
+    userId: string,
+    db: Prisma.TransactionClient = this.prisma,
+  ): Promise<UserRow> {
+    const user = await db.user.findFirst({
       where: { id: userId, ...notDeleted(), role: 'ADMIN', isActive: true },
       select: userSelect,
     });
@@ -465,11 +534,12 @@ export class TaskService {
 
   /**
    * Stores the notification and hands it to the recipient's open apps. The
-   * task is already saved by now, so a failure here is logged, never thrown —
-   * an error would make the admin create the task a second time.
+   * task is already saved by now, so a failure here is logged, never thrown,
+   * and the push is not waited for — an error or a hang would make the admin
+   * create the task a second time.
    */
   private async notify(
-    kind: Extract<NotificationKind, 'TASK_ASSIGNED' | 'TASK_COMPLETED'>,
+    kind: TaskNotificationKind,
     recipientUserId: string,
     actorUserId: string,
     task: TaskDetailRow,
@@ -487,11 +557,9 @@ export class TaskService {
         source: 'ADMIN',
         createdByUserId: actorUserId,
         taskId: task.id,
-        title:
-          kind === 'TASK_ASSIGNED'
-            ? `${actorName} ți-a atribuit un task`
-            : `${actorName} a finalizat un task`,
+        title: notificationTitle(kind, actorName),
         body: `${task.title} · ${task.project.code}`,
+        pushInBackground: true,
       });
       this.events.emitNotification(recipientUserId, notification);
     } catch (error) {

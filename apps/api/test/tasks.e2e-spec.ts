@@ -132,6 +132,29 @@ describe('Tasks (e2e)', () => {
     expect(received.assignee.map((event) => event.type)).toEqual(['notification', 'tasks-changed']);
   });
 
+  it('sends one task to several people together, or to nobody', async () => {
+    const sendToMany = (assigneeUserIds: string[]) =>
+      request(app.getHttpServer())
+        .post('/tasks/batch')
+        .set(authHeader(adminCookie))
+        .send({ title: 'Verifică oferta', projectId, assigneeUserIds });
+
+    const sent = await sendToMany([FIXTURES.users.admin.id, SECOND_ADMIN.userId]).expect(201);
+    expect(sent.body.map((task: { assignee: { id: string } }) => task.assignee.id).sort()).toEqual(
+      [FIXTURES.users.admin.id, SECOND_ADMIN.userId].sort(),
+    );
+
+    // Each has a task of their own; only the one who did not send it is told.
+    expect(await getTestPrisma().task.count()).toBe(2);
+    expect((await inbox(secondAdminCookie)).notifications).toHaveLength(1);
+    expect((await inbox(adminCookie)).notifications).toHaveLength(0);
+
+    // One recipient who cannot take it stops the whole send.
+    await sendToMany([SECOND_ADMIN.userId, FIXTURES.users.employee1.id]).expect(400);
+    await sendToMany([]).expect(400);
+    expect(await getTestPrisma().task.count()).toBe(2);
+  });
+
   it('refuses a deadline that is not a real day', async () => {
     await createTask({ dueDate: '2026-02-31' }).expect(400);
     await createTask({ dueDate: '31.02.2026' }).expect(400);
@@ -237,6 +260,33 @@ describe('Tasks (e2e)', () => {
     expect(allRead.notifications).toHaveLength(2);
   });
 
+  it('works out the history from the last edit when two edits race', async () => {
+    const task = (await createTask({})).body;
+    const setStatus = (status: string, cookie: string) =>
+      request(app.getHttpServer())
+        .patch(`/tasks/${task.id}`)
+        .set(authHeader(cookie))
+        .send({ status })
+        .expect(200);
+
+    await Promise.all([
+      setStatus('IN_PROGRESS', adminCookie),
+      setStatus('DONE', secondAdminCookie),
+    ]);
+
+    const events = await getTestPrisma().taskEvent.findMany({
+      where: { taskId: task.id, type: 'STATUS_CHANGED' },
+      orderBy: { createdAt: 'asc' },
+    });
+    // Whichever edit came second started from what the first one left.
+    expect(events).toHaveLength(2);
+    expect(events[0].fromValue).toBe('TODO');
+    expect(events[1].fromValue).toBe(events[0].toValue);
+
+    const saved = await getTestPrisma().task.findUniqueOrThrow({ where: { id: task.id } });
+    expect(saved.status).toBe(events[1].toValue);
+  });
+
   it('counts overdue and due-today tasks for the badge and per project', async () => {
     await createTask({ assigneeUserId: FIXTURES.users.admin.id, dueDate: dayKey(-1) }).expect(201);
     await createTask({ assigneeUserId: FIXTURES.users.admin.id, dueDate: dayKey(0) }).expect(201);
@@ -293,6 +343,13 @@ describe('Tasks (e2e)', () => {
     expect(commented.body.comments[0].author.id).toBe(FIXTURES.users.admin.id);
     // Comments stay out of the history.
     expect(commented.body.events).toHaveLength(1);
+
+    // The assignee hears about the author's comment; the author does not.
+    expect((await inbox(secondAdminCookie)).notifications.map((item) => item.kind)).toEqual([
+      'TASK_COMMENTED',
+      'TASK_ASSIGNED',
+    ]);
+    expect((await inbox(adminCookie)).notifications).toHaveLength(0);
   });
 
   it('removes a task softly and drops its notifications from the inbox', async () => {
@@ -310,5 +367,20 @@ describe('Tasks (e2e)', () => {
       .expect(404);
     expect((await inbox(secondAdminCookie)).notifications).toHaveLength(0);
     expect(await getTestPrisma().task.count()).toBe(1);
+  });
+
+  it('drops the notifications of a task whose project was removed', async () => {
+    await createTask({}).expect(201);
+    expect((await inbox(secondAdminCookie)).unreadCount).toBe(1);
+
+    const prisma = getTestPrisma();
+    await prisma.project.update({ where: { id: projectId }, data: { deletedAt: new Date() } });
+    try {
+      const afterRemoval = await inbox(secondAdminCookie);
+      expect(afterRemoval.notifications).toHaveLength(0);
+      expect(afterRemoval.unreadCount).toBe(0);
+    } finally {
+      await prisma.project.update({ where: { id: projectId }, data: { deletedAt: null } });
+    }
   });
 });

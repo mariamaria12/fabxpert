@@ -96,6 +96,8 @@ export function TaskDetailPanel({ taskId, lookups, onClose, onChanged }: TaskDet
   const [confirmDelete, setConfirmDelete] = useState(false);
   // A draft being typed is never overwritten by a reload.
   const editingRef = useRef<'title' | 'description' | 'dueDate' | null>(null);
+  // Counts the requests sent; an answer is shown only if nothing was asked after it.
+  const requestRef = useRef(0);
 
   const adopt = useCallback((next: TaskDetailDto) => {
     setTask(next);
@@ -111,11 +113,15 @@ export function TaskDetailPanel({ taskId, lookups, onClose, onChanged }: TaskDet
   }, []);
 
   const load = useCallback(async () => {
+    const requestId = ++requestRef.current;
     try {
-      adopt(await getTask(taskId));
-      setMissing(false);
+      const loaded = await getTask(taskId);
+      if (requestId === requestRef.current) {
+        adopt(loaded);
+        setMissing(false);
+      }
     } catch (caught) {
-      if (caught instanceof ApiError && caught.status === 404) {
+      if (requestId === requestRef.current && caught instanceof ApiError && caught.status === 404) {
         setMissing(true);
       }
     }
@@ -142,8 +148,13 @@ export function TaskDetailPanel({ taskId, lookups, onClose, onChanged }: TaskDet
     if (!quiet) {
       setBusy(true);
     }
+    const requestId = ++requestRef.current;
     try {
-      adopt(await change());
+      const changed = await change();
+      // A later request answers with newer data — and may be for another task.
+      if (requestId === requestRef.current) {
+        adopt(changed);
+      }
       onChanged();
       return true;
     } catch (caught) {

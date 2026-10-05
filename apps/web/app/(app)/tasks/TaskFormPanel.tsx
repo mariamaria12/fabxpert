@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  createTask,
+  createTasks,
   parseWorkDateString,
   TASK_DESCRIPTION_MAX_LENGTH,
   TASK_TITLE_MAX_LENGTH,
@@ -93,29 +93,24 @@ export function TaskFormPanel({
     }
 
     setSaving(true);
-    const sentUserIds: string[] = [];
     try {
-      for (const assigneeUserId of assigneeUserIds) {
-        await createTask({
-          title: title.trim(),
-          projectId,
-          assigneeUserId,
-          dueDate: dueDate || null,
-          priority,
-          description: description.trim() || undefined,
-        });
-        sentUserIds.push(assigneeUserId);
-      }
+      // One request for everyone: either each of them gets the task or nobody does.
+      const tasks = await createTasks({
+        title: title.trim(),
+        projectId,
+        assigneeUserIds,
+        dueDate: dueDate || null,
+        priority,
+        description: description.trim() || undefined,
+      });
       showToast(
-        sentUserIds.length === 1
+        tasks.length === 1
           ? 'Task-ul a fost trimis.'
-          : `Task-ul a fost trimis către ${sentUserIds.length} persoane.`,
+          : `Task-ul a fost trimis către ${tasks.length} persoane.`,
         'success',
       );
       onCreated();
     } catch (caught) {
-      // Whoever already got the task leaves the line, so trying again does not send it twice.
-      setAssigneeUserIds((current) => current.filter((id) => !sentUserIds.includes(id)));
       showToast(apiErrorToastMessage(caught), 'error');
     } finally {
       setSaving(false);

@@ -3,6 +3,7 @@ import type {
   CreateTaskChecklistItemInput,
   CreateTaskCommentInput,
   CreateTaskInput,
+  CreateTasksInput,
   ListTasksParams,
   ProjectTaskCountsDto,
   TaskAttentionCountResponse,
@@ -38,6 +39,14 @@ export function getTask(id: string) {
 /** Notifies the assignee, unless they created the task themselves. */
 export function createTask(input: CreateTaskInput) {
   return request<TaskDetailDto>('/tasks', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+/** One task per recipient, created together: either all of them or none. */
+export function createTasks(input: CreateTasksInput) {
+  return request<TaskDetailDto[]>('/tasks/batch', {
     method: 'POST',
     body: JSON.stringify(input),
   });

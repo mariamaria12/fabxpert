@@ -53,6 +53,7 @@ enum NotificationKind {
   POLL // A poll was published and is waiting for an answer
   TASK_ASSIGNED // An admin gave the user a task
   TASK_COMPLETED // A task the user created was finished by someone else
+  TASK_COMMENTED // Someone commented on a task the user created or was given
 }
 
 enum NotificationSource {

@@ -75,9 +75,9 @@ export function TaskRecipientsField({
       return;
     }
     if (event.key === 'Enter') {
-      // With the list open Enter picks a person; it only sends once the list is closed.
+      // Enter picks a person here and nothing else: the task is never sent from this field.
+      event.preventDefault();
       if (open && matches[activeIndex]) {
-        event.preventDefault();
         add(matches[activeIndex]);
       }
       return;

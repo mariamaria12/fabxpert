@@ -22,6 +22,8 @@ export const TASK_DESCRIPTION_MAX_LENGTH = 5000;
 export const TASK_CHECKLIST_TEXT_MAX_LENGTH = 200;
 export const TASK_CHECKLIST_MAX_ITEMS = 50;
 export const TASK_COMMENT_MAX_LENGTH = 2000;
+/** How many people one task can be sent to at once. */
+export const TASK_MAX_RECIPIENTS = 20;
 /** Finished tasks pile up for good; a list only ever carries the latest. */
 export const TASK_DONE_LIST_LIMIT = 100;
 
@@ -55,6 +57,14 @@ export const createTaskSchema = z.object({
   dueDate: taskDateSchema.nullish(),
   priority: z.enum(TASK_PRIORITY_VALUES).optional(),
   description: descriptionSchema.optional(),
+});
+
+/** The same task for several people: each gets one of their own, all or none. */
+export const createTasksSchema = createTaskSchema.omit({ assigneeUserId: true }).extend({
+  assigneeUserIds: z
+    .array(idSchema)
+    .min(1, 'At least one assignee is required')
+    .max(TASK_MAX_RECIPIENTS, `A task cannot go to more than ${TASK_MAX_RECIPIENTS} people`),
 });
 
 export const updateTaskSchema = z.object({
@@ -93,6 +103,7 @@ export const createTaskCommentSchema = z.object({
 });
 
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
+export type CreateTasksInput = z.infer<typeof createTasksSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 export type CreateTaskChecklistItemInput = z.infer<typeof createTaskChecklistItemSchema>;
 export type UpdateTaskChecklistItemInput = z.infer<typeof updateTaskChecklistItemSchema>;

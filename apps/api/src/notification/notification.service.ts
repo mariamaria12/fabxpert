@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { NotificationKind, NotificationSource, Prisma } from '@prisma/client';
 import type {
   NotificationDto,
@@ -24,19 +24,24 @@ export type CreateNotificationParams = {
   pollId?: string;
   /** Set on TASK_* notifications — the task the inbox opens. */
   taskId?: string;
+  /**
+   * Leaves the push to finish on its own. For a caller answering a request
+   * that is already saved: a slow push service must not hold the answer back.
+   */
+  pushInBackground?: boolean;
 };
 
 /** What the web inbox lists: the task notifications, which only admins get. */
-const INBOX_KINDS: NotificationKind[] = ['TASK_ASSIGNED', 'TASK_COMPLETED'];
+const INBOX_KINDS: NotificationKind[] = ['TASK_ASSIGNED', 'TASK_COMPLETED', 'TASK_COMMENTED'];
 const INBOX_LIMIT = 30;
 
-/** A notification about a removed task has nothing left to open. */
+/** A notification about a removed task, or one on a removed project, has nothing left to open. */
 function inboxWhere(userId: string) {
   return {
     userId,
     kind: { in: INBOX_KINDS },
     dismissedAt: null,
-    task: { deletedAt: null },
+    task: { deletedAt: null, project: { deletedAt: null } },
   } satisfies Prisma.NotificationWhereInput;
 }
 
@@ -58,6 +63,8 @@ function toDto(notification: NotificationWithAuthor): NotificationDto {
 
 @Injectable()
 export class NotificationService {
+  private readonly logger = new Logger(NotificationService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly push: PushService,
@@ -84,6 +91,7 @@ export class NotificationService {
       createdByUserId,
       pollId,
       taskId,
+      pushInBackground = false,
     } = params;
 
     const created = await this.prisma.notification.create({
@@ -91,7 +99,16 @@ export class NotificationService {
       include: { createdBy: { include: { person: true } } },
     });
 
-    await this.push.sendToUser(userId, { title, body, tag: created.id });
+    const pushed = this.push.sendToUser(userId, { title, body, tag: created.id });
+    if (pushInBackground) {
+      void pushed.catch((error: unknown) => {
+        this.logger.warn(
+          `Push failed for user ${userId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      });
+    } else {
+      await pushed;
+    }
 
     return toDto(created);
   }

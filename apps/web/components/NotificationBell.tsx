@@ -40,9 +40,14 @@ function formatRelativeTime(iso: string): string {
 }
 
 function notificationIcon(notification: NotificationDto): { icon: string; className: string } {
-  return notification.kind === 'TASK_COMPLETED'
-    ? { icon: 'ti-circle-check', className: 'bg-success-bg text-success-text' }
-    : { icon: 'ti-user-check', className: 'bg-info-bg text-info-text' };
+  switch (notification.kind) {
+    case 'TASK_COMPLETED':
+      return { icon: 'ti-circle-check', className: 'bg-success-bg text-success-text' };
+    case 'TASK_COMMENTED':
+      return { icon: 'ti-message', className: 'bg-surface-raised text-text-secondary' };
+    default:
+      return { icon: 'ti-user-check', className: 'bg-info-bg text-info-text' };
+  }
 }
 
 /** The bell in the sidebar: task notifications for the signed-in admin. */

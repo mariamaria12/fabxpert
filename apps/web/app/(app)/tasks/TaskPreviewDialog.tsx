@@ -65,10 +65,15 @@ export function TaskPreviewDialog({ task: summary, onClose }: TaskPreviewDialogP
 
   useReloadOnTasksChanged(() => void load());
 
+  // The parent hands over a new function on every render; the setup below
+  // must not run again for that, or it would pull the focus back each time.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
       }
     }
 
@@ -81,7 +86,7 @@ export function TaskPreviewDialog({ task: summary, onClose }: TaskPreviewDialogP
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [onClose]);
+  }, []);
 
   const task = detail ?? summary;
   const comments = detail?.comments ?? [];

@@ -6,6 +6,7 @@ export const NOTIFICATION_KIND_VALUES = [
   'POLL',
   'TASK_ASSIGNED',
   'TASK_COMPLETED',
+  'TASK_COMMENTED',
 ] as const;
 export const NOTIFICATION_SOURCE_VALUES = ['SYSTEM', 'ADMIN'] as const;
 

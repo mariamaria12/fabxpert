@@ -3,7 +3,8 @@
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   pointerWithin,
   useDraggable,
   useDroppable,
@@ -21,7 +22,6 @@ import {
 } from '@fabxpert/shared';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getPersonInitials } from '@/components/PersonAvatar';
-import { useIsMobile } from '@/hooks/useIsMobile';
 import { TASK_PRIORITY_TONE, TaskDueDate, taskProjectLabel } from './taskDisplay';
 
 interface TaskBoardProps {
@@ -323,15 +323,14 @@ export function TaskBoard({
   onStatusChange,
   onDelete,
 }: TaskBoardProps) {
-  const isMobile = useIsMobile();
   const [draggedTask, setDraggedTask] = useState<TaskDto | null>(null);
 
   // A short move starts a drag with the mouse; a finger has to rest first, so
-  // swiping between columns still scrolls.
+  // swiping between columns still scrolls. Touch gets its own sensor: only
+  // touch events can stop the browser from scrolling once the drag is on.
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: isMobile ? { delay: 350, tolerance: 8 } : { distance: 6 },
-    }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
   );
 
   const columns = COLUMNS.filter((column) => showDone || column.status !== 'DONE');

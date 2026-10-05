@@ -23,17 +23,12 @@ import { TaskAttentionSummary } from './TaskAttentionSummary';
 import { TaskBoard } from './TaskBoard';
 import { TaskDetailPanel } from './TaskDetailPanel';
 import { TaskFormPanel } from './TaskFormPanel';
-import { filterTasks, type TaskDueFilter, type TaskStatusFilter } from './taskFilters';
+import { filterTasks, type TaskDueFilter } from './taskFilters';
 import { useTaskLookups } from './useTaskLookups';
 
 const SCOPE_TABS: { id: TaskListScope; label: string }[] = [
   { id: 'mine', label: 'Ale mele' },
   { id: 'all', label: 'Toate' },
-];
-
-const STATUS_FILTER_OPTIONS = [
-  { id: 'TODO', label: 'De făcut' },
-  { id: 'IN_PROGRESS', label: 'În lucru' },
 ];
 
 const DUE_FILTER_OPTIONS = [
@@ -63,7 +58,6 @@ export default function TasksPage() {
   const [scope, setScope] = useState<TaskListScope>(projectId ? 'all' : 'mine');
   const [includeDone, setIncludeDone] = useState(true);
   const [assigneeUserId, setAssigneeUserId] = useState<string | null>(null);
-  const [status, setStatus] = useState<TaskStatusFilter>('');
   const [due, setDue] = useState<TaskDueFilter>('');
   const [search, setSearch] = useState('');
 
@@ -138,10 +132,10 @@ export default function TasksPage() {
     () =>
       filterTasks(
         tasks,
-        { assigneeUserId: scope === 'all' ? assigneeUserId : null, status, due, search },
+        { assigneeUserId: scope === 'all' ? assigneeUserId : null, due, search },
         today,
       ),
-    [tasks, scope, assigneeUserId, status, due, search, today],
+    [tasks, scope, assigneeUserId, due, search, today],
   );
 
   async function handleStatusChange(task: TaskDto, nextStatus: TaskStatus) {
@@ -187,7 +181,7 @@ export default function TasksPage() {
     includeDone && tasks.filter((task) => task.status === 'DONE').length >= TASK_DONE_LIST_LIMIT;
 
   const hasFilters = Boolean(
-    projectId || (scope === 'all' && assigneeUserId) || status || due || search.trim(),
+    projectId || (scope === 'all' && assigneeUserId) || due || search.trim(),
   );
   const nothingToShow = !loading && !failed && visibleTasks.length === 0;
 
@@ -268,18 +262,7 @@ export default function TasksPage() {
             />
           </div>
         ) : null}
-        <div className="md:w-40">
-          <SelectField
-            id="taskFilterStatus"
-            label="Status"
-            value={status}
-            options={STATUS_FILTER_OPTIONS}
-            allowEmpty
-            placeholder="Active"
-            onChange={(next) => setStatus(next as TaskStatusFilter)}
-          />
-        </div>
-        <div className="md:w-48">
+        <div className="col-span-2 md:w-48">
           <SelectField
             id="taskFilterDue"
             label="Termen"
