@@ -490,7 +490,7 @@ export class ProjectService {
       await this.assertCompanyExists(input.companyId);
     }
 
-    const { visibleForRoleIds, isPinned, ...scalarInput } = input;
+    const { visibleForRoleIds, isPinned: requestedIsPinned, ...scalarInput } = input;
     // Once a list exists the weight is the list's total, not a form field —
     // a stale form must not write over what the list just computed.
     if (existing.assemblyCount > 0) {
@@ -505,17 +505,6 @@ export class ProjectService {
       visibleForRoleIds !== undefined &&
       !roleIdsEqual(existingRoleIds, visibleForRoleIds);
 
-    let indexPanou: number | null | undefined;
-    let panouColumn: number | null | undefined;
-    if (isPinned === true && !existing.isPinned) {
-      const slot = await this.getNextPanouSlot();
-      indexPanou = slot.indexPanou;
-      panouColumn = slot.panouColumn;
-    } else if (isPinned === false && existing.isPinned) {
-      indexPanou = null;
-      panouColumn = null;
-    }
-
     // Track the completion date across status transitions: stamped on entering
     // FINALIZAT, cleared on leaving it.
     const nextStatus = scalarInput.status ?? existing.status;
@@ -527,6 +516,20 @@ export class ProjectService {
       completedAt = new Date();
     } else if (!isCompleted && wasCompleted) {
       completedAt = null;
+    }
+
+    // A project that has just been completed leaves the panou.
+    const isPinned = isCompleted && !wasCompleted ? false : requestedIsPinned;
+
+    let indexPanou: number | null | undefined;
+    let panouColumn: number | null | undefined;
+    if (isPinned === true && !existing.isPinned) {
+      const slot = await this.getNextPanouSlot();
+      indexPanou = slot.indexPanou;
+      panouColumn = slot.panouColumn;
+    } else if (isPinned === false && existing.isPinned) {
+      indexPanou = null;
+      panouColumn = null;
     }
 
     // Pinning, unpinning and status changes decide who sees the project in the

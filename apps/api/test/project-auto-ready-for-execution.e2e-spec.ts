@@ -115,6 +115,50 @@ describe('Project readyForExecution follows pinning and status (e2e)', () => {
     expect(await isAvailableToEmployee(id)).toBe(false);
   });
 
+  it('hides a visible project once it goes back to preparation', async () => {
+    const id = await createProject({
+      status: 'IN_PRODUCTIE',
+      isPinned: true,
+      readyForExecution: true,
+    });
+
+    expect(await patchProject(id, { status: 'IN_PREGATIRE' })).toBe(false);
+    expect(await isAvailableToEmployee(id)).toBe(false);
+  });
+
+  it('takes a project off the panou once it is completed', async () => {
+    const id = await createProject({
+      status: 'IN_PRODUCTIE',
+      isPinned: true,
+      readyForExecution: true,
+    });
+
+    const response = await request(app.getHttpServer())
+      .patch(`/projects/${id}`)
+      .set(authHeader(adminCookie))
+      .send({ status: 'FINALIZAT' })
+      .expect(200);
+
+    expect(response.body.isPinned).toBe(false);
+    expect(response.body.indexPanou).toBeNull();
+  });
+
+  it('keeps a suspended project on the panou', async () => {
+    const id = await createProject({
+      status: 'IN_PRODUCTIE',
+      isPinned: true,
+      readyForExecution: true,
+    });
+
+    const response = await request(app.getHttpServer())
+      .patch(`/projects/${id}`)
+      .set(authHeader(adminCookie))
+      .send({ status: 'SUSPENDAT' })
+      .expect(200);
+
+    expect(response.body.isPinned).toBe(true);
+  });
+
   it('hides a project once it is unpinned, whatever its status', async () => {
     const inProduction = await createProject({
       status: 'IN_PRODUCTIE',
