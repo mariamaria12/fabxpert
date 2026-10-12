@@ -25,6 +25,7 @@ export const PROJECT_LIST_SORT_BY_VALUES = [
   'company',
   'startDate',
   'dueDate',
+  'updatedAt',
 ] as const;
 
 export type ProjectListSortBy = (typeof PROJECT_LIST_SORT_BY_VALUES)[number];

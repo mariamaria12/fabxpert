@@ -312,8 +312,13 @@ const ProjectTableSection = forwardRef<
   // Back from the pontaje: the row that was open, on the page it was on.
   const returnProjectId = returnPoint?.source === statusGroup ? returnPoint.projectId : null;
   const [page, setPage] = useState(returnProjectId ? (returnPoint?.page ?? 1) : 1);
-  const [sortBy, setSortBy] = useState<ProjectListSortBy>(DEFAULT_SORT_BY);
-  const [sortOrder, setSortOrder] = useState<SortOrder>(DEFAULT_SORT_ORDER);
+  // Completed projects open on the most recently touched ones.
+  const [sortBy, setSortBy] = useState<ProjectListSortBy>(
+    statusGroup === 'completed' ? 'updatedAt' : DEFAULT_SORT_BY,
+  );
+  const [sortOrder, setSortOrder] = useState<SortOrder>(
+    statusGroup === 'completed' ? 'desc' : DEFAULT_SORT_ORDER,
+  );
   const [projects, setProjects] = useState<ProjectDto[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);

@@ -255,6 +255,8 @@ function buildProjectOrderBy(
       return [{ startDate: { sort: sortOrder, nulls: 'last' } }, tiebreaker];
     case 'dueDate':
       return [{ dueDate: { sort: sortOrder, nulls: 'last' } }, tiebreaker];
+    case 'updatedAt':
+      return [{ updatedAt: sortOrder }, tiebreaker];
     case 'name':
     default:
       return [{ name: sortOrder }, tiebreaker];
