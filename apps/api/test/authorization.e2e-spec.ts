@@ -243,7 +243,17 @@ describe('Authorization (e2e)', () => {
     expect(response.body.length).toBeGreaterThan(0);
 
     for (const project of response.body) {
-      expect(Object.keys(project).sort()).toEqual(['code', 'color', 'company', 'id', 'name']);
+      expect(Object.keys(project).sort()).toEqual([
+        'code',
+        'color',
+        'company',
+        'denumireLucrare',
+        'finisaj',
+        'id',
+        'name',
+        'notes',
+        'untrackedActivityIds',
+      ]);
       expect(project.company).toEqual({ name: expect.any(String) });
       expect(project.status).toBeUndefined();
       expect(project.companyId).toBeUndefined();

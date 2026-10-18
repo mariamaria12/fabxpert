@@ -7,6 +7,7 @@ import type {
 } from '@fabxpert/shared/dto/report.dto';
 import type { ProjectStatus } from '@fabxpert/shared/dto/project.dto';
 import type { ProjectAssemblyProgressIndex } from '../timesheet/timesheet-project-summary.util';
+import { tracksAssembliesOnProjectSql } from '../assembly/project-untracked-activities.util';
 import { formatPersonName } from '@fabxpert/shared/personName';
 
 const NO_ACTIVITY_LABEL = 'Fără activitate';
@@ -56,7 +57,11 @@ export function buildProjectReportEntriesQuery(projectId: string): Prisma.Sql {
       t."activityId" AS "activityId",
       a.name AS "activityName",
       a.color AS "activityColor",
-      a."tracksAssemblies" AS "activityTracksAssemblies",
+      ${tracksAssembliesOnProjectSql(
+        Prisma.sql`a."tracksAssemblies"`,
+        Prisma.sql`${projectId}`,
+        Prisma.sql`t."activityId"`,
+      )} AS "activityTracksAssemblies",
       SUM(t."durationMinutes")::int AS minutes,
       MIN(t."workDate") AS "firstWorkDate",
       MAX(t."workDate") AS "lastWorkDate"

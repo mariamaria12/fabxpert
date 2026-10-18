@@ -8,6 +8,7 @@ import type {
 import type { ProjectStatus } from '@fabxpert/shared/dto/project.dto';
 import { PROJECT_ACTIVE_STATUSES } from '@fabxpert/shared/projectStatus';
 import type { ProjectAssemblyProgressIndex } from '../timesheet/timesheet-project-summary.util';
+import { tracksAssembliesOnProjectSql } from '../assembly/project-untracked-activities.util';
 
 /** Built from the shared list so the report and the status meaning cannot drift. */
 const activeStatuses = Prisma.join(
@@ -74,13 +75,19 @@ export function buildActiveProjectActivitiesQuery(projectIds: string[]): Prisma.
       t."activityId" AS "activityId",
       a.name AS "activityName",
       a.color AS "activityColor",
-      a."tracksAssemblies" AS "tracksAssemblies",
+      TRUE AS "tracksAssemblies",
       SUM(t."durationMinutes")::int AS minutes
     FROM timesheets t
     INNER JOIN persons pe ON pe.id = t."personId" AND pe."deletedAt" IS NULL
-    INNER JOIN activities a ON a.id = t."activityId" AND a."tracksAssemblies" = true
+    INNER JOIN activities a ON a.id = t."activityId"
     WHERE t."deletedAt" IS NULL
       AND t."projectId" IN (${Prisma.join(projectIds)})
+      -- Steps the project switched off carry no pieces to compare hours with.
+      AND ${tracksAssembliesOnProjectSql(
+        Prisma.sql`a."tracksAssemblies"`,
+        Prisma.sql`t."projectId"`,
+        Prisma.sql`t."activityId"`,
+      )}
     GROUP BY t."projectId", t."activityId", a.name, a.color, a."tracksAssemblies"
   `;
 }

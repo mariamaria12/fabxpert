@@ -131,9 +131,23 @@ export const createProjectSchema = z.object({
   visibleForRoleIds: visibleForRoleIdsSchema.optional(),
 });
 
+/**
+ * Activities with `tracksAssemblies` that do not track them on this project.
+ * Replaces the whole set; [] = every such activity tracks assemblies.
+ */
+const untrackedActivityIdsSchema = z.array(
+  z
+    .string()
+    .regex(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      'Invalid UUID format',
+    ),
+);
+
 export const updateProjectSchema = createProjectSchema
   .extend({
     color: z.union([hexColorSchema, z.null()]).optional(),
+    untrackedActivityIds: untrackedActivityIdsSchema.optional(),
   })
   .partial()
   .refine(
@@ -200,6 +214,11 @@ export type ProjectDto = {
   assembliesWithoutWeight: number;
   /** Progress on the assembly list, 0–100 (see projectProgressPercent). Null without a list. */
   progressPercent: number | null;
+  /**
+   * Activities that track assemblies elsewhere but not on this project: logged
+   * with hours only and left out of the progress. Empty on list rows.
+   */
+  untrackedActivityIds: string[];
   createdAt: string;
   updatedAt: string;
 };
@@ -217,4 +236,6 @@ export type ProjectOptionDto = {
   company: {
     name: string;
   };
+  /** Activities logged with hours only on this project — no assembly step. */
+  untrackedActivityIds: string[];
 };

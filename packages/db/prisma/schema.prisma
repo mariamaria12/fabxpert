@@ -134,6 +134,8 @@ model Activity {
 
   manualAssemblyProgress AssemblyManualProgress[]
 
+  untrackedOnProjects ProjectUntrackedActivity[]
+
   @@map("activities")
 }
 
@@ -312,6 +314,9 @@ model Project {
   timesheets Timesheet[]
 
   assemblies ProjectAssembly[]
+
+  /// Activities that normally track assemblies but not on this project.
+  untrackedActivities ProjectUntrackedActivity[]
 
   tasks Task[]
 
@@ -785,6 +790,29 @@ model ProjectAssembly {
   @@index([projectId, deletedAt, position])
   @@index([profileKey])
   @@map("project_assemblies")
+}
+
+// ---------------------------------------------------------------------------
+// ProjectUntrackedActivity
+// An activity with `tracksAssemblies` that does not track them on this project,
+// e.g. painting on a galvanised one. Only the exceptions are stored: a project
+// with no rows tracks every such activity, including ones flagged later.
+// Workers still log hours on it, just without pieces, and it leaves the
+// progress formula. Pieces logged before it was unticked stay in place and
+// count again if it is ticked back.
+// ---------------------------------------------------------------------------
+
+model ProjectUntrackedActivity {
+  createdAt DateTime @default(now())
+
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, activityId])
+  @@map("project_untracked_activities")
 }
 
 // ---------------------------------------------------------------------------

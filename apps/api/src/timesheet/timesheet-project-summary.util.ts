@@ -8,6 +8,7 @@ import type {
   ProjectSummaryResponse,
   TimesheetSummaryPeriod,
 } from '@fabxpert/shared/dto/timesheet.dto';
+import { tracksAssembliesOnProjectSql } from '../assembly/project-untracked-activities.util';
 
 export type { ProjectSummaryProjectRow, ProjectSummaryResponse };
 
@@ -44,6 +45,13 @@ export type ProjectSummarySqlRow = {
 };
 
 const NO_ACTIVITY_LABEL = 'Fără activitate';
+
+/** Per project: an activity the project switched off shows hours, not pieces. */
+const timesheetTracksAssemblies = tracksAssembliesOnProjectSql(
+  Prisma.sql`a."tracksAssemblies"`,
+  Prisma.sql`p.id`,
+  Prisma.sql`t."activityId"`,
+);
 
 function buildPeriodFilter(from: Date | null, to: Date | null) {
   if (!from || !to) {
@@ -105,7 +113,7 @@ export function buildProjectSummaryQuery(
         t."activityId" AS "activityId",
         a.name AS "activityName",
         a.color AS "activityColor",
-        a."tracksAssemblies" AS "activityTracksAssemblies",
+        ${timesheetTracksAssemblies} AS "activityTracksAssemblies",
         COALESCE(SUM(t."durationMinutes"), 0)::int AS minutes
       FROM projects p
       INNER JOIN companies c ON c.id = p."companyId"
@@ -160,7 +168,7 @@ export function buildProjectSummaryQuery(
       t."activityId" AS "activityId",
       a.name AS "activityName",
       a.color AS "activityColor",
-      a."tracksAssemblies" AS "activityTracksAssemblies",
+      ${timesheetTracksAssemblies} AS "activityTracksAssemblies",
       SUM(t."durationMinutes")::int AS minutes
     FROM timesheets t
     INNER JOIN persons pe ON pe.id = t."personId" AND pe."deletedAt" IS NULL
@@ -231,7 +239,11 @@ export function buildProjectSummaryAssemblyDoneQuery(projectIds: string[]) {
       src."activityId" AS "activityId",
       a.name AS "activityName",
       a.color AS "activityColor",
-      a."tracksAssemblies" AS "activityTracksAssemblies",
+      ${tracksAssembliesOnProjectSql(
+        Prisma.sql`a."tracksAssemblies"`,
+        Prisma.sql`src."projectId"`,
+        Prisma.sql`src."activityId"`,
+      )} AS "activityTracksAssemblies",
       SUM(src."piecesDone")::int AS "piecesDone",
       SUM(src."weightDoneKg")::float AS "weightDoneKg",
       SUM(src."piecesManual")::int AS "piecesManual",

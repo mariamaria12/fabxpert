@@ -1,7 +1,9 @@
 'use client';
 
 import {
+  activityTracksAssembliesOnProject,
   assemblyDoneForActivity,
+  getProject,
   listActivities,
   setAssemblyManualProgress,
   type ActivityDto,
@@ -131,6 +133,8 @@ export function AssemblyLogView({
   const [search, setSearch] = useState('');
   const [note, setNote] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  /** Tracked activities the project unticked — hidden, since ticks there would not count. */
+  const [untrackedCount, setUntrackedCount] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -139,9 +143,13 @@ export function AssemblyLogView({
     setError(null);
 
     try {
-      const rows = await listActivities();
-      const tracked = rows.filter((activity) => activity.tracksAssemblies);
+      const [rows, project] = await Promise.all([listActivities(), getProject(projectId)]);
+      const flagged = rows.filter((activity) => activity.tracksAssemblies);
+      const tracked = flagged.filter((activity) =>
+        activityTracksAssembliesOnProject(activity, project.untrackedActivityIds),
+      );
       setActivities(tracked);
+      setUntrackedCount(flagged.length - tracked.length);
       setActiveActivityId(tracked[0]?.id ?? null);
     } catch (caught) {
       setActivities([]);
@@ -149,7 +157,7 @@ export function AssemblyLogView({
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [projectId]);
 
   useEffect(() => {
     void loadActivities();
@@ -384,8 +392,9 @@ export function AssemblyLogView({
           </p>
         ) : activities.length === 0 ? (
           <p className="py-8 text-center text-sm text-text-muted">
-            Nicio activitate nu urmărește ansamble. Activează opțiunea din Administrare →
-            Activități.
+            {untrackedCount > 0
+              ? 'Toate activitățile cu ansamble sunt debifate pe acest proiect.'
+              : 'Nicio activitate nu urmărește ansamble. Activează opțiunea din Administrare → Activități.'}
           </p>
         ) : visibleAssemblies.length === 0 ? (
           <p className="py-8 text-center text-sm text-text-muted">

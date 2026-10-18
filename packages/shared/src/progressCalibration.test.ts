@@ -62,6 +62,25 @@ describe('computeProgressCalibration', () => {
     assert.ok(Math.abs(result.activityWeights.weld - bounds.activityShare.max) < 1e-9);
     assert.ok(Math.abs(result.activityWeights.paint - 0.4) < 1e-9);
   });
+  it('does not read a project that skipped painting as cheap per piece', () => {
+    // a = 0.02 h/kg, b = 1.6 h/piece → 80 kg per piece; every other project
+    // was galvanised, so its painting hours never happened.
+    const samples = [10, 20, 40, 60, 80, 120, 160, 200].map((pieces, index) => {
+      const sample = project(8_000 + index * 3_000, pieces, 0.02, 1.6);
+      return index % 2 === 0
+        ? sample
+        : {
+            ...sample,
+            minutesByActivity: { weld: sample.minutesByActivity.weld },
+            untrackedActivityIds: ['paint'],
+          };
+    });
+    const result = computeProgressCalibration(samples, ['weld', 'paint']);
+    assert.equal(result.fixedWeightFromData, true);
+    // The painting share comes from medians over other projects, so it is
+    // close, not exact; left unscaled the same samples give about 45 kg.
+    assert.ok(Math.abs(result.fixedWeightKg - 80) < 2);
+  });
 });
 
 describe('sharesForActivities', () => {

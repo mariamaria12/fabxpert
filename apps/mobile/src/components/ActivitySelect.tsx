@@ -1,9 +1,11 @@
-import type { ActivityDto } from '@fabxpert/shared';
+import { activityTracksAssembliesOnProject, type ActivityDto } from '@fabxpert/shared';
 import { ActivityListSkeleton } from './skeletons/OptionListSkeleton';
 import { useMobileLookupCache } from '../context/MobileLookupCacheContext';
 import { ActivityDot } from './ActivityDot';
 
 interface ActivitySelectProps {
+  /** Activities the chosen project logs with hours only — no assemblies chip. */
+  untrackedActivityIds: string[];
   onChoose: (activity: ActivityDto) => void;
 }
 
@@ -49,7 +51,7 @@ function RefreshIcon({ spinning }: { spinning: boolean }) {
   );
 }
 
-export function ActivitySelect({ onChoose }: ActivitySelectProps) {
+export function ActivitySelect({ untrackedActivityIds, onChoose }: ActivitySelectProps) {
   const {
     activities,
     activitiesError,
@@ -106,7 +108,7 @@ export function ActivitySelect({ onChoose }: ActivitySelectProps) {
                 <span className="option-row-body">
                   <span className="option-row-title">{activity.name}</span>
                 </span>
-                {activity.tracksAssemblies ? (
+                {activityTracksAssembliesOnProject(activity, untrackedActivityIds) ? (
                   <span className="assembly-chip assembly-chip-tracks">ansamble</span>
                 ) : null}
               </button>

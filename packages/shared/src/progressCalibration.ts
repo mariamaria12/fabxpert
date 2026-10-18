@@ -26,6 +26,8 @@ export type ProgressCalibrationSample = {
   pieces: number | null;
   /** Minutes pontaged per tracked activity id. */
   minutesByActivity: Record<string, number>;
+  /** Tracked activities the project switched off, e.g. painting on a galvanised one. */
+  untrackedActivityIds?: string[];
 };
 
 export type ProgressCalibrationResult = {
@@ -143,6 +145,9 @@ export function computeProgressCalibration(
   // projects where it was done at all — a project that was never painted says
   // nothing about what painting costs.
   let activityWeights = equalShares(trackedActivityIds);
+  // The same split before the band: what each step really costs, which is
+  // what a project that skipped one is missing.
+  let hourShares = activityWeights;
   let activityWeightsFromData = false;
   if (usable.length >= bounds.minProjectsForActivityWeights && trackedActivityIds.length > 0) {
     const medians: Record<string, number> = {};
@@ -157,20 +162,32 @@ export function computeProgressCalibration(
     const known = Object.values(medians);
     if (known.length > 0) {
       const fallback = known.reduce((total, value) => total + value, 0) / known.length;
-      activityWeights = boundedShares(
-        Object.fromEntries(trackedActivityIds.map((id) => [id, medians[id] ?? fallback])),
+      const rates = Object.fromEntries(
+        trackedActivityIds.map((id) => [id, medians[id] ?? fallback]),
       );
+      const totalRate = sumOf(rates);
+      hourShares = Object.fromEntries(trackedActivityIds.map((id) => [id, rates[id] / totalRate]));
+      activityWeights = boundedShares(rates);
       activityWeightsFromData = true;
     }
   }
 
+  // A project that skipped a step logged only part of the work; its hours are
+  // scaled up by the share of hours it did carry, so it does not read as cheap
+  // per piece.
+  const coveredShare = (sample: ProgressCalibrationSample): number =>
+    trackedActivityIds
+      .filter((id) => !sample.untrackedActivityIds?.includes(id))
+      .reduce((total, id) => total + (hourShares[id] ?? 0), 0);
+
   let fixedWeightKg: number = bounds.fixedWeightKg.fallback;
   let fixedWeightFromData = false;
-  const withList = usable.flatMap((sample) =>
-    sample.pieces && sample.pieces > 0
-      ? [{ kg: sample.weightKg, pieces: sample.pieces, hours: sample.hours }]
-      : [],
-  );
+  const withList = usable.flatMap((sample) => {
+    const share = coveredShare(sample);
+    return sample.pieces && sample.pieces > 0 && share > 0
+      ? [{ kg: sample.weightKg, pieces: sample.pieces, hours: sample.hours / share }]
+      : [];
+  });
   if (withList.length >= bounds.minProjectsForFixedWeight) {
     const fitted = fitFixedWeightKg(withList);
     if (fitted !== null) {

@@ -6,6 +6,10 @@ import {
   type ProgressCalibrationSample,
 } from '@fabxpert/shared/progressCalibration';
 import { PROJECT_COMPLETED_STATUSES } from '@fabxpert/shared/projectStatus';
+import {
+  loadUntrackedActivityIds,
+  tracksAssembliesOnProjectSql,
+} from './project-untracked-activities.util';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -79,11 +83,21 @@ export async function recalibrateProjectProgress(db: Db): Promise<StoredProgress
         AND p."deletedAt" IS NULL
         AND p.status IN (${completedStatuses})
         AND p."completedAt" >= ${since}
-      INNER JOIN activities a ON a.id = t."activityId" AND a."tracksAssemblies"
+      INNER JOIN activities a ON a.id = t."activityId"
       WHERE t."deletedAt" IS NULL
+        -- A step the project switched off was not part of its list work.
+        AND ${tracksAssembliesOnProjectSql(
+          Prisma.sql`a."tracksAssemblies"`,
+          Prisma.sql`t."projectId"`,
+          Prisma.sql`t."activityId"`,
+        )}
       GROUP BY t."projectId", t."activityId"
     `),
   ]);
+  const untrackedByProject = await loadUntrackedActivityIds(
+    db,
+    projects.map((project) => project.projectId),
+  );
 
   const minutesByProject = new Map<string, Record<string, number>>();
   for (const row of minutes) {
@@ -96,6 +110,7 @@ export async function recalibrateProjectProgress(db: Db): Promise<StoredProgress
     weightKg: project.weightKg,
     pieces: project.pieces,
     minutesByActivity: minutesByProject.get(project.projectId) ?? {},
+    untrackedActivityIds: untrackedByProject.get(project.projectId) ?? [],
   }));
   const result = computeProgressCalibration(samples, activityIds);
 
@@ -149,7 +164,9 @@ type ProjectProgressSqlRow = {
  * tracked activity closes the whole list, weighted by its calibrated share.
  * Done pieces come from both sources — timesheets and manual ticks — and are
  * capped at the line's quantity, so an over-reported line cannot carry the
- * rest of the list. Projects without a list are simply absent from the map.
+ * rest of the list. An activity the project switched off leaves its formula
+ * and the others share its weight. Projects without a list are simply absent
+ * from the map.
  */
 export async function loadProjectProgress(
   db: Db,
@@ -160,7 +177,10 @@ export async function loadProjectProgress(
     return progress;
   }
 
-  const calibration = await loadProgressCalibration(db);
+  const [calibration, untrackedByProject] = await Promise.all([
+    loadProgressCalibration(db),
+    loadUntrackedActivityIds(db, projectIds),
+  ]);
   const fixedWeightKg = calibration.fixedWeightKg;
 
   const rows = await db.$queryRaw<ProjectProgressSqlRow[]>(Prisma.sql`
@@ -226,8 +246,15 @@ export async function loadProjectProgress(
     doneByProject.set(row.projectId, byActivity);
   }
 
-  const activityShares = sharesForActivities(calibration.activityWeights, activityIds);
+  const defaultShares = sharesForActivities(calibration.activityWeights, activityIds);
   for (const [projectId, totalEquivalentKg] of totals) {
+    const untracked = untrackedByProject.get(projectId);
+    const activityShares = untracked
+      ? sharesForActivities(
+          calibration.activityWeights,
+          activityIds.filter((id) => !untracked.includes(id)),
+        )
+      : defaultShares;
     const percent = projectProgressPercent({
       doneEquivalentKgByActivity: doneByProject.get(projectId) ?? {},
       totalEquivalentKg,

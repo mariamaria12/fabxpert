@@ -1,11 +1,21 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  activityTracksAssembliesOnProject,
   assemblyEquivalentWeight,
   assemblyListWeight,
   formatProjectProgress,
   projectProgressPercent,
 } from './assemblyProgress';
+
+describe('activityTracksAssembliesOnProject', () => {
+  it('follows the activity unless the project switched it off', () => {
+    const painting = { id: 'paint', tracksAssemblies: true };
+    assert.equal(activityTracksAssembliesOnProject(painting, []), true);
+    assert.equal(activityTracksAssembliesOnProject(painting, ['paint']), false);
+    assert.equal(activityTracksAssembliesOnProject({ id: 'cut', tracksAssemblies: false }, []), false);
+  });
+});
 
 describe('assemblyListWeight', () => {
   it('multiplies pieces by weight per piece', () => {

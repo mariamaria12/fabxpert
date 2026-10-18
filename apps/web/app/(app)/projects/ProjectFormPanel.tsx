@@ -10,11 +10,14 @@ import {
   getProject,
   importProjectAssemblies,
   isProjectAutoReadyForExecution,
+  listActivities,
+  listProjectAssemblies,
   PROJECT_STATUS_META,
   PROJECT_STATUS_VALUES,
   pickRandomProjectColor,
   updateProject,
   updateProjectSchema,
+  type ActivityDto,
   type AssemblyImportRowDto,
   type AssemblyPartsDto,
   type CompanyDto,
@@ -35,6 +38,7 @@ import {
 import { AssemblyImportScreen } from './AssemblyImportScreen';
 import { AssemblyListScreen } from './AssemblyListScreen';
 import { parseExcelProjectPaste } from './parseExcelProjectPaste';
+import { TrackedActivitiesField } from './TrackedActivitiesField';
 import { AssemblyIcon } from '@/components/AssemblyIcon';
 import { ColorField } from '@/components/ColorField';
 import { DateField } from '@/components/DateField';
@@ -84,6 +88,7 @@ interface ProjectFormValues {
   color: string | null;
   readyForExecution: boolean;
   visibleForRoleIds: string[];
+  untrackedActivityIds: string[];
 }
 
 const EMPTY_FORM: ProjectFormValues = {
@@ -103,6 +108,7 @@ const EMPTY_FORM: ProjectFormValues = {
   color: null,
   readyForExecution: false,
   visibleForRoleIds: [],
+  untrackedActivityIds: [],
 };
 
 function projectToFormValues(project: ProjectDto): ProjectFormValues {
@@ -123,6 +129,7 @@ function projectToFormValues(project: ProjectDto): ProjectFormValues {
     color: project.color,
     readyForExecution: project.readyForExecution,
     visibleForRoleIds: (project.visibleForRoles ?? []).map((role) => role.id),
+    untrackedActivityIds: project.untrackedActivityIds ?? [],
   };
 }
 
@@ -141,6 +148,9 @@ function mapApiFormError(message: string): string {
   }
   if (message === 'One or more visibleForRoleIds do not reference existing employee roles') {
     return 'Una sau mai multe funcții selectate nu există.';
+  }
+  if (message === 'untrackedActivityIds must reference activities that track assemblies') {
+    return 'O activitate debifată nu mai urmărește ansamble. Redeschide formularul.';
   }
   return message;
 }
@@ -247,6 +257,7 @@ function buildUpdatePayload(
   values: ProjectFormValues,
   numbers: ProjectFormNumbers,
   readyForExecutionTouched: boolean,
+  untrackedActivitiesTouched: boolean,
 ) {
   return {
     name: values.name,
@@ -263,6 +274,8 @@ function buildUpdatePayload(
     // Left out unless ticked by hand, so a status change lets the server set it.
     ...(readyForExecutionTouched ? { readyForExecution: values.readyForExecution } : {}),
     visibleForRoleIds: values.visibleForRoleIds,
+    // Left out unless changed here, so a form opened from a stub cannot clear the set.
+    ...(untrackedActivitiesTouched ? { untrackedActivityIds: values.untrackedActivityIds } : {}),
     ...(values.startDate ? { startDate: values.startDate } : {}),
     ...(values.dueDate ? { dueDate: values.dueDate } : {}),
     color: values.color,
@@ -309,6 +322,10 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
   const [editProject, setEditProject] = useState<ProjectDto | null>(null);
   const [editProjectLoading, setEditProjectLoading] = useState(false);
   const [readyForExecutionTouched, setReadyForExecutionTouched] = useState(false);
+  const [untrackedActivitiesTouched, setUntrackedActivitiesTouched] = useState(false);
+  const [trackingActivities, setTrackingActivities] = useState<ActivityDto[]>([]);
+  const [trackingActivitiesLoading, setTrackingActivitiesLoading] = useState(false);
+  const [piecesByActivity, setPiecesByActivity] = useState<Map<string, number> | null>(null);
   const nameFieldRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [excelPasteText, setExcelPasteText] = useState('');
@@ -391,6 +408,8 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
     setIsDeleting(false);
     setEditProject(null);
     setReadyForExecutionTouched(false);
+    setUntrackedActivitiesTouched(false);
+    setPiecesByActivity(null);
 
     if (mode === 'create') {
       setValues({ ...EMPTY_FORM, color: pickRandomProjectColor() });
@@ -429,6 +448,54 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
         if (!cancelled) {
           setEditProjectLoading(false);
         }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, mode, project]);
+
+  // The activities that track assemblies, and what was already logged on each,
+  // so unticking one can say how many pieces leave the progress.
+  useEffect(() => {
+    if (!open || mode !== 'edit' || !project) {
+      return;
+    }
+
+    let cancelled = false;
+    setTrackingActivitiesLoading(true);
+    listActivities()
+      .then((rows) => {
+        if (!cancelled) {
+          setTrackingActivities(rows.filter((activity) => activity.tracksAssemblies));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTrackingActivities([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setTrackingActivitiesLoading(false);
+        }
+      });
+
+    listProjectAssemblies(project.id)
+      .then((assemblies) => {
+        if (cancelled) {
+          return;
+        }
+        const pieces = new Map<string, number>();
+        for (const assembly of assemblies) {
+          for (const row of assembly.progress) {
+            pieces.set(row.activityId, (pieces.get(row.activityId) ?? 0) + row.quantityDone);
+          }
+        }
+        setPiecesByActivity(pieces);
+      })
+      .catch(() => {
+        // Only the warning needs it; the field works without.
       });
 
     return () => {
@@ -732,7 +799,7 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
     }
 
     const parsed = updateProjectSchema.safeParse(
-      buildUpdatePayload(values, numbers, readyForExecutionTouched),
+      buildUpdatePayload(values, numbers, readyForExecutionTouched, untrackedActivitiesTouched),
     );
     if (!parsed.success) {
       setFieldErrors(mapZodFieldErrors(parsed.error));
@@ -1202,6 +1269,20 @@ export function ProjectFormPanel({ open, mode, project, onClose, onSaved }: Proj
               </button>
             </div>
           </div>
+        )}
+
+        {mode === 'edit' && (
+          <TrackedActivitiesField
+            activities={trackingActivities}
+            untrackedActivityIds={values.untrackedActivityIds}
+            piecesByActivity={piecesByActivity}
+            loading={trackingActivitiesLoading || editProjectLoading}
+            disabled={isBusy}
+            onChange={(untrackedActivityIds) => {
+              updateField('untrackedActivityIds', untrackedActivityIds);
+              setUntrackedActivitiesTouched(true);
+            }}
+          />
         )}
 
         {formError && (

@@ -1,4 +1,16 @@
+import type { ActivityDto } from './dto/activity.dto';
 import type { AssemblyProgressDto, ProjectAssemblyDto } from './dto/assembly.dto';
+
+/**
+ * Whether logging this activity on the project asks for assemblies. The
+ * activity's flag is the default; a project can switch it off for itself.
+ */
+export function activityTracksAssembliesOnProject(
+  activity: Pick<ActivityDto, 'id' | 'tracksAssemblies'>,
+  untrackedActivityIds: readonly string[],
+): boolean {
+  return activity.tracksAssemblies && !untrackedActivityIds.includes(activity.id);
+}
 
 /** Pieces of this assembly already done for one activity. */
 export function assemblyDoneForActivity(

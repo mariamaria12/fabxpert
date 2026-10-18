@@ -50,6 +50,10 @@ const projectCompanyInclude = {
       assemblies: { where: notDeleted() },
     },
   },
+  untrackedActivities: {
+    select: { activityId: true },
+    orderBy: { activityId: 'asc' as const },
+  },
 } satisfies Prisma.ProjectInclude;
 
 const projectInclude = {
@@ -164,7 +168,7 @@ function applyVisibleForFilter(
   pushAndClause(where, { OR: clauses });
 }
 
-function roleIdsEqual(left: string[], right: string[]): boolean {
+function idsEqual(left: string[], right: string[]): boolean {
   if (left.length !== right.length) {
     return false;
   }
@@ -217,6 +221,7 @@ function toProjectDto(
     assemblyCount: project._count.assemblies,
     assembliesWithoutWeight,
     progressPercent,
+    untrackedActivityIds: project.untrackedActivities.map((row) => row.activityId),
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString(),
   };
@@ -399,6 +404,7 @@ export class ProjectService {
         code: string;
         color: string | null;
         companyName: string;
+        untrackedActivityIds: string[];
       }>
     >`
       SELECT
@@ -409,7 +415,11 @@ export class ProjectService {
         p.notes,
         p.code,
         p.color,
-        c.name AS "companyName"
+        c.name AS "companyName",
+        ARRAY(
+          SELECT pua."activityId" FROM project_untracked_activities pua
+          WHERE pua."projectId" = p.id
+        ) AS "untrackedActivityIds"
       FROM projects p
       INNER JOIN companies c ON c.id = p."companyId"
       WHERE p."deletedAt" IS NULL
@@ -433,6 +443,7 @@ export class ProjectService {
       code: row.code,
       color: row.color,
       company: { name: row.companyName },
+      untrackedActivityIds: row.untrackedActivityIds,
     }));
   }
 
@@ -490,7 +501,12 @@ export class ProjectService {
       await this.assertCompanyExists(input.companyId);
     }
 
-    const { visibleForRoleIds, isPinned: requestedIsPinned, ...scalarInput } = input;
+    const {
+      visibleForRoleIds,
+      untrackedActivityIds,
+      isPinned: requestedIsPinned,
+      ...scalarInput
+    } = input;
     // Once a list exists the weight is the list's total, not a form field —
     // a stale form must not write over what the list just computed.
     if (existing.assemblyCount > 0) {
@@ -499,11 +515,25 @@ export class ProjectService {
     if (visibleForRoleIds !== undefined) {
       await this.assertVisibleForRoleIds(visibleForRoleIds);
     }
+    // Set only when the request really changes which activities are switched off.
+    const requestedUntrackedIds =
+      untrackedActivityIds === undefined
+        ? undefined
+        : await this.resolveUntrackedActivityIds(
+            untrackedActivityIds,
+            existing.untrackedActivityIds,
+          );
+    const nextUntrackedIds =
+      requestedUntrackedIds !== undefined &&
+      !idsEqual(existing.untrackedActivityIds, requestedUntrackedIds)
+        ? requestedUntrackedIds
+        : undefined;
+    const untrackedChanged = nextUntrackedIds !== undefined;
 
     const existingRoleIds = existing.visibleForRoles.map((role) => role.id);
     const rolesChanged =
       visibleForRoleIds !== undefined &&
-      !roleIdsEqual(existingRoleIds, visibleForRoleIds);
+      !idsEqual(existingRoleIds, visibleForRoleIds);
 
     // Track the completion date across status transitions: stamped on entering
     // FINALIZAT, cleared on leaving it.
@@ -561,29 +591,40 @@ export class ProjectService {
                 },
               }
             : {}),
+          ...(nextUntrackedIds
+            ? {
+                untrackedActivities: {
+                  deleteMany: {},
+                  create: nextUntrackedIds.map((activityId) => ({ activityId })),
+                },
+              }
+            : {}),
         },
         include: projectInclude,
       });
 
-      if (wasCompleted !== isCompleted) {
+      // A delivered project that switches a step off changes what it teaches the formula.
+      if (wasCompleted !== isCompleted || (untrackedChanged && isCompleted)) {
         this.recalibrateProgress();
       }
 
       if (existing.readyForExecution !== project.readyForExecution) {
         this.availabilityEvents.emitChanged();
       } else if (
-        rolesChanged &&
+        (rolesChanged || untrackedChanged) &&
         (existing.readyForExecution || project.readyForExecution)
       ) {
+        // Phones keep the project list in memory; this tells them to refetch,
+        // so the assembly step follows the new set right away.
         this.availabilityEvents.emitChanged();
       }
 
-      return toProjectDto(
-        project,
-        false,
-        existing.assembliesWithoutWeight,
-        existing.progressPercent,
-      );
+      // The activity set is part of the formula, so the figure moves with it.
+      const progressPercent = untrackedChanged
+        ? ((await loadProjectProgress(this.prisma, [id])).get(id) ?? null)
+        : existing.progressPercent;
+
+      return toProjectDto(project, false, existing.assembliesWithoutWeight, progressPercent);
     } catch (error) {
       this.handleUniqueViolation(error);
     }
@@ -725,6 +766,39 @@ export class ProjectService {
         'One or more visibleForRoleIds do not reference existing employee roles',
       );
     }
+  }
+
+  /**
+   * The set to store. Only activities that track assemblies can be newly
+   * switched off; one already stored that has since stopped tracking them (or
+   * was deleted) is dropped quietly, since the form cannot show it and would
+   * otherwise send it back on every save.
+   */
+  private async resolveUntrackedActivityIds(
+    activityIds: string[],
+    storedIds: string[],
+  ): Promise<string[]> {
+    if (activityIds.length === 0) {
+      return [];
+    }
+
+    if (new Set(activityIds).size !== activityIds.length) {
+      throw new BadRequestException('untrackedActivityIds must not contain duplicates');
+    }
+
+    const tracking = await this.prisma.activity.findMany({
+      where: { id: { in: activityIds }, tracksAssemblies: true, ...notDeleted() },
+      select: { id: true },
+    });
+    const trackingIds = new Set(tracking.map((activity) => activity.id));
+
+    if (activityIds.some((id) => !trackingIds.has(id) && !storedIds.includes(id))) {
+      throw new BadRequestException(
+        'untrackedActivityIds must reference activities that track assemblies',
+      );
+    }
+
+    return activityIds.filter((id) => trackingIds.has(id));
   }
 
   private handleUniqueViolation(error: unknown): never {

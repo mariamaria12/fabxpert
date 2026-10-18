@@ -27,6 +27,7 @@ export function pinnedSummaryToProjectStub(row: PinnedProjectSummaryRow): Projec
     assemblyCount: 0,
     assembliesWithoutWeight: 0,
     progressPercent: row.progressPercent,
+    untrackedActivityIds: [],
     createdAt: '',
     updatedAt: '',
   };

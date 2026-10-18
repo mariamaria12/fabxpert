@@ -640,6 +640,7 @@ export type {
   AssemblyImportColumnMap,
 } from './assemblyImport';
 export {
+  activityTracksAssembliesOnProject,
   assemblyDoneForActivity,
   assemblyRemainingForActivity,
   isAssemblyOverDone,

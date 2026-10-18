@@ -1,4 +1,4 @@
-import { assemblyRemainingForActivity } from '@fabxpert/shared';
+import { activityTracksAssembliesOnProject, assemblyRemainingForActivity } from '@fabxpert/shared';
 import type {
   ActivityDto,
   LeaveRequestDto,
@@ -77,6 +77,14 @@ export function TimesheetFlow({ user, onLogout }: TimesheetFlowProps) {
   }
 
   /**
+   * Whether this activity asks for assemblies here — a project can switch the
+   * step off for itself. Cached project lists from before the field read as none.
+   */
+  function asksForAssemblies(activity: ActivityDto): boolean {
+    return activityTracksAssembliesOnProject(activity, selectedProject?.untrackedActivityIds ?? []);
+  }
+
+  /**
    * Activities that track assemblies ask what was worked on before the time.
    * A project whose list is already known to be empty skips straight to the
    * time screen, so the picker never flashes on its way past.
@@ -87,7 +95,7 @@ export function TimesheetFlow({ user, onLogout }: TimesheetFlowProps) {
 
     const hasList = !projectAssemblies.isLoaded || projectAssemblies.assemblies.length > 0;
     setProjectHasAssemblyList(hasList);
-    setStep(activity.tracksAssemblies && hasList ? 'selectAssemblies' : 'timeEntry');
+    setStep(asksForAssemblies(activity) && hasList ? 'selectAssemblies' : 'timeEntry');
   }
 
   function handleBackFromActivity() {
@@ -154,7 +162,7 @@ export function TimesheetFlow({ user, onLogout }: TimesheetFlowProps) {
   }
 
   function handleBackFromTimeEntry() {
-    if (selectedActivity?.tracksAssemblies && projectHasAssemblyList) {
+    if (selectedActivity && asksForAssemblies(selectedActivity) && projectHasAssemblyList) {
       setStep(assemblySelection.length > 0 ? 'assemblyQuantities' : 'selectAssemblies');
       return;
     }
@@ -311,7 +319,10 @@ export function TimesheetFlow({ user, onLogout }: TimesheetFlowProps) {
         ) : null}
 
         {step === 'selectActivity' && selectedProject ? (
-          <ActivitySelect onChoose={handleActivityChosen} />
+          <ActivitySelect
+            untrackedActivityIds={selectedProject?.untrackedActivityIds ?? []}
+            onChoose={handleActivityChosen}
+          />
         ) : null}
 
         {step === 'selectAssemblies' && selectedProject && selectedActivity ? (
