@@ -39,6 +39,8 @@ export function PanouProjectCard({
   expandedContent,
   durationTopActions,
   sideActions,
+  detailsContent,
+  cornerSlot,
 }: {
   accentColor: string | null;
   title: string;
@@ -72,6 +74,14 @@ export function PanouProjectCard({
    * the hours toggle — the assembly list opener on pinned cards.
    */
   sideActions?: ReactNode;
+  /**
+   * Figures across the card under the header (pinned cards). Takes the place
+   * of the footer: progress, dates and roles live in it, and the expand
+   * chevron moves to the right-hand column.
+   */
+  detailsContent?: ReactNode;
+  /** Pinned to the card's bottom-left corner, over everything (the drag handle). */
+  cornerSlot?: ReactNode;
 }) {
   const color = accentColor ?? NEUTRAL_ACCENT;
   const handleTitleClick = onTitleClick ?? onToggle;
@@ -117,13 +127,14 @@ export function PanouProjectCard({
       </span>
     ) : null);
   // Cards without roles/timeline (the hours view) keep the hours block top right.
-  const hasFooter = Boolean(meta || timeline);
+  const hasFooter = !detailsContent && Boolean(meta || timeline);
   // Indent the footer meta past the icon column so it lines up with the code,
   // the finish badge and the company name rather than with the icon.
   const hasLeadingColumn = Boolean(leadingSlot) || !hideLeadingIcon;
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border-subtle bg-surface shadow-card">
+    <div className="relative overflow-hidden rounded-lg border border-border-subtle bg-surface shadow-card">
+      {cornerSlot}
       <div className="flex items-stretch">
         <span
           className="w-[3px] shrink-0 self-stretch"
@@ -204,9 +215,12 @@ export function PanouProjectCard({
               </div>
             )}
             {sideActions}
-            {!hasFooter && totalBlock}
+            {/* Pinned cards carry their own expand toggle beside the progress. */}
+            {!detailsContent && !hasFooter && totalBlock}
           </div>
           </div>
+
+          {detailsContent}
 
           {hasFooter && (
             /* Bottom row across the card: roles on the left, then the timeline

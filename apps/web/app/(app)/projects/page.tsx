@@ -15,7 +15,8 @@ import {
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ProjectFormPanel } from './ProjectFormPanel';
-import { projectActionsColumn } from './projectActionsColumn';
+import { ProjectDetailsList } from './ProjectDetailsList';
+import { projectActionsColumn, ProjectRowActions } from './projectActionsColumn';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import {
   ProjectNameCell,
@@ -31,7 +32,13 @@ import { ProjectProgressCell } from './ProjectProgressCell';
 import { Pagination } from '@/components/Pagination';
 import { FiltersToggle } from '@/components/FiltersToggle';
 import { ProjectListFilters } from '@/components/ProjectListFilters';
+import {
+  TABLE_DETAILS_VIEW_IDS,
+  TABLE_DETAILS_VIEWS,
+  ViewToggle,
+} from '@/components/ViewToggle';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { useViewPreference } from '@/hooks/useViewPreference';
 import { useOpenReportParam } from '@/hooks/useOpenReportParam';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { panouPathFromProjectEditReturn } from '@/utils/projectEditNavigation';
@@ -105,6 +112,7 @@ export default function ProjectsPage() {
   const [statusFilters, setStatusFilters] = useState<ProjectStatus[]>([]);
   const [visibilityFilters, setVisibilityFilters] = useState<string[]>([]);
   const [readyForExecution, setReadyForExecution] = useState<boolean | null>(null);
+  const [view, setView] = useViewPreference('projects-list', TABLE_DETAILS_VIEW_IDS, 'table');
   const isMobile = useIsMobile();
   // Phones show the toggle next to "Proiect nou", so the filter bar is controlled here.
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -429,13 +437,16 @@ export default function ProjectsPage() {
           />
         )}
         {!showEmptyState && (
-          <button
-            type="button"
-            onClick={openCreate}
-            className="shrink-0 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-contrast sm:px-4 sm:py-2 sm:text-sm transition-opacity hover:opacity-90"
-          >
-            Proiect nou
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <ViewToggle options={TABLE_DETAILS_VIEWS} value={view} onChange={setView} />
+            <button
+              type="button"
+              onClick={openCreate}
+              className="shrink-0 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-contrast sm:px-4 sm:py-2 sm:text-sm transition-opacity hover:opacity-90"
+            >
+              Proiect nou
+            </button>
+          </div>
         )}
       </div>
 
@@ -496,17 +507,31 @@ export default function ProjectsPage() {
 
       {showDataTable && (
         <div className="mt-3 sm:mt-6">
-          <DataTable
-            storageKey="projects-list"
-            columns={projectColumns}
-            data={projects}
-            rowKey={(row) => row.id}
-            rowAccentColor={(row) => row.color ?? 'var(--color-border-subtle)'}
-            loading={loading}
-            sortBy={sortBy}
-            sortOrder={sortOrder}
-            onSortChange={handleSortChange}
-          />
+          {view === 'details' ? (
+            <ProjectDetailsList
+              projects={projects}
+              loading={loading}
+              renderActions={(project) => (
+                <ProjectRowActions
+                  project={project}
+                  onEdit={openEdit}
+                  onOpenReport={setReportProjectId}
+                />
+              )}
+            />
+          ) : (
+            <DataTable
+              storageKey="projects-list"
+              columns={projectColumns}
+              data={projects}
+              rowKey={(row) => row.id}
+              rowAccentColor={(row) => row.color ?? 'var(--color-border-subtle)'}
+              loading={loading}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortChange={handleSortChange}
+            />
+          )}
           {!loading && total > 0 && (
             <Pagination
               page={page}

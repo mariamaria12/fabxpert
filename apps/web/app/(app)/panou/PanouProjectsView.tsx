@@ -20,6 +20,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from 'react';
 import { DataTable, type DataTableColumn } from '@/components/DataTable';
 import {
@@ -33,6 +34,13 @@ import { FinisajBadge } from '@/components/FinisajBadge';
 import { ProjectComplexityBadge } from '@/components/ProjectComplexityBadge';
 import { Pagination } from '@/components/Pagination';
 import { ProjectListFilters } from '@/components/ProjectListFilters';
+import {
+  TABLE_DETAILS_VIEW_IDS,
+  TABLE_DETAILS_VIEWS,
+  ViewToggle,
+  type TableDetailsView,
+} from '@/components/ViewToggle';
+import { useViewPreference } from '@/hooks/useViewPreference';
 import { useOpenReportParam } from '@/hooks/useOpenReportParam';
 import { STATUS_FILTER_OPTIONS } from '@/utils/projectStatusFilter';
 import { replaceById } from '@/utils/replaceById';
@@ -44,7 +52,8 @@ import { useRegisterPanouRefetch } from '../PanouRefreshContext';
 import { ProjectFormPanel } from '../projects/ProjectFormPanel';
 import { ProjectAssemblyCountCell } from '../projects/ProjectAssemblyCountCell';
 import { ProjectProgressCell } from '../projects/ProjectProgressCell';
-import { projectActionsColumn } from '../projects/projectActionsColumn';
+import { ProjectDetailsList } from '../projects/ProjectDetailsList';
+import { projectActionsColumn, ProjectRowActions } from '../projects/projectActionsColumn';
 import { ProjectReportPanel } from '../reports/ProjectReportPanel';
 import {
   PanouPinnedProjectsSection,
@@ -295,10 +304,15 @@ const ProjectTableSection = forwardRef<
     readyForExecution: boolean | null;
     onPinToggled?: (updated: ProjectDto) => void;
     onProjectUpdated?: (updated: ProjectDto) => void;
+    view: TableDetailsView;
+    /** Beside the title, e.g. the table / details switch. */
+    titleAside?: ReactNode;
   }
 >(function ProjectTableSection(
   {
     title,
+    view,
+    titleAside,
     statusGroup,
     showPinColumn = false,
     onOpenReport,
@@ -485,6 +499,13 @@ const ProjectTableSection = forwardRef<
     rowActions: onOpenReport ? { onEdit: openEdit, onOpenReport } : undefined,
   });
 
+  const titleRow = (
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+      <h3 className="text-sm font-medium text-text-secondary">{title}</h3>
+      {titleAside}
+    </div>
+  );
+
   const hasActiveFilters =
     readyFilter !== null ||
     statusFilters.length > 0 ||
@@ -536,7 +557,7 @@ const ProjectTableSection = forwardRef<
 
       {!loading && !error && total === 0 && (
         <>
-          <h3 className="mt-3 text-sm font-medium text-text-secondary">{title}</h3>
+          <div className="mt-3">{titleRow}</div>
           <div className="mt-2 mb-2 flex min-h-[7rem] flex-col items-center justify-center rounded-md border border-dashed border-border-subtle px-4 py-8 text-center">
             <p className="text-sm text-text-muted">{emptyMessage}</p>
           </div>
@@ -545,30 +566,65 @@ const ProjectTableSection = forwardRef<
 
       {(loading || total > 0) && (
         <div className="mt-3">
-          <DataTable
-            title={<h3 className="text-sm font-medium text-text-secondary">{title}</h3>}
-            storageKey="panou-projects"
-            columns={columnsWithPin}
-            data={projects}
-            rowKey={(row) => row.id}
-            rowAccentColor={(row) => row.color ?? 'var(--color-border-subtle)'}
-            loading={loading}
-            emptyMessage={emptyMessage}
-            sortBy={sortBy}
-            sortOrder={sortOrder}
-            onSortChange={handleSortChange}
-            defaultExpandedKeys={returnProjectId ? [returnProjectId] : undefined}
-            expandedRowFitsViewport
-            renderExpandedRow={(row) => (
-              <ProjectBreakdownRow
-                projectId={row.id}
-                source={statusGroup}
-                page={page}
-                onEdit={() => openEdit(row)}
-                onOpenReport={() => onOpenReport?.(row.id)}
+          {view === 'details' ? (
+            <>
+              <div className="mb-2 min-h-8">{titleRow}</div>
+              <ProjectDetailsList
+                projects={projects}
+                loading={loading}
+                defaultExpandedIds={returnProjectId ? [returnProjectId] : undefined}
+                renderActions={(row) => (
+                  <>
+                    {showPinColumn && (
+                      <ProjectPinButton project={row} onToggled={handlePinToggled} />
+                    )}
+                    {onOpenReport && (
+                      <ProjectRowActions
+                        project={row}
+                        onEdit={openEdit}
+                        onOpenReport={onOpenReport}
+                      />
+                    )}
+                  </>
+                )}
+                renderExpanded={(row) => (
+                  <ProjectBreakdownRow
+                    projectId={row.id}
+                    source={statusGroup}
+                    page={page}
+                    onEdit={() => openEdit(row)}
+                    onOpenReport={() => onOpenReport?.(row.id)}
+                    activitiesOnly
+                  />
+                )}
               />
-            )}
-          />
+            </>
+          ) : (
+            <DataTable
+              title={titleRow}
+              storageKey="panou-projects"
+              columns={columnsWithPin}
+              data={projects}
+              rowKey={(row) => row.id}
+              rowAccentColor={(row) => row.color ?? 'var(--color-border-subtle)'}
+              loading={loading}
+              emptyMessage={emptyMessage}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortChange={handleSortChange}
+              defaultExpandedKeys={returnProjectId ? [returnProjectId] : undefined}
+              expandedRowFitsViewport
+              renderExpandedRow={(row) => (
+                <ProjectBreakdownRow
+                  projectId={row.id}
+                  source={statusGroup}
+                  page={page}
+                  onEdit={() => openEdit(row)}
+                  onOpenReport={() => onOpenReport?.(row.id)}
+                />
+              )}
+            />
+          )}
           {!loading && total > 0 && (
             <Pagination
               page={page}
@@ -604,6 +660,7 @@ export function PanouProjectsView() {
   // report reopens it only when that project is a finished one — its status is
   // known once the fișa itself has loaded.
   const [completedOpen, setCompletedOpen] = useState(returnPoint?.source === 'completed');
+  const [view, setView] = useViewPreference('panou-projects', TABLE_DETAILS_VIEW_IDS, 'table');
   const returnedToReportId = useRef(reportProjectId);
 
   const handleReportLoaded = useCallback((report: ProjectReportResponse) => {
@@ -665,6 +722,8 @@ export function PanouProjectsView() {
       <ProjectTableSection
         ref={inProgressTableRef}
         title="Proiecte în curs"
+        view={view}
+        titleAside={<ViewToggle options={TABLE_DETAILS_VIEWS} value={view} onChange={setView} />}
         statusGroup="in_progress"
         showPinColumn
         onOpenReport={setReportProjectId}
@@ -691,6 +750,10 @@ export function PanouProjectsView() {
           <ProjectTableSection
             ref={completedTableRef}
             title="Proiecte finalizate"
+            view={view}
+            titleAside={
+              <ViewToggle options={TABLE_DETAILS_VIEWS} value={view} onChange={setView} />
+            }
             statusGroup="completed"
             onOpenReport={setReportProjectId}
             readyForExecution={null}

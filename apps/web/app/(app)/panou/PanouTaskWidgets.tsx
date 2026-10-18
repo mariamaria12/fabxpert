@@ -198,7 +198,7 @@ export function PanouTaskWidgets() {
                   .map(({ project, overdueCount }) => (
                     <li key={project.id} className="border-t border-border-subtle">
                       <Link
-                        href={taskHref({ projectId: project.id })}
+                        href={taskHref({ projectId: project.id, returnAfter: true })}
                         className="flex items-center gap-3 px-3 py-2 text-sm transition-colors hover:bg-surface-hover"
                       >
                         <i

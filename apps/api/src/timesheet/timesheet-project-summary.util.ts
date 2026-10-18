@@ -537,6 +537,9 @@ export function shapePinnedProjectsSummary(
         assemblyCount: assemblyIndex?.assemblyCountByProject.get(row.projectId) ?? 0,
         progressPercent: null,
         piecesPerTon: null,
+        weight: null,
+        weldLengthMeters: null,
+        estimatedHours: null,
         totalMinutes: 0,
         activities: [],
       };

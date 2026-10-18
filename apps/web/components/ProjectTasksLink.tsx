@@ -9,6 +9,8 @@ interface ProjectTasksLinkProps {
   projectId: string;
   /** `cell` sits in a table column; `icon` is the compact button on a card. */
   variant: 'cell' | 'icon';
+  /** Cell only: drop the leading icon where a caption already names the tasks. */
+  hideIcon?: boolean;
 }
 
 function describe(openCount: number, overdueCount: number): string {
@@ -24,7 +26,7 @@ function describe(openCount: number, overdueCount: number): string {
  * office blockers shown next to the production progress. A project with no
  * tasks offers to start one instead (table) or shows nothing (card).
  */
-export function ProjectTasksLink({ projectId, variant }: ProjectTasksLinkProps) {
+export function ProjectTasksLink({ projectId, variant, hideIcon = false }: ProjectTasksLinkProps) {
   const { projectTaskCounts } = useTasks();
   const counts = projectTaskCounts.get(projectId);
 
@@ -34,7 +36,7 @@ export function ProjectTasksLink({ projectId, variant }: ProjectTasksLinkProps) 
     }
     return (
       <Link
-        href={taskHref({ projectId, create: true })}
+        href={taskHref({ projectId, create: true, returnAfter: true })}
         onClick={(event) => event.stopPropagation()}
         aria-label="Task nou pe acest proiect"
         title="Task nou pe acest proiect"
@@ -52,7 +54,7 @@ export function ProjectTasksLink({ projectId, variant }: ProjectTasksLinkProps) 
   if (variant === 'icon') {
     return (
       <Link
-        href={taskHref({ projectId })}
+        href={taskHref({ projectId, returnAfter: true })}
         onClick={(event) => event.stopPropagation()}
         aria-label={label}
         title={label}
@@ -66,14 +68,15 @@ export function ProjectTasksLink({ projectId, variant }: ProjectTasksLinkProps) 
 
   return (
     <Link
-      href={taskHref({ projectId })}
+      href={taskHref({ projectId, returnAfter: true })}
       onClick={(event) => event.stopPropagation()}
       aria-label={label}
       title={label}
       className="inline-flex items-center gap-1.5 rounded px-1.5 py-1 text-sm tabular-nums transition-colors hover:bg-surface"
     >
-      <i className={`ti ti-list-check text-base ${tone}`} aria-hidden="true" />
-      <span className="text-text-secondary">{openCount}</span>
+      {hideIcon ? null : <i className={`ti ti-list-check text-base ${tone}`} aria-hidden="true" />}
+      {/* Without the icon, the count itself carries the overdue red. */}
+      <span className={hideIcon ? tone : 'text-text-secondary'}>{openCount}</span>
       {overdueCount > 0 ? (
         <span className="inline-flex items-center gap-0.5 text-xs font-medium text-danger">
           <i className="ti ti-alert-triangle text-xs" aria-hidden="true" />

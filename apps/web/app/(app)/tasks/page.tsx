@@ -53,6 +53,20 @@ export default function TasksPage() {
   const projectId = searchParams.get('project');
   const openTaskId = searchParams.get('task');
   const creating = searchParams.get('new') === '1';
+  // Followed from a project elsewhere (panou, Proiecte): offer the way back.
+  const cameFromProject = searchParams.get('back') === '1';
+  // A "Task nou" the link itself started goes back there on its own; one
+  // started here with the button stays on this page.
+  const enteredCreatingRef = useRef(creating);
+  const returnAfterCreate = creating && cameFromProject && enteredCreatingRef.current;
+
+  const goBackToProject = useCallback(() => {
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push('/');
+  }, [router]);
 
   // Coming in on a project, everyone's tasks on it are what was asked for.
   const [scope, setScope] = useState<TaskListScope>(projectId ? 'all' : 'mine');
@@ -187,6 +201,16 @@ export default function TasksPage() {
 
   return (
     <div className="flex h-full flex-col">
+      {cameFromProject && (
+        <button
+          type="button"
+          onClick={goBackToProject}
+          className="mb-3 inline-flex items-center gap-1 self-start text-xs font-medium text-accent transition-opacity hover:opacity-80"
+        >
+          <i className="ti ti-arrow-left text-sm" aria-hidden="true" />
+          Înapoi la proiect
+        </button>
+      )}
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div className="hidden min-w-0 sm:block">
           <h1 className="text-[22px] font-medium text-text-primary">Task-uri</h1>
@@ -347,8 +371,20 @@ export default function TasksPage() {
         <TaskFormPanel
           lookups={lookups}
           initialProjectId={projectId}
-          onClose={() => setParams({ new: null })}
+          onClose={() => {
+            if (returnAfterCreate) {
+              goBackToProject();
+              return;
+            }
+            enteredCreatingRef.current = false;
+            setParams({ new: null });
+          }}
           onCreated={() => {
+            if (returnAfterCreate) {
+              goBackToProject();
+              return;
+            }
+            enteredCreatingRef.current = false;
             setParams({ new: null });
             void load();
           }}

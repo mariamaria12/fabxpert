@@ -665,6 +665,9 @@ export class TimesheetService {
           id: true,
           readyForExecution: true,
           piecesPerTon: true,
+          weight: true,
+          weldLengthMeters: true,
+          estimatedHours: true,
           visibleForRoles: {
             select: { id: true, name: true },
             orderBy: { name: 'asc' },
@@ -680,6 +683,9 @@ export class TimesheetService {
         {
           readyForExecution: project.readyForExecution,
           piecesPerTon: project.piecesPerTon,
+          weight: project.weight,
+          weldLengthMeters: project.weldLengthMeters,
+          estimatedHours: project.estimatedHours,
           visibleForRoles: project.visibleForRoles,
         },
       ]),
@@ -694,6 +700,9 @@ export class TimesheetService {
           visibleForRoles: meta?.visibleForRoles ?? [],
           progressPercent: progress.get(project.id) ?? null,
           piecesPerTon: meta?.piecesPerTon ?? null,
+          weight: meta?.weight ?? null,
+          weldLengthMeters: meta?.weldLengthMeters ?? null,
+          estimatedHours: meta?.estimatedHours ?? null,
         };
       }),
     };

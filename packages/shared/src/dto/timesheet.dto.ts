@@ -252,6 +252,12 @@ export type PinnedProjectSummaryRow = {
   progressPercent: number | null;
   /** Parts per ton typed in on the project — the card's complexity class. */
   piecesPerTon: number | null;
+  /** Project weight in kilograms; null until filled in. */
+  weight: number | null;
+  /** Linear meters of weld; null until measured. */
+  weldLengthMeters: number | null;
+  /** Estimated work hours; null until filled in. */
+  estimatedHours: number | null;
   totalMinutes: number;
   activities: ProjectSummaryActivityRow[];
 };

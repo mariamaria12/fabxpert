@@ -135,6 +135,28 @@ html {
     font-size: 20px;
     line-height: 1.35;
   }
+
+  /* The figures under the header grow only a little: six columns of them at
+     the enlarged sizes push every card to several lines. Captions stay small,
+     values a step up; anything inside a value (the progress %, chips) follows. */
+  .panou-pinned-large .panou-card-details :is(.text-\[10px\], .text-\[11px\], .text-xs, .text-sm):not(.ti) {
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .panou-pinned-large .panou-card-details .panou-detail-value:not(.ti) {
+    font-size: 17px;
+    line-height: 1.35;
+  }
+
+  .panou-pinned-large .panou-card-details .panou-detail-value {
+    height: 1.75rem;
+  }
+
+  /* The icon beside each caption. */
+  .panou-pinned-large .panou-card-details .text-base:not(.ti) {
+    font-size: 18px;
+  }
 }
 
 /* Welding loader — the torch runs the seam, the bead follows it, sparks fly.

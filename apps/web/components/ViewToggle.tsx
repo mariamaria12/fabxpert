@@ -13,6 +13,17 @@ export const TABLE_CALENDAR_VIEW_IDS: readonly TableCalendarView[] = TABLE_CALEN
   (option) => option.id,
 );
 
+export const TABLE_DETAILS_VIEWS = [
+  { id: 'table', label: 'Tabel', icon: 'ti-table' },
+  { id: 'details', label: 'Detaliat', icon: 'ti-layout-list' },
+] as const satisfies readonly ViewOption<string>[];
+
+export type TableDetailsView = (typeof TABLE_DETAILS_VIEWS)[number]['id'];
+
+export const TABLE_DETAILS_VIEW_IDS: readonly TableDetailsView[] = TABLE_DETAILS_VIEWS.map(
+  (option) => option.id,
+);
+
 interface ViewToggleProps<T extends string> {
   options: readonly ViewOption<T>[];
   value: T;

@@ -1,7 +1,15 @@
 'use client';
 
 import type { EmployeeRoleDto, ProjectVisibleRoleDto } from '@fabxpert/shared';
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { buildStableIndexMap, getRolePaletteColor } from '@/components/roleColors';
 import { getProjectFormEmployeeRoles } from '@/utils/projectFormLookups';
 
@@ -117,6 +125,82 @@ export function ProjectVisibleForRoleChips({
           color={roleChipColor(role, roleColorById)}
         />
       ))}
+    </span>
+  );
+}
+
+/**
+ * One chip and a "+N" for the rest, which opens the full list above it — for
+ * the card rows, where the chips must fit on a single line. Opens upward
+ * because the row sits at the bottom of a card that clips its overflow.
+ */
+export function ProjectVisibleForCompact({
+  roles,
+  readyForExecution,
+}: {
+  roles: ProjectVisibleRoleDto[] | undefined | null;
+  readyForExecution?: boolean;
+}) {
+  const roleColorById = useRoleColorById();
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLSpanElement>(null);
+  const list = roles ?? [];
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    function handlePointerDown(event: PointerEvent) {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  if (readyForExecution === false || list.length <= 1) {
+    return <ProjectVisibleForRoleChips roles={roles} readyForExecution={readyForExecution} />;
+  }
+
+  const [first, ...rest] = list;
+  const label = formatProjectVisibleForLabel(list, readyForExecution);
+
+  return (
+    <span ref={containerRef} className="relative inline-flex min-w-0 items-center gap-1">
+      <ReadOnlyRoleChip name={first.name} color={roleChipColor(first, roleColorById)} />
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((current) => !current);
+        }}
+        aria-expanded={open}
+        aria-label={`Vezi toate funcțiile: ${label}`}
+        title={label}
+        className={`${CHIP_CLASS} shrink-0 border-border-subtle text-text-secondary transition-colors hover:border-border hover:text-text-primary`}
+      >
+        +{rest.length}
+      </button>
+      {open && (
+        <span
+          role="dialog"
+          aria-label="Vizibil pentru"
+          className="absolute bottom-full left-0 z-30 mb-1 flex w-56 flex-col gap-1.5 rounded-lg border border-border bg-surface-popover p-2.5 shadow-popover"
+        >
+          <span className="text-[11px] text-text-muted">Vizibil pentru</span>
+          <ProjectVisibleForRoleChips roles={roles} readyForExecution={readyForExecution} />
+        </span>
+      )}
     </span>
   );
 }

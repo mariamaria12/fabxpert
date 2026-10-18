@@ -390,7 +390,7 @@ export function DataTable<T>({
     <div className="w-full">
       {(title || (showColumnMenu && hideableColumns.length > 0)) && (
         <div className="mb-2 flex min-h-8 items-center justify-between gap-3">
-          <div className="min-w-0">{title}</div>
+          <div className="min-w-0 flex-1">{title}</div>
           {showColumnMenu && hideableColumns.length > 0 && (
             <div className="relative" ref={columnMenuRef}>
               <button

@@ -2,30 +2,24 @@
 
 import type { PinnedProjectSummaryRow, ProjectDto } from '@fabxpert/shared';
 import { updateProject } from '@fabxpert/shared';
-import { useState } from 'react';
+import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { AssemblyIcon } from '@/components/AssemblyIcon';
 import { FinisajBadge } from '@/components/FinisajBadge';
-import { ProjectComplexityBadge } from '@/components/ProjectComplexityBadge';
 import { AssemblyListScreen } from '@/app/(app)/projects/AssemblyListScreen';
 import { ActivityBreakdownRows } from './ActivityBreakdownRows';
 import type { PanouReturnPoint } from './panouReturnPoint';
 import { allTimePeriod } from '@/utils/timesheetListNavigation';
+import { taskHref } from '@/utils/taskNavigation';
 import { NEUTRAL_ACCENT, panouAccentTint } from './panouColors';
-import { ProjectTasksLink } from '@/components/ProjectTasksLink';
 import { PanouProjectCard } from './PanouProjectCard';
+import { PinnedProjectDetails } from './PinnedProjectDetails';
 import { pinToggleToastMessage } from './ProjectPinButton';
 import type { DraggableAttributes } from '@dnd-kit/core';
 import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities';
-import {
-  formatProjectTimelineRange,
-  getProjectDaysRemainingLabel,
-  getProjectTimelineDates,
-  isProjectTimelineOverdue,
-} from './panouProjectTimeline';
-import { ProjectVisibleForCardMeta } from './panouProjectVisibility';
 
 export type DragHandleProps = {
   attributes: DraggableAttributes;
@@ -78,34 +72,6 @@ function PinnedProjectPinButton({
   );
 }
 
-/**
- * Opens the "De făcut / Realizate" view of the project's list. Lives in the
- * card's right-hand column with the other actions, under the edit pencil.
- */
-function PinnedProjectAssembliesButton({
-  count,
-  onOpen,
-}: {
-  count: number;
-  onOpen: () => void;
-}) {
-  const label = `Vezi cele ${count} ansamble`;
-  return (
-    <button
-      type="button"
-      onClick={(event) => {
-        event.stopPropagation();
-        onOpen();
-      }}
-      aria-label={label}
-      title={label}
-      className="flex size-7 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-raised hover:text-accent"
-    >
-      <AssemblyIcon className="text-lg" />
-    </button>
-  );
-}
-
 /** Opens the project's fișa (the report Rapoarte shows), under the edit pencil. */
 function PinnedProjectReportButton({ onOpen }: { onOpen: () => void }) {
   return (
@@ -115,12 +81,109 @@ function PinnedProjectReportButton({ onOpen }: { onOpen: () => void }) {
         event.stopPropagation();
         onOpen();
       }}
-      aria-label="Deschide fișa proiectului"
-      title="Deschide fișa proiectului"
-      className="flex size-7 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-raised hover:text-accent"
+      aria-label="Rapoarte"
+      title="Rapoarte"
+      className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border-subtle text-text-muted transition-colors hover:bg-surface-raised hover:text-accent"
     >
-      <i className="ti ti-report-analytics text-lg leading-none" aria-hidden="true" />
+      <i className="ti ti-chart-bar text-base leading-none" aria-hidden="true" />
     </button>
+  );
+}
+
+/** The rarer actions, kept off the card face: the assembly list and the tasks. */
+function PinnedProjectMoreMenu({
+  projectId,
+  assemblyCount,
+  onOpenAssemblies,
+}: {
+  projectId: string;
+  assemblyCount: number;
+  onOpenAssemblies: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    function handlePointerDown(event: PointerEvent) {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  const itemClass =
+    'flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-text-primary hover:bg-[var(--color-surface-popover-hover)]';
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Mai multe acțiuni"
+        title="Mai multe acțiuni"
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((current) => !current);
+        }}
+        className="flex size-6 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-raised hover:text-text-secondary"
+      >
+        <i className="ti ti-dots text-sm" aria-hidden="true" />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 top-full z-30 mt-1 w-52 rounded-lg border border-border bg-surface-popover py-1 shadow-popover"
+        >
+          {assemblyCount > 0 && (
+            <button
+              type="button"
+              role="menuitem"
+              className={itemClass}
+              onClick={() => {
+                setOpen(false);
+                onOpenAssemblies();
+              }}
+            >
+              <AssemblyIcon className="text-base text-text-muted" />
+              Vezi ansamblele
+            </button>
+          )}
+          <Link
+            role="menuitem"
+            href={taskHref({ projectId, returnAfter: true })}
+            className={itemClass}
+            onClick={() => setOpen(false)}
+          >
+            <i className="ti ti-list-check text-base text-text-muted" aria-hidden="true" />
+            Task-urile proiectului
+          </Link>
+          <Link
+            role="menuitem"
+            href={taskHref({ projectId, create: true, returnAfter: true })}
+            className={itemClass}
+            onClick={() => setOpen(false)}
+          >
+            <i className="ti ti-plus text-base text-text-muted" aria-hidden="true" />
+            Task nou pe proiect
+          </Link>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -170,20 +233,6 @@ export function PinnedProjectCard({
   returnPoint?: PanouReturnPoint;
 }) {
   const [assembliesOpen, setAssembliesOpen] = useState(false);
-  const timelineDates = getProjectTimelineDates(project.startDate, project.dueDate);
-  const timeline = timelineDates
-    ? (() => {
-        const { startDate, dueDate } = timelineDates;
-        const daysLabel = getProjectDaysRemainingLabel(dueDate);
-        const overdue = isProjectTimelineOverdue(dueDate);
-        return {
-          daysText: daysLabel.text,
-          daysClassName: daysLabel.className,
-          dateRange: formatProjectTimelineRange(startDate, dueDate),
-          overdue,
-        };
-      })()
-    : null;
 
   return (
     <>
@@ -192,42 +241,53 @@ export function PinnedProjectCard({
       title={project.code}
       status={project.status}
       titleSubline={project.denumireLucrare}
+      // Only the finish here: complexity lives in the details, once.
       infoContent={
-        <span className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
-          <FinisajBadge value={project.finisaj} />
-          <ProjectComplexityBadge piecesPerTon={project.piecesPerTon} />
-        </span>
+        project.finisaj ? (
+          <span className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
+            <FinisajBadge value={project.finisaj} />
+          </span>
+        ) : undefined
       }
-      sideActions={
-        <>
-          <PinnedProjectReportButton onOpen={onOpenReport} />
-          <ProjectTasksLink projectId={project.id} variant="icon" />
-          {project.assemblyCount > 0 && (
-            <PinnedProjectAssembliesButton
-              count={project.assemblyCount}
-              onOpen={() => setAssembliesOpen(true)}
-            />
-          )}
-        </>
+      sideActions={<PinnedProjectReportButton onOpen={onOpenReport} />}
+      hideLeadingIcon={!showPinButton}
+      cornerSlot={
+        dragHandleProps ? (
+          // A quarter circle in the corner the card's rounding cuts: out of the
+          // way of the content, and a big enough target to grab.
+          <button
+            type="button"
+            className="absolute bottom-0 left-0 z-10 flex size-7 cursor-grab items-end justify-start rounded-tr-full pb-1 pl-1 transition-colors active:cursor-grabbing"
+            style={{
+              backgroundColor: panouAccentTint(project.color, '24%'),
+              color: project.color ?? NEUTRAL_ACCENT,
+            }}
+            aria-label="Reordonează proiectul"
+            title="Trage pentru a reordona"
+            {...dragHandleProps.attributes}
+            {...dragHandleProps.listeners}
+          >
+            <i className="ti ti-grip-vertical text-sm leading-none" aria-hidden="true" />
+          </button>
+        ) : undefined
       }
-      hideLeadingIcon={!dragHandleProps && !showPinButton}
       titleHandleProps={titleHandleProps}
       subtitle={project.company.name}
-      metaContent={
-        <ProjectVisibleForCardMeta
-          roles={project.visibleForRoles}
-          readyForExecution={project.readyForExecution}
+      detailsContent={
+        <PinnedProjectDetails
+          project={project}
+          expanded={expanded}
+          onToggle={onToggle}
+          onOpenAssemblies={() => setAssembliesOpen(true)}
         />
       }
-      timeline={timeline}
       totalMinutes={project.totalMinutes}
       progressPercent={project.progressPercent}
       expanded={expanded}
       onToggle={onToggle}
       leadingSlot={
-        !dragHandleProps && !showPinButton ? undefined : (
-        <div className="mt-0.5 flex shrink-0 flex-col items-center gap-0.5">
-          {showPinButton && (
+        showPinButton ? (
+          <div className="mt-0.5 flex shrink-0 flex-col items-center gap-0.5">
             <PinnedProjectPinButton
               project={project}
               onUnpinned={(updated) => {
@@ -236,22 +296,19 @@ export function PinnedProjectCard({
                 }
               }}
             />
-          )}
-          {dragHandleProps && (
-            <button
-              type="button"
-              className="flex size-8 cursor-grab items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-raised hover:text-text-secondary active:cursor-grabbing"
-              aria-label="Reordonează proiectul"
-              {...dragHandleProps.attributes}
-              {...dragHandleProps.listeners}
-            >
-              <i className="ti ti-grip-vertical text-base" aria-hidden="true" />
-            </button>
-          )}
-        </div>
-        )
+          </div>
+        ) : undefined
       }
-      durationTopActions={<PinnedProjectEditButton onEdit={onEdit} />}
+      durationTopActions={
+        <>
+          <PinnedProjectEditButton onEdit={onEdit} />
+          <PinnedProjectMoreMenu
+            projectId={project.id}
+            assemblyCount={project.assemblyCount}
+            onOpenAssemblies={() => setAssembliesOpen(true)}
+          />
+        </>
+      }
       expandedContent={
         project.activities.length > 0 ? (
           <ActivityBreakdownRows
