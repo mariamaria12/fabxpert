@@ -2,20 +2,19 @@
 
 import type { PinnedProjectSummaryRow, ProjectDto } from '@fabxpert/shared';
 import { updateProject } from '@fabxpert/shared';
-import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
-import { AssemblyIcon } from '@/components/AssemblyIcon';
 import { AssemblyListScreen } from '@/app/(app)/projects/AssemblyListScreen';
+import { FinisajBadge } from '@/components/FinisajBadge';
 import { ActivityBreakdownRows } from './ActivityBreakdownRows';
 import type { PanouReturnPoint } from './panouReturnPoint';
 import { allTimePeriod } from '@/utils/timesheetListNavigation';
-import { taskHref } from '@/utils/taskNavigation';
 import { NEUTRAL_ACCENT, panouAccentTint } from './panouColors';
 import { PanouProjectCard } from './PanouProjectCard';
 import { PinnedProjectDetails } from './PinnedProjectDetails';
+import { ProjectVisibleForChipSummary } from './panouProjectVisibility';
 import { pinToggleToastMessage } from './ProjectPinButton';
 import type { DraggableAttributes } from '@dnd-kit/core';
 import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities';
@@ -89,103 +88,6 @@ function PinnedProjectReportButton({ onOpen }: { onOpen: () => void }) {
   );
 }
 
-/** The rarer actions, kept off the card face: the assembly list and the tasks. */
-function PinnedProjectMoreMenu({
-  projectId,
-  assemblyCount,
-  onOpenAssemblies,
-}: {
-  projectId: string;
-  assemblyCount: number;
-  onOpenAssemblies: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    function handlePointerDown(event: PointerEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [open]);
-
-  const itemClass =
-    'flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-text-primary hover:bg-[var(--color-surface-popover-hover)]';
-
-  return (
-    <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label="Mai multe acțiuni"
-        title="Mai multe acțiuni"
-        onClick={(event) => {
-          event.stopPropagation();
-          setOpen((current) => !current);
-        }}
-        className="flex size-6 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-raised hover:text-text-secondary"
-      >
-        <i className="ti ti-dots text-sm" aria-hidden="true" />
-      </button>
-      {open && (
-        <div
-          role="menu"
-          className="absolute right-0 top-full z-30 mt-1 w-52 rounded-lg border border-border bg-surface-popover py-1 shadow-popover"
-        >
-          {assemblyCount > 0 && (
-            <button
-              type="button"
-              role="menuitem"
-              className={itemClass}
-              onClick={() => {
-                setOpen(false);
-                onOpenAssemblies();
-              }}
-            >
-              <AssemblyIcon className="text-base text-text-muted" />
-              Vezi ansamblele
-            </button>
-          )}
-          <Link
-            role="menuitem"
-            href={taskHref({ projectId, returnAfter: true })}
-            className={itemClass}
-            onClick={() => setOpen(false)}
-          >
-            <i className="ti ti-list-check text-base text-text-muted" aria-hidden="true" />
-            Task-urile proiectului
-          </Link>
-          <Link
-            role="menuitem"
-            href={taskHref({ projectId, create: true, returnAfter: true })}
-            className={itemClass}
-            onClick={() => setOpen(false)}
-          >
-            <i className="ti ti-plus text-base text-text-muted" aria-hidden="true" />
-            Task nou pe proiect
-          </Link>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function PinnedProjectEditButton({ onEdit }: { onEdit: () => void }) {
   return (
     <button
@@ -240,7 +142,23 @@ export function PinnedProjectCard({
       title={project.code}
       status={project.status}
       titleSubline={project.denumireLucrare}
-      // Finish and complexity live in the details row, once each.
+      // Finish and roles live in the details rows; phones lift them up here, under
+      // the client, so the rows below stay two columns wide.
+      infoContent={
+        <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+          {project.finisaj ? <FinisajBadge value={project.finisaj} /> : null}
+          <span className="inline-flex items-center gap-1" title="Vizibil pentru">
+            <i className="ti ti-eye text-sm text-text-muted" aria-hidden="true" />
+            <span className="sr-only">Vizibil pentru:</span>
+            <ProjectVisibleForChipSummary
+              roles={project.visibleForRoles}
+              readyForExecution={project.readyForExecution}
+            />
+          </span>
+        </span>
+      }
+      infoContentClassName="md:hidden"
+      stackActionsOnPhones
       sideActions={<PinnedProjectReportButton onOpen={onOpenReport} />}
       hideLeadingIcon={!showPinButton}
       cornerSlot={
@@ -291,16 +209,7 @@ export function PinnedProjectCard({
           </div>
         ) : undefined
       }
-      durationTopActions={
-        <>
-          <PinnedProjectEditButton onEdit={onEdit} />
-          <PinnedProjectMoreMenu
-            projectId={project.id}
-            assemblyCount={project.assemblyCount}
-            onOpenAssemblies={() => setAssembliesOpen(true)}
-          />
-        </>
-      }
+      durationTopActions={<PinnedProjectEditButton onEdit={onEdit} />}
       expandedContent={
         project.activities.length > 0 ? (
           <ActivityBreakdownRows

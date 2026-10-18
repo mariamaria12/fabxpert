@@ -25,6 +25,8 @@ export function PanouProjectCard({
   hideLeadingIcon,
   infoLine,
   infoContent,
+  infoContentClassName,
+  stackActionsOnPhones = false,
   titleHandleProps,
   subtitle,
   metaLine,
@@ -53,6 +55,13 @@ export function PanouProjectCard({
   infoLine?: string | null;
   /** Same slot, for rich content such as the finish badge. */
   infoContent?: ReactNode;
+  /** On the slot's wrapper, e.g. to show it on phones only. */
+  infoContentClassName?: string;
+  /**
+   * Phones: the status keeps the code's line to itself and the buttons beside
+   * it drop into a column underneath, so the title gets the width.
+   */
+  stackActionsOnPhones?: boolean;
   /** Makes the title row itself a drag handle (phones drag by holding the code). */
   titleHandleProps?: Record<string, unknown>;
   subtitle: string;
@@ -190,7 +199,7 @@ export function PanouProjectCard({
                 {subtitle}
               </span>
               {infoContent ? (
-                <span className="mt-1 flex min-w-0">{infoContent}</span>
+                <span className={`mt-1 flex min-w-0 ${infoContentClassName ?? ''}`}>{infoContent}</span>
               ) : info ? (
                 <span className="mt-0.5 block text-[11px] text-text-secondary [overflow-wrap:anywhere] md:truncate">
                   {info}
@@ -203,7 +212,11 @@ export function PanouProjectCard({
               and the hours below it. */}
           <div className="flex shrink-0 flex-col items-end gap-0.5 self-start">
             {(status || durationTopActions) && (
-              <div className="flex items-center gap-1">
+              <div
+                className={`flex items-center gap-1 ${
+                  stackActionsOnPhones ? 'max-md:flex-col max-md:items-end' : ''
+                }`}
+              >
                 {status && (
                   <span
                     className={`panou-card-status shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${getProjectStatusBadgeClassName(status)}`}

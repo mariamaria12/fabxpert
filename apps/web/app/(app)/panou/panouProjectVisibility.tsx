@@ -130,6 +130,38 @@ export function ProjectVisibleForRoleChips({
 }
 
 /**
+ * One chip and a plain "+N" for the rest, with the full list in the tooltip.
+ * For places that cannot hold a button, such as inside a card's title button.
+ */
+export function ProjectVisibleForChipSummary({
+  roles,
+  readyForExecution,
+}: {
+  roles: ProjectVisibleRoleDto[] | undefined | null;
+  readyForExecution?: boolean;
+}) {
+  const roleColorById = useRoleColorById();
+  const list = roles ?? [];
+
+  if (readyForExecution === false || list.length <= 1) {
+    return <ProjectVisibleForRoleChips roles={roles} readyForExecution={readyForExecution} />;
+  }
+
+  const [first, ...rest] = list;
+  return (
+    <span
+      className="inline-flex min-w-0 items-center gap-1"
+      title={formatProjectVisibleForLabel(list, readyForExecution)}
+    >
+      <ReadOnlyRoleChip name={first.name} color={roleChipColor(first, roleColorById)} />
+      <span className={`${CHIP_CLASS} shrink-0 border-border-subtle text-text-secondary`}>
+        +{rest.length}
+      </span>
+    </span>
+  );
+}
+
+/**
  * One chip and a "+N" for the rest, which opens the full list above it — for
  * the card rows, where the chips must fit on a single line. Opens upward
  * because the row sits at the bottom of a card that clips its overflow.
