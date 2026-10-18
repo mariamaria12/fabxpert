@@ -4,6 +4,7 @@ import { formatProjectDueDate, type PinnedProjectSummaryRow } from '@fabxpert/sh
 import type { ReactNode } from 'react';
 import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
 import { AssemblyIcon } from '@/components/AssemblyIcon';
+import { FinisajBadge } from '@/components/FinisajBadge';
 import { ProjectComplexityBadge } from '@/components/ProjectComplexityBadge';
 import { ProjectTasksLink } from '@/components/ProjectTasksLink';
 import { formatProjectWeight } from '@/utils/projectWeight';
@@ -134,8 +135,17 @@ export function PinnedProjectDetails({
   return (
     <div className="panou-card-details @container mt-2.5">
       <div
-        className={`grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border-subtle py-2.5 @xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_max-content] ${RULES}`}
+        className={`grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border-subtle py-2.5 @md:grid-cols-3 @xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_max-content] ${RULES}`}
       >
+        <Cell icon={<Icon name="ti-paint" />} label="Finisaj">
+          {project.finisaj ? (
+            <span className="flex min-w-0 items-center overflow-hidden" title={project.finisaj}>
+              <FinisajBadge value={project.finisaj} />
+            </span>
+          ) : (
+            <Empty />
+          )}
+        </Cell>
         <Cell icon={<Icon name="ti-weight" />} label="Greutate">
           {project.weight === null ? (
             <Empty />
@@ -166,20 +176,44 @@ export function PinnedProjectDetails({
         <div
           className={`grid min-w-0 flex-1 grid-cols-2 gap-x-4 gap-y-3 @xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,1.8fr)] ${RULES}`}
         >
-          <Cell icon={<AssemblyIcon />} label="Ansamble">
-            {project.assemblyCount === 0 ? (
-              <Empty />
-            ) : (
-              <button
-                type="button"
-                onClick={onOpenAssemblies}
-                title={`Vezi cele ${project.assemblyCount} ansamble`}
-                className="-mx-1 truncate rounded px-1 transition-colors hover:bg-surface-raised hover:text-accent"
-              >
-                {project.assemblyCount} {project.assemblyCount === 1 ? 'ansamblu' : 'ansamble'}
-              </button>
-            )}
-          </Cell>
+          {/* The icon opens the list window too — view, edit, add — even
+              before a list exists, so one can be started from here. */}
+          <div className="flex min-w-0 items-start gap-1.5">
+            <button
+              type="button"
+              onClick={onOpenAssemblies}
+              aria-label={
+                project.assemblyCount === 0
+                  ? 'Deschide lista de ansamble'
+                  : `Vezi cele ${project.assemblyCount} ansamble`
+              }
+              title={
+                project.assemblyCount === 0
+                  ? 'Deschide lista de ansamble'
+                  : `Vezi cele ${project.assemblyCount} ansamble`
+              }
+              className="-m-0.5 inline-flex w-6 shrink-0 justify-center rounded p-0.5 text-base text-text-muted transition-colors hover:bg-surface-raised hover:text-accent"
+            >
+              <AssemblyIcon />
+            </button>
+            <div className="min-w-0 flex-1">
+              <div className="panou-detail-label truncate text-[11px] text-text-muted">Ansamble</div>
+              <div className="panou-detail-value mt-0.5 flex h-6 min-w-0 items-center text-[13px] text-text-primary">
+                {project.assemblyCount === 0 ? (
+                  <Empty />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onOpenAssemblies}
+                    title={`Vezi cele ${project.assemblyCount} ansamble`}
+                    className="-mx-1 truncate rounded px-1 transition-colors hover:bg-surface-raised hover:text-accent"
+                  >
+                    {project.assemblyCount} {project.assemblyCount === 1 ? 'ansamblu' : 'ansamble'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
           {/* No caption: the eye says it. It sits where the other icons do and
               the chip on the values' line, so the row reads level. */}
           <div className="flex min-w-0 items-start gap-1.5" title="Vizibil pentru">

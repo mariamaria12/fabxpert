@@ -8,7 +8,6 @@ import { formatDurationMinutes } from '@/app/(app)/timesheets/timesheetFormat';
 import { useToast } from '@/context/ToastContext';
 import { apiErrorToastMessage } from '@/utils/apiToastMessage';
 import { AssemblyIcon } from '@/components/AssemblyIcon';
-import { FinisajBadge } from '@/components/FinisajBadge';
 import { AssemblyListScreen } from '@/app/(app)/projects/AssemblyListScreen';
 import { ActivityBreakdownRows } from './ActivityBreakdownRows';
 import type { PanouReturnPoint } from './panouReturnPoint';
@@ -241,14 +240,7 @@ export function PinnedProjectCard({
       title={project.code}
       status={project.status}
       titleSubline={project.denumireLucrare}
-      // Only the finish here: complexity lives in the details, once.
-      infoContent={
-        project.finisaj ? (
-          <span className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
-            <FinisajBadge value={project.finisaj} />
-          </span>
-        ) : undefined
-      }
+      // Finish and complexity live in the details row, once each.
       sideActions={<PinnedProjectReportButton onOpen={onOpenReport} />}
       hideLeadingIcon={!showPinButton}
       cornerSlot={
