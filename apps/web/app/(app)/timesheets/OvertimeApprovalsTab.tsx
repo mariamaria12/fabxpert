@@ -121,9 +121,7 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
         const next: Record<string, string> = {};
         for (const line of response.lines) {
           const typed =
-            sameMonth && isOvertimeLineAwaitingApproval(line)
-              ? current[line.person.id]
-              : undefined;
+            sameMonth && isOvertimeLineAwaitingApproval(line) ? current[line.person.id] : undefined;
           const stored =
             line.settledAt !== null && line.reserveMinutes > 0
               ? reserveToInput(line.reserveMinutes)
@@ -220,9 +218,7 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
   // On a line approved before, only what the reapproval adds is still to pay.
   const pendingPaid = pending.reduce(
     (sum, line) =>
-      sum +
-      paidWithReserve(line, reserves[line.person.id] ?? '') -
-      (line.approvedPaidMinutes ?? 0),
+      sum + paidWithReserve(line, reserves[line.person.id] ?? '') - (line.approvedPaidMinutes ?? 0),
     0,
   );
   const pendingCarried = pending.reduce(
@@ -427,11 +423,6 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
             <h1 className="text-[22px] font-medium text-text-primary">Aprobări ore suplimentare</h1>
             <OvertimeApprovalsInfo />
           </div>
-          <p className="mt-0.5 text-sm text-text-muted">
-            În ultima săptămână a lunii aprobi orele suplimentare rămase de plată și orele lucrate
-            sâmbăta, duminica și de sărbători. Doar orele suplimentare aprobate aici intră în
-            pontajul pentru contabilitate; orele de weekend apar acolo așa cum au fost pontate.
-          </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button
@@ -554,15 +545,6 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
           emptyMessage={emptyMessage}
         />
       </div>
-
-      {!loading && !error && lines.length > 0 ? (
-        <p className="mt-3 text-xs text-text-muted">
-          Se plătește tot soldul, mai puțin orele pe care le lași fiecăruia de recuperat. Datoriile
-          nu se plătesc — se reportează întregi în luna următoare. Orele de sâmbătă și duminică se
-          aprobă odată cu linia, așa cum au fost pontate, separat de sold. O lună aprobată se poate
-          reaproba: valorile se rescriu cu orele de acum, iar orele păstrate rămân aceleași.
-        </p>
-      ) : null}
     </div>
   );
 }

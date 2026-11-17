@@ -9,7 +9,11 @@ import {
   type LeaveType,
   formatPersonName,
 } from '@fabxpert/shared';
-import type { CalendarItem } from '@/components/calendar/CalendarView';
+import {
+  PUBLIC_HOLIDAY_LABEL,
+  PUBLIC_HOLIDAY_TINT,
+  type CalendarItem,
+} from '@/components/calendar/CalendarView';
 import { getLeaveStatusLabel, getLeaveTypeLabel } from '@/utils/leaveFormat';
 
 /** Each type keeps one palette, so a month reads at a glance. */
@@ -119,6 +123,14 @@ export function LeaveTypeLegend() {
           {option.label}
         </span>
       ))}
+      <span className="inline-flex items-center gap-1.5">
+        <span
+          className="inline-block size-2.5 rounded-sm border border-border"
+          style={{ backgroundColor: PUBLIC_HOLIDAY_TINT }}
+          aria-hidden="true"
+        />
+        {PUBLIC_HOLIDAY_LABEL}
+      </span>
       <span className="inline-flex items-center gap-1.5">
         <i className="ti ti-clock text-xs" aria-hidden="true" />
         contur punctat: în așteptare

@@ -3,9 +3,17 @@
 import { InfoDialogButton, InfoSection } from '@/components/InfoDialogButton';
 
 /** How a person's overtime balance is worked out, next to the "Ore suplimentare" title. */
-export function OvertimeRulesInfo() {
+export function OvertimeRulesInfo({ approvalStatus }: { approvalStatus?: string | null }) {
   return (
     <InfoDialogButton title="Cum se calculează orele suplimentare">
+      <InfoSection
+        title="Ce arată ecranul"
+        items={[
+          'Soldul fiecărei persoane peste norma zilnică, în luna aleasă.',
+          'Soldul acoperă doar luna afișată plus reportul din luna dinainte — orele mai vechi au fost deja plătite sau recuperate.',
+          ...(approvalStatus ? [approvalStatus] : []),
+        ]}
+      />
       <InfoSection
         title="Norma zilnică"
         items={[
@@ -37,7 +45,7 @@ export function OvertimeRulesInfo() {
         items={[
           'Soldul lunii: reportul din luna trecută, plus orele suplimentare ale lunii, minus recuperările luate și orele deja aprobate la plată.',
           'O zi de recuperare consumă din sold o zi din norma persoanei; recuperarea pe ore consumă orele cerute. „Zile de recuperat” arată câte zile întregi acoperă soldul.',
-          'Creionul de pe rând setează soldul manual și înlocuiește tot ce era înainte.',
+          'În luna curentă, creionul de pe rând setează manual soldul, înlocuind tot ce era înainte, și orele de weekend. În lunile trecute corectează doar orele de weekend.',
           'La final de lună, soldul se aprobă pentru plată în tab-ul „Aprobări”.',
         ]}
       />
@@ -53,7 +61,7 @@ export function OvertimeApprovalsInfo() {
         title="Ce aprobi"
         items={[
           'Pentru fiecare persoană, soldul lunii: reportul din luna trecută, plus orele suplimentare ale lunii, minus recuperările luate.',
-          'Orele lucrate sâmbăta, duminica și de sărbători legale, separat de sold. Cine are doar astfel de ore apare și el pe listă, începând cu octombrie 2026.',
+          'Orele lucrate sâmbăta, duminica și de sărbători legale, separat de sold. Se aprobă odată cu linia persoanei, așa cum au fost pontate. Cine are doar astfel de ore apare și el pe listă, începând cu octombrie 2026.',
           'O lună se poate aproba din ultima ei săptămână sau oricând după ce s-a încheiat.',
         ]}
       />
@@ -79,6 +87,48 @@ export function OvertimeApprovalsInfo() {
           'Soldul trece automat în luna următoare și se plătește când aprobi o lună de după ea.',
           'Până atunci orele nu ajung în contabilitate și se recalculează din pontaje, deci o corectură la un pontaj vechi schimbă soldul.',
           'O corecție manuală a soldului, cu creionul din „Ore suplimentare”, înlocuiește tot ce era înainte, inclusiv orele neaprobate.',
+        ]}
+      />
+    </InfoDialogButton>
+  );
+}
+
+/** What the accounting pontaj holds and how it is exported, next to its title. */
+export function AccountingTimesheetInfo() {
+  return (
+    <InfoDialogButton title="Cum funcționează pontajul pentru contabilitate">
+      <InfoSection
+        title="Ce arată ecranul"
+        items={[
+          'Ultimul pas al fluxului: orele lunii pe fiecare persoană, cu orele suplimentare aprobate incluse.',
+          'Personalul office nu apare pe pontaj.',
+          'Persoanele cu „prezență automată” (conducere, contabilitate) nu pontează: apar prezente în fiecare zi lucrătoare fără concediu aprobat.',
+          'Colaboratorii externi au lista lor, mai jos. Nu intră în documentul pentru contabilitate și nu sunt numărați nici în totaluri, nici la zilele fără pontaj — nu au un număr fix de zile.',
+        ]}
+      />
+      <InfoSection
+        title="Orele"
+        items={[
+          'Orele normale sunt orele pontate fără cele peste program.',
+          'Orele suplimentare sunt doar cele aprobate pentru plată în tab-ul „Aprobări”.',
+          'Orele de sâmbătă, de sărbători legale și de duminică se numără separat, așa cum au fost pontate, chiar și neaprobate.',
+        ]}
+      />
+      <InfoSection
+        title="Statusul liniei"
+        items={[
+          '„În pregătire”: persoana mai are ore suplimentare sau ore de weekend de aprobat.',
+          '„Gata pentru export”: tot ce era de aprobat în lună a fost aprobat.',
+          '„Exportat”: luna a fost descărcată pentru contabilitate.',
+        ]}
+      />
+      <InfoSection
+        title="Documentul"
+        items={[
+          'O zi cu pontaj sau cu recuperare aprobată e X, concediile apar cu codul lor (CO, CM, CFP), iar sâmbetele lucrate se numără separat.',
+          '„Vizualizează pontaj” arată documentul exact așa cum va fi exportat.',
+          '„Exportă” descarcă documentul și marchează luna ca exportată — reversibil.',
+          'Zilele lucrătoare fără pontaj trebuie lămurite înainte de export.',
         ]}
       />
     </InfoDialogButton>

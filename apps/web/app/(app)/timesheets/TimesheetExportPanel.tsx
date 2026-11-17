@@ -22,7 +22,7 @@ import {
   formatExportWorkerName,
   workDateMonthNumber,
 } from './timesheetFormat';
-import { WorkDateLegend, WorkDateText } from './WorkDateText';
+import { WorkDateText } from './WorkDateText';
 
 interface TimesheetExportPanelProps {
   open: boolean;
@@ -315,7 +315,6 @@ export function TimesheetExportPanel({
           </div>
         )}
 
-        <WorkDateLegend className="mb-2" />
         <DataTable
           // -v2 since the "Nume" column was inserted: saved orders from the old
           // key would otherwise place it after "Lună" instead of before it.

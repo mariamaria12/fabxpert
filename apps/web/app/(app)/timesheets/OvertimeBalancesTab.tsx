@@ -225,12 +225,12 @@ export function OvertimeBalancesTab({ active }: OvertimeBalancesTabProps) {
         <div>
           <div className="flex items-center gap-1.5">
             <h1 className="text-[22px] font-medium text-text-primary">Ore suplimentare</h1>
-            <OvertimeRulesInfo />
+            <OvertimeRulesInfo
+              approvalStatus={
+                !loading && !error && rows.length > 0 ? settledThroughLabel(rows) : null
+              }
+            />
           </div>
-          <p className="mt-0.5 text-sm text-text-muted">
-            Soldul fiecăruia peste norma zilnică, {formatMonthLabel(month).toLowerCase()}. Se
-            aprobă pentru plată la final de lună.
-          </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {lastUpdated ? (
@@ -314,18 +314,6 @@ export function OvertimeBalancesTab({ active }: OvertimeBalancesTabProps) {
           emptyMessage="Nicio persoană găsită."
         />
       </div>
-
-      {!loading && !error && rows.length > 0 ? (
-        <p className="mt-3 text-xs text-text-muted">
-          Soldul acoperă doar luna afișată plus reportul din luna dinainte — orele mai vechi au
-          fost deja plătite sau recuperate. Orele de sâmbătă, de sărbători legale și de duminică nu
-          intră în sold: se numără separat, exact cum au fost pontate.{' '}
-          {isCurrentMonth
-            ? 'Creionul setează manual soldul și orele de weekend. '
-            : 'Creionul corectează orele de weekend ale lunii. '}
-          {settledThroughLabel(rows)}
-        </p>
-      ) : null}
 
       <OvertimeCorrectionPanel
         row={editing}

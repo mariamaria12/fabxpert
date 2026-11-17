@@ -104,6 +104,7 @@ export function LeaveCalendarView({
         dayMarker={dayMarker}
         emptyMessage="Niciun concediu în această perioadă."
         legend={<LeaveTypeLegend />}
+        markPublicHolidays
       />
     </div>
   );

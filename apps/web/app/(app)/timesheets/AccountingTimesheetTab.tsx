@@ -25,6 +25,7 @@ import { downloadBlobFile } from '@/utils/downloadBlobFile';
 import { AccountingGapsPanel } from './AccountingGapsPanel';
 import { AccountingPreviewModal } from './AccountingPreviewModal';
 import { MonthPicker } from './MonthPicker';
+import { AccountingTimesheetInfo } from './OvertimeInfo';
 import { StatTile, StatTileRow } from './StatTile';
 import { formatHoursDecimal, formatRomanianDate, formatWeekendHours } from './timesheetFormat';
 import {
@@ -388,11 +389,12 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
     <div className="flex flex-col">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-[22px] font-medium text-text-primary">Pontaj pentru contabilitate</h1>
-          <p className="mt-0.5 text-sm text-text-muted">
-            Ultimul pas al fluxului: orele lunii pe fiecare persoană, cu orele suplimentare aprobate
-            incluse.
-          </p>
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-[22px] font-medium text-text-primary">
+              Pontaj pentru contabilitate
+            </h1>
+            <AccountingTimesheetInfo />
+          </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button
@@ -480,10 +482,8 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
           <div className="min-w-0 flex-1">
             <span className="font-semibold">{formatMonthLabel(month)} este exportată</span> —
             document generat la {formatExportedAt(report.export.exportedAt)}
-            {report.export.exportedBy
-              ? ` de ${formatPersonName(report.export.exportedBy)}`
-              : ''}
-            . Pontajele modificate după acest moment nu sunt în documentul trimis.
+            {report.export.exportedBy ? ` de ${formatPersonName(report.export.exportedBy)}` : ''}.
+            Pontajele modificate după acest moment nu sunt în documentul trimis.
           </div>
           <button
             type="button"
@@ -626,15 +626,7 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
         <div className="mt-6">
           <DataTable
             storageKey="accounting-timesheet-external-list"
-            title={
-              <div>
-                <h2 className="text-sm font-medium text-text-primary">Colaboratori externi</h2>
-                <p className="mt-0.5 text-xs text-text-muted">
-                  Nu intră în documentul pentru contabilitate și nu sunt numărați nici în totalurile
-                  de mai sus, nici la zilele fără pontaj — nu au un număr fix de zile.
-                </p>
-              </div>
-            }
+            title={<h2 className="text-sm font-medium text-text-primary">Colaboratori externi</h2>}
             columns={columns}
             data={externalLines}
             rowKey={(line) => line.person.id}
@@ -643,15 +635,9 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
         </div>
       ) : null}
 
-      {!loading && !error && lines.length > 0 ? (
+      {!loading && !error && hasFilters && lines.length > 0 ? (
         <p className="mt-3 text-xs text-text-muted">
-          {hasFilters ? `Se afișează ${visibleLines.length} din ${lines.length} persoane. ` : ''}
-          Personalul office nu apare pe pontaj. Persoanele cu „prezență automată” (conducere,
-          contabilitate) nu pontează: apar prezente în fiecare zi lucrătoare fără concediu aprobat.
-          Orele normale sunt orele pontate fără cele peste program; orele suplimentare sunt doar
-          cele aprobate pentru plată. În document, o zi cu pontaj sau cu recuperare aprobată e X,
-          concediile apar cu codul lor (CO, CM, CFP), iar sâmbetele lucrate se numără separat.
-          „Exportă” descarcă documentul și marchează luna ca exportată — reversibil.
+          Se afișează {visibleLines.length} din {lines.length} persoane.
         </p>
       ) : null}
 

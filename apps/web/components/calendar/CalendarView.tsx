@@ -1,6 +1,6 @@
 'use client';
 
-import { isWorkingDate, workDateToDayKey } from '@fabxpert/shared';
+import { isPublicHoliday, isWorkingDate, workDateToDayKey } from '@fabxpert/shared';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { startOfWeek, type CalendarMode, type CalendarState } from './useCalendarState';
@@ -71,6 +71,10 @@ function tint(color: string, amount: string): string {
   return `color-mix(in srgb, ${color} ${amount}, transparent)`;
 }
 
+/** The grey of a public holiday, for the cell and for a legend swatch. */
+export const PUBLIC_HOLIDAY_TINT = tint('var(--color-text-muted)', '24%');
+export const PUBLIC_HOLIDAY_LABEL = 'Zi liberă legală';
+
 interface CalendarViewProps {
   state: CalendarState;
   loading?: boolean;
@@ -84,6 +88,8 @@ interface CalendarViewProps {
   chipsPerDay?: number;
   emptyMessage: string;
   legend?: ReactNode;
+  /** Paints public holidays grey, apart from the weekends. */
+  markPublicHolidays?: boolean;
 }
 
 /**
@@ -100,6 +106,7 @@ export function CalendarView({
   chipsPerDay = 4,
   emptyMessage,
   legend,
+  markPublicHolidays = false,
 }: CalendarViewProps) {
   const { mode, setMode, anchor, setAnchor, range, shift, goToday } = state;
   const isMobile = useIsMobile();
@@ -118,6 +125,17 @@ export function CalendarView({
       : todayKey >= range.from && todayKey <= range.to
         ? todayKey
         : range.from;
+
+  function isMarkedHoliday(day: Date): boolean {
+    return markPublicHolidays && isPublicHoliday(day);
+  }
+
+  /** Style and tooltip of a day cell that is a marked public holiday. */
+  function holidayProps(day: Date) {
+    return isMarkedHoliday(day)
+      ? { style: { backgroundColor: PUBLIC_HOLIDAY_TINT }, title: PUBLIC_HOLIDAY_LABEL }
+      : {};
+  }
 
   function markerFor(key: string): CalendarDayMarker | null {
     if (dayMarker) {
@@ -189,13 +207,21 @@ export function CalendarView({
     const key = workDateToDayKey(day);
     const items = itemsByDay.get(key) ?? [];
     return (
-      <div key={key} className="rounded-lg border border-border-subtle p-3">
+      <div
+        key={key}
+        className="rounded-lg border border-border-subtle p-3"
+        style={holidayProps(day).style}
+      >
         <div className="mb-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             {dayNumber(day, key, 'size-7 text-sm')}
             <span className="text-xs font-medium capitalize text-text-secondary">
               {day.toLocaleDateString('ro-RO', { weekday: 'long', month: 'long' })}
             </span>
+            {/* Spelled out: a phone has no hover to explain the grey. */}
+            {isMarkedHoliday(day) ? (
+              <span className="text-[11px] text-text-muted">{PUBLIC_HOLIDAY_LABEL}</span>
+            ) : null}
           </div>
           {daySummary ? (
             <span className="text-[11px] text-text-muted">{daySummary(key)}</span>
@@ -245,6 +271,7 @@ export function CalendarView({
                     type="button"
                     onClick={() => setSelectedDay(key)}
                     aria-pressed={key === activeDay}
+                    {...(key === activeDay ? {} : holidayProps(day))}
                     className={`${border} flex min-h-[4rem] min-w-0 flex-col items-center gap-0.5 px-0.5 pt-1 pb-1 ${
                       key === activeDay
                         ? 'bg-accent/10'
@@ -296,6 +323,7 @@ export function CalendarView({
             return (
               <div
                 key={key}
+                {...holidayProps(day)}
                 className={`${border} min-h-[6.5rem] min-w-0 p-1.5 ${
                   isWorkingDate(day) ? '' : 'bg-surface-sunken/40'
                 }`}
@@ -328,6 +356,7 @@ export function CalendarView({
             return (
               <div
                 key={key}
+                {...holidayProps(day)}
                 className={`flex min-w-0 flex-col ${index === 6 ? '' : 'border-r border-border-subtle'} ${
                   isWorkingDate(day) ? '' : 'bg-surface-sunken/40'
                 }`}
@@ -386,18 +415,20 @@ export function CalendarView({
                       key={key}
                       type="button"
                       onClick={() => openMonthAt(day)}
-                      title={marker?.title}
+                      title={marker?.title ?? holidayProps(day).title}
                       style={
-                        marker && !isToday
-                          ? { backgroundColor: tint(marker.color, '30%') }
-                          : undefined
+                        isToday
+                          ? undefined
+                          : marker
+                            ? { backgroundColor: tint(marker.color, '30%') }
+                            : holidayProps(day).style
                       }
                       className={`mx-auto flex size-7 items-center justify-center rounded-full text-[11px] tabular-nums transition-colors hover:ring-1 hover:ring-border ${
                         isToday
                           ? 'bg-accent font-medium text-accent-contrast'
                           : marker
                             ? 'font-medium text-text-primary'
-                            : isWorkingDate(day)
+                            : isWorkingDate(day) || isMarkedHoliday(day)
                               ? 'text-text-secondary'
                               : 'text-text-muted'
                       }`}
