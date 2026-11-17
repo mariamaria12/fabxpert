@@ -171,6 +171,12 @@ export type OvertimeSettlementLineDto = {
    * pontaje corrected. Non-zero means the line waits to be approved again.
    */
   changeSinceApprovalMinutes: number;
+  /**
+   * How far "Ore sâmbătă" and "Ore duminică" moved since the approval. Zero
+   * when the approval did not record them — non-zero waits like the balance.
+   */
+  saturdayChangeSinceApprovalMinutes: number;
+  sundayChangeSinceApprovalMinutes: number;
 };
 
 /** What a month would settle to, without committing anything. */
@@ -241,8 +247,13 @@ export type AccountingTimesheetLineDto = {
   weekendDayMinutes: number[];
   /** Working days already past with neither a pontaj nor approved leave, as `YYYY-MM-DD`. */
   missingWorkingDays: string[];
-  /** Balance still waiting for approval; null once approved, or when nothing needs it. */
+  /**
+   * Balance still waiting for approval; null once approved, or when nothing
+   * needs it. Zero when only weekend hours wait.
+   */
   pendingBalanceMinutes: number | null;
+  /** Weekend hours wait too: never approved, or moved since the approval. */
+  pendingWeekendHours: boolean;
   status: AccountingTimesheetStatus;
   settledAt: string | null;
 };

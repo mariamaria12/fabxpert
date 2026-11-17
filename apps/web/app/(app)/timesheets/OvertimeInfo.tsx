@@ -53,6 +53,7 @@ export function OvertimeApprovalsInfo() {
         title="Ce aprobi"
         items={[
           'Pentru fiecare persoană, soldul lunii: reportul din luna trecută, plus orele suplimentare ale lunii, minus recuperările luate.',
+          'Orele lucrate sâmbăta, duminica și de sărbători legale, separat de sold. Cine are doar astfel de ore apare și el pe listă, începând cu octombrie 2026.',
           'O lună se poate aproba din ultima ei săptămână sau oricând după ce s-a încheiat.',
         ]}
       />
@@ -61,13 +62,13 @@ export function OvertimeApprovalsInfo() {
         items={[
           'Se plătește tot soldul, mai puțin orele pe care le păstrezi pentru recuperare, în coloana „Păstrate”. „Reportează tot” nu plătește nimic.',
           'Datoriile nu se plătesc: trec întregi în luna următoare.',
-          'Cifrele lunii se îngheață. Doar orele aprobate ajung în documentul pentru contabilitate; aplicația nu face plăți, doar pregătește lista.',
+          'Cifrele lunii se îngheață. Doar orele suplimentare aprobate ajung în documentul pentru contabilitate. Orele de sâmbătă și duminică apar acolo așa cum au fost pontate, chiar și neaprobate — linia rămâne însă „În pregătire” până le aprobi. Aplicația nu face plăți, doar pregătește lista.',
         ]}
       />
       <InfoSection
         title="După aprobare"
         items={[
-          'Dacă după aprobare se pontează sau se corectează ore în luna aprobată, persoana reapare la „În așteptare”, marcată „De reaprobat”. Reaprobarea plătește diferența, iar orele păstrate rămân aceleași.',
+          'Dacă după aprobare se pontează sau se corectează ore în luna aprobată, persoana reapare la „În așteptare”, marcată „De reaprobat” — la fel și dacă i se schimbă orele de sâmbătă sau duminică. Reaprobarea plătește diferența, iar orele păstrate rămân aceleași.',
           'Dacă aprobi înainte de sfârșitul lunii, reaprobă după ultima zi, ca să intre la plată și orele din zilele rămase.',
           'Orele nereaprobate nu se pierd: trec în luna următoare și se aprobă odată cu ea.',
         ]}

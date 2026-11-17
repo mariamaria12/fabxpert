@@ -59,9 +59,27 @@ function paidWithReserve(line: OvertimeSettlementLineDto, reserveInput: string):
   return line.balanceMinutes - Math.min(reserveToMinutes(reserveInput), line.balanceMinutes);
 }
 
+/** What moved on a line since its approval: "+2h, sâmbătă +7h 30m". */
+function changesSinceApproval(line: OvertimeSettlementLineDto): string {
+  return [
+    line.changeSinceApprovalMinutes !== 0
+      ? formatOvertimeBalance(line.changeSinceApprovalMinutes)
+      : null,
+    line.saturdayChangeSinceApprovalMinutes !== 0
+      ? `sâmbătă ${formatOvertimeBalance(line.saturdayChangeSinceApprovalMinutes)}`
+      : null,
+    line.sundayChangeSinceApprovalMinutes !== 0
+      ? `duminică ${formatOvertimeBalance(line.sundayChangeSinceApprovalMinutes)}`
+      : null,
+  ]
+    .filter((part) => part !== null)
+    .join(', ');
+}
+
 /**
  * Step 3 of the flow: in the last week of the month, approve what each person
- * is paid for the overtime they hold. Approving writes the settlement; a
+ * is paid for the overtime they hold, and the hours they worked on Saturdays,
+ * Sundays and public holidays. Approving writes the settlement; a
  * reserve is what the person keeps as time off instead of pay, and a debt is
  * carried, never paid.
  */
@@ -168,10 +186,22 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
         reserveMinutesByPerson,
         lines.map((line) => line.person.id),
       );
+      // Weekend hours are approved with the line: say so, or a line that has
+      // nothing else reads as if nothing was approved.
+      const weekendMinutes = lines.reduce(
+        (sum, line) => sum + (line.saturdayMinutes ?? 0) + (line.sundayMinutes ?? 0),
+        0,
+      );
+      const approvedHours = [
+        `${formatOvertimeHours(result.totalPaidMinutes)} suplimentare de plată`,
+        weekendMinutes > 0 ? `${formatOvertimeHours(weekendMinutes)} de weekend` : null,
+      ]
+        .filter((part) => part !== null)
+        .join(', ');
       showToast(
         lines.length === 1
-          ? `${formatMonthLabel(settledMonth)} aprobată pentru ${formatPersonName(lines[0].person)}: ${formatOvertimeHours(result.totalPaidMinutes)} de plată.`
-          : `${formatMonthLabel(settledMonth)} aprobată: ${formatOvertimeHours(result.totalPaidMinutes)} de plată pentru ${result.personsSettled} persoane.`,
+          ? `${formatMonthLabel(settledMonth)} aprobată pentru ${formatPersonName(lines[0].person)}: ${approvedHours}.`
+          : `${formatMonthLabel(settledMonth)} aprobată pentru ${result.personsSettled} persoane: ${approvedHours}.`,
         'success',
       );
       await Promise.all([loadPreview(month), refreshPendingCount()]);
@@ -329,13 +359,14 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
       width: '150px',
       render: (line) => {
         const badge = approvalBadge(line);
+        const changes = changesSinceApproval(line);
         return (
           <div>
             <span className={`${STATUS_BADGE_CLASS} ${badge.className}`}>{badge.label}</span>
             {line.settledAt ? (
               <div className="mt-1 text-[11px] text-text-muted">
-                {line.changeSinceApprovalMinutes !== 0
-                  ? `${formatOvertimeBalance(line.changeSinceApprovalMinutes)} după aprobarea din ${formatRomanianDate(line.settledAt)}`
+                {changes !== ''
+                  ? `${changes} după aprobarea din ${formatRomanianDate(line.settledAt)}`
                   : formatRomanianDate(line.settledAt)}
               </div>
             ) : null}
@@ -397,8 +428,9 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
             <OvertimeApprovalsInfo />
           </div>
           <p className="mt-0.5 text-sm text-text-muted">
-            În ultima săptămână a lunii aprobi ce rămâne de plată. Doar ce aprobi aici intră în
-            pontajul pentru contabilitate.
+            În ultima săptămână a lunii aprobi orele suplimentare rămase de plată și orele lucrate
+            sâmbăta, duminica și de sărbători. Doar orele suplimentare aprobate aici intră în
+            pontajul pentru contabilitate; orele de weekend apar acolo așa cum au fost pontate.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -526,7 +558,8 @@ export function OvertimeApprovalsTab({ active, onOpenAccounting }: OvertimeAppro
       {!loading && !error && lines.length > 0 ? (
         <p className="mt-3 text-xs text-text-muted">
           Se plătește tot soldul, mai puțin orele pe care le lași fiecăruia de recuperat. Datoriile
-          nu se plătesc — se reportează întregi în luna următoare. O lună aprobată se poate
+          nu se plătesc — se reportează întregi în luna următoare. Orele de sâmbătă și duminică se
+          aprobă odată cu linia, așa cum au fost pontate, separat de sold. O lună aprobată se poate
           reaproba: valorile se rescriu cu orele de acum, iar orele păstrate rămân aceleași.
         </p>
       ) : null}

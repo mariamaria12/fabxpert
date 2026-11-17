@@ -47,19 +47,32 @@ function localDayKey(iso: string): string {
 /** A day that is not an ordinary working one, called out on the pontaj lists. */
 export type SpecialWorkDay = { className: string; label: string };
 
+/** The days off a pontaj can fall on, in the order the legend lists them. */
+export const SPECIAL_WORK_DAYS = {
+  saturday: { className: 'text-day-saturday', label: 'Sâmbătă' },
+  holiday: { className: 'text-day-holiday', label: 'Sărbătoare legală' },
+  sunday: { className: 'text-day-sunday', label: 'Duminică' },
+} as const satisfies Record<string, SpecialWorkDay>;
+
 /**
- * Saturdays and public holidays read differently on a pontaj: neither is a
- * normal working day, and the hours on them are not counted like normal ones.
+ * Saturdays, Sundays and public holidays read differently on a pontaj: none
+ * is a normal working day, and the hours on them are counted apart. A Sunday
+ * stays a Sunday even on a public holiday, the way its hours are counted.
  */
 export function specialWorkDay(iso: string): SpecialWorkDay | null {
   const dayKey = localDayKey(iso);
+  const weekday = new Date(`${dayKey}T00:00:00`).getDay();
 
-  if (isPublicHoliday(dayKey)) {
-    return { className: 'text-danger-text', label: 'Sărbătoare legală' };
+  if (weekday === 0) {
+    return SPECIAL_WORK_DAYS.sunday;
   }
 
-  if (new Date(`${dayKey}T00:00:00`).getDay() === 6) {
-    return { className: 'text-warning-text', label: 'Sâmbătă' };
+  if (isPublicHoliday(dayKey)) {
+    return SPECIAL_WORK_DAYS.holiday;
+  }
+
+  if (weekday === 6) {
+    return SPECIAL_WORK_DAYS.saturday;
   }
 
   return null;

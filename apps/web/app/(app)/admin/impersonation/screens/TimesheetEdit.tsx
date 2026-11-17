@@ -6,10 +6,7 @@ import { useDurationInput } from '../hooks/useDurationInput';
 import { useMobileLookupCache } from '../context/MobileLookupCacheContext';
 import { useToast } from '../context/ToastContext';
 import { apiErrorToastMessage } from '../utils/apiToastMessage';
-import {
-  durationPartsFromEntry,
-  isEditableTodayEntry,
-} from '../utils/timeUtils';
+import { isEditableTodayEntry } from '../utils/timeUtils';
 import { deleteTimesheet, updateTimesheet } from '../impersonationApi';
 import { requestImpersonationConfirm } from '../impersonationSession';
 
@@ -36,10 +33,6 @@ function TrashIcon() {
 export function TimesheetEdit({ timesheet, onSaved, onCancel }: TimesheetEditProps) {
   const { showToast } = useToast();
   const { refreshMyTimesheetsPage1 } = useMobileLookupCache();
-  const entryParts = durationPartsFromEntry(timesheet);
-  const initialDurationHours = entryParts
-    ? entryParts.hours + entryParts.minutes / 60
-    : 1;
   const {
     hoursInput,
     setHoursInput,
@@ -51,7 +44,7 @@ export function TimesheetEdit({ timesheet, onSaved, onCancel }: TimesheetEditPro
     setHoursPreset,
     setMinutePreset,
     activeHourPreset,
-  } = useDurationInput(initialDurationHours);
+  } = useDurationInput(timesheet.durationMinutes / 60, true);
   const [notes, setNotes] = useState(timesheet.notes ?? '');
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -85,7 +78,8 @@ export function TimesheetEdit({ timesheet, onSaved, onCancel }: TimesheetEditPro
     try {
       await updateTimesheet(timesheet.id, {
         durationMinutes: Math.round(parsedDurationHours * 60),
-        notes: notes.trim() || undefined,
+        // Sent even when empty, so a note that was deleted is really cleared.
+        notes: notes.trim(),
       });
 
       showToast('Pontaj actualizat', 'success');

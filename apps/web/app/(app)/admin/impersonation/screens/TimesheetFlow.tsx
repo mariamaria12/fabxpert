@@ -7,7 +7,7 @@ import type {
   ProjectOptionDto,
   TimesheetDto,
 } from '@fabxpert/shared';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivitySelect } from './ActivitySelect';
 import { AppHeader } from './AppHeader';
 import { AssemblyQuantities } from './AssemblyQuantities';
@@ -17,7 +17,7 @@ import { LeaveRequestForm } from './LeaveRequestForm';
 import { MyLeaveRequests } from './MyLeaveRequests';
 import { MyTimesheets } from './MyTimesheets';
 import { ProjectSelect } from './ProjectSelect';
-import { TimeEntry } from './TimeEntry';
+import { TimeEntry, type TimeEntryDraft } from './TimeEntry';
 import { TimesheetEdit } from './TimesheetEdit';
 import { useProjectAssemblies } from '../hooks/useProjectAssemblies';
 import type { FlowStep } from '../types/flow';
@@ -39,6 +39,11 @@ export function TimesheetFlow({ user, onLogout }: TimesheetFlowProps) {
   const [editingLeaveRequest, setEditingLeaveRequest] = useState<LeaveRequestDto | null>(null);
   const [leaveListRefreshToken, setLeaveListRefreshToken] = useState(0);
   const projectAssemblies = useProjectAssemblies(selectedProject?.id ?? null);
+  /** Date, hours and notes of the pontaj being added; a ref, nothing renders from it. */
+  const timeEntryDraft = useRef<TimeEntryDraft | null>(null);
+  const handleTimeEntryDraftChange = useCallback((draft: TimeEntryDraft) => {
+    timeEntryDraft.current = draft;
+  }, []);
 
   const resetToProjectSelect = useCallback(() => {
     setStep('selectProject');
@@ -48,6 +53,7 @@ export function TimesheetFlow({ user, onLogout }: TimesheetFlowProps) {
     setProjectHasAssemblyList(true);
     setEditingTimesheet(null);
     setEditingLeaveRequest(null);
+    timeEntryDraft.current = null;
   }, []);
 
   const handleWordmarkPress = useCallback(() => {
@@ -81,8 +87,14 @@ export function TimesheetFlow({ user, onLogout }: TimesheetFlowProps) {
   function handleActivityChosen(activity: ActivityDto) {
     setSelectedActivity(activity);
     setAssemblySelection([]);
+    timeEntryDraft.current = null;
 
-    const hasList = !projectAssemblies.isLoaded || projectAssemblies.assemblies.length > 0;
+    // A list that failed to load is not an empty one: the picker shows the
+    // error and a retry, where skipping it would save the pontaj without pieces.
+    const hasList =
+      !projectAssemblies.isLoaded ||
+      projectAssemblies.error !== null ||
+      projectAssemblies.assemblies.length > 0;
     setProjectHasAssemblyList(hasList);
     setStep(asksForAssemblies(activity) && hasList ? 'selectAssemblies' : 'timeEntry');
   }
@@ -341,6 +353,8 @@ export function TimesheetFlow({ user, onLogout }: TimesheetFlowProps) {
             project={selectedProject}
             activity={selectedActivity}
             assemblies={assemblySelection}
+            draft={timeEntryDraft.current}
+            onDraftChange={handleTimeEntryDraftChange}
             onEditAssemblies={() => setStep('assemblyQuantities')}
             onSaved={resetToProjectSelect}
           />

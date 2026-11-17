@@ -28,7 +28,7 @@ import {
   formatTimesheetDuration,
   summarizeDayAssemblies,
 } from './timesheetFormat';
-import { WorkDateText } from './WorkDateText';
+import { WorkDateLegend, WorkDateText } from './WorkDateText';
 import { TimesheetDayGroupPanel } from './TimesheetDayGroupPanel';
 import { TimesheetCalendarView } from './TimesheetCalendarView';
 import { LeaveFormPanel } from '../concedii/LeaveFormPanel';
@@ -892,6 +892,8 @@ export function TimesheetListTab() {
         </div>
       ) : (
       <div className="mt-6">
+        {/* Above the table: the list loads on scroll and has no fixed end. */}
+        <WorkDateLegend className="mb-2" />
         <DataTable
           storageKey="timesheets-day-groups"
           columns={groupColumns}

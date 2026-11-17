@@ -107,10 +107,7 @@ export function combineHoursAndMinutes(
   return wholeHours + minutes / 60;
 }
 
-export function formatDurationInputDisplay(
-  wholeHours: number,
-  minutes: DurationMinutePreset,
-): string {
+export function formatDurationInputDisplay(wholeHours: number, minutes: number): string {
   if (wholeHours === 0 && minutes === 0) {
     return '';
   }
@@ -126,58 +123,46 @@ export function formatDurationInputDisplay(
   return `${wholeHours}h${minutes}m`;
 }
 
+/** The longest a single pontaj can be: a whole day. */
+const MAX_DURATION_MINUTES = 24 * 60;
+
+/**
+ * Reads a duration the way people type one: "7h", "7h30", "7h 30m", "7:30",
+ * "45m", "45 min", "7,5", "7.5h". Anything else is not a duration — it is
+ * never guessed at, so a typo shows as an error instead of saving other hours.
+ */
 export function parseDurationInputParts(value: string): {
   hours: number;
   minutes: number;
 } | null {
-  const trimmed = value.trim().toLowerCase();
-  if (trimmed === '') {
+  const text = value.trim().toLowerCase().replace(/\s+/g, '').replace(',', '.');
+  if (text === '') {
     return null;
   }
 
-  const hoursMinutesMatch = /^(\d+)h(?:(\d+)m)?$/.exec(trimmed);
-  if (hoursMinutesMatch) {
-    const hours = Number.parseInt(hoursMinutesMatch[1], 10);
-    const minutes = hoursMinutesMatch[2]
-      ? Number.parseInt(hoursMinutesMatch[2], 10)
-      : 0;
+  let totalMinutes: number | null = null;
 
-    if (minutes < 0 || minutes >= 60 || (hours === 0 && minutes === 0)) {
+  const hoursAndMinutes = /^(\d+)(?:h|:)(\d{1,2})(?:m|min)?$/.exec(text);
+  const minutesOnly = /^(\d+)(?:m|min)$/.exec(text);
+  const decimalHours = /^(\d+(?:\.\d+)?)h?$/.exec(text);
+
+  if (hoursAndMinutes) {
+    const minutes = Number.parseInt(hoursAndMinutes[2], 10);
+    if (minutes >= 60) {
       return null;
     }
-
-    return { hours, minutes };
+    totalMinutes = Number.parseInt(hoursAndMinutes[1], 10) * 60 + minutes;
+  } else if (minutesOnly) {
+    totalMinutes = Number.parseInt(minutesOnly[1], 10);
+  } else if (decimalHours) {
+    totalMinutes = Math.round(Number.parseFloat(decimalHours[1]) * 60);
   }
 
-  const minutesOnlyMatch = /^(\d+)m$/.exec(trimmed);
-  if (minutesOnlyMatch) {
-    const minutes = Number.parseInt(minutesOnlyMatch[1], 10);
-    if (minutes <= 0 || minutes >= 60) {
-      return null;
-    }
-
-    return { hours: 0, minutes };
+  if (totalMinutes === null || totalMinutes <= 0 || totalMinutes > MAX_DURATION_MINUTES) {
+    return null;
   }
 
-  if (hasFractionalHoursInput(trimmed)) {
-    const totalHours = parseHoursInput(trimmed);
-    if (totalHours === null) {
-      return null;
-    }
-
-    const totalMinutes = Math.round(totalHours * 60);
-    return {
-      hours: Math.floor(totalMinutes / 60),
-      minutes: totalMinutes % 60,
-    };
-  }
-
-  const wholeHours = parseWholeHoursInput(trimmed);
-  if (wholeHours !== null && wholeHours > 0) {
-    return { hours: wholeHours, minutes: 0 };
-  }
-
-  return null;
+  return { hours: Math.floor(totalMinutes / 60), minutes: totalMinutes % 60 };
 }
 
 export function getWholeHoursFromInput(value: string): number {

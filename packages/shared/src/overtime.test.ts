@@ -5,6 +5,7 @@ import {
   SATURDAY_WORK_MINUTES,
   accountingHours,
   approvedMonthCarry,
+  isOvertimeLineAwaitingApproval,
   countSaturdaysAndHolidaysWorked,
   countSaturdaysWorked,
   dailyWorkMinutesOf,
@@ -267,5 +268,30 @@ test('a reserve kept back is not on the pontaj, but a carried-in payout is', () 
   assert.equal(
     accountingHours({ loggedMinutes: 10260, earnedMinutes: 180, paidMinutes: 480 }).totalMinutes,
     10560,
+  );
+});
+
+test('a settlement line waits until approved, and again when its hours move', () => {
+  const approved = {
+    settledAt: '2026-11-02T08:00:00.000Z',
+    changeSinceApprovalMinutes: 0,
+    saturdayChangeSinceApprovalMinutes: 0,
+    sundayChangeSinceApprovalMinutes: 0,
+  };
+
+  assert.equal(isOvertimeLineAwaitingApproval({ ...approved, settledAt: null }), true);
+  assert.equal(isOvertimeLineAwaitingApproval(approved), false);
+  assert.equal(
+    isOvertimeLineAwaitingApproval({ ...approved, changeSinceApprovalMinutes: 60 }),
+    true,
+  );
+  // Weekend hours are approved with the line, so a change in them waits too.
+  assert.equal(
+    isOvertimeLineAwaitingApproval({ ...approved, saturdayChangeSinceApprovalMinutes: 450 }),
+    true,
+  );
+  assert.equal(
+    isOvertimeLineAwaitingApproval({ ...approved, sundayChangeSinceApprovalMinutes: -30 }),
+    true,
   );
 });

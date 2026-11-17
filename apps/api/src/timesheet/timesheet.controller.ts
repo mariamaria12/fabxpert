@@ -62,7 +62,12 @@ function parseListFilters(query: Record<string, string>) {
     createdAtTo: query.createdAtTo,
   });
 
-  const filters: TimesheetListFilters = result.success ? { ...result.data } : {};
+  // A filter that cannot be read is refused: dropping it would answer with
+  // everyone's pontaje, export included.
+  if (!result.success) {
+    throw new BadRequestException(result.error.issues[0]?.message ?? 'Invalid filters');
+  }
+  const filters: TimesheetListFilters = { ...result.data };
 
   const search = query.search?.trim();
   if (search) {

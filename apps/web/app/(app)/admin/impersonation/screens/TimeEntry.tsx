@@ -1,6 +1,6 @@
 import { parseWorkDateString, SATURDAY_WORK_MINUTES, todayDateInputValue } from '@fabxpert/shared';
 import type { ActivityDto, ProjectOptionDto } from '@fabxpert/shared';
-import { useMemo, useState, useId } from 'react';
+import { useEffect, useMemo, useState, useId } from 'react';
 import { AssemblySummary } from './AssemblySummary';
 import { DateField } from './DateField';
 import { DurationInput } from './DurationInput';
@@ -21,11 +21,22 @@ function defaultHoursFor(workDate: string): number {
   return isSaturday ? SATURDAY_WORK_MINUTES / 60 : DEFAULT_HOURS;
 }
 
+/** What was filled in on the time screen, kept while the worker steps away from it. */
+export type TimeEntryDraft = {
+  workDate: string;
+  /** Null while the duration field holds something that is not a duration. */
+  durationHours: number | null;
+  notes: string;
+};
+
 interface TimeEntryProps {
   project: ProjectOptionDto;
   activity: ActivityDto;
   /** Empty on the "helped with the assembling" path and on activities without a list. */
   assemblies: AssemblySelection[];
+  /** Filled in earlier for this same pontaj, before going back to the pieces. */
+  draft: TimeEntryDraft | null;
+  onDraftChange: (draft: TimeEntryDraft) => void;
   onEditAssemblies: () => void;
   onSaved: () => void;
 }
@@ -34,6 +45,8 @@ export function TimeEntry({
   project,
   activity,
   assemblies,
+  draft,
+  onDraftChange,
   onEditAssemblies,
   onSaved,
 }: TimeEntryProps) {
@@ -44,7 +57,7 @@ export function TimeEntry({
     [autofillTrapId],
   );
   const { refreshMyTimesheetsPage1 } = useMobileLookupCache();
-  const [workDate, setWorkDate] = useState(todayDateInputValue);
+  const [workDate, setWorkDate] = useState(() => draft?.workDate || todayDateInputValue());
   const {
     hoursInput,
     setHoursInput,
@@ -57,8 +70,17 @@ export function TimeEntry({
     setMinutePreset,
     activeHourPreset,
     applyDefaultHours,
-  } = useDurationInput(defaultHoursFor(workDate));
-  const [notes, setNotes] = useState('');
+  } = useDurationInput(
+    draft?.durationHours ?? defaultHoursFor(workDate),
+    draft != null && draft.durationHours !== null,
+  );
+  const [notes, setNotes] = useState(draft?.notes ?? '');
+
+  // Going back to fix the pieces takes this screen away; what was typed must
+  // still be here on the way back.
+  useEffect(() => {
+    onDraftChange({ workDate, durationHours: parsedDurationHours, notes });
+  }, [workDate, parsedDurationHours, notes, onDraftChange]);
   const [isSaving, setIsSaving] = useState(false);
 
   function handleWorkDateChange(value: string) {

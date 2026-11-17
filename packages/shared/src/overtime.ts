@@ -189,12 +189,22 @@ export function approvedMonthCarry(
   );
 }
 
-/** A settlement line waits while it was never approved, or its hours moved since. */
+/**
+ * A settlement line waits while it was never approved, or its hours moved
+ * since — the balance or the weekend hours approved with it.
+ */
 export function isOvertimeLineAwaitingApproval(line: {
   settledAt: string | null;
   changeSinceApprovalMinutes: number;
+  saturdayChangeSinceApprovalMinutes: number;
+  sundayChangeSinceApprovalMinutes: number;
 }): boolean {
-  return line.settledAt === null || line.changeSinceApprovalMinutes !== 0;
+  return (
+    line.settledAt === null ||
+    line.changeSinceApprovalMinutes !== 0 ||
+    line.saturdayChangeSinceApprovalMinutes !== 0 ||
+    line.sundayChangeSinceApprovalMinutes !== 0
+  );
 }
 
 /** Whole days off a balance covers — one day off costs a full day of the person's norm. */

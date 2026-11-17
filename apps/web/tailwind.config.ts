@@ -66,6 +66,12 @@ const config: Config = {
           border: 'var(--color-danger-border)',
           text: 'var(--color-danger-text)',
         },
+        // Days off on a pontaj, each with a colour of its own.
+        day: {
+          saturday: 'var(--color-day-saturday)',
+          holiday: 'var(--color-day-holiday)',
+          sunday: 'var(--color-day-sunday)',
+        },
         info: {
           DEFAULT: 'var(--color-info)',
           bg: 'var(--color-info-bg)',

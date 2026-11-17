@@ -440,6 +440,12 @@ model OvertimeSettlement {
   /// approval after that: weekend hours are counted apart, never in the balance.
   weekendApart Boolean @default(false)
 
+  /// "Ore sâmbătă" and "Ore duminică" as approved. Null on rows approved before
+  /// the approval covered them, and on months read with the weekend in the
+  /// balance: there is nothing to compare a later change against.
+  saturdayMinutes Int?
+  sundayMinutes   Int?
+
   /// carriedIn + earned − used = paid + carriedOut holds on every row.
   settledAt       DateTime @default(now())
   settledByUserId String?

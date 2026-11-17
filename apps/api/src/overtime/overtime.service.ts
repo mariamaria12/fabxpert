@@ -63,6 +63,13 @@ const MONTH_PATTERN = /^(\d{4})-(\d{2})$/;
  */
 const INCLUDE_EXTERNAL_EMPLOYEES = false;
 
+/**
+ * First month (`YYYY-MM`) whose weekend hours are approved with the month.
+ * Before it they were paid outside the app, so weekend hours alone do not put
+ * anyone on an older month's approval list.
+ */
+const WEEKEND_APPROVAL_FROM_MONTH = '2026-10';
+
 /** First day of `date`'s month, at midnight. */
 function startOfMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
@@ -261,6 +268,9 @@ type SettlementRow = {
   usedMinutes: number;
   paidMinutes: number;
   carriedOutMinutes: number;
+  /** Weekend hours as approved; null when the approval did not record them. */
+  saturdayMinutes: number | null;
+  sundayMinutes: number | null;
   settledAt: Date;
 };
 
@@ -271,6 +281,8 @@ const SETTLEMENT_SELECT = {
   usedMinutes: true,
   paidMinutes: true,
   carriedOutMinutes: true,
+  saturdayMinutes: true,
+  sundayMinutes: true,
   settledAt: true,
 } as const;
 
@@ -377,28 +389,45 @@ export class OvertimeService {
       to: startOfNextMonth(monthStart),
     });
 
-    return {
-      rows: persons.map((person) => {
-        // A correction made after the month did not exist then, so the month
-        // reads as it was.
-        const latestCorrection = source.correctionByPerson.get(person.id) ?? null;
-        const correction =
-          latestCorrection && formatMonth(latestCorrection.effectiveDate) > monthKey
-            ? null
-            : latestCorrection;
-        return {
-          person: toBalancePerson(person),
-          balance: this.buildBalance(
-            person.id,
-            settlementsByPerson.get(person.id) ?? [],
-            this.monthlyActivity(person.id, source, correction),
-            dailyWorkMinutesFor(source, person.id),
-            correction,
-            monthStart,
-          ),
-        };
-      }),
-    };
+    const rows: OvertimeBalancesResponse['rows'] = [];
+    for (const person of persons) {
+      // A correction made after the month did not exist then, so the month
+      // reads as it was.
+      const latestCorrection = source.correctionByPerson.get(person.id) ?? null;
+      const correction =
+        latestCorrection && formatMonth(latestCorrection.effectiveDate) > monthKey
+          ? null
+          : latestCorrection;
+      const personSettlements = settlementsByPerson.get(person.id) ?? [];
+      const balance = this.buildBalance(
+        person.id,
+        balanceSettlements(personSettlements, latestCorrection),
+        this.monthlyActivity(person.id, source, correction),
+        dailyWorkMinutesFor(source, person.id),
+        correction,
+        monthStart,
+      );
+
+      // Someone deactivated leaves the month once nothing in it is theirs: no
+      // pontaj, no leave, no approval and nothing carried in to work back.
+      const leftBehind =
+        balance.carriedInMinutes !== 0 ||
+        balance.earnedMinutes !== 0 ||
+        balance.usedMinutes !== 0 ||
+        (balance.saturdayMinutes ?? 0) + (balance.sundayMinutes ?? 0) > 0 ||
+        personSettlements.some((row) => formatMonth(row.month) === monthKey);
+      if (
+        hasDeactivatedAccount(person) &&
+        !leftBehind &&
+        !wasPresentInMonth(source, person.id, monthKey)
+      ) {
+        continue;
+      }
+
+      rows.push({ person: toBalancePerson(person), balance });
+    }
+
+    return { rows };
   }
 
   /** What settling `month` would do, without writing anything. */
@@ -421,8 +450,8 @@ export class OvertimeService {
   }
 
   /**
-   * Settles one past month for everyone who has a balance or a carried-in
-   * figure. Idempotent — settling again overwrites the row, which is how a
+   * Settles one past month for everyone who has a balance, a carried-in
+   * figure or weekend hours. Idempotent — settling again overwrites the row, which is how a
    * month is fixed after a backdated timesheet correction. The difference then
    * shows up in the months that follow, because they carry from here.
    */
@@ -454,6 +483,8 @@ export class OvertimeService {
             usedMinutes: line.usedMinutes,
             paidMinutes: line.paidMinutes,
             carriedOutMinutes: line.carriedOutMinutes,
+            saturdayMinutes: line.saturdayMinutes,
+            sundayMinutes: line.sundayMinutes,
             weekendApart,
             settledByUserId: actor.id,
           },
@@ -463,6 +494,8 @@ export class OvertimeService {
             usedMinutes: line.usedMinutes,
             paidMinutes: line.paidMinutes,
             carriedOutMinutes: line.carriedOutMinutes,
+            saturdayMinutes: line.saturdayMinutes,
+            sundayMinutes: line.sundayMinutes,
             settledAt: new Date(),
             settledByUserId: actor.id,
           },
@@ -643,7 +676,23 @@ export class OvertimeService {
     );
     const today = todayWorkDate();
 
-    const lines: AccountingTimesheetLineDto[] = persons.map((person) => {
+    // Someone deactivated who has nothing in the month is not on its pontaj:
+    // every working day would read as missing for a person who was not there.
+    // Auto-presence leaves no pontaj to go by, so those people stay through
+    // the month their account was last changed — the deactivation, usually.
+    const onPontaj = persons.filter(
+      (person) =>
+        !hasDeactivatedAccount(person) ||
+        (person.autoPresence &&
+          person.user !== null &&
+          monthKey <= formatMonth(person.user.updatedAt)) ||
+        wasPresentInMonth(source, person.id, monthKey) ||
+        settledByPerson.has(person.id) ||
+        pendingByPerson.has(person.id) ||
+        presenceByPerson.has(person.id),
+    );
+
+    const lines: AccountingTimesheetLineDto[] = onPontaj.map((person) => {
       const days = source.daysByPerson.get(person.id) ?? [];
       const loggedByDay = new Map(
         days.map((day) => [workDateToDayKey(day.workDate), day.loggedMinutes]),
@@ -659,6 +708,7 @@ export class OvertimeService {
       // Never logs time: present on every working day so far, unless on leave.
       const isAutoPresent = person.autoPresence;
       const markedPresent = presenceByPerson.get(person.id) ?? new Set<string>();
+      const weekendInBalance = readsWeekendInBalance(source, person.id, monthKey);
 
       // One code per calendar day. A day off gets no code: the grid shows the
       // hours logged on it instead.
@@ -686,7 +736,11 @@ export class OvertimeService {
           code = PRESENT_DAY_CODE;
         }
         dayCodes.push(code);
-        weekendDayMinutes.push(isWorking ? 0 : (loggedByDay.get(dayKey) ?? 0));
+        // On a month read with the weekend in the balance those hours are
+        // already in the overtime: written here too, they would count twice.
+        weekendDayMinutes.push(
+          isWorking || weekendInBalance ? 0 : (loggedByDay.get(dayKey) ?? 0),
+        );
 
         if (!isExternal && !isAutoPresent && isWorking && code === '' && isPast) {
           missingWorkingDays.push(dayKey);
@@ -696,7 +750,10 @@ export class OvertimeService {
       const loggedMinutes = sumBy(days, (day) => day.loggedMinutes);
       const split = accountingHours({
         loggedMinutes,
-        weekendMinutes: (activity.saturdayMinutes ?? 0) + (activity.sundayMinutes ?? 0),
+        // As logged: a weekend total corrected by hand moves no hours between
+        // the weekend and the working days.
+        weekendMinutes:
+          (activity.loggedSaturdayMinutes ?? 0) + (activity.loggedSundayMinutes ?? 0),
         earnedMinutes: activity.earnedMinutes,
         paidMinutes: settled?.paidMinutes ?? null,
       });
@@ -724,6 +781,12 @@ export class OvertimeService {
             ? pending.balanceMinutes
             : pending.changeSinceApprovalMinutes
           : null,
+        pendingWeekendHours:
+          pending !== null &&
+          (pending.settledAt === null
+            ? (pending.saturdayMinutes ?? 0) + (pending.sundayMinutes ?? 0) > 0
+            : pending.saturdayChangeSinceApprovalMinutes !== 0 ||
+              pending.sundayChangeSinceApprovalMinutes !== 0),
         status,
         settledAt: settled?.settledAt.toISOString() ?? null,
       };
@@ -881,10 +944,10 @@ export class OvertimeService {
   }
 
   /**
-   * One line per person who has something to settle. People with no activity
-   * and nothing carried in are skipped — a settlement row of all zeroes says
-   * nothing and would only make the month look busier than it was — unless
-   * they were approved already.
+   * One line per person who has something to settle: a balance, a carried-in
+   * figure, or hours on a Saturday, Sunday or public holiday. Everyone else is
+   * skipped — a settlement row of all zeroes says nothing and would only make
+   * the month look busier than it was — unless they were approved already.
    *
    * `personIds` narrows the lines to those people, so one person can be
    * approved on their own. Someone already approved keeps the reserve from
@@ -897,7 +960,7 @@ export class OvertimeService {
     personIds?: string[],
   ): Promise<SettlementLine[]> {
     const monthKey = formatMonth(monthStart);
-    const [persons, settlements, source] = await Promise.all([
+    const [persons, settlements, source, settledLater] = await Promise.all([
       this.listPersons(),
       this.prisma.overtimeSettlement.findMany({
         where: { month: { lte: monthStart } },
@@ -905,7 +968,12 @@ export class OvertimeService {
         orderBy: { month: 'desc' },
       }),
       this.loadOvertimeSource({ to: startOfNextMonth(monthStart) }),
+      this.prisma.overtimeSettlement.groupBy({
+        by: ['personId'],
+        where: { month: { gt: monthStart } },
+      }),
     ]);
+    const settledLaterPersonIds = new Set(settledLater.map((row) => row.personId));
 
     // Earlier months feed the carry-in; the month itself only says who is done.
     const settlementsByPerson = groupBy(
@@ -927,30 +995,51 @@ export class OvertimeService {
 
       const settled = settledByPerson.get(person.id) ?? null;
 
-      // A correction made after this month replaced its balance: nothing is
-      // left to approve. A month approved before the correction stays as it was.
+      // A month skipped while a later one was approved has nothing left: the
+      // later approval carried its hours in and paid them. Approving it now
+      // would pay them a second time.
+      if (!settled && settledLaterPersonIds.has(person.id)) {
+        continue;
+      }
+
+      // A correction made after this month replaced its balance: only its
+      // weekend hours are left to approve. A month approved before the
+      // correction stays as it was.
       const latestCorrection = source.correctionByPerson.get(person.id) ?? null;
       const correctedLater =
         latestCorrection !== null && formatMonth(latestCorrection.effectiveDate) > monthKey;
-      if (correctedLater && !settled) {
-        continue;
-      }
+      const balanceReplaced =
+        correctedLater && (!settled || isWeekendOnlyApproval(settled, latestCorrection));
       const correction = correctedLater ? null : latestCorrection;
 
       const activity = this.monthlyActivity(person.id, source, correction);
-      const carryIn = this.carriedInFor(
-        settlementsByPerson.get(person.id) ?? [],
-        activity,
-        monthKey,
-        correction,
-      );
+      const liveMonth = activity.get(monthKey) ?? NO_ACTIVITY;
+      const month = balanceReplaced
+        ? { ...liveMonth, earnedMinutes: 0, usedMinutes: 0 }
+        : liveMonth;
+      const carryIn: CarryIn = balanceReplaced
+        ? { minutes: 0, lastApproval: null }
+        : this.carriedInFor(
+            balanceSettlements(settlementsByPerson.get(person.id) ?? [], latestCorrection),
+            activity,
+            monthKey,
+            correction,
+          );
       const carriedInMinutes = carryIn.minutes;
-      const month = activity.get(monthKey) ?? NO_ACTIVITY;
       const balanceMinutes = carriedInMinutes + month.earnedMinutes - month.usedMinutes;
+      const weekendHoursMinutes =
+        monthKey >= WEEKEND_APPROVAL_FROM_MONTH
+          ? (month.saturdayMinutes ?? 0) + (month.sundayMinutes ?? 0)
+          : 0;
 
-      // An approved line stays even once its balance came back to nothing, so
+      // An approved line stays even once its hours came back to nothing, so
       // the change since the approval can still be seen and approved.
-      if (!settled && balanceMinutes === 0 && carriedInMinutes === 0) {
+      if (
+        !settled &&
+        balanceMinutes === 0 &&
+        carriedInMinutes === 0 &&
+        weekendHoursMinutes === 0
+      ) {
         continue;
       }
 
@@ -968,6 +1057,11 @@ export class OvertimeService {
           ? balanceMinutes -
             (settled.carriedInMinutes + settled.earnedMinutes - settled.usedMinutes)
           : 0;
+
+      // An approval a correction replaced is closed: approving it again would
+      // write back the balance the correction did away with, so its weekend
+      // hours are not compared either.
+      const approvedWeekend = settled && !isSupersededBy(settled, latestCorrection) ? settled : null;
 
       const lastApproval = correctedLater ? null : carryIn.lastApproval;
       const previousApprovalMoved =
@@ -991,6 +1085,14 @@ export class OvertimeService {
           settledAt: settled?.settledAt.toISOString() ?? null,
           approvedPaidMinutes: settled?.paidMinutes ?? null,
           changeSinceApprovalMinutes,
+          saturdayChangeSinceApprovalMinutes: weekendChange(
+            month.saturdayMinutes,
+            approvedWeekend?.saturdayMinutes,
+          ),
+          sundayChangeSinceApprovalMinutes: weekendChange(
+            month.sundayMinutes,
+            approvedWeekend?.sundayMinutes,
+          ),
         },
         weekendApart: !readsWeekendInBalance(source, person.id, monthKey),
         previousApproval:
@@ -1190,7 +1292,9 @@ export class OvertimeService {
   /**
    * Who a computation is about. Overtime keeps the INCLUDE_EXTERNAL_EMPLOYEES
    * default and everyone with a login; the pontaj for accounting asks for the
-   * external collaborators too and leaves the office staff out.
+   * external collaborators too and leaves the office staff out. Deactivated
+   * accounts are listed: each caller drops them from the months they have
+   * nothing in.
    */
   private listPersons(
     scope: {
@@ -1227,7 +1331,7 @@ export class OvertimeService {
         lastName: true,
         autoPresence: true,
         employeeRole: { select: { name: true } },
-        user: { select: { angajatExtern: true } },
+        user: { select: { angajatExtern: true, isActive: true, deletedAt: true, updatedAt: true } },
       },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     });
@@ -1411,7 +1515,12 @@ type PersonRow = {
   lastName: string;
   autoPresence: boolean;
   employeeRole: { name: string } | null;
-  user: { angajatExtern: boolean } | null;
+  user: {
+    angajatExtern: boolean;
+    isActive: boolean;
+    deletedAt: Date | null;
+    updatedAt: Date;
+  } | null;
 };
 
 function toBalancePerson(person: PersonRow): OvertimeBalancePersonDto {
@@ -1433,6 +1542,31 @@ function toCorrectionDto(correction: OvertimeCorrectionRow): OvertimeCorrectionD
     createdAt: correction.createdAt.toISOString(),
     createdBy: correction.createdBy?.person ?? null,
   };
+}
+
+/** A person without a login cannot be deactivated: they stay on every list. */
+function hasDeactivatedAccount(person: PersonRow): boolean {
+  return person.user !== null && (!person.user.isActive || person.user.deletedAt !== null);
+}
+
+/** Whether the person logged time or was on approved leave in `monthKey`. */
+function wasPresentInMonth(
+  source: Pick<OvertimeSourceData, 'daysByPerson' | 'leaveTypesByPersonDay'>,
+  personId: string,
+  monthKey: string,
+): boolean {
+  const logged = (source.daysByPerson.get(personId) ?? []).some(
+    (day) => day.loggedMinutes > 0 && formatMonth(day.workDate) === monthKey,
+  );
+  if (logged) {
+    return true;
+  }
+  for (const dayKey of source.leaveTypesByPersonDay.get(personId)?.keys() ?? []) {
+    if (dayKey.startsWith(monthKey)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /** A person without a login is on the payroll like anyone else; external is an explicit flag. */
@@ -1508,6 +1642,53 @@ function sumMonths(
   return minutes;
 }
 
+/**
+ * How far a weekend column moved since it was approved. Zero when either side
+ * is missing: the approval did not record it, or the month has no such column.
+ */
+function weekendChange(
+  liveMinutes: number | null,
+  approvedMinutes: number | null | undefined,
+): number {
+  return liveMinutes === null || approvedMinutes === null || approvedMinutes === undefined
+    ? 0
+    : liveMinutes - approvedMinutes;
+}
+
+/**
+ * An approval given after a later correction had already replaced the month's
+ * balance: it only ever covered the weekend hours, and stays that way.
+ */
+function isWeekendOnlyApproval(
+  settlement: SettlementRow,
+  correction: OvertimeCorrectionRow | null,
+): boolean {
+  return (
+    !isSupersededBy(settlement, correction) &&
+    settlement.carriedInMinutes === 0 &&
+    settlement.earnedMinutes === 0 &&
+    settlement.usedMinutes === 0
+  );
+}
+
+/**
+ * The settlements a balance is carried from. An approval that only covered
+ * weekend hours, given for a month a later correction had already replaced,
+ * holds no balance: carrying from it would start that month from nothing.
+ */
+function balanceSettlements<T extends SettlementRow>(
+  settlements: T[],
+  correction: OvertimeCorrectionRow | null,
+): T[] {
+  if (!correction) {
+    return settlements;
+  }
+  const correctionKey = formatMonth(correction.effectiveDate);
+  return settlements.filter(
+    (row) => formatMonth(row.month) >= correctionKey || !isWeekendOnlyApproval(row, correction),
+  );
+}
+
 /** A balance set by hand after an approval replaces whatever that approval left. */
 function isSupersededBy(
   settlement: { settledAt: Date },
@@ -1524,12 +1705,18 @@ function isSupersededBy(
  */
 function scanFrom(
   persons: { id: string }[],
-  settlementsByPerson: Map<string, { month: Date }[]>,
+  settlementsByPerson: Map<string, SettlementRow[]>,
 ): { from?: Date } {
   let earliest: Date | null = null;
 
   for (const person of persons) {
-    const lastSettled = latestMonth(settlementsByPerson.get(person.id) ?? []);
+    // An approval that holds no balance may have covered weekend hours alone,
+    // and then the carry comes from the one before it: scan from that one.
+    const lastSettled = latestMonth(
+      (settlementsByPerson.get(person.id) ?? []).filter(
+        (row) => row.carriedInMinutes !== 0 || row.earnedMinutes !== 0 || row.usedMinutes !== 0,
+      ),
+    );
     if (!lastSettled) {
       return {};
     }

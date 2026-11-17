@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { formatPersonName } from '@fabxpert/shared/personName';
 import { createTestApp } from './helpers/app';
 import { authHeader, login } from './helpers/auth';
 import { E2E_PASSWORD, FIXTURES } from './helpers/fixtures';
@@ -13,8 +14,9 @@ function localWorkDateOnly(daysOffset = 0): string {
   return `${year}-${month}-${day}`;
 }
 
+/** Family name first, the way the list writes a name and sorts by it. */
 function personDisplayName(row: { person: { firstName: string; lastName: string } }): string {
-  return `${row.person.firstName} ${row.person.lastName}`;
+  return formatPersonName(row.person);
 }
 
 describe('Timesheet list sort (e2e)', () => {
@@ -100,7 +102,7 @@ describe('Timesheet list sort (e2e)', () => {
 
     const personNames = byPersonAsc.body.data.map(personDisplayName);
     expect([...personNames].sort((a, b) => a.localeCompare(b))).toEqual(personNames);
-    expect(personNames[0]).toBe('Ana Popescu');
+    expect(personNames[0]).toBe('Ionescu Bogdan');
 
     const byPersonDesc = await request(app.getHttpServer())
       .get('/timesheets')
@@ -110,7 +112,7 @@ describe('Timesheet list sort (e2e)', () => {
 
     const personNamesDesc = byPersonDesc.body.data.map(personDisplayName);
     expect([...personNamesDesc].sort((a, b) => b.localeCompare(a))).toEqual(personNamesDesc);
-    expect(personNamesDesc[0]).toBe('Bogdan Ionescu');
+    expect(personNamesDesc[0]).toBe('Popescu Ana');
 
     const byProjectAsc = await request(app.getHttpServer())
       .get('/timesheets')

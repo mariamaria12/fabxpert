@@ -73,6 +73,10 @@
   --color-danger-bg: #450a0a;
   --color-danger-border: #991b1b;
   --color-danger-text: #fca5a5;
+  /* Days off on a pontaj: Saturday, public holiday, Sunday. */
+  --color-day-saturday: #fde047;
+  --color-day-holiday: #fb923c;
+  --color-day-sunday: #f87171;
   --color-info: #06b6d4;
   --color-info-bg: #083344;
   --color-info-border: #155e75;
@@ -233,6 +237,10 @@
   --color-danger-bg: #fef2f2;
   --color-danger-border: #fecaca;
   --color-danger-text: #991b1b;
+  /* Days off on a pontaj: Saturday, public holiday, Sunday. */
+  --color-day-saturday: #a16207;
+  --color-day-holiday: #c2410c;
+  --color-day-sunday: #b91c1c;
   --color-info: #0891b2;
   --color-info-bg: #ecfeff;
   --color-info-border: #a5f3fc;
@@ -344,6 +352,10 @@
   --color-danger-bg: rgba(181, 83, 60, 0.2);
   --color-danger-border: rgba(240, 149, 149, 0.35);
   --color-danger-text: #f09595;
+  /* Days off on a pontaj: Saturday, public holiday, Sunday. */
+  --color-day-saturday: #f2d264;
+  --color-day-holiday: #ee9450;
+  --color-day-sunday: #ec7868;
   --color-info: #60a5fa;
   --color-info-bg: rgba(96, 165, 250, 0.14);
   --color-info-border: rgba(96, 165, 250, 0.4);

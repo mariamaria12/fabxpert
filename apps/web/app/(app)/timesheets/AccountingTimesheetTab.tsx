@@ -218,6 +218,15 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
         );
         return;
       }
+      // A day skipped above is still blank — a leave request waiting for an
+      // answer covers it, or it turned up since the report was loaded.
+      if (fresh.totals.missingDays > 0) {
+        showToast(
+          `Au rămas ${fresh.totals.missingDays === 1 ? 'o zi lucrătoare' : `${fresh.totals.missingDays} zile lucrătoare`} fără pontaj. Verifică cererile de concediu în așteptare, apoi exportă din nou.`,
+          'error',
+        );
+        return;
+      }
       await handleExport();
     } catch (caught) {
       showToast(apiErrorToastMessage(caught), 'error');
@@ -350,9 +359,16 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
           </span>
           {line.pendingBalanceMinutes !== null ? (
             <div className="mt-1 text-[11px] text-text-muted">
-              {line.pendingBalanceMinutes > 0
-                ? `${formatOvertimeHours(line.pendingBalanceMinutes)} în așteptare, neincluse`
-                : `datorie de ${formatOvertimeHours(line.pendingBalanceMinutes)}, de aprobat`}
+              {[
+                line.pendingBalanceMinutes > 0
+                  ? `${formatOvertimeHours(line.pendingBalanceMinutes)} în așteptare, neincluse`
+                  : line.pendingBalanceMinutes < 0
+                    ? `datorie de ${formatOvertimeHours(line.pendingBalanceMinutes)}, de aprobat`
+                    : null,
+                line.pendingWeekendHours ? 'ore de weekend de aprobat' : null,
+              ]
+                .filter((part) => part !== null)
+                .join(' · ') || 'de aprobat'}
             </div>
           ) : null}
           {line.missingWorkingDays.length > 0 ? (
@@ -526,9 +542,12 @@ export function AccountingTimesheetTab({ active, onOpenApprovals }: AccountingTi
           <div className="min-w-0 flex-1">
             <span className="font-semibold">
               {totals.pendingCount === 1
-                ? '1 persoană așteaptă aprobarea orelor suplimentare'
-                : `${totals.pendingCount} persoane așteaptă aprobarea orelor suplimentare`}{' '}
-              ({formatOvertimeHours(totals.pendingBalanceMinutes)}).
+                ? '1 persoană așteaptă aprobarea orelor suplimentare sau de weekend'
+                : `${totals.pendingCount} persoane așteaptă aprobarea orelor suplimentare sau de weekend`}
+              {totals.pendingBalanceMinutes !== 0
+                ? ` (${formatOvertimeHours(totals.pendingBalanceMinutes)})`
+                : ''}
+              .
             </span>{' '}
             Dacă nu le aprobați, acestea nu se transmit în documentul de contabilitate.
           </div>

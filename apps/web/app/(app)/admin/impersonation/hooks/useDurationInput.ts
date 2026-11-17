@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   durationPartsFromTotalHours,
   formatDurationInputDisplay,
+  isDurationMinutePreset,
   getPresetMinutesFromInput,
   getWholeHoursFromInput,
   parseDurationInputParts,
@@ -13,15 +14,22 @@ const HOUR_STEP = 1;
 const STEPPER_MIN_HOURS = 0;
 const STEPPER_MAX_HOURS = 16;
 
-export function useDurationInput(initialTotalHours: number) {
-  const initialParts = durationPartsFromTotalHours(initialTotalHours);
+/**
+ * `startsEditedByHand` is for a duration the person already chose — one being
+ * edited, or one typed before leaving the screen — so no default replaces it.
+ */
+export function useDurationInput(initialTotalHours: number, startsEditedByHand = false) {
+  // The field starts from the exact duration: minutes outside the quick
+  // choices (7h20m) are kept, with none of the choices lit.
+  const initialTotalMinutes = Math.max(0, Math.round(initialTotalHours * 60));
+  const initialMinutes = initialTotalMinutes % 60;
   const [hoursInput, setHoursInput] = useState(
-    formatDurationInputDisplay(initialParts.hours, initialParts.minutes),
+    formatDurationInputDisplay(Math.floor(initialTotalMinutes / 60), initialMinutes),
   );
   const [selectedMinutes, setSelectedMinutes] = useState<DurationMinutePreset>(
-    initialParts.minutes,
+    isDurationMinutePreset(initialMinutes) ? initialMinutes : 0,
   );
-  const [editedByHand, setEditedByHand] = useState(false);
+  const [editedByHand, setEditedByHand] = useState(startsEditedByHand);
 
   const parsedDurationHours = resolveDurationHours(hoursInput, selectedMinutes);
   const canSave = parsedDurationHours !== null;

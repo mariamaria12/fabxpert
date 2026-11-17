@@ -1,4 +1,4 @@
-import type { AccountingTimesheetStatus } from '@fabxpert/shared';
+import { isOvertimeLineAwaitingApproval, type AccountingTimesheetStatus } from '@fabxpert/shared';
 
 /** Same shape as the leave status badges, so the two screens read alike. */
 export const STATUS_BADGE_CLASS = 'inline-flex rounded px-2 py-0.5 text-xs font-medium';
@@ -24,17 +24,17 @@ export function accountingStatusBadgeClassName(status: AccountingTimesheetStatus
  * A settlement line is waiting, approved, or approved but with hours that
  * moved since — then it waits to be approved again.
  */
-export function approvalBadge(line: {
-  settledAt: string | null;
-  changeSinceApprovalMinutes: number;
-}): { label: string; className: string } {
+export function approvalBadge(line: Parameters<typeof isOvertimeLineAwaitingApproval>[0]): {
+  label: string;
+  className: string;
+} {
   if (line.settledAt === null) {
     return {
       label: 'În așteptare',
       className: 'bg-status-in-productie-bg text-status-in-productie-text',
     };
   }
-  if (line.changeSinceApprovalMinutes !== 0) {
+  if (isOvertimeLineAwaitingApproval(line)) {
     return { label: 'De reaprobat', className: 'bg-warning-bg text-warning-text' };
   }
   return { label: 'Aprobat', className: 'bg-status-livrat-bg text-status-livrat-text' };
